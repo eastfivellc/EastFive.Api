@@ -71,7 +71,7 @@
       <Project>{aaa1724b-0787-4ce1-bad5-e3c930db07c1}</Project>
       <Name>BlackBarLabs.Api</Name>
     </ProjectReference>
-    <ProjectReference Include="..\BlackBarLabs.Web\BlackBarLabs.Web.csproj">
+    <ProjectReference Include="..\..\BlackBarLabs.Web\BlackBarLabs.Web.csproj">
       <Project>{5bb52391-2704-44c0-bc8a-dbbe31498814}</Project>
       <Name>BlackBarLabs.Web</Name>
     </ProjectReference>
