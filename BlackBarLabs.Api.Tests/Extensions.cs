@@ -20,7 +20,11 @@ namespace BlackBarLabs.Api.Tests
 
             var httpRequest = new HttpRequestMessage(method, "http://example.com");
             httpRequest.SetConfiguration(new HttpConfiguration());
-            
+
+            #region Mock Services
+
+            #region Mailer
+
             Func<BlackBarLabs.Web.ISendMailService> mailerServiceCreate =
                 () =>
                 {
@@ -35,15 +39,28 @@ namespace BlackBarLabs.Api.Tests
                 };
 
             httpRequest.Properties.Add(
-                BlackBarLabs.Api.ServicePropertyDefinitions.MailService,
+                ServicePropertyDefinitions.MailService,
                 mailerServiceCreate);
+
+            #endregion
+
+            #region Time
+
+            Func<DateTime> fetchDateTimeUtc =
+                () => DateTime.UtcNow;
+            httpRequest.Properties.Add(
+                BlackBarLabs.Api.ServicePropertyDefinitions.TimeService,
+                fetchDateTimeUtc);
+
+            #endregion
+
+            #endregion
 
             if (default(Action<HttpRequestMessage>) != mutateRequest)
                 mutateRequest(httpRequest);
             controller.Request = httpRequest;
             controller.User = new MockPrincipal(userId);
-
-
+            
             var methodName = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(method.ToString().ToLower());
             var methodInfo = typeof(TController).GetMethod(methodName);
 

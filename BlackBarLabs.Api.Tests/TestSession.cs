@@ -177,6 +177,22 @@ namespace BlackBarLabs.Api.Tests
             }
         }
 
+        private Func<DateTime> fetchDateTimeUtc;
+        public Func<DateTime> FetchDateTimeUtc
+        {
+            get
+            {
+                if (default(Func<DateTime>) != fetchDateTimeUtc)
+                    return fetchDateTimeUtc;
+
+                return () => DateTime.UtcNow;
+            }
+            set
+            {
+                fetchDateTimeUtc = value;
+            }
+        }
+
         private TestUser principalUser = default(TestUser);
         
         private HttpRequestMessage GetRequest<TController>(TController controller, HttpMethod method)
@@ -187,7 +203,11 @@ namespace BlackBarLabs.Api.Tests
             httpRequest.Properties.Add(
                 BlackBarLabs.Api.ServicePropertyDefinitions.MailService,
                 MailerServiceCreate);
-            
+
+            httpRequest.Properties.Add(
+                BlackBarLabs.Api.ServicePropertyDefinitions.TimeService,
+                FetchDateTimeUtc);
+
             controller.Request = httpRequest;
             if (default(System.Security.Principal.IPrincipal) != principalUser)
                 controller.User = principalUser;
