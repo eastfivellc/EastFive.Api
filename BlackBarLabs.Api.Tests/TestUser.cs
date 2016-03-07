@@ -8,29 +8,16 @@ using System.Threading.Tasks;
 
 namespace BlackBarLabs.Api.Tests
 {
-    public class TestUser : System.Security.Principal.IPrincipal
+    public class TestUser : IPrincipal
     {
-        public static Task<T> StartAsync<T>(Func<TestSession, TestUser, Task<T>> callback)
+        public async static Task StartAsync(Func<TestSession, TestUser, Task> callback)
         {
             var session = new TestSession();
-            var result = session.WithUserAsync(Guid.NewGuid(),
-                async (user) =>
-                {
-                    return await callback(session, user);
-                });
-            return result;
-        }
-
-        public static Task StartAsync(Func<TestSession, TestUser, Task> callback)
-        {
-            var session = new TestSession();
-            var result = session.WithUserAsync(Guid.NewGuid(),
+            await session.WithUserAsync(Guid.NewGuid(),
                 async (user) =>
                 {
                     await callback(session, user);
-                    return true;
                 });
-            return result;
         }
 
         public TestUser(TestSession session, Guid userId = default(Guid))

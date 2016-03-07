@@ -14,9 +14,9 @@ namespace BlackBarLabs.Api.Tests
 {
     public class TestSession
     {
-        public static Task<T> StartAsync<T>(Func<TestSession, Task<T>> callback)
+        public async static Task StartAsync(Func<TestSession, Task> callback)
         {
-            return callback(new TestSession());
+            await callback(new TestSession());
         }
         
         #region Methods
@@ -117,10 +117,10 @@ namespace BlackBarLabs.Api.Tests
 
         #region Request Modifiers
 
-        public async Task<T> WithUserAsync<T>(Guid userId, Func<TestUser, Task<T>> callback)
+        public async Task WithUserAsync(Guid userId, Func<TestUser, Task> callback)
         {
             this.principalUser = new TestUser(this, userId);
-            return await callback(this.principalUser);
+            await callback(this.principalUser);
 
             ////Get the Auth Token
             //var tokenUrl = "http://hgorderowltest.azurewebsites.net/token";
