@@ -105,9 +105,11 @@
     <Compile Include="Extensions\ResourceExtensions.cs" />
     <Compile Include="Extensions\ControllerExtensions.cs" />
     <Compile Include="Extensions\ValidationExtensions.cs" />
+    <Compile Include="Resources\MultipartResponse.cs" />
     <Compile Include="Resources\OptionsResource.cs" />
     <Compile Include="Resources\Resource.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Resources\Response.cs" />
     <Compile Include="ServicePropertyDefinitions.cs" />
   </ItemGroup>
   <ItemGroup>
