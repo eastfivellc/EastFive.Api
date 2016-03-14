@@ -16,7 +16,8 @@ namespace BlackBarLabs.Api.Resources
 
         public HttpStatusCode StatusCode { get; set; }
 
-        public ContentType ContentType { get; set; }
+        //public ContentType ContentType { get; set; }
+        public System.Net.Http.Headers.MediaTypeHeaderValue ContentType { get; set; }
 
         public object Content { get; set; }
     }
