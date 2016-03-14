@@ -73,16 +73,23 @@ namespace BlackBarLabs.Api.Tests
             return response;
         }
 
-        public async Task<TResult> GetAsync<TController, TResult>(object resource,
+        public async Task<HttpResponseMessage> GetAsync<TController>(object resource,
                 Action<HttpRequestMessage> mutateRequest = default(Action<HttpRequestMessage>))
             where TController : ApiController
         {
             var controller = GetController<TController>();
-            var response = await InvokeControllerAsync(controller, HttpMethod.Get,
+            return await InvokeControllerAsync(controller, HttpMethod.Get,
                 (request, user) =>
                 {
                     return resource;
                 });
+        }
+
+        public async Task<TResult> GetAsync<TController, TResult>(object resource,
+                Action<HttpRequestMessage> mutateRequest = default(Action<HttpRequestMessage>))
+            where TController : ApiController
+        {
+            var response = await this.GetAsync<TController>(resource, mutateRequest);
             var results = response.GetContent<TResult>();
             return results;
         }
@@ -91,12 +98,7 @@ namespace BlackBarLabs.Api.Tests
                 HttpActionDelegate<object, TResult> callback)
             where TController : ApiController
         {
-            var controller = GetController<TController>();
-            var response = await InvokeControllerAsync(controller, HttpMethod.Get,
-                (request, user) =>
-                {
-                    return resource;
-                });
+            var response = await this.GetAsync<TController>(resource);
             var results = callback(response, resource);
             return results;
         }
@@ -198,8 +200,19 @@ namespace BlackBarLabs.Api.Tests
         private HttpRequestMessage GetRequest<TController>(TController controller, HttpMethod method)
             where TController : ApiController
         {
-            var httpRequest = new HttpRequestMessage(method, "http://example.com");
-            httpRequest.SetConfiguration(new HttpConfiguration());
+            var hostingLocation = System.Configuration.ConfigurationManager.AppSettings["BlackBarLabs.Api.Tests.ServerUrl"];
+            if (String.IsNullOrWhiteSpace(hostingLocation))
+                hostingLocation = "http://example.com";
+            var httpRequest = new HttpRequestMessage(method, hostingLocation);
+            var config = new HttpConfiguration();
+            var route = config.Routes.MapHttpRoute(
+                name: "DefaultApi",
+                routeTemplate: "api/{controller}/{id}",
+                defaults: new { id = RouteParameter.Optional }
+            );
+            httpRequest.SetRouteData(new System.Web.Http.Routing.HttpRouteData(route));
+
+            httpRequest.SetConfiguration(config);
             httpRequest.Properties.Add(
                 BlackBarLabs.Api.ServicePropertyDefinitions.MailService,
                 MailerServiceCreate);
