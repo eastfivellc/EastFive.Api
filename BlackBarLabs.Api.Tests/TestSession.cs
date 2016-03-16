@@ -9,15 +9,23 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
+using BlackBarLabs.Api.Services;
 
 namespace BlackBarLabs.Api.Tests
 {
     public class TestSession
     {
-        public async static Task StartAsync(Func<TestSession, Task> callback)
+        public static async Task StartAsync(Func<TestSession, Task> callback)
         {
             await callback(new TestSession());
         }
+
+        public TestSession()
+        {
+            Id = Guid.NewGuid();
+            Headers = new Dictionary<string, string>();
+        }
+        public Guid Id { get; set; }
         
         #region Methods
 
@@ -123,17 +131,6 @@ namespace BlackBarLabs.Api.Tests
         {
             this.principalUser = new TestUser(this, userId);
             await callback(this.principalUser);
-
-            ////Get the Auth Token
-            //var tokenUrl = "http://hgorderowltest.azurewebsites.net/token";
-            //var userName = "test@test.com";
-            //var userPassword = "Testing0wer93@";
-            //var request = string.Format("grant_type=password&username={0}&password={1}", HttpUtility.UrlEncode(userName), HttpUtility.UrlEncode(userPassword));
-            //var tokenMeta = JObject.Parse(HttpPost(tokenUrl, request));
-            //var accessToken = tokenMeta["access_token"].ToString();//.ToObject<string>();
-
-            //Add the token
-            // httpRequest.Headers.Add("Authorization", "Bearer " + ""); //add this to the "" accessToken
         }
 
         #endregion
@@ -221,12 +218,24 @@ namespace BlackBarLabs.Api.Tests
                 BlackBarLabs.Api.ServicePropertyDefinitions.TimeService,
                 FetchDateTimeUtc);
 
+            httpRequest.Properties.Add(
+                BlackBarLabs.Api.ServicePropertyDefinitions.IdentityService,
+                new IdentityService(principalUser.Identity));
+
             controller.Request = httpRequest;
             if (default(System.Security.Principal.IPrincipal) != principalUser)
                 controller.User = principalUser;
 
+            principalUser.UpdateAuthorizationToken();
+            foreach (var headerKVP in Headers)
+            {
+                httpRequest.Headers.Add(headerKVP.Key, headerKVP.Value);
+            }
+            
             return httpRequest;
         }
+
+        public Dictionary<string, string> Headers { get; set; }
 
         private TController GetController<TController>()
             where TController : ApiController

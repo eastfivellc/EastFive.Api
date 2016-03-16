@@ -111,10 +111,9 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Resources\Response.cs" />
     <Compile Include="ServicePropertyDefinitions.cs" />
+    <Compile Include="Services\IdentityService.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Services\" />
-  </ItemGroup>
+  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="..\..\BlackBarLabs.Web\BlackBarLabs.Web.csproj">
       <Project>{5bb52391-2704-44c0-bc8a-dbbe31498814}</Project>
