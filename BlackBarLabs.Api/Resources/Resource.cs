@@ -47,7 +47,8 @@ namespace BlackBarLabs.Api
             {
                 if (default(IIdentityService) == this.identityService)
                 {
-                    this.identityService = (IIdentityService) this.Request.Properties[BlackBarLabs.Api.ServicePropertyDefinitions.IdentityService];
+                    if(this.Request.Properties.ContainsKey(BlackBarLabs.Api.ServicePropertyDefinitions.IdentityService))
+                        this.identityService = (IIdentityService) this.Request.Properties[BlackBarLabs.Api.ServicePropertyDefinitions.IdentityService];
                 }
                 return this.identityService;
             }
