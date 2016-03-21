@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net.Http;
 using System.Runtime.Serialization;
+using BlackBarLabs.Web.Services;
 
 namespace BlackBarLabs.Api
 {
@@ -38,5 +39,20 @@ namespace BlackBarLabs.Api
                 return this.fetchDateTimeUtc;
             }
         }
+
+        private IIdentityService identityService;
+        protected IIdentityService IdentityService
+        {
+            get
+            {
+                if (default(IIdentityService) == this.identityService)
+                {
+                    if(this.Request.Properties.ContainsKey(BlackBarLabs.Api.ServicePropertyDefinitions.IdentityService))
+                        this.identityService = (IIdentityService) this.Request.Properties[BlackBarLabs.Api.ServicePropertyDefinitions.IdentityService];
+                }
+                return this.identityService;
+            }
+        }
+
     }
 }

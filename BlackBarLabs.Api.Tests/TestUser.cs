@@ -1,10 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Claims;
 using System.Security.Principal;
-using System.Text;
 using System.Threading.Tasks;
+using BlackBarLabs.Core.Collections;
 
 namespace BlackBarLabs.Api.Tests
 {
@@ -68,6 +66,22 @@ namespace BlackBarLabs.Api.Tests
         public bool IsInRole(string role)
         {
             return true;
+        }
+
+        public void AddClaim(string type, string value)
+        {
+            ((ClaimsIdentity)Identity).AddClaim(new Claim(type, value));
+        }
+
+        public void UpdateAuthorizationToken()
+        {
+            //TODO Add FetchClaims extension method in OrderOwl to actually get claims from Claims endpoint instead of off of user
+
+            this.Session.Headers.AddOrReplace("Authorization", "Bearer " + Security.Tokens.JwtTools.CreateToken(
+                Session.Id.ToString(), DateTimeOffset.UtcNow,
+                DateTimeOffset.UtcNow + TimeSpan.FromMinutes(60),
+                ((ClaimsIdentity) Identity).Claims,
+                "AuthServer.issuer", "AuthServer.publicKey"));
         }
     }
 }
