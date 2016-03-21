@@ -218,15 +218,16 @@ namespace BlackBarLabs.Api.Tests
                 BlackBarLabs.Api.ServicePropertyDefinitions.TimeService,
                 FetchDateTimeUtc);
 
-            httpRequest.Properties.Add(
-                BlackBarLabs.Api.ServicePropertyDefinitions.IdentityService,
-                new IdentityService(principalUser.Identity));
+            if (default(System.Security.Principal.IPrincipal) != principalUser)
+            {
+                httpRequest.Properties.Add(
+                    BlackBarLabs.Api.ServicePropertyDefinitions.IdentityService,
+                    new IdentityService(principalUser.Identity));
+                principalUser.UpdateAuthorizationToken();
+                controller.User = principalUser;
+            }
 
             controller.Request = httpRequest;
-            if (default(System.Security.Principal.IPrincipal) != principalUser)
-                controller.User = principalUser;
-
-            principalUser.UpdateAuthorizationToken();
             foreach (var headerKVP in Headers)
             {
                 httpRequest.Headers.Add(headerKVP.Key, headerKVP.Value);
@@ -258,16 +259,25 @@ namespace BlackBarLabs.Api.Tests
             var methodName = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(method.ToString().ToLower());
             var methodInfo = typeof(TController).GetMethod(methodName);
 
+            IHttpActionResult resourceFromController;
             if (methodInfo.GetParameters().Length == 2)
             {
                 var idProperty = resource.GetType().GetProperty("Id");
                 var id = idProperty.GetValue(resource);
-                var putResult = (IHttpActionResult)methodInfo.Invoke(controller, new object[] { id, resource });
-                var putResponse = await putResult.ExecuteAsync(CancellationToken.None);
-                return putResponse;
+                resourceFromController = (IHttpActionResult)methodInfo.Invoke(controller, new object[] { id, resource });
             }
-            var resourceFromController = (IHttpActionResult)methodInfo.Invoke(controller, new object[] { resource });
+            else
+            {
+                resourceFromController = (IHttpActionResult)methodInfo.Invoke(controller, new object[] { resource });
+            }
             var response = await resourceFromController.ExecuteAsync(CancellationToken.None);
+            foreach (var header in response.Headers)
+            {
+                if (String.Compare(header.Key, "Set-Cookie", true) == 0)
+                {
+                    // TODO: Store these for next request
+                }
+            }
             return response;
         }
 
@@ -291,6 +301,13 @@ namespace BlackBarLabs.Api.Tests
             var resultTask = (Task<IHttpActionResult>)methodInfo.Invoke(controller, new object[] {});
             var result = await resultTask;
             var response = await result.ExecuteAsync(CancellationToken.None);
+            foreach (var header in response.Headers)
+            {
+                if (String.Compare(header.Key, "Set-Cookie", true) == 0)
+                {
+                    // TODO: Store these for next request
+                }
+            }
             return response;
         }
     }
