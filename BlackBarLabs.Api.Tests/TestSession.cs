@@ -135,6 +135,13 @@ namespace BlackBarLabs.Api.Tests
 
         #endregion
 
+        private Dictionary<string, object> requestProperties = new Dictionary<string, object>();
+        public void AddRequestPropertyFetch<T>(string propertyKey, T propertyValue)
+        {
+            Func<T> fetchPropertyValue = () => propertyValue;
+            requestProperties.Add(propertyKey, fetchPropertyValue);
+        }
+
         private MockMailService.SendEmailMessageDelegate sendMessageCallback;
         public MockMailService.SendEmailMessageDelegate SendMessageCallback
         {
@@ -225,6 +232,12 @@ namespace BlackBarLabs.Api.Tests
                     new IdentityService(principalUser.Identity));
                 principalUser.UpdateAuthorizationToken();
                 controller.User = principalUser;
+            }
+
+            foreach(var requestPropertyKvp in requestProperties)
+            {
+                httpRequest.Properties.Add(
+                    requestPropertyKvp.Key, requestPropertyKvp.Value);
             }
 
             controller.Request = httpRequest;
