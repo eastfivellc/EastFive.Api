@@ -54,7 +54,7 @@ namespace BlackBarLabs.Api.Tests
                 });
             return response;
         }
-        
+
         public async Task<HttpResponseMessage> PutAsync<TController>(object resource,
                 Action<HttpRequestMessage> mutateRequest = default(Action<HttpRequestMessage>))
             where TController : ApiController
@@ -135,11 +135,26 @@ namespace BlackBarLabs.Api.Tests
 
         #endregion
 
-        private Dictionary<string, object> requestProperties = new Dictionary<string, object>();
-        public void AddRequestPropertyFetch<T>(string propertyKey, T propertyValue)
+        private Dictionary<string, object> requestPropertyObjects = new Dictionary<string, object>();
+        private Dictionary<string, object> requestPropertyFetches = new Dictionary<string, object>();
+        public void UpdateRequestPropertyFetch<T>(string propertyKey, T propertyValue, out T currentValue)
         {
-            Func<T> fetchPropertyValue = () => propertyValue;
-            requestProperties.Add(propertyKey, fetchPropertyValue);
+            if (requestPropertyObjects.ContainsKey(propertyKey))
+            {
+                currentValue = (T)requestPropertyObjects[propertyKey];
+                requestPropertyObjects[propertyKey] = propertyValue;
+                return;
+            }
+            currentValue = default(T);
+            requestPropertyObjects.Add(propertyKey, propertyValue);
+
+            Func<T> fetchPropertyValue = () => (T)requestPropertyObjects[propertyKey];
+            requestPropertyFetches.Add(propertyKey, fetchPropertyValue);
+        }
+        public void UpdateRequestPropertyFetch<T>(string propertyKey, T propertyValue)
+        {
+            T discard;
+            UpdateRequestPropertyFetch(propertyKey, propertyValue, out discard);
         }
 
         private MockMailService.SendEmailMessageDelegate sendMessageCallback;
@@ -234,7 +249,7 @@ namespace BlackBarLabs.Api.Tests
                 controller.User = principalUser;
             }
 
-            foreach(var requestPropertyKvp in requestProperties)
+            foreach(var requestPropertyKvp in requestPropertyFetches)
             {
                 httpRequest.Properties.Add(
                     requestPropertyKvp.Key, requestPropertyKvp.Value);
