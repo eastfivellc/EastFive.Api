@@ -29,7 +29,6 @@ namespace BlackBarLabs.Api.Tests
             this.Session = session;
 
             identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, userIdString));
-            identity.AddClaim(new Claim(ClaimTypes.Name, userIdString));
             this.Identity = identity;
         }
 
