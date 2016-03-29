@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
 using BlackBarLabs.Api.Services;
+using BlackBarLabs.Web;
 
 namespace BlackBarLabs.Api.Tests
 {
@@ -110,7 +111,7 @@ namespace BlackBarLabs.Api.Tests
             var results = callback(response, resource);
             return results;
         }
-
+        
         public async Task<HttpResponseMessage> DeleteAsync<TController>(object resource,
                 Action<HttpRequestMessage> mutateRequest = default(Action<HttpRequestMessage>))
             where TController : ApiController
@@ -216,6 +217,15 @@ namespace BlackBarLabs.Api.Tests
 
         private TestUser principalUser = default(TestUser);
         
+        public Guid GetUserId()
+        {
+            var authorizationHeader = this.Headers["Authorization"];
+            var claims = authorizationHeader.GetClaimsJwtString();
+            return claims.GetAccountId(
+                (accountId) => accountId,
+                () => Guid.Empty);
+        }
+
         private HttpRequestMessage GetRequest<TController>(TController controller, HttpMethod method)
             where TController : ApiController
         {
