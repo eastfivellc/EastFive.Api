@@ -40,13 +40,25 @@ namespace BlackBarLabs.Api.Tests
         public static void Assert(this HttpResponseMessage response, HttpStatusCode responseStatusCode)
         {
             Microsoft.VisualStudio.TestTools.UnitTesting.Assert.AreEqual(
-                responseStatusCode, response.StatusCode);
+                responseStatusCode, response.StatusCode, response.ReasonPhrase);
         }
 
         public static async Task AssertAsync(this Task<HttpResponseMessage> responseTask, HttpStatusCode responseStatusCode)
         {
             var response = await responseTask;
-            response.Assert(responseStatusCode);
+            if (response.StatusCode != responseStatusCode)
+            {
+                var contentString = await response.Content.ReadAsStringAsync();
+                var reason = contentString;
+                try
+                {
+                    var resource = Newtonsoft.Json.JsonConvert.DeserializeObject<Exception>(contentString);
+                    reason = resource.Message;
+                }
+                catch (Exception) { }
+                Microsoft.VisualStudio.TestTools.UnitTesting.Assert.AreEqual(
+                    responseStatusCode, response.StatusCode, reason);
+            }
         }
     }
 }
