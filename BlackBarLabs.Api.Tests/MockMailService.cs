@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using BlackBarLabs.Web;
 
 namespace BlackBarLabs.Api.Tests
 {
@@ -12,7 +13,7 @@ namespace BlackBarLabs.Api.Tests
         public SendEmailMessageDelegate SendEmailMessageCallback { get; set; }
 
         public Task SendEmailMessageAsync(string toAddress, string fromAddress,
-            string fromName, string subject, string html, IDictionary<string, List<string>> substitution = null)
+            string fromName, string subject, string html, EmailSendSuccessDelegate onSuccess, IDictionary<string, List<string>> substitution = null)
         {
             return this.SendEmailMessageCallback.Invoke(
                 toAddress, fromAddress, fromName, subject, html, substitution);

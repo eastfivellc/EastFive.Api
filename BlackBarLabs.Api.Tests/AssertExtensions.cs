@@ -21,8 +21,8 @@ namespace BlackBarLabs.Api.Tests
         public static async Task AssertSuccessPutAsync(this Task<HttpResponseMessage> responseTask)
         {
             var response = await responseTask;
-            if(HttpStatusCode.Accepted == response.StatusCode ||
-                HttpStatusCode.OK == response.StatusCode)
+            if(HttpStatusCode.Accepted != response.StatusCode &&
+                HttpStatusCode.OK != response.StatusCode)
             {
                 var contentString = await response.Content.ReadAsStringAsync();
                 var reason = contentString;
