@@ -6,7 +6,7 @@ using BlackBarLabs.Core.Collections;
 
 namespace BlackBarLabs.Api.Tests
 {
-    public class TestUser : IPrincipal
+    public class TestUser
     {
         public async static Task StartAsync(Func<TestSession, TestUser, Task> callback)
         {
@@ -29,7 +29,7 @@ namespace BlackBarLabs.Api.Tests
             this.Session = session;
 
             identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, userIdString));
-            this.Identity = identity;
+            //this.Identity = identity;
         }
 
         private class Identity_ : IIdentity
@@ -58,7 +58,7 @@ namespace BlackBarLabs.Api.Tests
             public string Name { get; private set; }
         }
         
-        public IIdentity Identity { get; private set; }
+        //public IIdentity Identity { get; private set; }
         public TestSession Session { get; internal set; }
         public Guid Id { get; internal set; }
 
@@ -69,18 +69,18 @@ namespace BlackBarLabs.Api.Tests
 
         public void AddClaim(string type, string value)
         {
-            ((ClaimsIdentity)Identity).AddClaim(new Claim(type, value));
+            //((ClaimsIdentity)Identity).AddClaim(new Claim(type, value));
         }
 
-        public void UpdateAuthorizationToken()
-        {
-            //TODO Add FetchClaims extension method in OrderOwl to actually get claims from Claims endpoint instead of off of user
+        //public void UpdateAuthorizationToken()
+        //{
+        //    //TODO Add FetchClaims extension method in OrderOwl to actually get claims from Claims endpoint instead of off of user
 
-            this.Session.Headers.AddOrReplace("Authorization", "Bearer " + Security.Tokens.JwtTools.CreateToken(
-                Session.Id.ToString(), DateTimeOffset.UtcNow,
-                DateTimeOffset.UtcNow + TimeSpan.FromMinutes(60),
-                ((ClaimsIdentity) Identity).Claims,
-                "AuthServer.issuer", "AuthServer.publicKey"));
-        }
+        //    this.Session.Headers.AddOrReplace("Authorization", "Bearer " + Security.Tokens.JwtTools.CreateToken(
+        //        Session.Id.ToString(), DateTimeOffset.UtcNow,
+        //        DateTimeOffset.UtcNow + TimeSpan.FromMinutes(60),
+        //        ((ClaimsIdentity) Identity).Claims,
+        //        "AuthServer.issuer", "AuthServer.publicKey"));
+        //}
     }
 }

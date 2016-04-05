@@ -250,14 +250,14 @@ namespace BlackBarLabs.Api.Tests
                 BlackBarLabs.Api.ServicePropertyDefinitions.TimeService,
                 FetchDateTimeUtc);
 
-            if (default(System.Security.Principal.IPrincipal) != principalUser)
-            {
-                httpRequest.Properties.Add(
-                    BlackBarLabs.Api.ServicePropertyDefinitions.IdentityService,
-                    new IdentityService(principalUser.Identity));
-                principalUser.UpdateAuthorizationToken();
-                controller.User = principalUser;
-            }
+            //if (default(System.Security.Principal.IPrincipal) != principalUser)
+            //{
+            //    httpRequest.Properties.Add(
+            //        BlackBarLabs.Api.ServicePropertyDefinitions.IdentityService,
+            //        new IdentityService(principalUser.Identity));
+            //    principalUser.UpdateAuthorizationToken();
+            //    controller.User = principalUser;
+            //}
 
             foreach(var requestPropertyKvp in requestPropertyFetches)
             {
