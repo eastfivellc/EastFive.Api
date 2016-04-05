@@ -32,7 +32,7 @@ namespace BlackBarLabs.Api.Tests
                     reason = resource.Message;
                 }
                 catch (Exception) { }
-                Microsoft.VisualStudio.TestTools.UnitTesting.Assert.Fail(reason, new { response.StatusCode });
+                Microsoft.VisualStudio.TestTools.UnitTesting.Assert.Fail("Status code {0}:{1}", response.StatusCode, reason);
             }
         }
 
