@@ -76,7 +76,7 @@ namespace BlackBarLabs.Api.Tests
             var response = await result.ExecuteAsync(CancellationToken.None);
             return response;
         }
-        
+
         public static async Task<HttpResponseMessage> Post<TController, TResource>(this TResource resource,
                 string userId = default(string),
                 Action<HttpRequestMessage> mutateRequest = default(Action<HttpRequestMessage>))
@@ -91,7 +91,7 @@ namespace BlackBarLabs.Api.Tests
         {
             return await resource.Action<TController, TResource>(HttpMethod.Put, userId, mutateRequest);
         }
-        
+
         public static async Task<HttpResponseMessage> Delete<TController, TResource>(this TResource resource, string userId = default(string),
                 Action<HttpRequestMessage> mutateRequest = default(Action<HttpRequestMessage>))
             where TController : ApiController
@@ -112,8 +112,8 @@ namespace BlackBarLabs.Api.Tests
         {
             var response = await resource.Get<TController, TResource>(userId, mutateRequest);
             var content = response.Content as System.Net.Http.ObjectContent<TResult>;
-            if(default(ObjectContent<TResult>) == content)
-            {   
+            if (default(ObjectContent<TResult>) == content)
+            {
                 throw new Exception(
                     String.Format("Expected System.Net.Http.ObjectContent<{0}> but got type {1} in get",
                         typeof(TResult).FullName, response.Content.GetType().FullName));

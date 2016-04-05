@@ -11,22 +11,6 @@ namespace BlackBarLabs.Api.Tests
 {
     public static class TestSessionHelpers
     {
-        public static TestSession GetTestSession(this System.Security.Principal.IPrincipal user)
-        {
-            if (!(user is TestUser))
-                Assert.Fail("This class is only for testing, not real situation");
-            var mockPrincipal = user as TestUser;
-            return mockPrincipal.Session;
-        }
-
-        public static Guid GetId(this System.Security.Principal.IPrincipal user)
-        {
-            if (!(user is TestUser))
-                Assert.Fail("This class is only for testing, not real situation");
-            var mockPrincipal = user as TestUser;
-            return mockPrincipal.Id;
-        }
-
         #region Multipart Content
 
         public static void AddContent(this MultipartContent multipart, string name, Guid content)
@@ -46,9 +30,6 @@ namespace BlackBarLabs.Api.Tests
         }
 
         #endregion
-
-        #region Invocation
-
-        #endregion
+        
     }
 }

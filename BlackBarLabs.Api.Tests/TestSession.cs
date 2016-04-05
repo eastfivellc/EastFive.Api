@@ -126,15 +126,6 @@ namespace BlackBarLabs.Api.Tests
 
         #endregion
 
-        #region Request Modifiers
-
-        public async Task WithUserAsync(Guid userId, Func<TestUser, Task> callback)
-        {
-            this.principalUser = new TestUser(this, userId);
-            await callback(this.principalUser);
-        }
-
-        #endregion
 
         private Dictionary<string, object> requestPropertyObjects = new Dictionary<string, object>();
         private Dictionary<string, object> requestPropertyFetches = new Dictionary<string, object>();
@@ -214,8 +205,6 @@ namespace BlackBarLabs.Api.Tests
                 fetchDateTimeUtc = value;
             }
         }
-
-        private TestUser principalUser = default(TestUser);
         
         public Guid GetUserId()
         {
@@ -249,15 +238,6 @@ namespace BlackBarLabs.Api.Tests
             httpRequest.Properties.Add(
                 BlackBarLabs.Api.ServicePropertyDefinitions.TimeService,
                 FetchDateTimeUtc);
-
-            //if (default(System.Security.Principal.IPrincipal) != principalUser)
-            //{
-            //    httpRequest.Properties.Add(
-            //        BlackBarLabs.Api.ServicePropertyDefinitions.IdentityService,
-            //        new IdentityService(principalUser.Identity));
-            //    principalUser.UpdateAuthorizationToken();
-            //    controller.User = principalUser;
-            //}
 
             foreach(var requestPropertyKvp in requestPropertyFetches)
             {
