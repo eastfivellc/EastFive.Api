@@ -19,7 +19,7 @@ namespace BlackBarLabs.Api.Tests
                 // TODO: Check base types
                 var expectedContentType = response.Content.GetType().GetGenericArguments().First();
                 Assert.AreEqual(typeof(TResult).FullName, expectedContentType.FullName,
-                    String.Format("Expected System.Net.Http.ObjectContent<{0}> but got type {1} in GET",
+                    String.Format("Expected {0} but got type {1} in GET",
                         typeof(TResult).FullName, expectedContentType.FullName));
             }
             var results = (TResult)content.Value;

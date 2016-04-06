@@ -77,20 +77,20 @@ namespace BlackBarLabs.Api.Tests
             return response;
         }
 
-        public static async Task<HttpResponseMessage> Post<TController, TResource>(this TResource resource,
-                string userId = default(string),
-                Action<HttpRequestMessage> mutateRequest = default(Action<HttpRequestMessage>))
-            where TController : ApiController
-        {
-            return await resource.Action<TController, TResource>(HttpMethod.Post, userId, mutateRequest);
-        }
+        //public static async Task<HttpResponseMessage> Post<TController, TResource>(this TResource resource,
+        //        string userId = default(string),
+        //        Action<HttpRequestMessage> mutateRequest = default(Action<HttpRequestMessage>))
+        //    where TController : ApiController
+        //{
+        //    return await resource.Action<TController, TResource>(HttpMethod.Post, userId, mutateRequest);
+        //}
 
-        public static async Task<HttpResponseMessage> Put<TController, TResource>(this TResource resource, string userId = default(string),
-                Action<HttpRequestMessage> mutateRequest = default(Action<HttpRequestMessage>))
-            where TController : ApiController
-        {
-            return await resource.Action<TController, TResource>(HttpMethod.Put, userId, mutateRequest);
-        }
+        //public static async Task<HttpResponseMessage> Put<TController, TResource>(this TResource resource, string userId = default(string),
+        //        Action<HttpRequestMessage> mutateRequest = default(Action<HttpRequestMessage>))
+        //    where TController : ApiController
+        //{
+        //    return await resource.Action<TController, TResource>(HttpMethod.Put, userId, mutateRequest);
+        //}
 
         public static async Task<HttpResponseMessage> Delete<TController, TResource>(this TResource resource, string userId = default(string),
                 Action<HttpRequestMessage> mutateRequest = default(Action<HttpRequestMessage>))

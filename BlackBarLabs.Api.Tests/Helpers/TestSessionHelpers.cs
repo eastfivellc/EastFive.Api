@@ -1,4 +1,5 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using BlackBarLabs.Web;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -31,5 +32,14 @@ namespace BlackBarLabs.Api.Tests
 
         #endregion
         
+        public static Guid GetUserId(this ITestSession session)
+        {
+            var authorizationHeader = session.Headers["Authorization"];
+            var claims = authorizationHeader.GetClaimsJwtString();
+            return claims.GetAccountId(
+                (accountId) => accountId,
+                () => Guid.Empty);
+        }
+
     }
 }

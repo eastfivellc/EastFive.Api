@@ -60,7 +60,8 @@
     <Compile Include="Mocks\MockMailService.cs" />
     <Compile Include="Mocks\MockPrincipal.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TestSession.cs" />
+    <Compile Include="Sessions\ITestSession.cs" />
+    <Compile Include="Sessions\TestSession.cs" />
     <Compile Include="Helpers\TestSessionHelpers.cs" />
   </ItemGroup>
   <ItemGroup>

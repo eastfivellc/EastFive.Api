@@ -32,7 +32,7 @@ namespace BlackBarLabs.Api.Tests
                     reason = resource.Message;
                 }
                 catch (Exception) { }
-                Microsoft.VisualStudio.TestTools.UnitTesting.Assert.Fail("Status code {0}:{1}", response.StatusCode, reason);
+                Microsoft.VisualStudio.TestTools.UnitTesting.Assert.Fail("Status code: [{0}]\rReason:{1}", response.StatusCode, reason);
             }
         }
 
@@ -60,10 +60,11 @@ namespace BlackBarLabs.Api.Tests
             var response = await responseTask;
             if (response.StatusCode != responseStatusCode)
             {
-                var contentString = await response.Content.ReadAsStringAsync();
-                var reason = contentString;
+                var reason = default(string);
                 try
                 {
+                    var contentString = await response.Content.ReadAsStringAsync();
+                    reason = contentString;
                     var resource = Newtonsoft.Json.JsonConvert.DeserializeObject<Exception>(contentString);
                     reason = resource.Message;
                 }
@@ -71,6 +72,13 @@ namespace BlackBarLabs.Api.Tests
                 Microsoft.VisualStudio.TestTools.UnitTesting.Assert.AreEqual(
                     responseStatusCode, response.StatusCode, reason);
             }
+        }
+
+        public static void AssertToMinute(this DateTime time1, DateTime time2)
+        {
+            Microsoft.VisualStudio.TestTools.UnitTesting.Assert.AreEqual(time1.DayOfYear, time2.DayOfYear);
+            Microsoft.VisualStudio.TestTools.UnitTesting.Assert.AreEqual(time1.Hour, time2.Hour);
+            Microsoft.VisualStudio.TestTools.UnitTesting.Assert.AreEqual(time1.Minute, time2.Minute);
         }
     }
 }

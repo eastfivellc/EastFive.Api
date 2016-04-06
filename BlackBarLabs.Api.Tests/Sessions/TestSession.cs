@@ -14,7 +14,7 @@ using BlackBarLabs.Web;
 
 namespace BlackBarLabs.Api.Tests
 {
-    public class TestSession
+    public class TestSession : ITestSession
     {
         public static async Task StartAsync(Func<TestSession, Task> callback)
         {
@@ -99,6 +99,7 @@ namespace BlackBarLabs.Api.Tests
             where TController : ApiController
         {
             var response = await this.GetAsync<TController>(resource, mutateRequest);
+            response.Assert(System.Net.HttpStatusCode.OK);
             var results = response.GetContent<TResult>();
             return results;
         }
@@ -206,15 +207,6 @@ namespace BlackBarLabs.Api.Tests
             }
         }
         
-        public Guid GetUserId()
-        {
-            var authorizationHeader = this.Headers["Authorization"];
-            var claims = authorizationHeader.GetClaimsJwtString();
-            return claims.GetAccountId(
-                (accountId) => accountId,
-                () => Guid.Empty);
-        }
-
         private HttpRequestMessage GetRequest<TController>(TController controller, HttpMethod method)
             where TController : ApiController
         {
