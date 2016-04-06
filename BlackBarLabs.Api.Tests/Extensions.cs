@@ -92,34 +92,34 @@ namespace BlackBarLabs.Api.Tests
         //    return await resource.Action<TController, TResource>(HttpMethod.Put, userId, mutateRequest);
         //}
 
-        public static async Task<HttpResponseMessage> Delete<TController, TResource>(this TResource resource, string userId = default(string),
-                Action<HttpRequestMessage> mutateRequest = default(Action<HttpRequestMessage>))
-            where TController : ApiController
-        {
-            return await resource.Action<TController, TResource>(HttpMethod.Delete, userId, mutateRequest);
-        }
+        //public static async Task<HttpResponseMessage> Delete<TController, TResource>(this TResource resource, string userId = default(string),
+        //        Action<HttpRequestMessage> mutateRequest = default(Action<HttpRequestMessage>))
+        //    where TController : ApiController
+        //{
+        //    return await resource.Action<TController, TResource>(HttpMethod.Delete, userId, mutateRequest);
+        //}
 
-        public static async Task<HttpResponseMessage> Get<TController, TResource>(this TResource resource, string userId = default(string),
-                Action<HttpRequestMessage> mutateRequest = default(Action<HttpRequestMessage>))
-            where TController : ApiController
-        {
-            return await resource.Action<TController, TResource>(HttpMethod.Get, userId, mutateRequest);
-        }
+        //public static async Task<HttpResponseMessage> Get<TController, TResource>(this TResource resource, string userId = default(string),
+        //        Action<HttpRequestMessage> mutateRequest = default(Action<HttpRequestMessage>))
+        //    where TController : ApiController
+        //{
+        //    return await resource.Action<TController, TResource>(HttpMethod.Get, userId, mutateRequest);
+        //}
 
-        public static async Task<TResult> Get<TController, TResource, TResult>(this TResource resource, string userId = default(string),
-                Action<HttpRequestMessage> mutateRequest = default(Action<HttpRequestMessage>))
-            where TController : ApiController
-        {
-            var response = await resource.Get<TController, TResource>(userId, mutateRequest);
-            var content = response.Content as System.Net.Http.ObjectContent<TResult>;
-            if (default(ObjectContent<TResult>) == content)
-            {
-                throw new Exception(
-                    String.Format("Expected System.Net.Http.ObjectContent<{0}> but got type {1} in get",
-                        typeof(TResult).FullName, response.Content.GetType().FullName));
-            }
-            var results = (TResult)content.Value;
-            return results;
-        }
+        //public static async Task<TResult> Get<TController, TResource, TResult>(this TResource resource, string userId = default(string),
+        //        Action<HttpRequestMessage> mutateRequest = default(Action<HttpRequestMessage>))
+        //    where TController : ApiController
+        //{
+        //    var response = await resource.Get<TController, TResource>(userId, mutateRequest);
+        //    var content = response.Content as System.Net.Http.ObjectContent<TResult>;
+        //    if (default(ObjectContent<TResult>) == content)
+        //    {
+        //        throw new Exception(
+        //            String.Format("Expected System.Net.Http.ObjectContent<{0}> but got type {1} in get",
+        //                typeof(TResult).FullName, response.Content.GetType().FullName));
+        //    }
+        //    var results = (TResult)content.Value;
+        //    return results;
+        //}
     }
 }
