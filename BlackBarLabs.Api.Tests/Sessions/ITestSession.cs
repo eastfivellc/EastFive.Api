@@ -41,5 +41,7 @@ namespace BlackBarLabs.Api.Tests
             where TController : ApiController;
 
         Dictionary<string, string> Headers { get; set; }
+
+        T GetRequestPropertyFetch<T>(string propertyKey);
     }
 }

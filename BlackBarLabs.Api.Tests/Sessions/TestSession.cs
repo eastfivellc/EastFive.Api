@@ -150,6 +150,17 @@ namespace BlackBarLabs.Api.Tests
             UpdateRequestPropertyFetch(propertyKey, propertyValue, out discard);
         }
 
+        public T GetRequestPropertyFetch<T>(string propertyKey)
+        {
+            if (requestPropertyObjects.ContainsKey(propertyKey))
+            {
+                var currentValue = (T)requestPropertyObjects[propertyKey];
+                return currentValue;
+            }
+            return default(T);
+        }
+
+
         private MockMailService.SendEmailMessageDelegate sendMessageCallback;
         public MockMailService.SendEmailMessageDelegate SendMessageCallback
         {
