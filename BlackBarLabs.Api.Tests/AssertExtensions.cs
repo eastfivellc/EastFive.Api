@@ -55,7 +55,7 @@ namespace BlackBarLabs.Api.Tests
                 responseStatusCode, response.StatusCode, response.ReasonPhrase);
         }
 
-        public static async Task AssertAsync(this Task<HttpResponseMessage> responseTask, HttpStatusCode responseStatusCode)
+        public static async Task<HttpResponseMessage> AssertAsync(this Task<HttpResponseMessage> responseTask, HttpStatusCode responseStatusCode)
         {
             var response = await responseTask;
             if (response.StatusCode != responseStatusCode)
@@ -72,6 +72,7 @@ namespace BlackBarLabs.Api.Tests
                 Microsoft.VisualStudio.TestTools.UnitTesting.Assert.AreEqual(
                     responseStatusCode, response.StatusCode, reason);
             }
+            return await responseTask;
         }
 
         public static void AssertToMinute(this DateTime time1, DateTime time2)
