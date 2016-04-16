@@ -23,7 +23,7 @@ namespace BlackBarLabs.Api.Tests
                 BlackBarLabs.Api.ServicePropertyDefinitions.MailService,
                 new MockMailService());
 
-            session.UpdateRequestPropertyFetch(
+            session.UpdateRequestPropertyFetch<BlackBarLabs.Web.Services.ITimeService>(
                 BlackBarLabs.Api.ServicePropertyDefinitions.TimeService,
                 new TimeService());
             await callback(session);
