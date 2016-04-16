@@ -167,27 +167,6 @@ namespace BlackBarLabs.Api.Tests
             }
             return default(T);
         }
-
-
-        private MockMailService.SendEmailMessageDelegate sendMessageCallback;
-        public MockMailService.SendEmailMessageDelegate SendMessageCallback
-        {
-            get
-            {
-                if(default(MockMailService.SendEmailMessageDelegate) == sendMessageCallback)
-                    return 
-                        async (toAddress, fromAddress, fromName,
-                            subject, html, substitution) =>
-                        {
-                            await Task.FromResult(true);
-                        };
-                return sendMessageCallback;
-            }
-            set
-            {
-                sendMessageCallback = value;
-            }
-        }
         
         private HttpRequestMessage GetRequest<TController>(TController controller, HttpMethod method)
             where TController : ApiController
