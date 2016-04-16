@@ -17,8 +17,8 @@ namespace BlackBarLabs.Api.Controllers
         {
             base.Initialize(controllerContext);
 
-            Func<DateTime> fetchDateTimeUtc =
-                () => DateTime.UtcNow;
+            Func<ITimeService> fetchDateTimeUtc =
+                () => new TimeService();
             controllerContext.Request.Properties.Add(
                 BlackBarLabs.Api.ServicePropertyDefinitions.TimeService,
                 fetchDateTimeUtc);

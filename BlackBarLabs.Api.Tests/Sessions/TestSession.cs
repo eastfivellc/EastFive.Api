@@ -18,7 +18,15 @@ namespace BlackBarLabs.Api.Tests
     {
         public static async Task StartAsync(Func<TestSession, Task> callback)
         {
-            await callback(new TestSession());
+            var session = new TestSession();
+            session.UpdateRequestPropertyFetch(
+                BlackBarLabs.Api.ServicePropertyDefinitions.MailService,
+                new MockMailService());
+
+            session.UpdateRequestPropertyFetch(
+                BlackBarLabs.Api.ServicePropertyDefinitions.TimeService,
+                new TimeService());
+            await callback(session);
         }
 
         public TestSession()
@@ -180,43 +188,6 @@ namespace BlackBarLabs.Api.Tests
                 sendMessageCallback = value;
             }
         }
-
-        private Func<Web.ISendMailService> mailerServiceCreate;
-        public Func<Web.ISendMailService> MailerServiceCreate
-        {
-            get
-            {
-                if (default(Func<Web.ISendMailService>) != mailerServiceCreate)
-                    return mailerServiceCreate;
-
-                return () =>
-                {
-                    var mockMailService = new MockMailService();
-                    mockMailService.SendEmailMessageCallback = this.SendMessageCallback;
-                    return mockMailService;
-                };
-            }
-            set
-            {
-                mailerServiceCreate = value;
-            }
-        }
-
-        private Func<DateTime> fetchDateTimeUtc;
-        public Func<DateTime> FetchDateTimeUtc
-        {
-            get
-            {
-                if (default(Func<DateTime>) != fetchDateTimeUtc)
-                    return fetchDateTimeUtc;
-
-                return () => DateTime.UtcNow;
-            }
-            set
-            {
-                fetchDateTimeUtc = value;
-            }
-        }
         
         private HttpRequestMessage GetRequest<TController>(TController controller, HttpMethod method)
             where TController : ApiController
@@ -234,13 +205,6 @@ namespace BlackBarLabs.Api.Tests
             httpRequest.SetRouteData(new System.Web.Http.Routing.HttpRouteData(route));
 
             httpRequest.SetConfiguration(config);
-            httpRequest.Properties.Add(
-                BlackBarLabs.Api.ServicePropertyDefinitions.MailService,
-                MailerServiceCreate);
-
-            httpRequest.Properties.Add(
-                BlackBarLabs.Api.ServicePropertyDefinitions.TimeService,
-                FetchDateTimeUtc);
 
             foreach(var requestPropertyKvp in requestPropertyFetches)
             {

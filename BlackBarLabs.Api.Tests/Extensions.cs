@@ -46,8 +46,8 @@ namespace BlackBarLabs.Api.Tests
 
             #region Time
 
-            Func<DateTime> fetchDateTimeUtc =
-                () => DateTime.UtcNow;
+            Func<Web.Services.ITimeService> fetchDateTimeUtc =
+                () => new Services.TimeService();
             httpRequest.Properties.Add(
                 BlackBarLabs.Api.ServicePropertyDefinitions.TimeService,
                 fetchDateTimeUtc);

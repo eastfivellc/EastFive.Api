@@ -25,32 +25,18 @@ namespace BlackBarLabs.Api
             }
         }
 
-        private Func<DateTime> fetchDateTimeUtc;
-        protected Func<DateTime> FetchDateTimeUtc
+        private ITimeService dateTimeService;
+        protected ITimeService DateTimeService
         {
             get
             {
-                if (default(Func<DateTime>) == this.fetchDateTimeUtc)
+                if (default(ITimeService) == this.dateTimeService)
                 {
-                    var fetchDateTimeUtc = (Func<DateTime>)
+                    var dateTimeService = (Func<ITimeService>)
                         this.Request.Properties[BlackBarLabs.Api.ServicePropertyDefinitions.TimeService];
-                    this.fetchDateTimeUtc = fetchDateTimeUtc;
+                    this.dateTimeService = dateTimeService();
                 }
-                return this.fetchDateTimeUtc;
-            }
-        }
-
-        private IIdentityService identityService;
-        protected IIdentityService IdentityService
-        {
-            get
-            {
-                if (default(IIdentityService) == this.identityService)
-                {
-                    if(this.Request.Properties.ContainsKey(BlackBarLabs.Api.ServicePropertyDefinitions.IdentityService))
-                        this.identityService = (IIdentityService) this.Request.Properties[BlackBarLabs.Api.ServicePropertyDefinitions.IdentityService];
-                }
-                return this.identityService;
+                return this.dateTimeService;
             }
         }
 
