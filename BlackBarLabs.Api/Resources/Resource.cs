@@ -32,6 +32,8 @@ namespace BlackBarLabs.Api
             {
                 if (default(ITimeService) == this.dateTimeService)
                 {
+                    if (!this.Request.Properties.ContainsKey(BlackBarLabs.Api.ServicePropertyDefinitions.TimeService))
+                        return new BlackBarLabs.Api.Services.TimeService();
                     var dateTimeService = (Func<ITimeService>)
                         this.Request.Properties[BlackBarLabs.Api.ServicePropertyDefinitions.TimeService];
                     this.dateTimeService = dateTimeService();
