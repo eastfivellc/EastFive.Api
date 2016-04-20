@@ -11,9 +11,10 @@ namespace BlackBarLabs.Api.Tests
             string fromName, string subject, string html, IDictionary<string, List<string>> substitution);
 
         public SendEmailMessageDelegate SendEmailMessageCallback { get; set; }
-
+        
         public Task SendEmailMessageAsync(string toAddress, string fromAddress,
-            string fromName, string subject, string html, EmailSendSuccessDelegate onSuccess, IDictionary<string, List<string>> substitution = null)
+            string fromName, string subject, string html, EmailSendSuccessDelegate onSuccess,
+            IDictionary<string, List<string>> substitution, Action<string, IDictionary<string, string>> logIssue)
         {
             return this.SendEmailMessageCallback.Invoke(
                 toAddress, fromAddress, fromName, subject, html, substitution);
