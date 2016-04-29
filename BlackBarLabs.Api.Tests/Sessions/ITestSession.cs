@@ -43,5 +43,7 @@ namespace BlackBarLabs.Api.Tests
         Dictionary<string, string> Headers { get; set; }
 
         T GetRequestPropertyFetch<T>(string propertyKey);
+
+        void UpdateRequestPropertyFetch<T>(string propertyKey, T propertyValue, out T currentValue);
     }
 }
