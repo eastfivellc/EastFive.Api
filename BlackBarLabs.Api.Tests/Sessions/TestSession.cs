@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Web.Http;
 using BlackBarLabs.Api.Services;
 using BlackBarLabs.Web;
+using Microsoft.WindowsAzure;
 
 namespace BlackBarLabs.Api.Tests
 {
@@ -172,7 +173,7 @@ namespace BlackBarLabs.Api.Tests
         private HttpRequestMessage GetRequest<TController>(TController controller, HttpMethod method)
             where TController : ApiController
         {
-            var hostingLocation = System.Configuration.ConfigurationManager.AppSettings["BlackBarLabs.Api.Tests.ServerUrl"];
+            var hostingLocation = CloudConfigurationManager.GetSetting("BlackBarLabs.Api.Tests.ServerUrl");
             if (String.IsNullOrWhiteSpace(hostingLocation))
                 hostingLocation = "http://example.com";
             var httpRequest = new HttpRequestMessage(method, hostingLocation);
