@@ -26,7 +26,8 @@ namespace BlackBarLabs.Api.Tests
             session.UpdateRequestPropertyFetch<BlackBarLabs.Web.Services.ITimeService>(
                 BlackBarLabs.Api.ServicePropertyDefinitions.TimeService,
                 new TimeService());
-            await callback(session);
+            var callbackTask = callback(session);
+            await callbackTask;
         }
 
         public TestSession()
@@ -179,6 +180,12 @@ namespace BlackBarLabs.Api.Tests
             var route = config.Routes.MapHttpRoute(
                 name: "DefaultApi",
                 routeTemplate: "api/{controller}/{id}",
+                defaults: new { id = RouteParameter.Optional }
+            );
+            httpRequest.SetRouteData(new System.Web.Http.Routing.HttpRouteData(route));
+            route = config.Routes.MapHttpRoute(
+                name: "Default",
+                routeTemplate: "{controller}/{id}",
                 defaults: new { id = RouteParameter.Optional }
             );
             httpRequest.SetRouteData(new System.Web.Http.Routing.HttpRouteData(route));
