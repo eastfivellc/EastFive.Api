@@ -24,6 +24,20 @@ namespace BlackBarLabs.Api
             return guids;
         }
 
+        public static TResult ParseGuidString<TResult>(this string guidString,
+            Func<IEnumerable<Guid>, TResult> multiple,
+            Func<TResult> none)
+        {
+            if (String.IsNullOrWhiteSpace(guidString))
+                return none();
+
+            var guids = guidString.Split(new char[','])
+                .Where(guidStringCandidate => { Guid g; return Guid.TryParse(guidStringCandidate, out g); })
+                .Select(guidStringCandidate => { Guid g; Guid.TryParse(guidStringCandidate, out g); return g; })
+                .ToArray();
+            return multiple(guids);
+        }
+
         public static Resources.WebId GetWebId<TController>(this UrlHelper url,
             Guid id,
             string routeName = "DefaultApi")
