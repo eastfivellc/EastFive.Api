@@ -31,8 +31,13 @@ namespace BlackBarLabs.Api
             if (String.IsNullOrWhiteSpace(guidString))
                 return none();
 
-            var guids = guidString.Split(new char[','])
-                .Where(guidStringCandidate => { Guid g; return Guid.TryParse(guidStringCandidate, out g); })
+            var guids = guidString.Split(new char[] { ',' })
+                .Where(guidStringCandidate =>
+                {
+                    Guid g;
+                    var validGuid = Guid.TryParse(guidStringCandidate, out g);
+                    return validGuid;
+                })
                 .Select(guidStringCandidate => { Guid g; Guid.TryParse(guidStringCandidate, out g); return g; })
                 .ToArray();
             return multiple(guids);
