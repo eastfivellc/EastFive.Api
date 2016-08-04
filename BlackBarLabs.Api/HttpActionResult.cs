@@ -9,13 +9,15 @@ using System.Web.Http;
 
 namespace BlackBarLabs.Api
 {
+    public delegate Task<HttpResponseMessage> HttpActionDelegate();
+
     public class HttpActionResult : IHttpActionResult
     {
-        private Func<Task<HttpResponseMessage>> callback;
-
-        public HttpActionResult(Func<Task<HttpResponseMessage>> callback)
+        private HttpActionDelegate callback;
+        
+        public HttpActionResult(HttpActionDelegate callback)
         {
-            this.callback = callback;
+            this.callback = () => callback();
         }
 
         public Task<HttpResponseMessage> ExecuteAsync(CancellationToken cancellationToken)

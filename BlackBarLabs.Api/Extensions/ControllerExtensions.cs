@@ -1,8 +1,11 @@
-﻿using System;
+﻿using BlackBarLabs.Api.Resources;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
@@ -57,6 +60,57 @@ namespace BlackBarLabs.Api
             var paramsForCallback = await Task.WhenAll(paramTasks);
             var result = ((LambdaExpression)callback).Compile().DynamicInvoke(paramsForCallback);
             return (TResult)result;
+        }
+
+        public static IHttpActionResult ToActionResult(this HttpActionDelegate action)
+        {
+            return new BlackBarLabs.Api.HttpActionResult(action);
+        }
+        public static IHttpActionResult ToActionResult(this HttpResponseMessage response)
+        {
+            return new BlackBarLabs.Api.HttpActionResult(() => Task.FromResult(response));
+        }
+
+        public static MediaTypeHeaderValue GetMediaType(this HttpResponseHeaders headers)
+        {
+            var mediaType = headers.GetValues("asdf").First();
+            return new MediaTypeHeaderValue(mediaType);
+        }
+
+        public static Uri GetLocation(this HttpResponseHeaders headers)
+        {
+            var urlString = headers.GetValues("Location").First();
+            Uri url;
+            Uri.TryCreate(urlString, UriKind.RelativeOrAbsolute, out url);
+            return url;
+        }
+
+        public static async Task<IHttpActionResult> CreateMultipartResponseAsync(this HttpRequestMessage request,
+            IEnumerable<HttpResponseMessage> contents)
+        {
+            var contentTasks = contents.Select(
+                async (content) =>
+                {
+                    var bblResponse = new Response
+                    {
+                        StatusCode = content.StatusCode,
+                        ContentType = content.Headers.GetMediaType(),
+                        ContentLocation = content.Headers.GetLocation(),
+                        Content = await content.Content.ReadAsStringAsync(),
+                    };
+                    return bblResponse;
+                });
+
+            var multipartResponse = new MultipartResponse
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = (await Task.WhenAll(contentTasks)).ToList(),
+                Location = request.RequestUri,
+            };
+            
+            var response = request.CreateResponse(HttpStatusCode.OK, multipartResponse);
+            response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/x-multipart+json");
+            return response.ToActionResult();
         }
     }
 }

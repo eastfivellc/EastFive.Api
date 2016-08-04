@@ -8,6 +8,9 @@ using BlackBarLabs.Api.Extensions;
 using BlackBarLabs.Core.Extensions;
 using BlackBarLabs.Web;
 using BlackBarLabs.Web.Services;
+using System.Threading.Tasks;
+using System.Web.Http;
+using BlackBarLabs.Api;
 
 namespace BlackBarLabs.Api
 {
@@ -156,6 +159,18 @@ namespace BlackBarLabs.Api
             if (webId.UUID.IsDefaultOrEmpty())
                 return isEmpty();
             return success(webId.UUID);
+        }
+
+        public static async Task<IHttpActionResult> GetPossibleMultipartResponseAsync<TResource>(this HttpRequestMessage request,
+            IEnumerable<TResource> query,
+            Func<TResource, Func<Task<HttpResponseMessage>>> singlepart)
+        {
+            var queryTasks = query.Select(resource => singlepart(resource)());
+            var queryResponses = await Task.WhenAll(queryTasks);
+            if (queryResponses.Length == 1)
+                return queryResponses[0].ToActionResult();
+
+            return await request.CreateMultipartResponseAsync(queryResponses);
         }
     }
 }
