@@ -10,6 +10,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
 
+using BlackBarLabs.Collections.Generic;
+
 namespace BlackBarLabs.Api
 {
     public static class ControllerExtensions
@@ -74,6 +76,31 @@ namespace BlackBarLabs.Api
         public static async Task<IHttpActionResult> CreateMultipartResponseAsync(this HttpRequestMessage request,
             IEnumerable<HttpResponseMessage> contents)
         {
+            if (request.Headers.Accept.Contains(accept => accept.MediaType.ToLower().Contains("multipart/mixed")))
+            {
+                return request.CreateHttpMultipartResponse(contents);
+            }
+
+            return await request.CreateBrowserMultipartResponse(contents);
+        }
+
+        private static IHttpActionResult CreateHttpMultipartResponse(this HttpRequestMessage request,
+            IEnumerable<HttpResponseMessage> contents)
+        {
+            var multipartContent = new MultipartContent("mixed", "----Boundary");
+            request.CreateResponse(HttpStatusCode.OK, multipartContent);
+            foreach (var content in contents)
+            {
+                multipartContent.Add(new HttpMessageContent(content));
+            }
+            var response = request.CreateResponse(HttpStatusCode.OK);
+            response.Content = multipartContent;
+            return response.ToActionResult();
+        }
+
+        private static async Task<IHttpActionResult> CreateBrowserMultipartResponse(this HttpRequestMessage request,
+            IEnumerable<HttpResponseMessage> contents)
+        {
             var contentTasks = contents.Select(
                 async (content) =>
                 {
@@ -93,7 +120,7 @@ namespace BlackBarLabs.Api
                 Content = (await Task.WhenAll(contentTasks)).ToList(),
                 Location = request.RequestUri,
             };
-            
+
             var multipartResponse = request.CreateResponse(HttpStatusCode.OK, multipartResponseContent);
             multipartResponse.Content.Headers.ContentType = new MediaTypeHeaderValue("application/x-multipart+json");
             return multipartResponse.ToActionResult();
