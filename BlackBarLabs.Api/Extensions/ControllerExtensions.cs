@@ -71,46 +71,32 @@ namespace BlackBarLabs.Api
             return new BlackBarLabs.Api.HttpActionResult(() => Task.FromResult(response));
         }
 
-        public static MediaTypeHeaderValue GetMediaType(this HttpResponseHeaders headers)
-        {
-            var mediaType = headers.GetValues("asdf").First();
-            return new MediaTypeHeaderValue(mediaType);
-        }
-
-        public static Uri GetLocation(this HttpResponseHeaders headers)
-        {
-            var urlString = headers.GetValues("Location").First();
-            Uri url;
-            Uri.TryCreate(urlString, UriKind.RelativeOrAbsolute, out url);
-            return url;
-        }
-
         public static async Task<IHttpActionResult> CreateMultipartResponseAsync(this HttpRequestMessage request,
             IEnumerable<HttpResponseMessage> contents)
         {
             var contentTasks = contents.Select(
                 async (content) =>
                 {
-                    var bblResponse = new Response
+                    var response = new Response
                     {
                         StatusCode = content.StatusCode,
-                        ContentType = content.Headers.GetMediaType(),
-                        ContentLocation = content.Headers.GetLocation(),
+                        ContentType = content.Content.Headers.ContentType,
+                        ContentLocation = content.Content.Headers.ContentLocation,
                         Content = await content.Content.ReadAsStringAsync(),
                     };
-                    return bblResponse;
+                    return response;
                 });
 
-            var multipartResponse = new MultipartResponse
+            var multipartResponseContent = new MultipartResponse
             {
                 StatusCode = HttpStatusCode.OK,
                 Content = (await Task.WhenAll(contentTasks)).ToList(),
                 Location = request.RequestUri,
             };
             
-            var response = request.CreateResponse(HttpStatusCode.OK, multipartResponse);
-            response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/x-multipart+json");
-            return response.ToActionResult();
+            var multipartResponse = request.CreateResponse(HttpStatusCode.OK, multipartResponseContent);
+            multipartResponse.Content.Headers.ContentType = new MediaTypeHeaderValue("application/x-multipart+json");
+            return multipartResponse.ToActionResult();
         }
     }
 }
