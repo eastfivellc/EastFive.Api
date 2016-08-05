@@ -15,14 +15,16 @@ namespace BlackBarLabs.Api.Tests
         {
             Microsoft.VisualStudio.TestTools.UnitTesting.Assert.IsTrue(
                 HttpStatusCode.Accepted == response.StatusCode ||
-                HttpStatusCode.OK == response.StatusCode);
+                HttpStatusCode.OK == response.StatusCode ||
+                HttpStatusCode.NoContent == response.StatusCode);
         }
 
         public static async Task AssertSuccessPutAsync(this Task<HttpResponseMessage> responseTask)
         {
             var response = await responseTask;
             if(HttpStatusCode.Accepted != response.StatusCode &&
-                HttpStatusCode.OK != response.StatusCode)
+                HttpStatusCode.OK != response.StatusCode &&
+                HttpStatusCode.NoContent != response.StatusCode)
             {
                 var contentString = await response.Content.ReadAsStringAsync();
                 var reason = contentString;

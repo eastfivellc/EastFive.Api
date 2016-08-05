@@ -1,17 +1,47 @@
 ﻿using System;
 using System.Net.Http;
 using System.Runtime.Serialization;
+using System.Collections.Generic;
+using System.Web.Http.Routing;
+
+using BlackBarLabs.Web;
 using BlackBarLabs.Web.Services;
 
 namespace BlackBarLabs.Api
 {
     public class Resource
     {
-        [IgnoreDataMember]
-        public HttpRequestMessage Request { protected get; set; }
+        public void Configure(HttpRequestMessage request, UrlHelper url)
+        {
+            this.Request = request;
+            this.Url = url;
+        }
 
-        private BlackBarLabs.Web.ISendMailService mailService;
-        protected BlackBarLabs.Web.ISendMailService MailService
+        [IgnoreDataMember]
+        public HttpRequestMessage Request { get; set; }
+
+        [IgnoreDataMember]
+        protected UrlHelper Url { get; private set; }
+
+        private IEnumerable<System.Security.Claims.Claim> claimsContext;
+        [IgnoreDataMember]
+        protected IEnumerable<System.Security.Claims.Claim> Claims
+        {
+            get
+            {
+                if (null == Request) yield break;
+                if (null == Request.Headers) yield break;
+                claimsContext = Request.Headers.Authorization.GetClaimsFromAuthorizationHeader();
+                if (claimsContext != null)
+                {
+                    foreach (var claim in claimsContext)
+                        yield return claim;
+                }
+            }
+        }
+
+        private ISendMailService mailService;
+        protected ISendMailService MailService
         {
             get
             {

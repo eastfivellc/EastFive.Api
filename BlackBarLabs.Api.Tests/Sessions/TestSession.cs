@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Web.Http;
 using BlackBarLabs.Api.Services;
 using BlackBarLabs.Web;
+using Microsoft.WindowsAzure;
 
 namespace BlackBarLabs.Api.Tests
 {
@@ -26,7 +27,8 @@ namespace BlackBarLabs.Api.Tests
             session.UpdateRequestPropertyFetch<BlackBarLabs.Web.Services.ITimeService>(
                 BlackBarLabs.Api.ServicePropertyDefinitions.TimeService,
                 new TimeService());
-            await callback(session);
+            var callbackTask = callback(session);
+            await callbackTask;
         }
 
         public TestSession()
@@ -171,7 +173,7 @@ namespace BlackBarLabs.Api.Tests
         private HttpRequestMessage GetRequest<TController>(TController controller, HttpMethod method)
             where TController : ApiController
         {
-            var hostingLocation = System.Configuration.ConfigurationManager.AppSettings["BlackBarLabs.Api.Tests.ServerUrl"];
+            var hostingLocation = CloudConfigurationManager.GetSetting("BlackBarLabs.Api.Tests.ServerUrl");
             if (String.IsNullOrWhiteSpace(hostingLocation))
                 hostingLocation = "http://example.com";
             var httpRequest = new HttpRequestMessage(method, hostingLocation);
@@ -179,6 +181,12 @@ namespace BlackBarLabs.Api.Tests
             var route = config.Routes.MapHttpRoute(
                 name: "DefaultApi",
                 routeTemplate: "api/{controller}/{id}",
+                defaults: new { id = RouteParameter.Optional }
+            );
+            httpRequest.SetRouteData(new System.Web.Http.Routing.HttpRouteData(route));
+            route = config.Routes.MapHttpRoute(
+                name: "Default",
+                routeTemplate: "{controller}/{id}",
                 defaults: new { id = RouteParameter.Optional }
             );
             httpRequest.SetRouteData(new System.Web.Http.Routing.HttpRouteData(route));

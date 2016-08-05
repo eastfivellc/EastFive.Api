@@ -1,11 +1,17 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Net.Http;
-using System.Text;
+using System.Web.Http.Routing;
+
+using BlackBarLabs.Api.Extensions;
+using BlackBarLabs.Core.Extensions;
+using BlackBarLabs.Web;
+using BlackBarLabs.Web.Services;
 using System.Threading.Tasks;
 using System.Web.Http;
+using BlackBarLabs.Api;
 
 namespace BlackBarLabs.Api
 {

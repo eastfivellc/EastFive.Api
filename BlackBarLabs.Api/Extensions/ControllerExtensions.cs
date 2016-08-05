@@ -1,11 +1,16 @@
-﻿using System;
+﻿using BlackBarLabs.Api.Resources;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
+
+using BlackBarLabs.Collections.Generic;
 
 namespace BlackBarLabs.Api
 {
@@ -57,6 +62,68 @@ namespace BlackBarLabs.Api
             var paramsForCallback = await Task.WhenAll(paramTasks);
             var result = ((LambdaExpression)callback).Compile().DynamicInvoke(paramsForCallback);
             return (TResult)result;
+        }
+
+        public static IHttpActionResult ToActionResult(this HttpActionDelegate action)
+        {
+            return new BlackBarLabs.Api.HttpActionResult(action);
+        }
+        public static IHttpActionResult ToActionResult(this HttpResponseMessage response)
+        {
+            return new BlackBarLabs.Api.HttpActionResult(() => Task.FromResult(response));
+        }
+
+        public static async Task<IHttpActionResult> CreateMultipartResponseAsync(this HttpRequestMessage request,
+            IEnumerable<HttpResponseMessage> contents)
+        {
+            if (request.Headers.Accept.Contains(accept => accept.MediaType.ToLower().Contains("multipart/mixed")))
+            {
+                return request.CreateHttpMultipartResponse(contents);
+            }
+
+            return await request.CreateBrowserMultipartResponse(contents);
+        }
+
+        private static IHttpActionResult CreateHttpMultipartResponse(this HttpRequestMessage request,
+            IEnumerable<HttpResponseMessage> contents)
+        {
+            var multipartContent = new MultipartContent("mixed", "----Boundary");
+            request.CreateResponse(HttpStatusCode.OK, multipartContent);
+            foreach (var content in contents)
+            {
+                multipartContent.Add(new HttpMessageContent(content));
+            }
+            var response = request.CreateResponse(HttpStatusCode.OK);
+            response.Content = multipartContent;
+            return response.ToActionResult();
+        }
+
+        private static async Task<IHttpActionResult> CreateBrowserMultipartResponse(this HttpRequestMessage request,
+            IEnumerable<HttpResponseMessage> contents)
+        {
+            var contentTasks = contents.Select(
+                async (content) =>
+                {
+                    var response = new Response
+                    {
+                        StatusCode = content.StatusCode,
+                        ContentType = content.Content.Headers.ContentType,
+                        ContentLocation = content.Content.Headers.ContentLocation,
+                        Content = await content.Content.ReadAsStringAsync(),
+                    };
+                    return response;
+                });
+
+            var multipartResponseContent = new MultipartResponse
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = (await Task.WhenAll(contentTasks)).ToList(),
+                Location = request.RequestUri,
+            };
+
+            var multipartResponse = request.CreateResponse(HttpStatusCode.OK, multipartResponseContent);
+            multipartResponse.Content.Headers.ContentType = new MediaTypeHeaderValue("application/x-multipart+json");
+            return multipartResponse.ToActionResult();
         }
     }
 }
