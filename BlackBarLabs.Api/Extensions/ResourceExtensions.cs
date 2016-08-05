@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -165,11 +166,16 @@ namespace BlackBarLabs.Api
             IEnumerable<TResource> query,
             Func<TResource, Func<Task<HttpResponseMessage>>> singlepart)
         {
+            if (!query.Any())
+            {
+                query = query.Concat(new List<TResource>() {default(TResource)});
+            }
+
             var queryTasks = query.Select(resource => singlepart(resource)());
             var queryResponses = await Task.WhenAll(queryTasks);
             if (queryResponses.Length == 1)
                 return queryResponses[0].ToActionResult();
-
+            
             return await request.CreateMultipartResponseAsync(queryResponses);
         }
     }
