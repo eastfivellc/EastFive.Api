@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -174,8 +175,14 @@ namespace BlackBarLabs.Api
 
         public static async Task<IHttpActionResult> GetPossibleMultipartResponseAsync<TResource>(this HttpRequestMessage request,
             IEnumerable<TResource> query,
-            Func<TResource, Func<Task<HttpResponseMessage>>> singlepart)
+            Func<TResource, Func<Task<HttpResponseMessage>>> singlepart,
+            Func<HttpActionDelegate> ifEmpty = default(Func<HttpActionDelegate>))
         {
+            if ((!query.Any()) && (!ifEmpty.IsDefaultOrNull()))
+            {
+                return ifEmpty().ToActionResult();
+            }
+
             var queryTasks = query.Select(resource => singlepart(resource)());
             var queryResponses = await Task.WhenAll(queryTasks);
             if (queryResponses.Length == 1)
