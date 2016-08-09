@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Web.Http;
 
 using BlackBarLabs.Collections.Generic;
+using BlackBarLabs.Core.Extensions;
 
 namespace BlackBarLabs.Api
 {
@@ -66,14 +67,19 @@ namespace BlackBarLabs.Api
 
         public static IHttpActionResult ToActionResult(this HttpActionDelegate action)
         {
-            return new BlackBarLabs.Api.HttpActionResult(action);
+            return new HttpActionResult(action);
         }
         public static IHttpActionResult ToActionResult(this HttpResponseMessage response)
         {
-            return new BlackBarLabs.Api.HttpActionResult(() => Task.FromResult(response));
+            return new HttpActionResult(() => Task.FromResult(response));
         }
 
-        public static async Task<IHttpActionResult> CreateMultipartResponseAsync(this HttpRequestMessage request,
+        public static IHttpActionResult ActionResult(this ApiController controller, HttpActionDelegate action)
+        {
+            return action.ToActionResult();
+        }
+
+        public static async Task<HttpResponseMessage> CreateMultipartResponseAsync(this HttpRequestMessage request,
             IEnumerable<HttpResponseMessage> contents)
         {
             if (request.Headers.Accept.Contains(accept => accept.MediaType.ToLower().Contains("multipart/mixed")))
@@ -84,10 +90,16 @@ namespace BlackBarLabs.Api
             return await request.CreateBrowserMultipartResponse(contents);
         }
 
-        private static IHttpActionResult CreateHttpMultipartResponse(this HttpRequestMessage request,
+        public static async Task<IHttpActionResult> CreateMultipartActionAsync(this HttpRequestMessage request,
             IEnumerable<HttpResponseMessage> contents)
         {
-            var multipartContent = new MultipartContent("mixed", "----Boundary");
+            return (await request.CreateMultipartResponseAsync(contents)).ToActionResult();
+        }
+
+        private static HttpResponseMessage CreateHttpMultipartResponse(this HttpRequestMessage request,
+            IEnumerable<HttpResponseMessage> contents)
+        {
+            var multipartContent = new MultipartContent("mixed", "----Boundary_" + Guid.NewGuid().ToString("N"));
             request.CreateResponse(HttpStatusCode.OK, multipartContent);
             foreach (var content in contents)
             {
@@ -95,10 +107,10 @@ namespace BlackBarLabs.Api
             }
             var response = request.CreateResponse(HttpStatusCode.OK);
             response.Content = multipartContent;
-            return response.ToActionResult();
+            return response;
         }
 
-        private static async Task<IHttpActionResult> CreateBrowserMultipartResponse(this HttpRequestMessage request,
+        private static async Task<HttpResponseMessage> CreateBrowserMultipartResponse(this HttpRequestMessage request,
             IEnumerable<HttpResponseMessage> contents)
         {
             var contentTasks = contents.Select(
@@ -123,7 +135,48 @@ namespace BlackBarLabs.Api
 
             var multipartResponse = request.CreateResponse(HttpStatusCode.OK, multipartResponseContent);
             multipartResponse.Content.Headers.ContentType = new MediaTypeHeaderValue("application/x-multipart+json");
-            return multipartResponse.ToActionResult();
+            return multipartResponse;
+        }
+
+        public static IHttpActionResult MergeIds<TResource>(this HttpRequestMessage request, Guid idUrl, TResource resource,
+            Func<TResource, HttpActionDelegate> actionCallback,
+            Func<Guid, WebId> createIdCallback)
+            where TResource : ResourceBase
+        {
+            return resource.Id.GetUUID<IHttpActionResult>(
+                (resourceId) => idUrl.HasValue<IHttpActionResult>(
+                    (resourceIdUrl) =>
+                    {
+                        // Id's are specified in both places, ensure they match
+                        if (resourceId != resourceIdUrl)
+                            return request.CreateResponse(
+                                    HttpStatusCode.BadRequest, "Incorrect URL for resource")
+                                .ToActionResult();
+                        var action = actionCallback(resource);
+                        return action.ToActionResult();
+                    },
+                    () =>
+                    {
+                        // the URL id was not used, but the body has one,
+                        // just do the call standard
+                        HttpActionDelegate action = actionCallback(resource);
+                        return action.ToActionResult();
+                    }),
+                () => idUrl.HasValue<IHttpActionResult>(
+                    (resourceId) =>
+                    {
+                        // Only the URL has an id, 
+                        // construct a resource with ID specified and return it.
+                        var resourceWithId = resource.HasValue(
+                            (value) => value,
+                            () => Activator.CreateInstance<TResource>());
+                        resourceWithId.Id = createIdCallback(resourceId);
+                        HttpActionDelegate action = actionCallback(resource);
+                        return action.ToActionResult();
+                    },
+                    () => request.CreateResponse(
+                            HttpStatusCode.BadRequest, "No resource specified")
+                        .ToActionResult()));
         }
     }
 }

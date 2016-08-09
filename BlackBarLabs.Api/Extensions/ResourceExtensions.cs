@@ -63,6 +63,17 @@ namespace BlackBarLabs.Api
             };
         }
         
+        public static Uri GetLocation<TController>(this UrlHelper url,
+            Guid id,
+            string routeName = "DefaultApi")
+        {
+            var controllerName =
+                typeof(TController).Name.TrimEnd("Controller",
+                    (trimmedName) => trimmedName, (originalName) => originalName);
+            var location = url.Link(routeName, new { Controller = controllerName, Id = id });
+            return new Uri(location);
+        }
+
         public static IEnumerable<System.Security.Claims.Claim> GetClaims(this HttpRequestMessage request)
         {
             if (request.IsDefaultOrNull())
@@ -170,7 +181,7 @@ namespace BlackBarLabs.Api
             if (queryResponses.Length == 1)
                 return queryResponses[0].ToActionResult();
 
-            return await request.CreateMultipartResponseAsync(queryResponses);
+            return await request.CreateMultipartActionAsync(queryResponses);
         }
     }
 }
