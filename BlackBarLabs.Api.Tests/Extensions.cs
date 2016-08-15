@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Net.Http;
 using System.Threading;
@@ -75,6 +76,11 @@ namespace BlackBarLabs.Api.Tests
             var result = (IHttpActionResult)methodInfo.Invoke(controller, new object[] { resource });
             var response = await result.ExecuteAsync(CancellationToken.None);
             return response;
+        }
+
+        public static object ToMultipartQuery<TResource>(this IEnumerable<Guid> ids)
+        {
+            return new object();
         }
 
         //public static async Task<HttpResponseMessage> Post<TController, TResource>(this TResource resource,
