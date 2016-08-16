@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
+using BlackBarLabs.Api.Resources;
 
 namespace BlackBarLabs.Api.Tests
 {
@@ -78,7 +79,7 @@ namespace BlackBarLabs.Api.Tests
             return response;
         }
 
-        public static object ToMultipartQuery<TResource>(this IEnumerable<Guid> ids)
+        public static object ToMultipartQuery<TResource>(this IEnumerable<WebId> ids)
         {
             return new object();
         }
