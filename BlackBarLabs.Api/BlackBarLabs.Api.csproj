@@ -111,6 +111,8 @@
     <Compile Include="Resources\Exceptions.cs" />
     <Compile Include="Resources\MultipartResponse.cs" />
     <Compile Include="Resources\OptionsResource.cs" />
+    <Compile Include="Resources\Queries\DateTimeQuery.cs" />
+    <Compile Include="Resources\Queries\WebIdQuery.cs" />
     <Compile Include="Resources\ResourceBase.cs" />
     <Compile Include="Resources\Resource.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
