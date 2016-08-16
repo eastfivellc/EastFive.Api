@@ -5,6 +5,7 @@ using BlackBarLabs.Api.Resources;
 
 namespace BlackBarLabs.Api
 {
+    [DataContract]
     public class ResourceBase
     {
         [DataMember(Name = "id")]
