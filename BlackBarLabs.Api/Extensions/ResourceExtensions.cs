@@ -172,6 +172,11 @@ namespace BlackBarLabs.Api
                 return isEmpty();
             return success(webId.UUID);
         }
+        
+        public static Resources.WebId GetWebIdUUID(this Guid uuId)
+        {
+            return new Resources.WebId() { UUID = uuId };
+        }
 
         public static async Task<IHttpActionResult> GetPossibleMultipartResponseAsync<TResource>(this HttpRequestMessage request,
             IEnumerable<TResource> query,
