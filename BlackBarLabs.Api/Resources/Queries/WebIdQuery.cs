@@ -1,11 +1,12 @@
-﻿using BlackBarLabs.Web;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Net.Http;
+using System.Text.RegularExpressions;
+
+using BlackBarLabs.Web;
 
 namespace BlackBarLabs.Api.Resources
 {
@@ -29,12 +30,49 @@ namespace BlackBarLabs.Api.Resources
             Func<TResult> empty,
             Func<TResult> unparsable)
         {
+            if (String.IsNullOrWhiteSpace(this.query))
+                return empty();
+
             Guid singleGuid;
             if(Guid.TryParse(this.query, out singleGuid))
-            {
                 return multiple(singleGuid.ToEnumerable());
+            
+            var guidRegex = @"([a-f0-9A-F]{32}|([a-f0-9A-F]{8}-[a-f0-9A-F]{4}-[a-f0-9A-F]{4}-[a-f0-9A-F]{4}-[a-f0-9A-F]{12}))";
+            if(!Regex.IsMatch(this.query, guidRegex))
+                return unparsable();
+
+            var matches = Regex.Matches(this.query, guidRegex);
+            var ids = RegexToEnumerable(matches);
+            return multiple(ids);
+        }
+
+        private static IEnumerable<Guid> RegexToEnumerable(MatchCollection matches)
+        {
+            foreach (Match match in matches)
+            {
+                yield return Guid.Parse(match.Value);
             }
-            return unparsable();
+        }
+
+        public TResult Parse<TResult>(
+            HttpRequestMessage request,
+            Func<Guid, TResult> single,
+            Func<IEnumerable<Guid>, TResult> multiple,
+            Func<TResult> empty,
+            Func<TResult> unparsable)
+        {
+            if (String.IsNullOrWhiteSpace(request.RequestUri.Query))
+            {
+                if (String.IsNullOrWhiteSpace(this.query))
+                    return empty();
+                Guid singleGuid;
+                if (Guid.TryParse(this.query, out singleGuid))
+                {
+                    return single(singleGuid);
+                }
+                return unparsable();
+            }
+            return Parse(multiple, empty, unparsable);
         }
     }
 
