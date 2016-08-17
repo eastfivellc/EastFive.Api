@@ -26,6 +26,7 @@ namespace BlackBarLabs.Api.Resources
 
         public TResult Parse<TResult>(
             Func<IEnumerable<Guid>, TResult> multiple,
+            Func<TResult> empty,
             Func<TResult> unparsable)
         {
             Guid singleGuid;
