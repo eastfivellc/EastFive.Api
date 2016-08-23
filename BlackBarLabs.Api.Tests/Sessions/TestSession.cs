@@ -238,6 +238,11 @@ namespace BlackBarLabs.Api.Tests
                 var id = idProperty.GetValue(resource);
                 resourceFromController = (IHttpActionResult)methodInfo.Invoke(controller, new object[] { id, resource });
             }
+            else if(methodInfo.ReturnType.GUID == typeof(Task<IHttpActionResult>).GUID)
+            {
+                var resourceFromControllerTask = (Task<IHttpActionResult>)methodInfo.Invoke(controller, new object[] { resource });
+                resourceFromController = await resourceFromControllerTask;
+            }
             else
             {
                 resourceFromController = (IHttpActionResult)methodInfo.Invoke(controller, new object[] { resource });
