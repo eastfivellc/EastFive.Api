@@ -11,19 +11,25 @@ namespace BlackBarLabs.Api.Tests
     public delegate TResponse HttpActionDelegate<TResource, TResponse>(HttpResponseMessage response, TResource resource);
     public static class HttpActionHelpers
     {
-        public static TResult GetContent<TResult>(this HttpResponseMessage response)
+        public static TModel GetContent<TModel>(this HttpResponseMessage response)
         {
-            var content = response.Content as ObjectContent<TResult>;
-            if (default(ObjectContent<TResult>) == content)
+            var content = response.Content as ObjectContent<TModel>;
+            if (default(ObjectContent<TModel>) == content)
             {
                 // TODO: Check base types
                 var expectedContentType = response.Content.GetType().GetGenericArguments().First();
-                Assert.AreEqual(typeof(TResult).FullName, expectedContentType.FullName,
+                Assert.AreEqual(typeof(TModel).FullName, expectedContentType.FullName,
                     String.Format("Expected {0} but got type {1} in GET",
-                        typeof(TResult).FullName, expectedContentType.FullName));
+                        typeof(TModel).FullName, expectedContentType.FullName));
             }
-            var results = (TResult)content.Value;
+            var results = (TModel)content.Value;
             return results;
+        }
+
+        public static async Task<TModel> GetContentAsync<TModel>(this Task<HttpResponseMessage> responseTask)
+        {
+            var response = await responseTask;
+            return response.GetContent<TModel>();
         }
     }
 }
