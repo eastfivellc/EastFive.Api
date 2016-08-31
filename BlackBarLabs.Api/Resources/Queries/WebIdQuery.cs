@@ -30,6 +30,12 @@ namespace BlackBarLabs.Api.Resources
             return new WebIdQuery() { query = value.UUID.ToString() };
         }
 
+        public static implicit operator WebIdQuery(Guid [] values)
+        {
+            var query = String.Join(",", values.Select(value => value.ToString()));
+            return new WebIdQuery() { query = query };
+        }
+
         public TResult Parse<TResult>(
             Func<IEnumerable<Guid>, TResult> multiple,
             Func<TResult> empty,
