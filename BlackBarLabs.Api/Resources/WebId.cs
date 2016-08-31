@@ -47,5 +47,15 @@ namespace BlackBarLabs.Api.Resources
         /// </summary>
         [DataMember(Name = "source")]
         public Uri Source { get; set; }
+
+        public static implicit operator WebId(Guid value)
+        {
+            return value.GetWebIdUUID();
+        }
+
+        public static implicit operator WebId(ResourceBase value)
+        {
+            return value.Id;
+        }
     }
 }
