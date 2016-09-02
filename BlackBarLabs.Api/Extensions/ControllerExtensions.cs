@@ -113,23 +113,36 @@ namespace BlackBarLabs.Api
         private static async Task<HttpResponseMessage> CreateBrowserMultipartResponse(this HttpRequestMessage request,
             IEnumerable<HttpResponseMessage> contents)
         {
-            var contentTasks = contents.Select(
+            var multipartContentTasks = contents.Select(
                 async (content) =>
                 {
-                    var response = new Response
-                    {
-                        StatusCode = content.StatusCode,
-                        ContentType = content.Content.Headers.ContentType,
-                        ContentLocation = content.Content.Headers.ContentLocation,
-                        Content = await content.Content.ReadAsStringAsync(),
-                    };
-                    return response;
+                    return await content.Content.HasValue(
+                        async (contentContent) =>
+                        {
+                            var response = new Response
+                            {
+                                StatusCode = content.StatusCode,
+                                ContentType = contentContent.Headers.ContentType,
+                                ContentLocation = contentContent.Headers.ContentLocation,
+                                Content = await contentContent.ReadAsStringAsync(),
+                            };
+                            return response;
+                        },
+                        () =>
+                        {
+                            var response = new Response
+                            {
+                                StatusCode = content.StatusCode,
+                            };
+                            return Task.FromResult(response);
+                        });
                 });
 
+            var multipartContents = await Task.WhenAll(multipartContentTasks);
             var multipartResponseContent = new MultipartResponse
             {
                 StatusCode = HttpStatusCode.OK,
-                Content = (await Task.WhenAll(contentTasks)).ToList(),
+                Content = multipartContents,
                 Location = request.RequestUri,
             };
 

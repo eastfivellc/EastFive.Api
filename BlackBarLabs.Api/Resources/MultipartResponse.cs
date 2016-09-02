@@ -10,7 +10,7 @@ namespace BlackBarLabs.Api.Resources
     {
         public MultipartResponse()
         {
-            Content = new List<Response>();
+            Content = new Response [] { };
         }
 
         [DataMember(Name = "location")]
@@ -20,6 +20,6 @@ namespace BlackBarLabs.Api.Resources
         public HttpStatusCode StatusCode { get; set; }
 
         [DataMember(Name = "content")]
-        public List<Response> Content { get; set; }
+        public Response [] Content { get; set; }
     }
 }

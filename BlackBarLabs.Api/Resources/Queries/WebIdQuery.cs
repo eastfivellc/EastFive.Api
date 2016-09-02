@@ -81,7 +81,6 @@ namespace BlackBarLabs.Api.Resources
                 {
                     return single(singleGuid);
                 }
-                return unparsable();
             }
             return Parse(multiple, empty, unparsable);
         }
