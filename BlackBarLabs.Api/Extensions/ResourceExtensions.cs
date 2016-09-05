@@ -12,6 +12,7 @@ using BlackBarLabs.Web.Services;
 using System.Threading.Tasks;
 using System.Web.Http;
 using BlackBarLabs.Api;
+using BlackBarLabs.Api.Resources;
 
 namespace BlackBarLabs.Api
 {
@@ -205,6 +206,22 @@ namespace BlackBarLabs.Api
                 return queryResponses[0].ToActionResult();
 
             return await request.CreateMultipartActionAsync(queryResponses);
+        }
+
+        public static Guid[] ToGuids(this WebId[] webIds)
+        {
+            var guids = new Guid[]{};
+            if (webIds.Any())
+                guids = webIds.Select(wId => wId.UUID).ToArray();
+            return guids;
+        }
+
+        public static WebId[] ToWebIds<TController>(this Guid[] guids, UrlHelper url)
+        {
+            var webIds = new WebId[] { };
+            if (guids.Any())
+                webIds = guids.Select(guid => url.GetWebId<TController>(guid)).ToArray();
+            return webIds;
         }
     }
 }
