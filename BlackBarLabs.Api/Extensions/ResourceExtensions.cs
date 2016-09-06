@@ -211,7 +211,7 @@ namespace BlackBarLabs.Api
         public static Guid[] ToGuids(this WebId[] webIds)
         {
             var guids = new Guid[]{};
-            if (webIds.Any())
+            if (null != webIds && webIds.Any())
                 guids = webIds.Select(wId => wId.UUID).ToArray();
             return guids;
         }
@@ -219,7 +219,7 @@ namespace BlackBarLabs.Api
         public static WebId[] ToWebIds<TController>(this Guid[] guids, UrlHelper url)
         {
             var webIds = new WebId[] { };
-            if (guids.Any())
+            if (null != guids && guids.Any())
                 webIds = guids.Select(guid => url.GetWebId<TController>(guid)).ToArray();
             return webIds;
         }
