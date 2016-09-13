@@ -230,6 +230,8 @@ namespace BlackBarLabs.Api.Tests
 
             var methodName = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(method.ToString().ToLower());
             var methodInfo = typeof(TController).GetMethod(methodName);
+            if (null == methodInfo)
+                Assert.Fail("Method {0} not supported on {1}", methodName, controller.GetType().Name);
 
             IHttpActionResult resourceFromController;
             if (methodInfo.GetParameters().Length == 2)
