@@ -36,6 +36,13 @@ namespace BlackBarLabs.Api.Tests
             Id = Guid.NewGuid();
             Headers = new Dictionary<string, string>();
         }
+
+        public TestSession(Guid sessionId)
+        {
+            Id = sessionId;
+            Headers = new Dictionary<string, string>();
+        }
+
         public Guid Id { get; set; }
         
         #region Methods
@@ -140,6 +147,7 @@ namespace BlackBarLabs.Api.Tests
 
         private Dictionary<string, object> requestPropertyObjects = new Dictionary<string, object>();
         private Dictionary<string, object> requestPropertyFetches = new Dictionary<string, object>();
+        
         public void UpdateRequestPropertyFetch<T>(string propertyKey, T propertyValue, out T currentValue)
         {
             if (requestPropertyObjects.ContainsKey(propertyKey))
