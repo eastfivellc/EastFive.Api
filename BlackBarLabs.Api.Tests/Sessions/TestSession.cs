@@ -152,7 +152,7 @@ namespace BlackBarLabs.Api.Tests
                 {
                     return null;
                 });
-            var options = response.Headers.GetOptions();
+            var options = response.GetOptions();
             var results = callback(response, options.ToArray());
             return results;
         }
