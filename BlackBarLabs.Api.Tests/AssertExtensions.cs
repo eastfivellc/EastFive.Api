@@ -83,5 +83,15 @@ namespace BlackBarLabs.Api.Tests
             Microsoft.VisualStudio.TestTools.UnitTesting.Assert.AreEqual(time1.Hour, time2.Hour);
             Microsoft.VisualStudio.TestTools.UnitTesting.Assert.AreEqual(time1.Minute, time2.Minute);
         }
+
+        public static void AssertContains<T>(this IEnumerable<T> items, Func<T, bool> comparison)
+        {
+            foreach(var item in items)
+            {
+                if (comparison(item))
+                    return;
+            }
+            Microsoft.VisualStudio.TestTools.UnitTesting.Assert.Fail("Items does not contain item");
+        }
     }
 }

@@ -99,6 +99,15 @@ namespace BlackBarLabs.Api.Tests
             return response;
         }
 
+        public async Task<TResult> GetAsync<TController, TResult>(
+                Func<HttpResponseMessage, TResult> callback)
+            where TController : ApiController
+        {
+            var controller = GetController<TController>();
+            var response = await InvokeControllerAsync(controller, HttpMethod.Get);
+            return callback(response);
+        }
+
         public async Task<HttpResponseMessage> GetAsync<TController>(object resource,
                 Action<HttpRequestMessage> mutateRequest = default(Action<HttpRequestMessage>))
             where TController : ApiController

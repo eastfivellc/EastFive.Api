@@ -10,6 +10,10 @@ namespace BlackBarLabs.Api.Tests
 {
     public interface ITestSession
     {
+        Task<TResult> GetAsync<TController, TResult>(
+                Func<HttpResponseMessage, TResult> callback)
+            where TController : ApiController;
+
         Task<HttpResponseMessage> GetAsync<TController>(object resource,
                 Action<HttpRequestMessage> mutateRequest = default(Action<HttpRequestMessage>))
             where TController : ApiController;

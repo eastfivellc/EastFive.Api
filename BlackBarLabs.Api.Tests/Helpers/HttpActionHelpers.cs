@@ -1,4 +1,5 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using BlackBarLabs.Web;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,7 +13,23 @@ namespace BlackBarLabs.Api.Tests
     public delegate TResponse HttpActionDelegate<TResource, TResponse>(HttpResponseMessage response, TResource resource);
     public static class HttpActionHelpers
     {
+        public static IEnumerable<TModel> GetContentMultipart<TModel>(this HttpResponseMessage response)
+        {
+            var contentIEnumerable = response.Content as ObjectContent<IEnumerable<TModel>>;
+            if (default(ObjectContent<IEnumerable<TModel>>) != contentIEnumerable)
+                return (IEnumerable<TModel>)contentIEnumerable.Value;
 
+            var contentArray = response.Content as ObjectContent<TModel[]>;
+            if (default(ObjectContent<TModel[]>) != contentArray)
+            {
+                var arrayValue = (TModel[])contentIEnumerable.Value;
+                return arrayValue;
+            }
+
+            var singleContent = response.GetContent<TModel>();
+            return singleContent.ToEnumerable();
+        }
+        
         public static TModel GetContent<TModel>(this HttpResponseMessage response)
         {
             var content = response.Content as ObjectContent<TModel>;
