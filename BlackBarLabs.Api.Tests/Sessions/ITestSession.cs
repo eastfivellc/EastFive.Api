@@ -40,6 +40,10 @@ namespace BlackBarLabs.Api.Tests
                 Action<HttpRequestMessage> mutateRequest = default(Action<HttpRequestMessage>))
             where TController : ApiController;
 
+        Task<TResult> OptionsAsync<TController, TResult>(
+                Func<HttpResponseMessage, HttpMethod[], TResult> callback)
+            where TController : ApiController;
+
         Dictionary<string, string> Headers { get; set; }
 
         T GetRequestPropertyFetch<T>(string propertyKey);

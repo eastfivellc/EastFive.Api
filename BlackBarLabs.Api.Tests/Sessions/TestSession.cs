@@ -142,6 +142,21 @@ namespace BlackBarLabs.Api.Tests
                 });
         }
 
+        public async Task<TResult> OptionsAsync<TController, TResult>(
+                Func<HttpResponseMessage, HttpMethod[], TResult> callback)
+            where TController : ApiController
+        {
+            var controller = GetController<TController>();
+            var response = await InvokeControllerAsync(controller, HttpMethod.Options,
+                (request, user) =>
+                {
+                    return null;
+                });
+            var options = response.Headers.GetOptions();
+            var results = callback(response, options.ToArray());
+            return results;
+        }
+
         #endregion
 
 
@@ -233,8 +248,42 @@ namespace BlackBarLabs.Api.Tests
                 InvokeControllerDelegate<object> callback)
             where TController : ApiController
         {
+            return await InvokeControllerAsync<TController>(
+                controller, method,
+                (httpRequest, methodInfo) =>
+                {
+                    var resource = callback(httpRequest, controller.User as MockPrincipal);
+                    if (methodInfo.GetParameters().Length == 2)
+                    {
+                        var idProperty = resource.GetType().GetProperty("Id");
+                        var id = idProperty.GetValue(resource);
+                        return new object[] { id, resource };
+                    }
+                    return new object[] { resource };
+                });
+        }
+
+        private async Task<HttpResponseMessage> InvokeControllerAsync<TController>(
+                TController controller,
+                HttpMethod method)
+            where TController : ApiController
+        {
+            return await InvokeControllerAsync<TController>(
+                controller, method,
+                (request, methodInfo) =>
+                {
+                    if (methodInfo.GetParameters().Length != 0)
+                        throw new Exception("Must specify parameters to call " + methodInfo.ToString());
+                    return new object[] { };
+                });
+        }
+        private async Task<HttpResponseMessage> InvokeControllerAsync<TController>(
+                TController controller,
+                HttpMethod method,
+                Func<HttpRequestMessage, System.Reflection.MethodInfo, object []> getParameters)
+            where TController : ApiController
+        {
             var httpRequest = GetRequest(controller, method);
-            var resource = callback(httpRequest, controller.User as MockPrincipal);
 
             var methodName = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(method.ToString().ToLower());
             var methodInfo = typeof(TController).GetMethod(methodName);
@@ -242,20 +291,20 @@ namespace BlackBarLabs.Api.Tests
                 Assert.Fail("Method {0} not supported on {1}", methodName, controller.GetType().Name);
 
             IHttpActionResult resourceFromController;
-            if (methodInfo.GetParameters().Length == 2)
+            var parameters = getParameters(httpRequest, methodInfo);
+            if (methodInfo.ReturnType.GUID == typeof(Task<IHttpActionResult>).GUID)
             {
-                var idProperty = resource.GetType().GetProperty("Id");
-                var id = idProperty.GetValue(resource);
-                resourceFromController = (IHttpActionResult)methodInfo.Invoke(controller, new object[] { id, resource });
-            }
-            else if(methodInfo.ReturnType.GUID == typeof(Task<IHttpActionResult>).GUID)
-            {
-                var resourceFromControllerTask = (Task<IHttpActionResult>)methodInfo.Invoke(controller, new object[] { resource });
+                var resourceFromControllerTask = (Task<IHttpActionResult>)methodInfo.Invoke(controller, parameters);
                 resourceFromController = await resourceFromControllerTask;
+            }
+            else if (methodInfo.ReturnType.GUID == typeof(HttpResponseMessage).GUID)
+            {
+                var responseMessage = (HttpResponseMessage)methodInfo.Invoke(controller, parameters);
+                resourceFromController = responseMessage.ToActionResult();
             }
             else
             {
-                resourceFromController = (IHttpActionResult)methodInfo.Invoke(controller, new object[] { resource });
+                resourceFromController = (IHttpActionResult)methodInfo.Invoke(controller, parameters);
             }
             var response = await resourceFromController.ExecuteAsync(CancellationToken.None);
             foreach (var header in response.Headers)
