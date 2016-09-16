@@ -13,6 +13,12 @@ namespace BlackBarLabs.Api.Resources
     [TypeConverter(typeof(WebIdQueryConverter))]
     public class WebIdQuery
     {
+        public string UUIDs { get; set; }
+
+        public string URN { get; set; }
+
+        public string Source { get; set; }
+
         private string query;
 
         public static implicit operator WebIdQuery(string query)

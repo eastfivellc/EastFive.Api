@@ -64,7 +64,27 @@ namespace BlackBarLabs.Api
                 Source = new Uri(location),
             };
         }
-        
+
+        public static Uri GetLocation(this UrlHelper url, Type controllerType,
+            string routeName = "DefaultApi")
+        {
+            var controllerName =
+                controllerType.Name.TrimEnd("Controller",
+                    (trimmedName) => trimmedName, (originalName) => originalName);
+            var location = url.Link(routeName, new { Controller = controllerName });
+            return new Uri(location);
+        }
+
+        public static Uri GetLocation<TController>(this UrlHelper url,
+            string routeName = "DefaultApi")
+        {
+            var controllerName =
+                typeof(TController).Name.TrimEnd("Controller",
+                    (trimmedName) => trimmedName, (originalName) => originalName);
+            var location = url.Link(routeName, new { Controller = controllerName });
+            return new Uri(location);
+        }
+
         public static Uri GetLocation<TController>(this UrlHelper url,
             Guid id,
             string routeName = "DefaultApi")
