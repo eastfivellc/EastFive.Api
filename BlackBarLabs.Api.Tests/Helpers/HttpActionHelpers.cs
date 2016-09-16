@@ -22,7 +22,7 @@ namespace BlackBarLabs.Api.Tests
             var contentArray = response.Content as ObjectContent<TModel[]>;
             if (default(ObjectContent<TModel[]>) != contentArray)
             {
-                var arrayValue = (TModel[])contentIEnumerable.Value;
+                var arrayValue = (TModel[])contentArray.Value;
                 return arrayValue;
             }
 
