@@ -64,7 +64,24 @@ namespace BlackBarLabs.Api
                 Source = new Uri(location),
             };
         }
-        
+
+        public static Resources.WebId GetWebId<TController>(this UrlHelper url,
+            string urn,
+            string routeName = "DefaultApi")
+        {
+            var controllerName =
+                typeof(TController).Name.TrimEnd("Controller",
+                    (trimmedName) => trimmedName, (originalName) => originalName);
+            var location = url.Link(routeName, new { Controller = controllerName, Id = default(Guid) });
+            return new Resources.WebId
+            {
+                Key = default(Guid).ToString(),
+                UUID = default(Guid),
+                URN = new Uri(urn),
+                Source = new Uri(location)
+            };
+        }
+
         public static Resources.WebId GetWebId(this UrlHelper url,
             Type controllerType,
             string urnNamespace,
