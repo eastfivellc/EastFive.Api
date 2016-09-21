@@ -14,6 +14,8 @@ using System.Web.Http;
 using BlackBarLabs.Api;
 using BlackBarLabs.Api.Resources;
 
+using BlackBarLabs.Core;
+
 namespace BlackBarLabs.Api
 {
     public static class ResourceExtensions
@@ -82,6 +84,20 @@ namespace BlackBarLabs.Api
             };
         }
 
+        public static Uri GetUrn(this Type controllerType,
+            string urnNamespace)
+        {
+            var controllerName =
+                controllerType.Name.TrimEnd("Controller",
+                    (trimmedName) => trimmedName, (originalName) => originalName);
+
+            var urn = new Uri("urn:" + urnNamespace + ":" + controllerName);
+            var resourceAttributeTypes = controllerType.GetCustomAttributes<ResourceTypeAttribute>();
+            if (resourceAttributeTypes.Length > 0)
+                urn = new Uri(resourceAttributeTypes[0].Urn);
+            return urn;
+        }
+
         public static Resources.WebId GetWebId(this UrlHelper url,
             Type controllerType,
             string urnNamespace,
@@ -91,11 +107,12 @@ namespace BlackBarLabs.Api
                 controllerType.Name.TrimEnd("Controller",
                     (trimmedName) => trimmedName, (originalName) => originalName);
             var location = url.Link(routeName, new { Controller = controllerName });
+            
             return new Resources.WebId
             {
                 Key = string.Empty,
                 UUID = Guid.Empty,
-                URN = new Uri("urn:" + urnNamespace + ":" + controllerName),
+                URN = controllerType.GetUrn(urnNamespace),
                 Source = new Uri(location),
             };
         }
