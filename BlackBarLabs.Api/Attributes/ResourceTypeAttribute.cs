@@ -14,8 +14,8 @@ namespace BlackBarLabs.Api
         {
         }
         
-        private string urn;
-        public string Urn
+        private Type urn;
+        public Type Urn
         {
             get
             {

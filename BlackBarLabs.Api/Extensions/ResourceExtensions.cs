@@ -92,9 +92,16 @@ namespace BlackBarLabs.Api
                     (trimmedName) => trimmedName, (originalName) => originalName);
 
             var urn = new Uri("urn:" + urnNamespace + ":" + controllerName);
-            var resourceAttributeTypes = controllerType.GetCustomAttributes<ResourceTypeAttribute>();
+            var resourceAttributeTypes = controllerType.GetCustomAttributes<Api.ResourceTypeAttribute>();
             if (resourceAttributeTypes.Length > 0)
-                urn = new Uri(resourceAttributeTypes[0].Urn);
+            {
+                var urnModelType = resourceAttributeTypes[0].Urn;
+                var modelAttributeTypes = controllerType.GetCustomAttributes<Web.ResourceTypeAttribute>();
+                if (modelAttributeTypes.Length > 0)
+                {
+                    urn = new Uri(modelAttributeTypes[0].Urn);
+                }
+            }
             return urn;
         }
 
