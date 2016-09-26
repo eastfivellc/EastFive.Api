@@ -26,6 +26,5 @@ namespace BlackBarLabs.Api
                 urn = value;
             }
         }
-        
     }
 }
