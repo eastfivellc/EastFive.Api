@@ -14,6 +14,7 @@ namespace BlackBarLabs.Api.Tests
     public static class HttpActionHelpers
     {
         public static IEnumerable<TModel> GetContentMultipart<TModel>(this HttpResponseMessage response)
+            where TModel : class
         {
             var contentIEnumerable = response.Content as ObjectContent<IEnumerable<TModel>>;
             if (default(ObjectContent<IEnumerable<TModel>>) != contentIEnumerable)
@@ -24,6 +25,21 @@ namespace BlackBarLabs.Api.Tests
             {
                 var arrayValue = (TModel[])contentArray.Value;
                 return arrayValue;
+            }
+
+            var contentMultipart = response.Content as ObjectContent<Resources.MultipartResponse>;
+            if (default(ObjectContent<Resources.MultipartResponse>) != contentMultipart)
+            {
+                var multipartValue = (Resources.MultipartResponse)contentMultipart.Value;
+                if (typeof(Resources.Response) == typeof(TModel))
+                    return multipartValue.Content.Select(content => content as TModel);
+
+                var multipartContent = multipartValue.Content.Select(
+                    (resource) =>
+                    {
+                        return resource.Content as TModel;
+                    });
+                return multipartContent;
             }
 
             var singleContent = response.GetContent<TModel>();
