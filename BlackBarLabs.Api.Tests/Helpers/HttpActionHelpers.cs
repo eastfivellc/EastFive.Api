@@ -33,11 +33,11 @@ namespace BlackBarLabs.Api.Tests
                 var multipartValue = (Resources.MultipartResponse)contentMultipart.Value;
                 if (typeof(Resources.Response) == typeof(TModel))
                     return multipartValue.Content.Select(content => content as TModel);
-
+                
                 var multipartContent = multipartValue.Content.Select(
                     (resource) =>
                     {
-                        return resource.Content as TModel;
+                        return Newtonsoft.Json.JsonConvert.DeserializeObject<TModel>(resource.Content as string);
                     });
                 return multipartContent;
             }
