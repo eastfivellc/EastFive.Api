@@ -14,6 +14,8 @@ using System.Web.Http;
 using BlackBarLabs.Api;
 using BlackBarLabs.Api.Resources;
 
+using BlackBarLabs.Core;
+
 namespace BlackBarLabs.Api
 {
     public static class ResourceExtensions
@@ -64,7 +66,84 @@ namespace BlackBarLabs.Api
                 Source = new Uri(location),
             };
         }
-        
+
+        public static Resources.WebId GetWebId<TController>(this UrlHelper url,
+            string urn,
+            string routeName = "DefaultApi")
+        {
+            var controllerName =
+                typeof(TController).Name.TrimEnd("Controller",
+                    (trimmedName) => trimmedName, (originalName) => originalName);
+            var location = url.Link(routeName, new { Controller = controllerName, Id = default(Guid) });
+            return new Resources.WebId
+            {
+                Key = default(Guid).ToString(),
+                UUID = default(Guid),
+                URN = new Uri(urn),
+                Source = new Uri(location)
+            };
+        }
+
+        public static Uri GetUrn(this Type controllerType,
+            string urnNamespace)
+        {
+            var controllerName =
+                controllerType.Name.TrimEnd("Controller",
+                    (trimmedName) => trimmedName, (originalName) => originalName);
+
+            var urn = new Uri("urn:" + urnNamespace + ":" + controllerName);
+            var resourceAttributeTypes = controllerType.GetCustomAttributes<Api.ResourceTypeAttribute>();
+            if (resourceAttributeTypes.Length > 0)
+            {
+                var urnModelType = resourceAttributeTypes[0].Urn;
+                var modelAttributeTypes = controllerType.GetCustomAttributes<Web.ResourceTypeAttribute>();
+                if (modelAttributeTypes.Length > 0)
+                {
+                    urn = new Uri(modelAttributeTypes[0].Urn);
+                }
+            }
+            return urn;
+        }
+
+        public static Resources.WebId GetWebId(this UrlHelper url,
+            Type controllerType,
+            string urnNamespace,
+            string routeName = "DefaultApi")
+        {
+            var controllerName =
+                controllerType.Name.TrimEnd("Controller",
+                    (trimmedName) => trimmedName, (originalName) => originalName);
+            var location = url.Link(routeName, new { Controller = controllerName });
+            
+            return new Resources.WebId
+            {
+                Key = string.Empty,
+                UUID = Guid.Empty,
+                URN = controllerType.GetUrn(urnNamespace),
+                Source = new Uri(location),
+            };
+        }
+
+        public static Uri GetLocation(this UrlHelper url, Type controllerType,
+            string routeName = "DefaultApi")
+        {
+            var controllerName =
+                controllerType.Name.TrimEnd("Controller",
+                    (trimmedName) => trimmedName, (originalName) => originalName);
+            var location = url.Link(routeName, new { Controller = controllerName });
+            return new Uri(location);
+        }
+
+        public static Uri GetLocation<TController>(this UrlHelper url,
+            string routeName = "DefaultApi")
+        {
+            var controllerName =
+                typeof(TController).Name.TrimEnd("Controller",
+                    (trimmedName) => trimmedName, (originalName) => originalName);
+            var location = url.Link(routeName, new { Controller = controllerName });
+            return new Uri(location);
+        }
+
         public static Uri GetLocation<TController>(this UrlHelper url,
             Guid id,
             string routeName = "DefaultApi")
