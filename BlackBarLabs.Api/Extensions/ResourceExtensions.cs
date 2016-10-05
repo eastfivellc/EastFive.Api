@@ -166,6 +166,18 @@ namespace BlackBarLabs.Api
             return new Uri(location);
         }
 
+        public static Uri GetLocationWithQuery(this UrlHelper url, Type controllerType, string query,
+            string routeName = "DefaultApi")
+        {
+            var controllerName =
+                controllerType.Name.TrimEnd("Controller",
+                    (trimmedName) => trimmedName, (originalName) => originalName);
+            var location = url.Link(routeName, new { Controller = controllerName });
+            query = query.StartsWith($"?") ? query.Substring(1) : query;
+            var uri = new UriBuilder(location) {Query = query};
+            return uri.Uri;
+        }
+
         public static IEnumerable<System.Security.Claims.Claim> GetClaims(this HttpRequestMessage request)
         {
             if (request.IsDefaultOrNull())
