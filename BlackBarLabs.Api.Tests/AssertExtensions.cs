@@ -51,10 +51,11 @@ namespace BlackBarLabs.Api.Tests
             response.AssertSuccessDelete();
         }
 
-        public static void Assert(this HttpResponseMessage response, HttpStatusCode responseStatusCode)
+        public static HttpResponseMessage Assert(this HttpResponseMessage response, HttpStatusCode responseStatusCode)
         {
             Microsoft.VisualStudio.TestTools.UnitTesting.Assert.AreEqual(
                 responseStatusCode, response.StatusCode, response.ReasonPhrase);
+            return response;
         }
 
         public static async Task<HttpResponseMessage> AssertAsync(this Task<HttpResponseMessage> responseTask, HttpStatusCode responseStatusCode)
