@@ -9,6 +9,12 @@ namespace BlackBarLabs.Api
 {
     public static class ResponseExtensions
     {
+        public static HttpResponseMessage AddReason(this HttpResponseMessage response, string reason)
+        {
+            response.ReasonPhrase = reason;
+            return response;
+        }
+
         public static HttpResponseMessage CreatePdfResponse(this HttpRequestMessage request, System.IO.Stream stream,
             string filename = default(string), bool inline = false)
         {
