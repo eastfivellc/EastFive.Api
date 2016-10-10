@@ -75,20 +75,46 @@ namespace BlackBarLabs.Api.Resources
             HttpRequestMessage request,
             Func<Guid, TResult> single,
             Func<IEnumerable<Guid>, TResult> multiple,
-            Func<TResult> empty,
+            Func<TResult> unspecified,
             Func<TResult> unparsable)
         {
             if (String.IsNullOrWhiteSpace(request.RequestUri.Query))
             {
                 if (String.IsNullOrWhiteSpace(this.query))
-                    return empty();
+                    return unspecified();
                 Guid singleGuid;
                 if (Guid.TryParse(this.query, out singleGuid))
                 {
                     return single(singleGuid);
                 }
             }
-            return Parse(multiple, empty, unparsable);
+            return Parse(multiple, unspecified, unparsable);
+        }
+
+        public TResult Parse<TResult>(
+            HttpRequestMessage request,
+            Func<Guid, TResult> single,
+            Func<IEnumerable<Guid>, TResult> multiple,
+            Func<TResult> unspecified,
+            Func<TResult> empty,
+            Func<TResult> unparsable)
+        {
+            if (String.Compare("empty", this.query.ToLower()) == 0)
+                return empty();
+            if (String.Compare("null", this.query.ToLower()) == 0)
+                return empty();
+
+            if (String.IsNullOrWhiteSpace(request.RequestUri.Query))
+            {
+                if (String.IsNullOrWhiteSpace(this.query))
+                    return unspecified();
+                Guid singleGuid;
+                if (Guid.TryParse(this.query, out singleGuid))
+                {
+                    return single(singleGuid);
+                }
+            }
+            return Parse(multiple, unspecified, unparsable);
         }
     }
 
