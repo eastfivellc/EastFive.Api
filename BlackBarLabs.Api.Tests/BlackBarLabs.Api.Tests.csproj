@@ -59,6 +59,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssertExtensions.cs" />
+    <Compile Include="Examples\ExampleQuery.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="Helpers\HttpActionHelpers.cs" />
     <Compile Include="Mocks\MockMailService.cs" />
@@ -68,6 +69,7 @@
     <Compile Include="Sessions\ITestSession.cs" />
     <Compile Include="Sessions\TestSession.cs" />
     <Compile Include="Helpers\TestSessionHelpers.cs" />
+    <Compile Include="Tests\QueryParsingTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
@@ -90,6 +92,9 @@
       <Project>{5bb52391-2704-44c0-bc8a-dbbe31498814}</Project>
       <Name>BlackBarLabs.Web</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

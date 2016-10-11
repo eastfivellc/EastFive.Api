@@ -15,6 +15,7 @@ using BlackBarLabs.Api;
 using BlackBarLabs.Api.Resources;
 
 using BlackBarLabs.Core;
+using BlackBarLabs.Collections.Generic;
 
 namespace BlackBarLabs.Api
 {
@@ -84,6 +85,25 @@ namespace BlackBarLabs.Api
             };
         }
 
+        public static Resources.WebId GetWebId(this UrlHelper url,
+            Type controllerType,
+            string urnNamespace,
+            string routeName = "DefaultApi")
+        {
+            var controllerName =
+                controllerType.Name.TrimEnd("Controller",
+                    (trimmedName) => trimmedName, (originalName) => originalName);
+            var location = url.Link(routeName, new { Controller = controllerName });
+
+            return new Resources.WebId
+            {
+                Key = string.Empty,
+                UUID = Guid.Empty,
+                URN = controllerType.GetUrn(urnNamespace),
+                Source = new Uri(location),
+            };
+        }
+
         public static Uri GetUrn(this Type controllerType,
             string urnNamespace)
         {
@@ -103,25 +123,6 @@ namespace BlackBarLabs.Api
                 }
             }
             return urn;
-        }
-
-        public static Resources.WebId GetWebId(this UrlHelper url,
-            Type controllerType,
-            string urnNamespace,
-            string routeName = "DefaultApi")
-        {
-            var controllerName =
-                controllerType.Name.TrimEnd("Controller",
-                    (trimmedName) => trimmedName, (originalName) => originalName);
-            var location = url.Link(routeName, new { Controller = controllerName });
-            
-            return new Resources.WebId
-            {
-                Key = string.Empty,
-                UUID = Guid.Empty,
-                URN = controllerType.GetUrn(urnNamespace),
-                Source = new Uri(location),
-            };
         }
 
         public static Uri GetLocation(this UrlHelper url, Type controllerType,
@@ -202,38 +203,6 @@ namespace BlackBarLabs.Api
                 yield return claim;
         }
         
-        public static Func<ISendMailService> GetMailService(this HttpRequestMessage request)
-        {
-            var mailService = default(ISendMailService);
-            return () =>
-            {
-                if (mailService.IsDefaultOrNull())
-                {
-                    var getMailService = (Func<ISendMailService>)
-                        request.Properties[ServicePropertyDefinitions.MailService];
-                    mailService = getMailService();
-                }
-                return mailService;
-            };
-        }
-        
-        public static Func<ITimeService> GetDateTimeService(this HttpRequestMessage request)
-        {
-            var dateTimeService = default(ITimeService);
-            return () =>
-            {
-                if (dateTimeService.IsDefaultOrNull())
-                {
-                    if (!request.Properties.ContainsKey(ServicePropertyDefinitions.TimeService))
-                        dateTimeService = new Services.TimeService();
-                    else
-                        dateTimeService = ((Func<ITimeService>)
-                            request.Properties[ServicePropertyDefinitions.TimeService])();
-                }
-                return dateTimeService;
-            };
-        }
-
         public static string ToStringOneCharacter(this DayOfWeek dayOfWeek)
         {
             var dtInfo = new System.Globalization.DateTimeFormatInfo();
@@ -291,38 +260,22 @@ namespace BlackBarLabs.Api
         {
             return new Resources.WebId() { UUID = uuId };
         }
-
-        public static async Task<IHttpActionResult> GetPossibleMultipartResponseAsync<TResource>(this HttpRequestMessage request,
-            IEnumerable<TResource> query,
-            Func<TResource, Task<HttpResponseMessage>> singlepart,
-            Func<HttpActionDelegate> ifEmpty = default(Func<HttpActionDelegate>))
-        {
-            if ((!query.Any()) && (!ifEmpty.IsDefaultOrNull()))
-            {
-                return ifEmpty().ToActionResult();
-            }
-
-            var queryTasks = query.Select(resource => singlepart(resource));
-            var queryResponses = await Task.WhenAll(queryTasks);
-            if (queryResponses.Length == 1)
-                return queryResponses[0].ToActionResult();
-
-            return await request.CreateMultipartActionAsync(queryResponses);
-        }
-
+        
         public static Guid[] ToGuids(this WebId[] webIds)
         {
-            var guids = new Guid[]{};
-            if (null != webIds && webIds.Any())
-                guids = webIds.Select(wId => wId.UUID).ToArray();
+            var guids = webIds
+                .NullToEmpty()
+                .Select(wId => wId.UUID)
+                .ToArray();
             return guids;
         }
 
         public static WebId[] ToWebIds<TController>(this Guid[] guids, UrlHelper url)
         {
-            var webIds = new WebId[] { };
-            if (null != guids && guids.Any())
-                webIds = guids.Select(guid => url.GetWebId<TController>(guid)).ToArray();
+            var webIds = guids
+                .NullToEmpty()
+                .Select(guid => url.GetWebId<TController>(guid))
+                .ToArray();
             return webIds;
         }
     }

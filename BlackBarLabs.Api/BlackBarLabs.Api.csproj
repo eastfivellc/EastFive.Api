@@ -104,10 +104,16 @@
   <ItemGroup>
     <Compile Include="Attributes\ResourceTypeAttribute.cs" />
     <Compile Include="Controllers\BaseController.cs" />
+    <Compile Include="Extensions\QueryExtensions.ParseMethods.cs" />
+    <Compile Include="Extensions\QueryExtensions.WebIdQueries.cs" />
+    <Compile Include="Extensions\QueryExtensions.cs" />
+    <Compile Include="Extensions\RequestServiceExtensions.cs" />
     <Compile Include="Extensions\ResourceExtensions.cs" />
     <Compile Include="Extensions\ControllerExtensions.cs" />
+    <Compile Include="Extensions\RequestExtensions.cs" />
     <Compile Include="Extensions\ResponseExtensions.cs" />
     <Compile Include="Extensions\UriExtensions.cs" />
+    <Compile Include="Extensions\UrlHelperExtensions.cs" />
     <Compile Include="Extensions\ValidationExtensions.cs" />
     <Compile Include="HttpActionResult.cs" />
     <Compile Include="Resources\Exceptions.cs" />
