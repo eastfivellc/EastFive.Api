@@ -28,6 +28,29 @@ namespace BlackBarLabs.Api
 
         public static async Task<HttpResponseMessage> ParseAsync<TQuery>(this TQuery query, HttpRequestMessage request,
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat1,
+            Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat2,
+            Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat3)
+        {
+            var queriesSingle = new[] { queryFormat1 };
+            var queriesEnumerable = default(IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>>).NullToEmpty();
+            var queriesArray = new[] { queryFormat2, queryFormat3 };
+            return await ParseAsync(query, request, queriesSingle, queriesEnumerable, queriesArray);
+        }
+
+        public static async Task<HttpResponseMessage> ParseAsync<TQuery>(this TQuery query, HttpRequestMessage request,
+            Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat1,
+            Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat2,
+            Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat3,
+            Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat4)
+        {
+            var queriesSingle = new[] { queryFormat1 };
+            var queriesEnumerable = default(IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>>).NullToEmpty();
+            var queriesArray = new[] { queryFormat2, queryFormat3, queryFormat4 };
+            return await ParseAsync(query, request, queriesSingle, queriesEnumerable, queriesArray);
+        }
+
+        public static async Task<HttpResponseMessage> ParseAsync<TQuery>(this TQuery query, HttpRequestMessage request,
+            Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat1,
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat2)
         {
             var queries = new[] { queryFormat1, queryFormat2 };
@@ -44,6 +67,18 @@ namespace BlackBarLabs.Api
             var queriesSingle = new[] { queryFormat1, queryFormat2 };
             var queriesEnumerable = default(IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>>).NullToEmpty();
             var queriesArray = new[] { queryFormat3 };
+            return await ParseAsync(query, request, queriesSingle, queriesEnumerable, queriesArray);
+        }
+
+        public static async Task<HttpResponseMessage> ParseAsync<TQuery>(this TQuery query, HttpRequestMessage request,
+            Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat1,
+            Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat2,
+            Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat3,
+            Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat4)
+        {
+            var queriesSingle = new[] { queryFormat1, queryFormat2 };
+            var queriesEnumerable = default(IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>>).NullToEmpty();
+            var queriesArray = new[] { queryFormat3, queryFormat4 };
             return await ParseAsync(query, request, queriesSingle, queriesEnumerable, queriesArray);
         }
 
