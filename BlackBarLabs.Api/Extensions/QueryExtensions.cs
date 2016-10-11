@@ -4,6 +4,7 @@ using BlackBarLabs.Core.Collections;
 using BlackBarLabs.Core.Extensions;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Net.Http;
@@ -161,28 +162,35 @@ namespace BlackBarLabs.Api
 
         private static IDictionary<PropertyInfo, Type> GetQueryMethodParamters<TQuery>(Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat)
         {
-            var tbody = queryFormat.Body.GetType();
-            var body = queryFormat.Body as System.Linq.Expressions.InvocationExpression;
-            return GetQueryMethodParamters(body);
+            var args = queryFormat.GetArguments();
+            return GetQueryMethodParamters(args);
         }
 
         private static IDictionary<PropertyInfo, Type> GetQueryMethodParamters<TQuery>(Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>> queryFormat)
         {
-            var tbody = queryFormat.Body.GetType();
-            var body = queryFormat.Body as System.Linq.Expressions.InvocationExpression;
-            return GetQueryMethodParamters(body);
+            var args = queryFormat.GetArguments();
+            return GetQueryMethodParamters(args);
         }
 
         private static IDictionary<PropertyInfo, Type> GetQueryMethodParamters<TQuery>(Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat)
         {
-            var tbody = queryFormat.Body.GetType();
-            var body = queryFormat.Body as System.Linq.Expressions.InvocationExpression;
-            return GetQueryMethodParamters(body);
+            var args = queryFormat.GetArguments();
+            return GetQueryMethodParamters(args);
         }
         
-        private static IDictionary<PropertyInfo, Type> GetQueryMethodParamters(InvocationExpression body)
+        private static ReadOnlyCollection<Expression> GetArguments(this LambdaExpression expression)
         {
-            var kvps = body.Arguments
+            var tbody = expression.Body.GetType();
+            var bodyInvoca = expression.Body as InvocationExpression;
+            if (default(InvocationExpression) != bodyInvoca)
+                return bodyInvoca.Arguments;
+            var bodyMethod = expression.Body as System.Linq.Expressions.MethodCallExpression;
+            return bodyMethod.Arguments;
+        }
+
+        private static IDictionary<PropertyInfo, Type> GetQueryMethodParamters(ReadOnlyCollection<Expression> arguments)
+        {
+            var kvps = arguments
                 .Where(arg => arg is MethodCallExpression)
                 .Select(
                     (Expression arg) =>

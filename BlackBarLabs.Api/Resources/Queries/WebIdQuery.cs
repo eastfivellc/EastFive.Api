@@ -99,6 +99,8 @@ namespace BlackBarLabs.Api.Resources
             Func<TResult> empty,
             Func<TResult> unparsable)
         {
+            if (String.IsNullOrWhiteSpace(this.query))
+                return unspecified();
             if (String.Compare("empty", this.query.ToLower()) == 0)
                 return empty();
             if (String.Compare("null", this.query.ToLower()) == 0)
