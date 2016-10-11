@@ -94,5 +94,14 @@ namespace BlackBarLabs.Api.Tests
             }
             Microsoft.VisualStudio.TestTools.UnitTesting.Assert.Fail("Items does not contain item");
         }
+
+        public static void AssertAll<T>(this IEnumerable<T> items, Func<T, bool> assertValid)
+        {
+            foreach (var item in items)
+            {
+                if (!assertValid(item))
+                    Microsoft.VisualStudio.TestTools.UnitTesting.Assert.Fail("Item {0} is not valid", item.ToString());
+            }
+        }
     }
 }
