@@ -99,6 +99,20 @@ namespace BlackBarLabs.Api
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat1,
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat2,
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat3,
+            Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat4,
+            Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat5,
+            Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat6)
+        {
+            var queriesSingle = new[] { queryFormat1, queryFormat2, queryFormat3 };
+            var queriesEnumerable = default(IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>>).NullToEmpty();
+            var queriesArray = new[] { queryFormat4, queryFormat5 };
+            return await ParseAsync(query, request, queriesSingle, queriesEnumerable, queriesArray);
+        }
+
+        public static async Task<HttpResponseMessage> ParseAsync<TQuery>(this TQuery query, HttpRequestMessage request,
+            Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat1,
+            Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat2,
+            Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat3,
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat4,
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat5,
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat6)
