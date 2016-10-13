@@ -105,7 +105,7 @@ namespace BlackBarLabs.Api
         {
             var queriesSingle = new[] { queryFormat1, queryFormat2, queryFormat3 };
             var queriesEnumerable = default(IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>>).NullToEmpty();
-            var queriesArray = new[] { queryFormat4, queryFormat5 };
+            var queriesArray = new[] { queryFormat4, queryFormat5, queryFormat6 };
             return await ParseAsync(query, request, queriesSingle, queriesEnumerable, queriesArray);
         }
 
