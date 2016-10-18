@@ -106,7 +106,7 @@ namespace BlackBarLabs.Api.Resources
             if (String.Compare("null", this.query.ToLower()) == 0)
                 return empty();
 
-            if (String.IsNullOrWhiteSpace(request.RequestUri.Query))
+            if (this.query.First() != '[' && this.query.Last() != ']')
             {
                 if (String.IsNullOrWhiteSpace(this.query))
                     return unspecified();

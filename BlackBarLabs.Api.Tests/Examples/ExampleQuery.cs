@@ -7,10 +7,8 @@ using System.Threading.Tasks;
 
 namespace BlackBarLabs.Api.Tests.Examples
 {
-    public class ExampleQuery
+    public class ExampleQuery : ResourceQueryBase
     {
-        public WebIdQuery Id { get; set; }
-
         public WebIdQuery AssociatedId { get; set; }
 
         int Value { get; set; }

@@ -52,7 +52,7 @@ namespace BlackBarLabs.Api.Tests.Tests
                     return default(HttpResponseMessage).ToTask();
                 };
 
-            var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/foo/" + queryId.ToString());
+            var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/foo?associated_id=" + queryId.ToString());
             request.SetConfiguration(new System.Web.Http.HttpConfiguration());
             await query.ParseAsync(request,
                 (q) => assert(q.Id.ParamSingle()),

@@ -19,6 +19,7 @@ namespace BlackBarLabs.Api
     {
         public static async Task<HttpResponseMessage> ParseAsync<TQuery>(this TQuery query, HttpRequestMessage request,
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat1)
+            where TQuery : ResourceQueryBase
         {
             var queries = new[] { queryFormat1 };
             var queriesEnumerable = default(IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>>).NullToEmpty();
@@ -30,6 +31,7 @@ namespace BlackBarLabs.Api
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat1,
             Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat2,
             Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat3)
+            where TQuery : ResourceQueryBase
         {
             var queriesSingle = new[] { queryFormat1 };
             var queriesEnumerable = default(IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>>).NullToEmpty();
@@ -42,6 +44,7 @@ namespace BlackBarLabs.Api
             Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat2,
             Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat3,
             Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat4)
+            where TQuery : ResourceQueryBase
         {
             var queriesSingle = new[] { queryFormat1 };
             var queriesEnumerable = default(IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>>).NullToEmpty();
@@ -52,6 +55,7 @@ namespace BlackBarLabs.Api
         public static async Task<HttpResponseMessage> ParseAsync<TQuery>(this TQuery query, HttpRequestMessage request,
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat1,
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat2)
+            where TQuery : ResourceQueryBase
         {
             var queries = new[] { queryFormat1, queryFormat2 };
             var queriesEnumerable = default(IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>>).NullToEmpty();
@@ -63,6 +67,7 @@ namespace BlackBarLabs.Api
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat1,
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat2,
             Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat3)
+            where TQuery : ResourceQueryBase
         {
             var queriesSingle = new[] { queryFormat1, queryFormat2 };
             var queriesEnumerable = default(IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>>).NullToEmpty();
@@ -75,6 +80,7 @@ namespace BlackBarLabs.Api
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat2,
             Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat3,
             Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat4)
+            where TQuery : ResourceQueryBase
         {
             var queriesSingle = new[] { queryFormat1, queryFormat2 };
             var queriesEnumerable = default(IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>>).NullToEmpty();
@@ -88,6 +94,7 @@ namespace BlackBarLabs.Api
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat3,
             Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat4,
             Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat5)
+            where TQuery : ResourceQueryBase
         {
             var queriesSingle = new[] { queryFormat1, queryFormat2, queryFormat3 };
             var queriesEnumerable = default(IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>>).NullToEmpty();
@@ -102,6 +109,7 @@ namespace BlackBarLabs.Api
             Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat4,
             Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat5,
             Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat6)
+            where TQuery : ResourceQueryBase
         {
             var queriesSingle = new[] { queryFormat1, queryFormat2, queryFormat3 };
             var queriesEnumerable = default(IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>>).NullToEmpty();
@@ -116,6 +124,7 @@ namespace BlackBarLabs.Api
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat4,
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat5,
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat6)
+            where TQuery : ResourceQueryBase
         {
             var queries = new[] { queryFormat1, queryFormat2, queryFormat3, queryFormat4, queryFormat5, queryFormat6 };
             var queriesEnumerable = default(IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>>).NullToEmpty();
@@ -130,6 +139,7 @@ namespace BlackBarLabs.Api
             Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>> queryFormat4,
             Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>> queryFormat5,
             Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>> queryFormat6)
+            where TQuery : ResourceQueryBase
         {
             var queries1 = new[] { queryFormat1, queryFormat2, queryFormat3 };
             var queries2 = new[] { queryFormat4, queryFormat5, queryFormat6 };
@@ -144,6 +154,7 @@ namespace BlackBarLabs.Api
             Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>> queryFormat4,
             Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>> queryFormat5,
             Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>> queryFormat6)
+            where TQuery : ResourceQueryBase
         {
             var queriesSingle = default(IEnumerable<Expression<Func<TQuery, Task<HttpResponseMessage>>>>).NullToEmpty();
             var queriesEnumerable = default(IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>>).NullToEmpty();

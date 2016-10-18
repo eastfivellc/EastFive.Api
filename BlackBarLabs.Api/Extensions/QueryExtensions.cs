@@ -22,6 +22,7 @@ namespace BlackBarLabs.Api
             IEnumerable<Expression<Func<TQuery, Task<HttpResponseMessage>>>>              queriesSingle,
             IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>> queriesEnumerable,
             IEnumerable<Expression<Func<TQuery, Task<HttpResponseMessage[]>>>>            queriesArray)
+            where TQuery : ResourceQueryBase
         {
             return await GetQueryObjectParamters(query, request,
                 async (queryObjectParameters, replacementQuery) =>
@@ -112,18 +113,54 @@ namespace BlackBarLabs.Api
 
         private static bool IsMatch(IDictionary<PropertyInfo, WebIdQuery> queryObjectParameters, IDictionary<PropertyInfo, Type> queryMethodParameters)
         {
-            var queryObjectParametersMissing = queryObjectParameters
+            var queryObjectParametersSpecified = queryObjectParameters
                 .Where(propKvp => !(propKvp.Value is WebIdUnspecified))
-                .Where(propKvp => !queryMethodParameters.ContainsKey(propKvp.Key) ||
-                                  !queryMethodParameters[propKvp.Key].IsInstanceOfType(propKvp.Value));
+                .ToArray();
+            
+            foreach(var queryObjectParameter in queryObjectParametersSpecified)
+            {
+                bool foundMatch = false;
+                foreach(var queryMethodParameter in queryMethodParameters)
+                {
+                    if (string.Compare(queryMethodParameter.Key.Name, queryObjectParameter.Key.Name) == 0 &&
+                       queryMethodParameter.Value.IsInstanceOfType(queryObjectParameter.Value))
+                        foundMatch = true;
+                }
+                if (!foundMatch)
+                    return false;
+            }
+            return true;
 
-            return !queryObjectParametersMissing.Any();
+            //var queryObjectParametersMissing = queryObjectParametersSpecified
+            //    .Where(propKvp =>
+            //        {
+            //            if (!queryMethodParameters.ContainsKey(propKvp.Key))
+            //                return true;
+            //            if (!queryMethodParameters[propKvp.Key].IsInstanceOfType(propKvp.Value))
+            //                return true;
+            //            return false;
+            //        });
+
+            //return !queryObjectParametersMissing.Any();
         }
 
         private static async Task<HttpResponseMessage> GetQueryObjectParamters<TQuery>(TQuery query, HttpRequestMessage request,
             Func<IDictionary<PropertyInfo, WebIdQuery>, TQuery, Task<HttpResponseMessage>> callback)
+            where TQuery : ResourceQueryBase
         {
             var replacementQuery = Activator.CreateInstance<TQuery>();
+            if (default(TQuery) == query)
+                query = Activator.CreateInstance<TQuery>();
+
+            if(default(WebIdQuery) == query.Id &&
+               String.IsNullOrWhiteSpace(request.RequestUri.Query) &&
+               request.RequestUri.Segments.Any())
+            {
+                var idRefQuery = request.RequestUri.Segments.Last();
+                Guid idRefGuid;
+                if (Guid.TryParse(idRefQuery, out idRefGuid))
+                    query.Id = idRefGuid;
+            }
 
             var queryProperties = query.GetType().GetProperties()
                 .Where(
@@ -136,6 +173,13 @@ namespace BlackBarLabs.Api
                         }
                         return true;
                     })
+                    
+            //foreach (var prop in query.GetType().GetProperties()
+            //        .Where(prop => prop.PropertyType != typeof(WebIdQuery)))
+            //    prop.SetValue(replacementQuery, prop.GetValue(query));
+            
+            //var queryProperties = query.GetType().GetProperties()
+            //    .Where(prop => prop.PropertyType == typeof(WebIdQuery))
                 .Select(
                     (queryProp) =>
                     {
