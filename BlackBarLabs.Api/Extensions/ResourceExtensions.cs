@@ -279,30 +279,5 @@ namespace BlackBarLabs.Api
             return webIds;
         }
         
-        public static TResult ParseId<TResult>(
-            this ResourceQueryBase resource,
-            HttpRequestMessage request,
-            Func<Guid, TResult> single,
-            Func<IEnumerable<Guid>, TResult> multiple,
-            Func<TResult> unspecified,
-            Func<TResult> empty,
-            Func<TResult> unparsable)
-        {
-            if (default(ResourceQueryBase) == resource || default(WebIdQuery) == resource.Id)
-            {
-                if (String.IsNullOrWhiteSpace(request.RequestUri.Query))
-                {
-                    if (!request.RequestUri.Segments.Any())
-                        return unspecified();
-                    var idRefQuery = request.RequestUri.Segments.Last();
-                    Guid idRefGuid;
-                    if (Guid.TryParse(idRefQuery, out idRefGuid))
-                        return single(idRefGuid);
-                    return unspecified();
-                }
-            }
-
-            return resource.Id.Parse(request, single, multiple, unspecified, empty, unparsable);
-        }
     }
 }
