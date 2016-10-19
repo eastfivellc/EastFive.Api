@@ -262,13 +262,30 @@ namespace BlackBarLabs.Api.Tests
                 (httpRequest, methodInfo) =>
                 {
                     var resource = callback(httpRequest, controller.User as MockPrincipal);
-                    if (methodInfo.GetParameters().Length == 2)
-                    {
-                        var idProperty = resource.GetType().GetProperty("Id");
-                        var id = idProperty.GetValue(resource);
-                        return new object[] { id, resource };
-                    }
-                    return new object[] { resource };
+                    return methodInfo.GetParameters()
+                        .Select(
+                            param =>
+                            {
+                                if (param.ParameterType.IsAssignableFrom(resource.GetType()))
+                                    return resource;
+
+                                if (param.ParameterType.IsAssignableFrom(typeof(Resources.WebIdQuery)))
+                                {
+                                    var idProperty = resource.GetType().GetProperty("Id");
+                                    var id = idProperty.GetValue(resource);
+                                    return id;
+                                }
+
+                                if (param.ParameterType.IsAssignableFrom(typeof(Guid)))
+                                {
+                                    var idProperty = resource.GetType().GetProperty("Id");
+                                    var idQuery = (Resources.WebId)idProperty.GetValue(resource);
+                                    return idQuery.UUID;
+                                }
+
+                                return new object();
+                            })
+                        .ToArray();
                 });
         }
 

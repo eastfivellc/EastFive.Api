@@ -45,7 +45,14 @@ namespace BlackBarLabs.Api.Tests
             var singleContent = response.GetContent<TModel>();
             return singleContent.ToEnumerable();
         }
-        
+
+        public static async Task<IEnumerable<TModel>> GetContentMultipartAsync<TModel>(this Task<HttpResponseMessage> responseRetrieving)
+            where TModel : class
+        {
+            var response = await responseRetrieving;
+            return response.GetContentMultipart<TModel>();
+        }
+
         public static TModel GetContent<TModel>(this HttpResponseMessage response)
         {
             var content = response.Content as ObjectContent<TModel>;
