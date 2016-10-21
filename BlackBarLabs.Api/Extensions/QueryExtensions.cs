@@ -184,14 +184,15 @@ namespace BlackBarLabs.Api
                     (queryProp) =>
                     {
                         var value = (WebIdQuery)queryProp.GetValue(query);
-                        if (default(WebIdQuery) == value)
-                            return new KeyValuePair<PropertyInfo, WebIdQuery>(queryProp, new WebIdUnspecified());
-                        var over = value.Parse<WebIdQuery>(request,
-                            (guid) => new WebIdGuid(guid),
-                            (guids) => new WebIdGuids(guids.ToArray()),
-                            () => new WebIdUnspecified(),
-                            () => new WebIdEmpty(),
-                            () => new WebIdBadRequest());
+                        var over = (default(WebIdQuery) == value)?
+                                new WebIdUnspecified()
+                            :
+                                value.Parse<WebIdQuery>(request,
+                                    (guid) => new WebIdGuid(guid),
+                                    (guids) => new WebIdGuids(guids.ToArray()),
+                                    () => new WebIdUnspecified(),
+                                    () => new WebIdEmpty(),
+                                    () => new WebIdBadRequest());
                         queryProp.SetValue(replacementQuery, over);
 
                         return new KeyValuePair<PropertyInfo, WebIdQuery>(queryProp, over);

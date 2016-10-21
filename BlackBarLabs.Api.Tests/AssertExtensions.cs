@@ -38,11 +38,13 @@ namespace BlackBarLabs.Api.Tests
             }
         }
 
-        public static void AssertSuccessDelete(this HttpResponseMessage response)
+        public static HttpResponseMessage AssertSuccessDelete(this HttpResponseMessage response)
         {
             Microsoft.VisualStudio.TestTools.UnitTesting.Assert.IsTrue(
                 HttpStatusCode.Accepted == response.StatusCode ||
+                HttpStatusCode.NoContent == response.StatusCode ||
                 HttpStatusCode.OK == response.StatusCode);
+            return response;
         }
 
         public static async Task AssertSuccessDeleteAsync(this Task<HttpResponseMessage> responseTask)
