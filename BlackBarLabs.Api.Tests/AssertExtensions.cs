@@ -43,7 +43,8 @@ namespace BlackBarLabs.Api.Tests
             Microsoft.VisualStudio.TestTools.UnitTesting.Assert.IsTrue(
                 HttpStatusCode.Accepted == response.StatusCode ||
                 HttpStatusCode.NoContent == response.StatusCode ||
-                HttpStatusCode.OK == response.StatusCode);
+                HttpStatusCode.OK == response.StatusCode,
+                response.ReasonPhrase);
             return response;
         }
 
