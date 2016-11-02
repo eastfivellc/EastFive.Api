@@ -17,7 +17,31 @@ namespace BlackBarLabs.Api
 {
     public static class ControllerExtensions
     {
-        public static async Task<TResult> ParseMultipartAsync<TResult, TMethod>(this HttpContent content,
+        public static async Task<TResult> ParseMultipartAsync<T1, TResult>(this HttpContent content,
+            Expression<Func<T1, TResult>> callback)
+        {
+            return await ParseMultipartAsync_<Func<T1, TResult>, TResult>(content, callback);
+        }
+
+        public static async Task<TResult> ParseMultipartAsync<T1, T2, TResult>(this HttpContent content,
+            Expression<Func<T1, T2, TResult>> callback)
+        {
+            return await ParseMultipartAsync_<Func<T1, T2, TResult>, TResult>(content, callback);
+        }
+
+        public static async Task<TResult> ParseMultipartAsync<T1, T2, T3, TResult>(this HttpContent content,
+            Expression<Func<T1, T2, T3, TResult>> callback)
+        {
+            return await ParseMultipartAsync_<Func<T1, T2, T3, TResult>, TResult>(content, callback);
+        }
+
+        public static async Task<TResult> ParseMultipartAsync<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, TResult>(this HttpContent content,
+            Expression<Func<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, TResult>> callback)
+        {
+            return await ParseMultipartAsync_<Func<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, TResult>, TResult>(content, callback);
+        }
+
+        public static async Task<TResult> ParseMultipartAsync_<TMethod, TResult>(this HttpContent content,
             Expression<TMethod> callback)
         {
             if (!content.IsMimeMultipartContent())
