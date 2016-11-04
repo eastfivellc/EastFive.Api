@@ -55,6 +55,8 @@ namespace BlackBarLabs.Api.Tests
 
         public static TModel GetContent<TModel>(this HttpResponseMessage response)
         {
+            if (null == response.Content)
+                Assert.Fail($"Response was empty: {response}");
             var content = response.Content as ObjectContent<TModel>;
             if (default(ObjectContent<TModel>) == content)
             {
