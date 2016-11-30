@@ -116,7 +116,10 @@ namespace BlackBarLabs.Api
             var queryObjectParametersSpecified = queryObjectParameters
                 .Where(propKvp => !(propKvp.Value is WebIdUnspecified))
                 .ToArray();
-            
+
+            if (queryObjectParametersSpecified.Length != queryMethodParameters.Keys.Count)
+                return false;
+
             foreach(var queryObjectParameter in queryObjectParametersSpecified)
             {
                 bool foundMatch = false;
