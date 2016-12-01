@@ -13,10 +13,23 @@ namespace BlackBarLabs.Api.Tests
     {
         public static void AssertSuccessPut(this HttpResponseMessage response)
         {
-            Microsoft.VisualStudio.TestTools.UnitTesting.Assert.IsTrue(
-                HttpStatusCode.Accepted == response.StatusCode ||
-                HttpStatusCode.OK == response.StatusCode ||
-                HttpStatusCode.NoContent == response.StatusCode);
+            if (HttpStatusCode.Accepted != response.StatusCode &&
+                HttpStatusCode.OK != response.StatusCode &&
+                HttpStatusCode.NoContent != response.StatusCode)
+            {
+                if(default(HttpContent) == response.Content)
+                    Microsoft.VisualStudio.TestTools.UnitTesting.Assert.Fail("Status code: [{0}]", response.StatusCode);
+
+                var contentString = response.Content.ToString();
+                var reason = contentString;
+                try
+                {
+                    var resource = Newtonsoft.Json.JsonConvert.DeserializeObject<Exception>(contentString);
+                    reason = resource.Message;
+                }
+                catch (Exception) { }
+                Microsoft.VisualStudio.TestTools.UnitTesting.Assert.Fail("Status code: [{0}]\rReason:{1}", response.StatusCode, reason);
+            }
         }
 
         public static async Task AssertSuccessPutAsync(this Task<HttpResponseMessage> responseTask)
