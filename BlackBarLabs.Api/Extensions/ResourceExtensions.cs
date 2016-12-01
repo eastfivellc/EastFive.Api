@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Web.Http.Routing;
 
 using BlackBarLabs.Api.Extensions;
@@ -10,6 +11,7 @@ using BlackBarLabs.Core.Extensions;
 using BlackBarLabs.Web;
 using BlackBarLabs.Web.Services;
 using System.Threading.Tasks;
+using System.Web;
 using System.Web.Http;
 using BlackBarLabs.Api;
 using BlackBarLabs.Api.Resources;
@@ -202,7 +204,24 @@ namespace BlackBarLabs.Api
             foreach (var claim in claimsContext)
                 yield return claim;
         }
-        
+
+        public static IEnumerable<System.Security.Claims.Claim> GetClaims(this HttpRequestBase request)
+        {
+            if (request.IsDefaultOrNull())
+                yield break;
+            if (request.Headers.IsDefaultOrNull())
+                yield break;
+            var authorizationString = request.Headers["Authorization"];
+            if (authorizationString.IsDefaultOrNull())
+                yield break;
+            var authenticationHeaderValue = AuthenticationHeaderValue.Parse(authorizationString);
+            var claimsContext = authenticationHeaderValue.GetClaimsFromAuthorizationHeader();
+            if (claimsContext.IsDefaultOrNull())
+                yield break;
+            foreach (var claim in claimsContext)
+                yield return claim;
+        }
+
         public static string ToStringOneCharacter(this DayOfWeek dayOfWeek)
         {
             var dtInfo = new System.Globalization.DateTimeFormatInfo();
