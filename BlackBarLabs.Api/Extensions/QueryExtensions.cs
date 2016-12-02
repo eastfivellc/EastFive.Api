@@ -228,7 +228,6 @@ namespace BlackBarLabs.Api
         
         private static ReadOnlyCollection<Expression> GetArguments(this LambdaExpression expression)
         {
-            var tbody = expression.Body.GetType();
             var bodyInvoca = expression.Body as InvocationExpression;
             if (default(InvocationExpression) != bodyInvoca)
                 return bodyInvoca.Arguments;
