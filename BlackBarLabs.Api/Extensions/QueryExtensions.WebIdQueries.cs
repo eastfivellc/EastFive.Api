@@ -50,6 +50,16 @@ namespace BlackBarLabs.Api
         {
         }
 
+        private class WebIdObject : WebIdQuery
+        {
+            public ResourceQueryBase Obj { get; private set; }
+
+            public WebIdObject(ResourceQueryBase obj)
+            {
+                this.Obj = obj;
+            }
+        }
+
         [AttributeUsage(AttributeTargets.Method)]
         private class QueryParameterTypeAttribute : System.Attribute
         {

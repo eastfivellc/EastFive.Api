@@ -166,6 +166,21 @@ namespace BlackBarLabs.Api.Tests
             return results;
         }
 
+        public async Task<TResult> OptionsAsync<TController, TResult>(object resource,
+                Func<HttpResponseMessage, HttpMethod[], TResult> callback)
+            where TController : ApiController
+        {
+            var controller = GetController<TController>();
+            var response = await InvokeControllerAsync(controller, HttpMethod.Options,
+                (request, user) =>
+                {
+                    return resource;
+                });
+            var options = response.GetOptions();
+            var results = callback(response, options.ToArray());
+            return results;
+        }
+
         #endregion
 
 

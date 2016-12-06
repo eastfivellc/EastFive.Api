@@ -169,12 +169,15 @@ namespace BlackBarLabs.Api
                 .Where(
                     (prop) =>
                     {
-                        if (prop.PropertyType != typeof(WebIdQuery))
-                        {
-                            prop.SetValue(replacementQuery, prop.GetValue(query));
-                            return false;
-                        }
-                        return true;
+                        if (prop.PropertyType == typeof(WebIdQuery))
+                            return true;
+
+                        if (prop.PropertyType == typeof(BlackBarLabs.Api.ResourceQueryBase) &&
+                            prop.GetValue(query) != null)
+                            return true;
+
+                        prop.SetValue(replacementQuery, prop.GetValue(query));
+                        return false;
                     })
                     
             //foreach (var prop in query.GetType().GetProperties()
@@ -186,6 +189,12 @@ namespace BlackBarLabs.Api
                 .Select(
                     (queryProp) =>
                     {
+                        if (queryProp.PropertyType == typeof(BlackBarLabs.Api.ResourceQueryBase))
+                        {
+                            var valueObj = (BlackBarLabs.Api.ResourceQueryBase)queryProp.GetValue(query);
+                            return new KeyValuePair<PropertyInfo, WebIdQuery>(queryProp, new WebIdObject(valueObj));
+                        }
+
                         var value = (WebIdQuery)queryProp.GetValue(query);
                         var over = (default(WebIdQuery) == value)?
                                 new WebIdUnspecified()
