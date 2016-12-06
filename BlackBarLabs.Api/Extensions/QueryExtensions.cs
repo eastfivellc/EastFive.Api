@@ -16,6 +16,11 @@ using System.Web.Http.Routing;
 
 namespace BlackBarLabs.Api
 {
+    public interface IWebParsable
+    {
+        bool IsSpecified();
+    }
+
     public static partial class QueryExtensions
     {
         public static async Task<HttpResponseMessage> ParseAsync<TQuery>(this TQuery query, HttpRequestMessage request,
@@ -61,7 +66,7 @@ namespace BlackBarLabs.Api
         }
 
         private static TResult WhichFormatSingle<TQuery, TResult>(this IEnumerable<Expression<Func<TQuery, Task<HttpResponseMessage>>>> queryFormats,
-            IDictionary<PropertyInfo, WebIdQuery> queryObjectParameters,
+            IDictionary<PropertyInfo, IWebParsable> queryObjectParameters,
             Func<Expression<Func<TQuery, Task<HttpResponseMessage>>>, TResult> found,
             Func<TResult> notFound)
         {
@@ -78,7 +83,7 @@ namespace BlackBarLabs.Api
         }
         
         private static TResult WhichFormatEnumerable<TQuery, TResult>(this IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>> queryFormats,
-            IDictionary<PropertyInfo, WebIdQuery> queryObjectParameters,
+            IDictionary<PropertyInfo, IWebParsable> queryObjectParameters,
             Func<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>, TResult> found,
             Func<TResult> notFound)
         {
@@ -95,7 +100,7 @@ namespace BlackBarLabs.Api
         }
 
         private static TResult WhichFormatArray<TQuery, TResult>(this IEnumerable<Expression<Func<TQuery, Task<HttpResponseMessage[]>>>> queryFormats,
-            IDictionary<PropertyInfo, WebIdQuery> queryObjectParameters,
+            IDictionary<PropertyInfo, IWebParsable> queryObjectParameters,
             Func<Expression<Func<TQuery, Task<HttpResponseMessage[]>>>, TResult> found,
             Func<TResult> notFound)
         {
@@ -111,10 +116,10 @@ namespace BlackBarLabs.Api
             return result;
         }
 
-        private static bool IsMatch(IDictionary<PropertyInfo, WebIdQuery> queryObjectParameters, IDictionary<PropertyInfo, Type> queryMethodParameters)
+        private static bool IsMatch(IDictionary<PropertyInfo, IWebParsable> queryObjectParameters, IDictionary<PropertyInfo, Type> queryMethodParameters)
         {
             var queryObjectParametersSpecified = queryObjectParameters
-                .Where(propKvp => !(propKvp.Value is WebIdUnspecified))
+                .Where(propKvp => propKvp.Value.IsSpecified())
                 .ToArray();
 
             if (queryObjectParametersSpecified.Length != queryMethodParameters.Keys.Count)
@@ -148,7 +153,7 @@ namespace BlackBarLabs.Api
         }
 
         private static async Task<HttpResponseMessage> GetQueryObjectParamters<TQuery>(TQuery query, HttpRequestMessage request,
-            Func<IDictionary<PropertyInfo, WebIdQuery>, TQuery, Task<HttpResponseMessage>> callback)
+            Func<IDictionary<PropertyInfo, IWebParsable>, TQuery, Task<HttpResponseMessage>> callback)
             where TQuery : ResourceQueryBase
         {
             var replacementQuery = Activator.CreateInstance<TQuery>();
@@ -172,6 +177,9 @@ namespace BlackBarLabs.Api
                         if (prop.PropertyType == typeof(WebIdQuery))
                             return true;
 
+                        if (prop.PropertyType == typeof(DateTimeQuery))
+                            return true;
+
                         if (prop.PropertyType == typeof(BlackBarLabs.Api.ResourceQueryBase) &&
                             prop.GetValue(query) != null)
                             return true;
@@ -192,22 +200,38 @@ namespace BlackBarLabs.Api
                         if (queryProp.PropertyType == typeof(BlackBarLabs.Api.ResourceQueryBase))
                         {
                             var valueObj = (BlackBarLabs.Api.ResourceQueryBase)queryProp.GetValue(query);
-                            return new KeyValuePair<PropertyInfo, WebIdQuery>(queryProp, new WebIdObject(valueObj));
+                            return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, new WebIdObject(valueObj));
+                        }
+
+                        if (queryProp.PropertyType == typeof(DateTimeQuery))
+                        {
+                            var valueDateTime = (DateTimeQuery)queryProp.GetValue(query);
+                            if (default(DateTimeQuery) == valueDateTime)
+                                return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, new QueryUnspecified());
+
+                            var matchableReplacementValueDateTime = 
+                                    valueDateTime.Parse<IWebParsable>(
+                                        (from,to) => new DateTimeRangeQuery(from, to),
+                                        (when) => new DateTimeValue(when),
+                                        () => new DateTimeEmpty(),
+                                        () => new QueryUnspecified(),
+                                        () => new DateTimeBadRequest());
+                            queryProp.SetValue(replacementQuery, matchableReplacementValueDateTime);
+                            return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, matchableReplacementValueDateTime);
                         }
 
                         var value = (WebIdQuery)queryProp.GetValue(query);
-                        var over = (default(WebIdQuery) == value)?
-                                new WebIdUnspecified()
-                            :
-                                value.Parse<WebIdQuery>(request,
+                        if (default(WebIdQuery) == value)
+                            return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, new QueryUnspecified());
+
+                        var over = value.Parse<IWebParsable>(request,
                                     (guid) => new WebIdGuid(guid),
                                     (guids) => new WebIdGuids(guids.ToArray()),
-                                    () => new WebIdUnspecified(),
+                                    () => new QueryUnspecified(),
                                     () => new WebIdEmpty(),
                                     () => new WebIdBadRequest());
                         queryProp.SetValue(replacementQuery, over);
-
-                        return new KeyValuePair<PropertyInfo, WebIdQuery>(queryProp, over);
+                        return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, over);
                     });
             var queryObjectParameters =  queryProperties.ToDictionary();
 
