@@ -14,8 +14,7 @@ namespace BlackBarLabs.Api.Tests
         Task<TResult> GetAsync<TController, TResult>(
                 Func<HttpResponseMessage, TResult> callback)
             where TController : ApiController;
-
-        [Obsolete]
+        
         Task<HttpResponseMessage> GetAsync<TController>(object resource,
                 Action<HttpRequestMessage> mutateRequest = default(Action<HttpRequestMessage>))
             where TController : ApiController;
