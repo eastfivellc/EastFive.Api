@@ -35,20 +35,7 @@ namespace BlackBarLabs.Api.Tests
         public static async Task AssertSuccessPutAsync(this Task<HttpResponseMessage> responseTask)
         {
             var response = await responseTask;
-            if(HttpStatusCode.Accepted != response.StatusCode &&
-                HttpStatusCode.OK != response.StatusCode &&
-                HttpStatusCode.NoContent != response.StatusCode)
-            {
-                var contentString = await response.Content.ReadAsStringAsync();
-                var reason = contentString;
-                try
-                {
-                    var resource = Newtonsoft.Json.JsonConvert.DeserializeObject<Exception>(contentString);
-                    reason = resource.Message;
-                }
-                catch (Exception) { }
-                Microsoft.VisualStudio.TestTools.UnitTesting.Assert.Fail("Status code: [{0}]\rReason:{1}", response.StatusCode, reason);
-            }
+            response.AssertSuccessPut();
         }
 
         public static HttpResponseMessage AssertSuccessDelete(this HttpResponseMessage response)

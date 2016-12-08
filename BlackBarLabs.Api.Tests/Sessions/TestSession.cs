@@ -99,6 +99,18 @@ namespace BlackBarLabs.Api.Tests
             return response;
         }
 
+        public static string CreateToken(Guid userId)
+        {
+            var token = BlackBarLabs.Security.Tokens.JwtTools.CreateToken(Guid.NewGuid(), userId,
+                new Uri("http://test.example.com"), TimeSpan.FromHours(1.0),
+                (tokenNew) => tokenNew,
+                (missingConfig) => { Assert.Fail(missingConfig); return string.Empty; },
+                (configName, issue) => { Assert.Fail($"{configName} -- {issue}"); return string.Empty; },
+                "AuthServer.issuer",
+                "AuthServer.key");
+            return token;
+        }
+
         public async Task<TResult> GetAsync<TController, TResult>(
                 Func<HttpResponseMessage, TResult> callback)
             where TController : ApiController
