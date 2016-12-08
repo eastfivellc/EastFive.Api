@@ -17,18 +17,8 @@ namespace BlackBarLabs.Api.Tests
                 HttpStatusCode.OK != response.StatusCode &&
                 HttpStatusCode.NoContent != response.StatusCode)
             {
-                if(default(HttpContent) == response.Content)
-                    Microsoft.VisualStudio.TestTools.UnitTesting.Assert.Fail("Status code: [{0}]", response.StatusCode);
-
-                var contentString = response.Content.ToString();
-                var reason = contentString;
-                try
-                {
-                    var resource = Newtonsoft.Json.JsonConvert.DeserializeObject<Exception>(contentString);
-                    reason = resource.Message;
-                }
-                catch (Exception) { }
-                Microsoft.VisualStudio.TestTools.UnitTesting.Assert.Fail("Status code: [{0}]\rReason:{1}", response.StatusCode, reason);
+                Microsoft.VisualStudio.TestTools.UnitTesting.Assert.Fail("Status code: [{0}]\rReason:{1}",
+                    response.StatusCode, response.ReasonPhrase);
             }
         }
 
