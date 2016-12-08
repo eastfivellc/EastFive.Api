@@ -56,15 +56,7 @@ namespace BlackBarLabs.Api.Tests
             var response = await responseTask;
             if (response.StatusCode != responseStatusCode)
             {
-                var reason = default(string);
-                try
-                {
-                    var contentString = await response.Content.ReadAsStringAsync();
-                    reason = contentString;
-                    var resource = Newtonsoft.Json.JsonConvert.DeserializeObject<Exception>(contentString);
-                    reason = resource.Message;
-                }
-                catch (Exception) { }
+                var reason = $"Status code: [{response.StatusCode}]\rReason:{response.ReasonPhrase}";
                 Microsoft.VisualStudio.TestTools.UnitTesting.Assert.AreEqual(
                     responseStatusCode, response.StatusCode, reason);
             }
