@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace BlackBarLabs.Api.Tests
 {
@@ -34,10 +35,25 @@ namespace BlackBarLabs.Api.Tests
                 if (typeof(Resources.Response) == typeof(TModel))
                     return multipartValue.Content.Select(content => content as TModel);
                 
-                var multipartContent = multipartValue.Content.Select(
+                var multipartContent = multipartValue.Content.SelectMany(
                     (resource) =>
                     {
-                        return Newtonsoft.Json.JsonConvert.DeserializeObject<TModel>(resource.Content as string);
+                        try
+                        {
+                            return Newtonsoft.Json.JsonConvert.DeserializeObject<TModel>(resource.Content as string).ToEnumerable();
+                        }
+                        catch (JsonSerializationException)
+                        {
+                            try
+                            {
+                                return Newtonsoft.Json.JsonConvert.DeserializeObject<TModel[]>(resource.Content as string);
+                            }
+                            catch (JsonSerializationException)
+                            {
+                                Assert.Fail($"{typeof(TModel)} cannot be deserialized from: {resource.Content}");
+                                throw;
+                            }
+                        }
                     });
                 return multipartContent;
             }
