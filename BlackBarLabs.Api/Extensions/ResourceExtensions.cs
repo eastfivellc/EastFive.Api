@@ -274,7 +274,18 @@ namespace BlackBarLabs.Api
                 return isEmpty();
             return success(webId.UUID);
         }
-        
+
+        public static Guid? ToGuid(this Resources.WebId webId)
+        {
+            if (default(WebId) == webId)
+                return default(Guid?);
+            if (webId.IsEmpty())
+                return default(Guid);
+            if (webId.UUID.IsDefaultOrEmpty())
+                return default(Guid);
+            return webId.UUID;
+        }
+
         public static Resources.WebId GetWebIdUUID(this Guid uuId)
         {
             return new Resources.WebId() { UUID = uuId };
