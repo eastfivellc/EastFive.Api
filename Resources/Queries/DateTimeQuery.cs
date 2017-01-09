@@ -10,9 +10,14 @@ using BlackBarLabs.Extensions;
 namespace BlackBarLabs.Api.Resources
 {
     [TypeConverter(typeof(DateTimeQueryConverter))]
-    public class DateTimeQuery : TypeConverter
+    public class DateTimeQuery : TypeConverter, IWebParsable
     {
         private string query;
+
+        public bool IsSpecified()
+        {
+            return true;
+        }
 
         public static implicit operator DateTimeQuery(string query)
         {
@@ -27,7 +32,7 @@ namespace BlackBarLabs.Api.Resources
             Func<TResult> unparsable)
         {
             DateTime specificValue;
-            if (DateTime.TryParse(query, out specificValue))
+            if (DateTime.TryParse(query, CultureInfo.CurrentCulture, DateTimeStyles.AdjustToUniversal, out specificValue))
             {
                 return specific(specificValue);
             }
@@ -42,7 +47,7 @@ namespace BlackBarLabs.Api.Resources
                 var part2 = query.Substring(index);
                 if (DateTime.TryParse(part1, out start))
                 {
-                    if (DateTime.TryParse(part2, out end))
+                    if (DateTime.TryParse(part2, CultureInfo.CurrentCulture, DateTimeStyles.AdjustToUniversal, out end))
                         return range(start, end);
 
                     // Maybe there is a range character
@@ -50,11 +55,12 @@ namespace BlackBarLabs.Api.Resources
                     while (index + separatorLength < query.Length - 1)
                     {
                         part2 = query.Substring(index + separatorLength);
-                        if (DateTime.TryParse(part2, out end))
+                        if (DateTime.TryParse(part2, CultureInfo.CurrentCulture, DateTimeStyles.AdjustToUniversal, out end))
                             return range(start, end);
                         separatorLength++;
                     }
                 }
+                offset += 1;
                 index += (offset * offsetToggle);
                 offsetToggle *= -1;
             }
@@ -68,6 +74,7 @@ namespace BlackBarLabs.Api.Resources
             Func<DateTime, DateTime, TResult> range,
             Func<DateTime, TResult> specific,
             Func<TResult> empty,
+            Func<TResult> unspecified,
             Func<TResult> unparsable)
         {
             return query.HasValue(

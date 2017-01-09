@@ -109,6 +109,7 @@
     <Compile Include="Attributes\ResourceTypeAttribute.cs" />
     <Compile Include="Controllers\BaseController.cs" />
     <Compile Include="Extensions\QueryExtensions.ParseMethods.cs" />
+    <Compile Include="Extensions\QueryExtensions.DateTimeQueries.cs" />
     <Compile Include="Extensions\QueryExtensions.WebIdQueries.cs" />
     <Compile Include="Extensions\QueryExtensions.cs" />
     <Compile Include="Extensions\RequestServiceExtensions.cs" />

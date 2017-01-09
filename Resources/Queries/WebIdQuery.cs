@@ -11,7 +11,7 @@ using BlackBarLabs.Extensions;
 namespace BlackBarLabs.Api.Resources
 {
     [TypeConverter(typeof(WebIdQueryConverter))]
-    public class WebIdQuery
+    public class WebIdQuery : IWebParsable
     {
         public string UUIDs { get; set; }
 
@@ -20,6 +20,11 @@ namespace BlackBarLabs.Api.Resources
         public string Source { get; set; }
 
         private string query;
+
+        public bool IsSpecified()
+        {
+            return true;
+        }
 
         public static implicit operator WebIdQuery(string query)
         {

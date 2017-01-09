@@ -3,11 +3,13 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Web.Http.Routing;
 
 using BlackBarLabs.Api.Extensions;
 using BlackBarLabs.Web;
 using System.Threading.Tasks;
+using System.Web;
 using System.Web.Http;
 
 using BlackBarLabs.Api;
@@ -201,7 +203,24 @@ namespace BlackBarLabs.Api
                 success, authorizationNotSet, failure);
             return result;
         }
-        
+
+        public static IEnumerable<System.Security.Claims.Claim> GetClaims(this HttpRequestBase request)
+        {
+            if (request.IsDefaultOrNull())
+                yield break;
+            if (request.Headers.IsDefaultOrNull())
+                yield break;
+            var authorizationString = request.Headers["Authorization"];
+            if (authorizationString.IsDefaultOrNull())
+                yield break;
+            var authenticationHeaderValue = AuthenticationHeaderValue.Parse(authorizationString);
+            var claimsContext = authenticationHeaderValue.GetClaimsFromAuthorizationHeader();
+            if (claimsContext.IsDefaultOrNull())
+                yield break;
+            foreach (var claim in claimsContext)
+                yield return claim;
+        }
+
         public static string ToStringOneCharacter(this DayOfWeek dayOfWeek)
         {
             var dtInfo = new System.Globalization.DateTimeFormatInfo();
@@ -254,7 +273,18 @@ namespace BlackBarLabs.Api
                 return isEmpty();
             return success(webId.UUID);
         }
-        
+
+        public static Guid? ToGuid(this Resources.WebId webId)
+        {
+            if (default(WebId) == webId)
+                return default(Guid?);
+            if (webId.IsEmpty())
+                return default(Guid);
+            if (webId.UUID.IsDefaultOrEmpty())
+                return default(Guid);
+            return webId.UUID;
+        }
+
         public static Resources.WebId GetWebIdUUID(this Guid uuId)
         {
             return new Resources.WebId() { UUID = uuId };
