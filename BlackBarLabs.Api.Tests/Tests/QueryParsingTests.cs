@@ -1,5 +1,5 @@
 ﻿using BlackBarLabs.Api.Tests.Examples;
-using BlackBarLabs.Core.Extensions;
+using BlackBarLabs.Extensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;

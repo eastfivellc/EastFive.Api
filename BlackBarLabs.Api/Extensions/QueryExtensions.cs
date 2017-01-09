@@ -1,7 +1,6 @@
 ﻿using BlackBarLabs.Api.Resources;
 using BlackBarLabs.Collections.Generic;
-using BlackBarLabs.Core.Collections;
-using BlackBarLabs.Core.Extensions;
+using BlackBarLabs.Linq;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -9,10 +8,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Net.Http;
 using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
-using System.Web.Http;
-using System.Web.Http.Routing;
 
 namespace BlackBarLabs.Api
 {

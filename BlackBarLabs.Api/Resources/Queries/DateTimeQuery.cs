@@ -1,12 +1,6 @@
-﻿using BlackBarLabs.Core.Extensions;
-using BlackBarLabs.Web;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.ComponentModel;
 using System.Globalization;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BlackBarLabs.Api.Resources
 {

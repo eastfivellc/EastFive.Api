@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Net.Http;
-
-using BlackBarLabs.Core.Extensions;
 using BlackBarLabs.Web;
 using BlackBarLabs.Web.Services;
 

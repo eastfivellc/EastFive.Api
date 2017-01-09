@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-using BlackBarLabs.Core.Extensions;
-
 namespace BlackBarLabs.Api.Resources
 {
     [DataContract(Name = "web_id")]
