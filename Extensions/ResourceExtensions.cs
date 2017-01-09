@@ -6,16 +6,14 @@ using System.Net.Http;
 using System.Web.Http.Routing;
 
 using BlackBarLabs.Api.Extensions;
-using BlackBarLabs.Core.Extensions;
 using BlackBarLabs.Web;
-using BlackBarLabs.Web.Services;
 using System.Threading.Tasks;
 using System.Web.Http;
+
 using BlackBarLabs.Api;
 using BlackBarLabs.Api.Resources;
-
-using BlackBarLabs.Core;
-using BlackBarLabs.Collections.Generic;
+using BlackBarLabs.Extensions;
+using BlackBarLabs.Linq;
 
 namespace BlackBarLabs.Api
 {
@@ -190,17 +188,18 @@ namespace BlackBarLabs.Api
             return new Uri(location);
         }
 
-        public static IEnumerable<System.Security.Claims.Claim> GetClaims(this HttpRequestMessage request)
+        public static TResult GetClaims<TResult>(this HttpRequestMessage request,
+            Func<IEnumerable<System.Security.Claims.Claim>, TResult> success,
+            Func<TResult> authorizationNotSet,
+            Func<string, TResult> failure)
         {
             if (request.IsDefaultOrNull())
-                yield break;
+                return authorizationNotSet();
             if (request.Headers.IsDefaultOrNull())
-                yield break;
-            var claimsContext = request.Headers.Authorization.GetClaimsFromAuthorizationHeader();
-            if (claimsContext.IsDefaultOrNull())
-                yield break;
-            foreach (var claim in claimsContext)
-                yield return claim;
+                return authorizationNotSet();
+            var result = request.Headers.Authorization.GetClaimsFromAuthorizationHeader(
+                success, authorizationNotSet, failure);
+            return result;
         }
         
         public static string ToStringOneCharacter(this DayOfWeek dayOfWeek)

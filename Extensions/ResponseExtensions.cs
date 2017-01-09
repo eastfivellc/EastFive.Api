@@ -3,8 +3,6 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 
-using BlackBarLabs.Core;
-
 namespace BlackBarLabs.Api
 {
     public static class ResponseExtensions

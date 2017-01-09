@@ -6,7 +6,7 @@ using System.Runtime.Serialization;
 namespace BlackBarLabs.Api.Resources
 {
     [DataContract]
-    public class MultipartResponse : BlackBarLabs.Api.Resource
+    public class MultipartResponse
     {
         public MultipartResponse()
         {

@@ -1,17 +1,9 @@
-﻿using BlackBarLabs.Api.Resources;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
-
-using BlackBarLabs.Collections.Generic;
-using BlackBarLabs.Core.Extensions;
 
 namespace BlackBarLabs.Api
 {

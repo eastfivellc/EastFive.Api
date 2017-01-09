@@ -1,5 +1,4 @@
-﻿using BlackBarLabs.Core;
-using System;
+﻿using System;
 using System.Web;
 
 namespace BlackBarLabs.Api.Extensions
