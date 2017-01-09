@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Net.Http;
+
 using BlackBarLabs.Web;
 using BlackBarLabs.Web.Services;
+using BlackBarLabs.Extensions;
 
 namespace BlackBarLabs.Api
 {

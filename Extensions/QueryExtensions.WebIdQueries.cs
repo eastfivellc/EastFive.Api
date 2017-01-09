@@ -1,4 +1,4 @@
-﻿using BlackBarLabs.Api.Resources;
+using BlackBarLabs.Api.Resources;
 using System;
 
 namespace BlackBarLabs.Api

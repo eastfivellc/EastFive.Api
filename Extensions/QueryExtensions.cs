@@ -1,5 +1,6 @@
-﻿using BlackBarLabs.Api.Resources;
+using BlackBarLabs.Api.Resources;
 using BlackBarLabs.Collections.Generic;
+using BlackBarLabs.Extensions;
 using BlackBarLabs.Linq;
 using System;
 using System.Collections.Generic;

@@ -9,6 +9,7 @@ using BlackBarLabs.Web.Services;
 
 namespace BlackBarLabs.Api
 {
+    [Obsolete("Use ToActionResult instead")]
     public class Resource
     {
         public void Configure(HttpRequestMessage request, UrlHelper url)
@@ -23,6 +24,7 @@ namespace BlackBarLabs.Api
         [IgnoreDataMember]
         protected UrlHelper Url { get; private set; }
 
+        [Obsolete("Use ToActionResult instead")]
         private IEnumerable<System.Security.Claims.Claim> claimsContext;
         [IgnoreDataMember]
         protected IEnumerable<System.Security.Claims.Claim> Claims
@@ -31,7 +33,10 @@ namespace BlackBarLabs.Api
             {
                 if (null == Request) yield break;
                 if (null == Request.Headers) yield break;
-                claimsContext = Request.Headers.Authorization.GetClaimsFromAuthorizationHeader();
+                claimsContext = Request.Headers.Authorization.GetClaimsFromAuthorizationHeader(
+                    (claims) => claims,
+                    () => null,
+                    (why) => null);
                 if (claimsContext != null)
                 {
                     foreach (var claim in claimsContext)

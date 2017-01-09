@@ -7,9 +7,11 @@ using System.Web.Http.Routing;
 
 using BlackBarLabs.Api.Extensions;
 using BlackBarLabs.Web;
+using BlackBarLabs.Extensions;
 using System.Web;
-using BlackBarLabs.Api;
 using BlackBarLabs.Api.Resources;
+using BlackBarLabs.Linq;
+using System.Threading.Tasks;
 
 namespace BlackBarLabs.Api
 {
@@ -184,17 +186,28 @@ namespace BlackBarLabs.Api
             return new Uri(location);
         }
 
-        public static IEnumerable<System.Security.Claims.Claim> GetClaims(this HttpRequestMessage request)
+        public static TResult GetClaims<TResult>(this HttpRequestMessage request,
+            Func<IEnumerable<System.Security.Claims.Claim>, TResult> success,
+            Func<TResult> authorizationNotSet,
+            Func<string, TResult> failure)
         {
             if (request.IsDefaultOrNull())
-                yield break;
+                return authorizationNotSet();
             if (request.Headers.IsDefaultOrNull())
-                yield break;
-            var claimsContext = request.Headers.Authorization.GetClaimsFromAuthorizationHeader();
-            if (claimsContext.IsDefaultOrNull())
-                yield break;
-            foreach (var claim in claimsContext)
-                yield return claim;
+                return authorizationNotSet();
+            var result = request.Headers.Authorization.GetClaimsFromAuthorizationHeader(
+                success, authorizationNotSet, failure);
+            return result;
+        }
+        
+        public static Task<HttpResponseMessage> GetClaimsAsync(this HttpRequestMessage request,
+            Func<IEnumerable<System.Security.Claims.Claim>, Task<HttpResponseMessage>> success)
+        {
+            var result = request.GetClaims(
+                (claims) => success(claims),
+                () => request.CreateResponse(System.Net.HttpStatusCode.ExpectationFailed).ToTask(),
+                (why) => request.CreateResponse(System.Net.HttpStatusCode.ExpectationFailed).AddReason(why).ToTask());
+            return result;
         }
 
         public static IEnumerable<System.Security.Claims.Claim> GetClaims(this HttpRequestBase request)
@@ -207,7 +220,10 @@ namespace BlackBarLabs.Api
             if (authorizationString.IsDefaultOrNull())
                 yield break;
             var authenticationHeaderValue = AuthenticationHeaderValue.Parse(authorizationString);
-            var claimsContext = authenticationHeaderValue.GetClaimsFromAuthorizationHeader();
+            var claimsContext = authenticationHeaderValue.GetClaimsFromAuthorizationHeader(
+                (claims) => claims,
+                () => default(IEnumerable<System.Security.Claims.Claim>),
+                (why) => default(IEnumerable<System.Security.Claims.Claim>));
             if (claimsContext.IsDefaultOrNull())
                 yield break;
             foreach (var claim in claimsContext)

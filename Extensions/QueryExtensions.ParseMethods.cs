@@ -1,4 +1,5 @@
-﻿using System;
+﻿using BlackBarLabs.Linq;
+using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Net.Http;

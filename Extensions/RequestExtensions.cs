@@ -7,9 +7,9 @@ using System.Web.Http;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 
-using BlackBarLabs.Core.Extensions;
+using BlackBarLabs.Extensions;
 using BlackBarLabs.Api.Resources;
-using BlackBarLabs.Collections.Generic;
+using BlackBarLabs.Linq;
 
 namespace BlackBarLabs.Api
 {

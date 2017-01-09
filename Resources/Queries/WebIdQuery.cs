@@ -6,7 +6,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 
-using BlackBarLabs.Web;
+using BlackBarLabs.Extensions;
 
 namespace BlackBarLabs.Api.Resources
 {
