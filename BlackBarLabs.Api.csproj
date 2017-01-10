@@ -108,6 +108,7 @@
   <ItemGroup>
     <Compile Include="Attributes\ResourceTypeAttribute.cs" />
     <Compile Include="Controllers\BaseController.cs" />
+    <Compile Include="Extensions\HttpConfigurationExtensions.cs" />
     <Compile Include="Extensions\QueryExtensions.ParseMethods.cs" />
     <Compile Include="Extensions\QueryExtensions.DateTimeQueries.cs" />
     <Compile Include="Extensions\QueryExtensions.WebIdQueries.cs" />
@@ -122,6 +123,7 @@
     <Compile Include="Extensions\UrlHelperExtensions.cs" />
     <Compile Include="Extensions\ValidationExtensions.cs" />
     <Compile Include="HttpActionResult.cs" />
+    <Compile Include="InjectableAssemblyResolver.cs" />
     <Compile Include="Resources\Exceptions.cs" />
     <Compile Include="Resources\MultipartResponse.cs" />
     <Compile Include="Resources\OptionsResource.cs" />
