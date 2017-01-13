@@ -91,6 +91,11 @@ namespace BlackBarLabs.Api
             return new HttpActionResult(() => Task.FromResult(response));
         }
 
+        public static IHttpActionResult ToActionResult(this Func<Task<HttpResponseMessage>> executeAsync)
+        {
+            return new HttpActionResult(() => executeAsync());
+        }
+
         public static IHttpActionResult ActionResult(this ApiController controller, HttpActionDelegate action)
         {
             return action.ToActionResult();
