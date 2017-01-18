@@ -2,8 +2,9 @@
 using System.Net.Http;
 
 using BlackBarLabs.Web;
-using BlackBarLabs.Web.Services;
 using BlackBarLabs.Extensions;
+using EastFive.Api.Services;
+using System.Threading.Tasks;
 
 namespace BlackBarLabs.Api
 {
@@ -32,7 +33,7 @@ namespace BlackBarLabs.Api
                 if (dateTimeService.IsDefaultOrNull())
                 {
                     if (!request.Properties.ContainsKey(ServicePropertyDefinitions.TimeService))
-                        dateTimeService = new Services.TimeService();
+                        dateTimeService = new TimeService();
                     else
                         dateTimeService = ((Func<ITimeService>)
                             request.Properties[ServicePropertyDefinitions.TimeService])();

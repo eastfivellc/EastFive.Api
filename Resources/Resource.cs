@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Web.Http.Routing;
 
 using BlackBarLabs.Web;
-using BlackBarLabs.Web.Services;
+using EastFive.Api.Services;
 
 namespace BlackBarLabs.Api
 {
@@ -68,7 +68,7 @@ namespace BlackBarLabs.Api
                 if (default(ITimeService) == this.dateTimeService)
                 {
                     if (!this.Request.Properties.ContainsKey(BlackBarLabs.Api.ServicePropertyDefinitions.TimeService))
-                        return new BlackBarLabs.Api.Services.TimeService();
+                        return new EastFive.Api.Services.TimeService();
                     var dateTimeService = (Func<ITimeService>)
                         this.Request.Properties[BlackBarLabs.Api.ServicePropertyDefinitions.TimeService];
                     this.dateTimeService = dateTimeService();
