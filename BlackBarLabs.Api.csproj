@@ -137,12 +137,15 @@
     <Compile Include="Resources\WebId.cs" />
     <Compile Include="ServicePropertyDefinitions.cs" />
     <Compile Include="Services\TimeService.cs" />
-    <Compile Include="Services\IdentityService.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\BlackBarLabs.Web\BlackBarLabs.Web.csproj">
       <Project>{5bb52391-2704-44c0-bc8a-dbbe31498814}</Project>
       <Name>BlackBarLabs.Web</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\EastFive.Api.Services\EastFive.Api.Services.csproj">
+      <Project>{662CD006-C03A-47CA-83E3-F327E595DB0F}</Project>
+      <Name>EastFive.Api.Services</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

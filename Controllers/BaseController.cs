@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Web.Http;
 using System.Web.Http.Controllers;
-using BlackBarLabs.Api.Services;
-using BlackBarLabs.Web.Services;
+using EastFive.Api.Services;
 
 namespace BlackBarLabs.Api.Controllers
 {
@@ -22,15 +21,6 @@ namespace BlackBarLabs.Api.Controllers
             controllerContext.Request.Properties.Add(
                 BlackBarLabs.Api.ServicePropertyDefinitions.TimeService,
                 fetchDateTimeUtc);
-
-            Func<IIdentityService> identityServiceCreate =
-                () =>
-                {
-                    return new IdentityService(this.User.Identity);
-                };
-            controllerContext.Request.Properties.Add(
-                BlackBarLabs.Api.ServicePropertyDefinitions.IdentityService,
-                identityServiceCreate);
         }
     }
 }

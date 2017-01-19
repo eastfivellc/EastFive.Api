@@ -2,9 +2,8 @@
 using System.Linq;
 using System.Security.Claims;
 using System.Security.Principal;
-using BlackBarLabs.Web.Services;
 
-namespace BlackBarLabs.Api.Services
+namespace EastFive.Api.Services
 {
     public class TimeService : ITimeService
     {

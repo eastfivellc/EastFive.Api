@@ -1,22 +1,21 @@
 ﻿using System;
 using System.Net.Http;
 
-using BlackBarLabs.Web;
-using BlackBarLabs.Web.Services;
 using BlackBarLabs.Extensions;
+using EastFive.Api.Services;
 
 namespace BlackBarLabs.Api
 {
     public static class RequestServiceExtensions
     {
-        public static Func<ISendMailService> GetMailService(this HttpRequestMessage request)
+        public static Func<ISendMessageService> GetMailService(this HttpRequestMessage request)
         {
-            var mailService = default(ISendMailService);
+            var mailService = default(ISendMessageService);
             return () =>
             {
                 if (mailService.IsDefaultOrNull())
                 {
-                    var getMailService = (Func<ISendMailService>)
+                    var getMailService = (Func<ISendMessageService>)
                         request.Properties[ServicePropertyDefinitions.MailService];
                     mailService = getMailService();
                 }
@@ -32,7 +31,7 @@ namespace BlackBarLabs.Api
                 if (dateTimeService.IsDefaultOrNull())
                 {
                     if (!request.Properties.ContainsKey(ServicePropertyDefinitions.TimeService))
-                        dateTimeService = new Services.TimeService();
+                        dateTimeService = new TimeService();
                     else
                         dateTimeService = ((Func<ITimeService>)
                             request.Properties[ServicePropertyDefinitions.TimeService])();
