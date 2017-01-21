@@ -146,5 +146,15 @@ namespace BlackBarLabs.Api
                         .ToActionResult()));
         }
         
+        public static void AddOrUpdateService<TService>(this HttpRequestMessage request,
+            string servicePropertyDefinition, Func<TService> service)
+        {
+            if (request.Properties.ContainsKey(servicePropertyDefinition))
+            {
+                request.Properties[servicePropertyDefinition] = service;
+                return;
+            }
+            request.Properties.Add(servicePropertyDefinition, service);
+        }
     }
 }

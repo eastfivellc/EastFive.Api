@@ -134,6 +134,18 @@ namespace BlackBarLabs.Api
         public static Uri GetLocation<TController>(this UrlHelper url,
             string routeName = "DefaultApi")
         {
+            if (String.IsNullOrWhiteSpace(routeName))
+            {
+                var routePrefixes = typeof(TController)
+                            .GetCustomAttributes<System.Web.Http.RoutePrefixAttribute>()
+                            .Select(routePrefix => routePrefix.Prefix)
+                            .ToArray();
+                if (routePrefixes.Any())
+                    routeName = routePrefixes[0];
+                else
+                    routeName = "DefaultApi";
+            }
+
             var controllerName =
                 typeof(TController).Name.TrimEnd("Controller",
                     (trimmedName) => trimmedName, (originalName) => originalName);
@@ -148,7 +160,7 @@ namespace BlackBarLabs.Api
             if (String.IsNullOrWhiteSpace(routeName))
             {
                 var routePrefixes = typeof(TController)
-                            .GetCustomAttributes<System.Web.Mvc.RoutePrefixAttribute>()
+                            .GetCustomAttributes<System.Web.Http.RoutePrefixAttribute>()
                             .Select(routePrefix => routePrefix.Prefix)
                             .ToArray();
                 if (routePrefixes.Any())

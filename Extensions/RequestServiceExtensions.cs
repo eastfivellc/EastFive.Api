@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Net.Http;
-
 using BlackBarLabs.Web;
 using BlackBarLabs.Extensions;
 using EastFive.Api.Services;
@@ -10,14 +9,14 @@ namespace BlackBarLabs.Api
 {
     public static class RequestServiceExtensions
     {
-        public static Func<ISendMailService> GetMailService(this HttpRequestMessage request)
+        public static Func<ISendMessageService> GetMailService(this HttpRequestMessage request)
         {
-            var mailService = default(ISendMailService);
+            var mailService = default(ISendMessageService);
             return () =>
             {
                 if (mailService.IsDefaultOrNull())
                 {
-                    var getMailService = (Func<ISendMailService>)
+                    var getMailService = (Func<ISendMessageService>)
                         request.Properties[ServicePropertyDefinitions.MailService];
                     mailService = getMailService();
                 }

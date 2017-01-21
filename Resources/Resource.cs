@@ -45,15 +45,15 @@ namespace BlackBarLabs.Api
             }
         }
 
-        private ISendMailService mailService;
-        protected ISendMailService MailService
+        private ISendMessageService mailService;
+        protected ISendMessageService MailService
         {
             get
             {
-                if (default(BlackBarLabs.Web.ISendMailService) == this.mailService)
+                if (default(ISendMessageService) == this.mailService)
                 {
-                    var getMailService = (Func<BlackBarLabs.Web.ISendMailService>)
-                        this.Request.Properties[BlackBarLabs.Api.ServicePropertyDefinitions.MailService];
+                    var getMailService = (Func<ISendMessageService>)
+                        this.Request.Properties[ServicePropertyDefinitions.MailService];
                     this.mailService = getMailService();
                 }
                 return this.mailService;
@@ -68,7 +68,7 @@ namespace BlackBarLabs.Api
                 if (default(ITimeService) == this.dateTimeService)
                 {
                     if (!this.Request.Properties.ContainsKey(BlackBarLabs.Api.ServicePropertyDefinitions.TimeService))
-                        return new EastFive.Api.Services.TimeService();
+                        return new TimeService();
                     var dateTimeService = (Func<ITimeService>)
                         this.Request.Properties[BlackBarLabs.Api.ServicePropertyDefinitions.TimeService];
                     this.dateTimeService = dateTimeService();
