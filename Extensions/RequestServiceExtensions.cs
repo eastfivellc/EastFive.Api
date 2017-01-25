@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Net.Http;
-
+using BlackBarLabs.Web;
 using BlackBarLabs.Extensions;
 using EastFive.Api.Services;
+using System.Threading.Tasks;
 
 namespace BlackBarLabs.Api
 {
