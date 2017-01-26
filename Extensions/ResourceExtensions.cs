@@ -220,7 +220,8 @@ namespace BlackBarLabs.Api
             if (request.Headers.IsDefaultOrNull())
                 return authorizationNotSet();
             var result = request.Headers.Authorization.GetClaimsFromAuthorizationHeader(
-                success, authorizationNotSet, failure);
+                success, authorizationNotSet, failure,
+                "BlackBarLabs.Security.SessionServer.issuer", "BlackBarLabs.Security.SessionServer.key");
             return result;
         }
         
@@ -229,8 +230,8 @@ namespace BlackBarLabs.Api
         {
             var result = request.GetClaims(
                 (claims) => success(claims),
-                () => request.CreateResponse(System.Net.HttpStatusCode.ExpectationFailed).ToTask(),
-                (why) => request.CreateResponse(System.Net.HttpStatusCode.ExpectationFailed).AddReason(why).ToTask());
+                () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason("Authorization header not set").ToTask(),
+                (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason(why).ToTask());
             return result;
         }
 
