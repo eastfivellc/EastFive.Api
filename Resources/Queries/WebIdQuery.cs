@@ -48,7 +48,7 @@ namespace BlackBarLabs.Api.Resources
         }
 
         public TResult Parse<TResult>(
-            Func<IEnumerable<Guid>, TResult> multiple,
+            Func<Guid[], TResult> multiple,
             Func<TResult> empty,
             Func<TResult> unparsable)
         {
@@ -57,14 +57,14 @@ namespace BlackBarLabs.Api.Resources
 
             Guid singleGuid;
             if(Guid.TryParse(this.query, out singleGuid))
-                return multiple(singleGuid.ToEnumerable());
+                return multiple(singleGuid.ToEnumerable().ToArray());
             
             var guidRegex = @"([a-f0-9A-F]{32}|([a-f0-9A-F]{8}-[a-f0-9A-F]{4}-[a-f0-9A-F]{4}-[a-f0-9A-F]{4}-[a-f0-9A-F]{12}))";
             if(!Regex.IsMatch(this.query, guidRegex))
                 return unparsable();
 
             var matches = Regex.Matches(this.query, guidRegex);
-            var ids = RegexToEnumerable(matches);
+            var ids = RegexToEnumerable(matches).ToArray();
             return multiple(ids);
         }
 
