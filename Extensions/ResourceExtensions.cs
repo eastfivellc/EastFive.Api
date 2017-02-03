@@ -226,12 +226,32 @@ namespace BlackBarLabs.Api
         }
         
         public static Task<HttpResponseMessage> GetClaimsAsync(this HttpRequestMessage request,
-            Func<IEnumerable<System.Security.Claims.Claim>, Task<HttpResponseMessage>> success)
+            Func<System.Security.Claims.Claim[], Task<HttpResponseMessage>> success)
         {
             var result = request.GetClaims(
-                (claims) => success(claims),
+                (claimsEnumerable) =>
+                {
+                    var claims = claimsEnumerable.ToArray();
+                    return success(claims);
+                },
                 () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason("Authorization header not set").ToTask(),
                 (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason(why).ToTask());
+            return result;
+        }
+
+        public static Task<HttpResponseMessage[]> GetClaimsAsync(this HttpRequestMessage request,
+            Func<System.Security.Claims.Claim [], Task<HttpResponseMessage[]>> success)
+        {
+            var result = request.GetClaims(
+                (claimsEnumerable) =>
+                {
+                    var claims = claimsEnumerable.ToArray();
+                    return success(claims);
+                },
+                () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason("Authorization header not set")
+                    .ToEnumerable().ToArray().ToTask(),
+                (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason(why)
+                    .ToEnumerable().ToArray().ToTask());
             return result;
         }
 
