@@ -12,6 +12,7 @@ using System.Web;
 using BlackBarLabs.Api.Resources;
 using BlackBarLabs.Linq;
 using System.Threading.Tasks;
+using System.Net;
 
 namespace BlackBarLabs.Api
 {
@@ -273,6 +274,32 @@ namespace BlackBarLabs.Api
                 yield break;
             foreach (var claim in claimsContext)
                 yield return claim;
+        }
+
+        public static Task<HttpResponseMessage> GetAccountIdAsync(this IEnumerable<System.Security.Claims.Claim> claims, HttpRequestMessage request, string accountIdClaimType,
+            Func<Guid, Task<HttpResponseMessage>> success)
+        {
+            var adminClaim = claims
+                .FirstOrDefault((claim) => String.Compare(claim.Type, accountIdClaimType) == 0);
+
+            if (default(System.Security.Claims.Claim) == adminClaim)
+                return request.CreateResponse(HttpStatusCode.Unauthorized).ToTask();
+
+            var accountId = Guid.Parse(adminClaim.Value);
+            return success(accountId);
+        }
+
+        public static Task<HttpResponseMessage[]> GetAccountIdAsync(this IEnumerable<System.Security.Claims.Claim> claims, HttpRequestMessage request, string accountIdClaimType,
+            Func<Guid, Task<HttpResponseMessage[]>> success)
+        {
+            var adminClaim = claims
+                .FirstOrDefault((claim) => String.Compare(claim.Type, accountIdClaimType) == 0);
+
+            if (default(System.Security.Claims.Claim) == adminClaim)
+                return request.CreateResponse(HttpStatusCode.Unauthorized).ToEnumerable().ToArray().ToTask();
+
+            var accountId = Guid.Parse(adminClaim.Value);
+            return success(accountId);
         }
 
         public static string ToStringOneCharacter(this DayOfWeek dayOfWeek)
