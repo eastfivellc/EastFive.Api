@@ -34,14 +34,6 @@ namespace BlackBarLabs.Api
         {
         }
 
-        private class QueryUnspecified : IWebParsable
-        {
-            public bool IsSpecified()
-            {
-                return false;
-            }
-        }
-
         private class WebIdObject : WebIdQuery
         {
             public ResourceQueryBase Obj { get; private set; }

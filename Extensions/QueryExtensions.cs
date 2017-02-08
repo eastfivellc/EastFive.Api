@@ -20,6 +20,14 @@ namespace BlackBarLabs.Api
 
     public static partial class QueryExtensions
     {
+        private class QueryUnspecified : IWebParsable
+        {
+            public bool IsSpecified()
+            {
+                return false;
+            }
+        }
+
         public static async Task<HttpResponseMessage> ParseAsync<TQuery>(this TQuery query, HttpRequestMessage request,
             IEnumerable<Expression<Func<TQuery, Task<HttpResponseMessage>>>>              queriesSingle,
             IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>> queriesEnumerable,
