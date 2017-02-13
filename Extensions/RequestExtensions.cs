@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using BlackBarLabs.Extensions;
 using BlackBarLabs.Api.Resources;
 using BlackBarLabs.Linq;
+using Microsoft.Azure;
 
 namespace BlackBarLabs.Api
 {
@@ -156,5 +157,24 @@ namespace BlackBarLabs.Api
             }
             request.Properties.Add(servicePropertyDefinition, service);
         }
+
+        public static TResult HasSiteAdminAuthorization<TResult>(this AuthenticationHeaderValue authorizationHeader,
+            Func<TResult> isAuthorized,
+            Func<string, TResult> notAuthorized)
+        {
+            var result = authorizationHeader.HasValue(
+                value =>
+                {
+                    var siteAdminAuthorization = CloudConfigurationManager.GetSetting("SiteAdminAuthorization");
+                    //TODO - log that this is not set
+
+                    if (!string.IsNullOrEmpty(siteAdminAuthorization) && siteAdminAuthorization == value.ToString())
+                            return isAuthorized();
+                        return notAuthorized("This account is not authorized to create accounts");
+                },
+                () => notAuthorized("This account is not authorized to create accounts"));
+            return result;
+        }
+        
     }
 }
