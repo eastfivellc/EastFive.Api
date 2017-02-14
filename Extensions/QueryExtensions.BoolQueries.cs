@@ -1,5 +1,6 @@
 ﻿using BlackBarLabs.Api.Resources;
 using System;
+using System.ComponentModel;
 
 namespace BlackBarLabs.Api
 {
@@ -12,6 +13,16 @@ namespace BlackBarLabs.Api
             public BoolValue(bool value)
             {
                 this.Value = value;
+            }
+
+            public override bool IsValid(ITypeDescriptorContext context, object value)
+            {
+                return base.IsValid(context, value);
+            }
+            
+            public override bool IsSpecified()
+            {
+                return true;
             }
         }
 
