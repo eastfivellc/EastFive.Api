@@ -279,14 +279,14 @@ namespace BlackBarLabs.Api
         public static Task<HttpResponseMessage> GetAccountIdAsync(this IEnumerable<System.Security.Claims.Claim> claims, HttpRequestMessage request, string accountIdClaimType,
             Func<Guid, Task<HttpResponseMessage>> success)
         {
-            var adminClaim = claims
+            var actorIdClaim = claims
                 .FirstOrDefault((claim) => String.Compare(claim.Type, accountIdClaimType) == 0);
 
-            if (default(System.Security.Claims.Claim) == adminClaim)
+            if (default(System.Security.Claims.Claim) == actorIdClaim)
                 return request.CreateResponse(HttpStatusCode.Unauthorized).ToTask();
 
-            var accountId = Guid.Parse(adminClaim.Value);
-            return success(accountId);
+            var actorId = Guid.Parse(actorIdClaim.Value);
+            return success(actorId);
         }
 
         public static Task<HttpResponseMessage[]> GetAccountIdAsync(this IEnumerable<System.Security.Claims.Claim> claims, HttpRequestMessage request, string accountIdClaimType,
