@@ -211,6 +211,100 @@ namespace BlackBarLabs.Api
             return new Uri(location);
         }
 
+//<<<<<<< HEAD
+//=======
+//        public static TResult GetClaims<TResult>(this HttpRequestMessage request,
+//            Func<IEnumerable<System.Security.Claims.Claim>, TResult> success,
+//            Func<TResult> authorizationNotSet,
+//            Func<string, TResult> failure)
+//        {
+//            if (request.IsDefaultOrNull())
+//                return authorizationNotSet();
+//            if (request.Headers.IsDefaultOrNull())
+//                return authorizationNotSet();
+//            var result = request.Headers.Authorization.GetClaimsFromAuthorizationHeader(
+//                success, authorizationNotSet, failure,
+//                "BlackBarLabs.Security.SessionServer.issuer", "BlackBarLabs.Security.SessionServer.key");
+//            return result;
+//        }
+        
+//        public static Task<HttpResponseMessage> GetClaimsAsync(this HttpRequestMessage request,
+//            Func<System.Security.Claims.Claim[], Task<HttpResponseMessage>> success)
+//        {
+//            var result = request.GetClaims(
+//                (claimsEnumerable) =>
+//                {
+//                    var claims = claimsEnumerable.ToArray();
+//                    return success(claims);
+//                },
+//                () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason("Authorization header not set").ToTask(),
+//                (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason(why).ToTask());
+//            return result;
+//        }
+
+//        public static Task<HttpResponseMessage[]> GetClaimsAsync(this HttpRequestMessage request,
+//            Func<System.Security.Claims.Claim [], Task<HttpResponseMessage[]>> success)
+//        {
+//            var result = request.GetClaims(
+//                (claimsEnumerable) =>
+//                {
+//                    var claims = claimsEnumerable.ToArray();
+//                    return success(claims);
+//                },
+//                () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason("Authorization header not set")
+//                    .ToEnumerable().ToArray().ToTask(),
+//                (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason(why)
+//                    .ToEnumerable().ToArray().ToTask());
+//            return result;
+//        }
+
+//        public static IEnumerable<System.Security.Claims.Claim> GetClaims(this HttpRequestBase request)
+//        {
+//            if (request.IsDefaultOrNull())
+//                yield break;
+//            if (request.Headers.IsDefaultOrNull())
+//                yield break;
+//            var authorizationString = request.Headers["Authorization"];
+//            if (authorizationString.IsDefaultOrNull())
+//                yield break;
+//            var authenticationHeaderValue = AuthenticationHeaderValue.Parse(authorizationString);
+//            var claimsContext = authenticationHeaderValue.GetClaimsFromAuthorizationHeader(
+//                (claims) => claims,
+//                () => default(IEnumerable<System.Security.Claims.Claim>),
+//                (why) => default(IEnumerable<System.Security.Claims.Claim>));
+//            if (claimsContext.IsDefaultOrNull())
+//                yield break;
+//            foreach (var claim in claimsContext)
+//                yield return claim;
+//        }
+
+//        public static Task<HttpResponseMessage> GetAccountIdAsync(this IEnumerable<System.Security.Claims.Claim> claims, HttpRequestMessage request, string accountIdClaimType,
+//            Func<Guid, Task<HttpResponseMessage>> success)
+//        {
+//            var actorIdClaim = claims
+//                .FirstOrDefault((claim) => String.Compare(claim.Type, accountIdClaimType) == 0);
+
+//            if (default(System.Security.Claims.Claim) == actorIdClaim)
+//                return request.CreateResponse(HttpStatusCode.Unauthorized).ToTask();
+
+//            var actorId = Guid.Parse(actorIdClaim.Value);
+//            return success(actorId);
+//        }
+
+//        public static Task<HttpResponseMessage[]> GetAccountIdAsync(this IEnumerable<System.Security.Claims.Claim> claims, HttpRequestMessage request, string accountIdClaimType,
+//            Func<Guid, Task<HttpResponseMessage[]>> success)
+//        {
+//            var adminClaim = claims
+//                .FirstOrDefault((claim) => String.Compare(claim.Type, accountIdClaimType) == 0);
+
+//            if (default(System.Security.Claims.Claim) == adminClaim)
+//                return request.CreateResponse(HttpStatusCode.Unauthorized).ToEnumerable().ToArray().ToTask();
+
+//            var accountId = Guid.Parse(adminClaim.Value);
+//            return success(accountId);
+//        }
+
+//>>>>>>> 8508dc94d5adb7654fd23f3fddb92a322c6871e3
         public static string ToStringOneCharacter(this DayOfWeek dayOfWeek)
         {
             var dtInfo = new System.Globalization.DateTimeFormatInfo();
