@@ -11,6 +11,8 @@ using BlackBarLabs.Extensions;
 using BlackBarLabs.Api.Resources;
 using BlackBarLabs.Linq;
 using Microsoft.Azure;
+using BlackBarLabs.Web;
+using System.Security.Claims;
 
 namespace BlackBarLabs.Api
 {
@@ -176,5 +178,125 @@ namespace BlackBarLabs.Api
             return result;
         }
         
+        public static TResult GetClaimsFromAuthorizationHeader<TResult>(this AuthenticationHeaderValue header,
+            Func<IEnumerable<Claim>, TResult> success,
+            Func<TResult> authorizationNotSet,
+            Func<string, TResult> failure,
+            string issuerConfigSetting = "BlackBarLabs.Web.token-issuer",
+            string validationKeyConfigSetting = "BlackBarLabs.Web.token-issuer-key")
+        {
+            if (default(AuthenticationHeaderValue) == header)
+                return authorizationNotSet();
+            var jwtString = header.ToString();
+            if (String.IsNullOrWhiteSpace(jwtString))
+                return authorizationNotSet();
+            return jwtString.GetClaimsJwtString(
+                success,
+                (why) =>
+                {
+                    var siteAdminAuthorization = CloudConfigurationManager.GetSetting(
+                        EastFive.Api.Configuration.SecurityDefinitions.SiteAdminAuthorization);
+
+                    if (string.IsNullOrEmpty(siteAdminAuthorization))
+                        return failure(why); //TODO - log if this is not set?
+
+                    if (String.Compare(siteAdminAuthorization, jwtString, false) != 0)
+                        return failure(why);
+
+                    var actorIdClaimType = CloudConfigurationManager.GetSetting(
+                        EastFive.Api.Configuration.SecurityDefinitions.ActorIdClaimType);
+                    var actorIdSuperAdmin = CloudConfigurationManager.GetSetting(
+                        EastFive.Api.Configuration.SecurityDefinitions.ActorIdSuperAdmin);
+                    var claim = new Claim(actorIdClaimType, actorIdSuperAdmin);
+                    return success(claim.ToEnumerable().ToArray());
+                },
+                issuerConfigSetting,
+                validationKeyConfigSetting);
+        }
+
+        public static TResult GetClaims<TResult>(this HttpRequestMessage request,
+            Func<IEnumerable<System.Security.Claims.Claim>, TResult> success,
+            Func<TResult> authorizationNotSet,
+            Func<string, TResult> failure)
+        {
+            if (request.IsDefaultOrNull())
+                return authorizationNotSet();
+            if (request.Headers.IsDefaultOrNull())
+                return authorizationNotSet();
+            var result = request.Headers.Authorization.GetClaimsFromAuthorizationHeader(
+                success, authorizationNotSet, failure,
+                "BlackBarLabs.Security.SessionServer.issuer", "BlackBarLabs.Security.SessionServer.key");
+            return result;
+        }
+
+        public static Task<HttpResponseMessage> GetClaimsAsync(this HttpRequestMessage request,
+            Func<System.Security.Claims.Claim[], Task<HttpResponseMessage>> success)
+        {
+            var result = request.GetClaims(
+                (claimsEnumerable) =>
+                {
+                    var claims = claimsEnumerable.ToArray();
+                    return success(claims);
+                },
+                () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason("Authorization header not set").ToTask(),
+                (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason(why).ToTask());
+            return result;
+        }
+
+        public static Task<HttpResponseMessage[]> GetClaimsAsync(this HttpRequestMessage request,
+            Func<System.Security.Claims.Claim[], Task<HttpResponseMessage[]>> success)
+        {
+            var result = request.GetClaims(
+                (claimsEnumerable) =>
+                {
+                    var claims = claimsEnumerable.ToArray();
+                    return success(claims);
+                },
+                () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason("Authorization header not set")
+                    .ToEnumerable().ToArray().ToTask(),
+                (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason(why)
+                    .ToEnumerable().ToArray().ToTask());
+            return result;
+        }
+        
+        public static Task<HttpResponseMessage> GetActorIdClaimsAsync(this HttpRequestMessage request,
+            string accountIdClaimType,
+            Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage>> success)
+        {
+            var resultGetClaims = request.GetClaims(
+                (claimsEnumerable) =>
+                {
+                    var claims = claimsEnumerable.ToArray();
+                    var result = claims.GetAccountIdAsync(
+                        request, accountIdClaimType,
+                        (accountId) => success(accountId, claims));
+                    return result;
+                },
+                () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized)
+                    .AddReason("Authorization header not set").ToTask(),
+                (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized)
+                    .AddReason(why).ToTask());
+            return resultGetClaims;
+        }
+
+        public static Task<HttpResponseMessage[]> GetActorIdClaimsAsync(this HttpRequestMessage request,
+            string accountIdClaimType,
+            Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage[]>> success)
+        {
+            var resultGetClaims = request.GetClaims(
+                (claimsEnumerable) =>
+                {
+                    var claims = claimsEnumerable.ToArray();
+                    var result = claims.GetAccountIdAsync(
+                        request, accountIdClaimType,
+                        (accountId) => success(accountId, claims));
+                    return result;
+                },
+                () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized)
+                    .AddReason("Authorization header not set").ToEnumerable().ToArray().ToTask(),
+                (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized)
+                    .AddReason(why).ToEnumerable().ToArray().ToTask());
+            return resultGetClaims;
+        }
     }
 }

@@ -111,7 +111,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Attributes\ResourceTypeAttribute.cs" />
+    <Compile Include="Configuration\SecurityDefinitions.cs" />
     <Compile Include="Controllers\BaseController.cs" />
+    <Compile Include="Extensions\ClaimsExtensions.cs" />
     <Compile Include="Extensions\HttpConfigurationExtensions.cs" />
     <Compile Include="Extensions\QueryExtensions.BoolQueries.cs" />
     <Compile Include="Extensions\QueryExtensions.ParseMethods.cs" />

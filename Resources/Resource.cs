@@ -6,6 +6,7 @@ using System.Web.Http.Routing;
 
 using BlackBarLabs.Web;
 using EastFive.Api.Services;
+using System.Linq;
 
 namespace BlackBarLabs.Api
 {
@@ -26,22 +27,27 @@ namespace BlackBarLabs.Api
 
         [Obsolete("Use ToActionResult instead")]
         private IEnumerable<System.Security.Claims.Claim> claimsContext;
+
         [IgnoreDataMember]
         protected IEnumerable<System.Security.Claims.Claim> Claims
         {
             get
             {
-                if (null == Request) yield break;
-                if (null == Request.Headers) yield break;
-                claimsContext = Request.Headers.Authorization.GetClaimsFromAuthorizationHeader(
-                    (claims) => claims,
-                    () => null,
-                    (why) => null);
-                if (claimsContext != null)
-                {
-                    foreach (var claim in claimsContext)
-                        yield return claim;
-                }
+                if (null == Request) return new System.Security.Claims.Claim[] { };
+                if (null == Request.Headers) return new System.Security.Claims.Claim[] { };
+                return Request.Headers.Authorization.GetClaimsFromAuthorizationHeader(
+                    claimsContext =>
+                    {
+                        return claimsContext.ToArray();
+                    },
+                    () =>
+                    {
+                        return new System.Security.Claims.Claim[] { };
+                    },
+                    (why) =>
+                    {
+                        return new System.Security.Claims.Claim[] { };
+                    });
             }
         }
 
