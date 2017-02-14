@@ -185,6 +185,9 @@ namespace BlackBarLabs.Api
                         if (prop.PropertyType == typeof(DateTimeQuery))
                             return true;
 
+                        if (prop.PropertyType == typeof(BoolQuery))
+                            return true;
+
                         if (prop.PropertyType == typeof(BlackBarLabs.Api.ResourceQueryBase) &&
                             prop.GetValue(query) != null)
                             return true;
@@ -223,6 +226,21 @@ namespace BlackBarLabs.Api
                                         () => new DateTimeBadRequest());
                             queryProp.SetValue(replacementQuery, matchableReplacementValueDateTime);
                             return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, matchableReplacementValueDateTime);
+                        }
+
+                        if (queryProp.PropertyType == typeof(BoolQuery))
+                        {
+                            var valueBool = (BoolQuery)queryProp.GetValue(query);
+                            if (default(BoolQuery) == valueBool)
+                                return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, new QueryUnspecified());
+
+                            var matchableReplacementValueBool =
+                                    valueBool.Parse<IWebParsable>(
+                                        (valueMaybe) => new BoolValue(valueMaybe.Value),
+                                        () => new QueryUnspecified(),
+                                        () => new BoolBadRequest());;
+                            queryProp.SetValue(replacementQuery, matchableReplacementValueBool);
+                            return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, matchableReplacementValueBool);
                         }
 
                         var value = (WebIdQuery)queryProp.GetValue(query);

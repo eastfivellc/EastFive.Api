@@ -9,12 +9,12 @@ using BlackBarLabs.Extensions;
 
 namespace BlackBarLabs.Api.Resources
 {
-    [TypeConverter(typeof(DateTimeQueryConverter))]
+    [TypeConverter(typeof(BoolQueryConverter))]
     public class BoolQuery : TypeConverter, IWebParsable
     {
         private string query;
 
-        public bool IsSpecified()
+        public virtual bool IsSpecified()
         {
             return !String.IsNullOrWhiteSpace(query);
         }
@@ -66,6 +66,10 @@ namespace BlackBarLabs.Api.Resources
             {
                 return true;
             }
+            if (sourceType == typeof(bool))
+            {
+                return true;
+            }
             return base.CanConvertFrom(context, sourceType);
         }
 
@@ -76,6 +80,11 @@ namespace BlackBarLabs.Api.Resources
             {
                 var valueString = value as string;
                 BoolQuery query = valueString;
+                return query;
+            }
+            if (value is bool)
+            {
+                BoolQuery query = value.ToString();
                 return query;
             }
             return base.ConvertFrom(context, culture, value);
