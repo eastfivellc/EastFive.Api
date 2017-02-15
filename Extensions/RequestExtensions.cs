@@ -13,6 +13,7 @@ using BlackBarLabs.Linq;
 using Microsoft.Azure;
 using BlackBarLabs.Web;
 using System.Security.Claims;
+using System.Configuration;
 
 namespace BlackBarLabs.Api
 {
@@ -260,13 +261,15 @@ namespace BlackBarLabs.Api
         }
         
         public static Task<HttpResponseMessage> GetActorIdClaimsAsync(this HttpRequestMessage request,
-            string accountIdClaimType,
+            string accountIdClaimTypeConfigurationSetting,
             Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage>> success)
         {
             var resultGetClaims = request.GetClaims(
                 (claimsEnumerable) =>
                 {
                     var claims = claimsEnumerable.ToArray();
+                    var accountIdClaimType = 
+                        ConfigurationManager.AppSettings[accountIdClaimTypeConfigurationSetting];
                     var result = claims.GetAccountIdAsync(
                         request, accountIdClaimType,
                         (accountId) => success(accountId, claims));
