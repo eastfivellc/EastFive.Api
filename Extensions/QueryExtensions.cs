@@ -223,7 +223,8 @@ namespace BlackBarLabs.Api
                                         (when) => new DateTimeValue(when),
                                         () => new DateTimeEmpty(),
                                         () => new QueryUnspecified(),
-                                        () => new DateTimeBadRequest());
+                                        () => new DateTimeBadRequest(),
+                                        () => new QueryUnspecified());
                             queryProp.SetValue(replacementQuery, matchableReplacementValueDateTime);
                             return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, matchableReplacementValueDateTime);
                         }

@@ -29,8 +29,17 @@ namespace BlackBarLabs.Api.Resources
         internal TResult ParseInternal<TResult>(
             Func<DateTime, DateTime, TResult> range,
             Func<DateTime, TResult> specific,
+            Func<TResult> empty,
+            Func<TResult> unspecified,
             Func<TResult> unparsable)
         {
+            if (String.IsNullOrWhiteSpace(this.query))
+                return unspecified();
+            if (String.Compare("empty", this.query.ToLower()) == 0)
+                return empty();
+            if (String.Compare("null", this.query.ToLower()) == 0)
+                return empty();
+
             DateTime specificValue;
             if (DateTime.TryParse(query, CultureInfo.CurrentCulture, DateTimeStyles.AdjustToUniversal, out specificValue))
             {
@@ -75,11 +84,12 @@ namespace BlackBarLabs.Api.Resources
             Func<DateTime, TResult> specific,
             Func<TResult> empty,
             Func<TResult> unspecified,
-            Func<TResult> unparsable)
+            Func<TResult> unparsable,
+            Func<TResult> onNull)
         {
             return query.HasValue(
-                (queryNotNull) => queryNotNull.ParseInternal(range, specific, unparsable),
-                () => empty());
+                (queryNotNull) => queryNotNull.ParseInternal(range, specific, empty, unspecified, unparsable),
+                () => onNull());
         }
     }
 
