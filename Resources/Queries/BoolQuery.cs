@@ -26,6 +26,11 @@ namespace BlackBarLabs.Api.Resources
             return new BoolQuery() { query = query };
         }
 
+        public static implicit operator BoolQuery(bool query)
+        {
+            return new BoolQuery() { query = query.ToString() };
+        }
+
         internal TResult ParseInternal<TResult>(
             Func<bool?, TResult> specific,
             Func<TResult> unparsable)
