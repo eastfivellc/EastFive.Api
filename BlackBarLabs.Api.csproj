@@ -71,6 +71,7 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.ServiceModel" />
     <Reference Include="System.Web" />
     <Reference Include="System.Web.Helpers, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>$(SolutionDir)\packages\Microsoft.AspNet.WebPages.3.2.3\lib\net45\System.Web.Helpers.dll</HintPath>
@@ -146,6 +147,8 @@
     <Compile Include="Resources\WebId.cs" />
     <Compile Include="ServicePropertyDefinitions.cs" />
     <Compile Include="Services\TimeService.cs" />
+    <Compile Include="Workers\BackgroundWorker.cs" />
+    <Compile Include="Workers\Extensions.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\BlackBarLabs.Web\BlackBarLabs.Web.csproj">
@@ -161,6 +164,7 @@
     <None Include="app.config" />
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>
