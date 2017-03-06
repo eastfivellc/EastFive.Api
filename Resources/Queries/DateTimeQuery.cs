@@ -26,6 +26,13 @@ namespace BlackBarLabs.Api.Resources
             return new DateTimeQuery() { query = query };
         }
 
+        public static implicit operator DateTimeQuery(DateTime? query)
+        {
+            if (query.HasValue)
+                return new DateTimeQuery() { query = query.Value.ToString() };
+            return new DateTimeQuery() { query = "empty", };
+        }
+
         internal TResult ParseInternal<TResult>(
             Func<DateTime, DateTime, TResult> range,
             Func<DateTime, TResult> specific,
