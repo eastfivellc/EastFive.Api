@@ -259,7 +259,15 @@ namespace BlackBarLabs.Api
                     .ToEnumerable().ToArray().ToTask());
             return result;
         }
-        
+
+        public static Task<HttpResponseMessage> GetActorIdClaimsAsync(this HttpRequestMessage request,
+            Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage>> success)
+        {
+            var accountIdClaimTypeConfigurationSetting =
+                EastFive.Api.Configuration.SecurityDefinitions.ActorIdClaimType;
+            return GetActorIdClaimsAsync(request, accountIdClaimTypeConfigurationSetting, success);
+        }
+
         public static Task<HttpResponseMessage> GetActorIdClaimsAsync(this HttpRequestMessage request,
             string accountIdClaimTypeConfigurationSetting,
             Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage>> success)
@@ -300,6 +308,14 @@ namespace BlackBarLabs.Api
                 (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized)
                     .AddReason(why).ToEnumerable().ToArray().ToTask());
             return resultGetClaims;
+        }
+
+        public static Task<HttpResponseMessage[]> GetActorIdClaimsAsync(this HttpRequestMessage request,
+           Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage[]>> success)
+        {
+            var accountIdClaimTypeConfigurationSetting =
+                EastFive.Api.Configuration.SecurityDefinitions.ActorIdClaimType;
+            return GetActorIdClaimsAsync(request, accountIdClaimTypeConfigurationSetting, success);
         }
     }
 }

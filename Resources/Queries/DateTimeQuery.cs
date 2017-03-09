@@ -46,6 +46,8 @@ namespace BlackBarLabs.Api.Resources
                 return empty();
             if (String.Compare("null", this.query.ToLower()) == 0)
                 return empty();
+            if (String.Compare("false", this.query.ToLower()) == 0)
+                return empty();
 
             DateTime specificValue;
             if (DateTime.TryParse(query, CultureInfo.CurrentCulture, DateTimeStyles.AdjustToUniversal, out specificValue))
