@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 
 using BlackBarLabs.Extensions;
+using Microsoft.Azure;
 
 namespace BlackBarLabs.Api
 {
@@ -33,6 +34,24 @@ namespace BlackBarLabs.Api
 
             if (default(System.Security.Claims.Claim) == adminClaim)
                 return request.CreateResponse(HttpStatusCode.Unauthorized).ToEnumerable().ToArray().ToTask();
+
+            var accountId = Guid.Parse(adminClaim.Value);
+            return success(accountId);
+        }
+
+        public static TResult GetActorId<TResult>(this IEnumerable<System.Security.Claims.Claim> claims, 
+            string accountIdClaimType,
+            Func<Guid, TResult> success,
+            Func<TResult> actorIdNotFound)
+        {
+            var accountIdClaimValue = CloudConfigurationManager.GetSetting(accountIdClaimType);
+            //TODO - Log if not found
+
+            var adminClaim = claims
+                .FirstOrDefault((claim) => String.Compare(claim.Type, accountIdClaimValue) == 0);
+
+            if (default(System.Security.Claims.Claim) == adminClaim)
+                return actorIdNotFound();
 
             var accountId = Guid.Parse(adminClaim.Value);
             return success(accountId);
