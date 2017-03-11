@@ -47,7 +47,8 @@ namespace BlackBarLabs.Api
                     (why) =>
                     {
                         return new System.Security.Claims.Claim[] { };
-                    });
+                    },
+                    "BlackBarLabs.Security.SessionServer.issuer", "BlackBarLabs.Security.SessionServer.key");
             }
         }
 
