@@ -36,5 +36,14 @@ namespace BlackBarLabs.Api
             };
             return response;
         }
+
+        public static HttpResponseMessage CreateImageResponse(this HttpRequestMessage request, byte [] imageData,
+            string filename = default(string))
+        {
+            var response = request.CreateResponse(HttpStatusCode.OK);
+            response.Content = new ByteArrayContent(imageData);
+            response.Content.Headers.ContentType = new MediaTypeHeaderValue("image/*");
+            return response;
+        }
     }
 }
