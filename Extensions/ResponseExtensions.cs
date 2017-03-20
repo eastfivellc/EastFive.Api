@@ -38,11 +38,11 @@ namespace BlackBarLabs.Api
         }
 
         public static HttpResponseMessage CreateImageResponse(this HttpRequestMessage request, byte [] imageData,
-            string filename = default(string))
+            string filename = default(string), string contentType = default(string))
         {
             var response = request.CreateResponse(HttpStatusCode.OK);
             response.Content = new ByteArrayContent(imageData);
-            response.Content.Headers.ContentType = new MediaTypeHeaderValue("image/*");
+            response.Content.Headers.ContentType = new MediaTypeHeaderValue(String.IsNullOrWhiteSpace(contentType)? "image/png" : contentType);
             return response;
         }
     }

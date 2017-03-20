@@ -47,7 +47,11 @@ namespace BlackBarLabs.Api
             var paramTasks = callback.Parameters.Select(
                 async (param) =>
                 {
-                    var paramContent = streamProvider.Contents.FirstOrDefault(file => file.Headers.ContentDisposition.Name.Contains(param.Name));
+                    var paramContent = streamProvider.Contents
+                        .FirstOrDefault(file => String.Compare(
+                                file.Headers.ContentDisposition.Name.Trim(new char[] { '"' }),
+                                param.Name,
+                            true) == 0);
                     if (default(HttpContent) == paramContent)
                         return param.Type.IsValueType ? Activator.CreateInstance(param.Type) : null;
 
