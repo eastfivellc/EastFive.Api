@@ -10,15 +10,10 @@ using BlackBarLabs.Extensions;
 namespace BlackBarLabs.Api.Resources
 {
     [TypeConverter(typeof(BoolQueryConverter))]
-    public class BoolQuery : TypeConverter, IWebParsable
+    public class BoolQuery : IQueryParameter
     {
         private string query;
-
-        public virtual bool IsSpecified()
-        {
-            return !String.IsNullOrWhiteSpace(query);
-        }
-
+        
         public static implicit operator BoolQuery(string query)
         {
             if(default(string) == query)
@@ -31,38 +26,13 @@ namespace BlackBarLabs.Api.Resources
             return new BoolQuery() { query = query.ToString() };
         }
 
-        internal TResult ParseInternal<TResult>(
-            Func<bool?, TResult> specific,
-            Func<TResult> unparsable)
+        public TResult Parse<TResult>(Func<QueryMatchAttribute, TResult> parsed,
+            Func<string, TResult> unparsable)
         {
-            bool specificValue;
-            if (bool.TryParse(query, out specificValue))
-            {
-                return specific(specificValue);
-            }
-
-            if (String.Compare("empty", this.query.ToLower()) == 0)
-                return specific(default(bool?));
-            if (String.Compare("null", this.query.ToLower()) == 0)
-                return specific(default(bool?));
-
-            return unparsable();
+            return this.ParseInternal(this.query, parsed, unparsable);
         }
     }
-
-    public static class BoolQueryExtensions
-    {
-        public static TResult Parse<TResult>(this BoolQuery query,
-            Func<bool?, TResult> specific,
-            Func<TResult> unspecified,
-            Func<TResult> unparsable)
-        {
-            return query.HasValue(
-                (queryNotNull) => queryNotNull.ParseInternal(specific, unparsable),
-                () => unspecified());
-        }
-    }
-
+    
     class BoolQueryConverter : TypeConverter
     {
         public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)

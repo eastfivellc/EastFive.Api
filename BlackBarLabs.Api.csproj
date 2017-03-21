@@ -30,10 +30,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="BlackBarLabs.Core, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\BlackBarLabs.Core.1.2.5\lib\net45\BlackBarLabs.Core.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="Microsoft.Web.Infrastructure, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>$(SolutionDir)\packages\Microsoft.Web.Infrastructure.1.0.0.0\lib\net40\Microsoft.Web.Infrastructure.dll</HintPath>
       <Private>True</Private>
@@ -120,6 +116,7 @@
     <Compile Include="Extensions\QueryExtensions.BoolQueries.cs" />
     <Compile Include="Extensions\QueryExtensions.ParseMethods.cs" />
     <Compile Include="Extensions\QueryExtensions.DateTimeQueries.cs" />
+    <Compile Include="Extensions\QueryExtensions.StringQueries.cs" />
     <Compile Include="Extensions\QueryExtensions.WebIdQueries.cs" />
     <Compile Include="Extensions\QueryExtensions.cs" />
     <Compile Include="Extensions\RequestServiceExtensions.cs" />
@@ -138,6 +135,7 @@
     <Compile Include="Resources\OptionsResource.cs" />
     <Compile Include="Resources\Queries\BoolQuery.cs" />
     <Compile Include="Resources\Queries\DateTimeQuery.cs" />
+    <Compile Include="Resources\Queries\StringQuery.cs" />
     <Compile Include="Resources\Queries\WebIdQuery.cs" />
     <Compile Include="Resources\ResourceQueryBase.cs" />
     <Compile Include="Resources\ResourceBase.cs" />
@@ -151,6 +149,10 @@
     <Compile Include="Workers\Extensions.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\BlackBarLabs.Core\BlackBarLabs.Core.csproj">
+      <Project>{73088f1b-3aca-476b-aa45-b7d6660f1c73}</Project>
+      <Name>BlackBarLabs.Core</Name>
+    </ProjectReference>
     <ProjectReference Include="..\BlackBarLabs.Web\BlackBarLabs.Web.csproj">
       <Project>{5bb52391-2704-44c0-bc8a-dbbe31498814}</Project>
       <Name>BlackBarLabs.Web</Name>

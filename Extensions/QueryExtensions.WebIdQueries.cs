@@ -1,11 +1,65 @@
 using BlackBarLabs.Api.Resources;
 using System;
+using System.Linq;
 
 namespace BlackBarLabs.Api
 {
+
     public static partial class QueryExtensions
     {
-        private class WebIdGuid : WebIdQuery
+        [QueryParameterType(WebIdQueryType = typeof(WebIdGuid))]
+        public static Guid ParamSingle(this WebIdQuery query)
+        {
+            return query.ParseInternal(
+                (v) =>
+                {
+                    if (!(v is WebIdGuid))
+                        throw new InvalidOperationException("Do not use ParamSingle outside of ParseAsync");
+
+                    var wiqo = v as WebIdGuid;
+                    return wiqo.Guid;
+                },
+                (why) =>
+                {
+                    throw new InvalidOperationException("Use ParseAsync to ensure parsable values");
+                });
+        }
+
+        [QueryParameterType(WebIdQueryType = typeof(WebIdEmpty))]
+        public static Guid? ParamEmpty(this WebIdQuery query)
+        {
+            return query.ParseInternal(
+                (v) =>
+                {
+                    if (!(v is WebIdEmpty))
+                        throw new InvalidOperationException("Do not use ParamEmpty outside of ParseAsync");
+                    return default(Guid?);
+                },
+                (why) =>
+                {
+                    throw new InvalidOperationException("Use ParseAsync to ensure parsable values");
+                });
+        }
+
+        [QueryParameterType(WebIdQueryType = typeof(WebIdGuids))]
+        public static Guid[] ParamOr(this WebIdQuery query)
+        {
+            return query.ParseInternal(
+                (v) =>
+                {
+                    if (!(v is WebIdGuids))
+                        throw new InvalidOperationException("Do not use ParamEmpty outside of ParamOr");
+
+                    var wiqo = v as WebIdGuids;
+                    return wiqo.Guids;
+                },
+                (why) =>
+                {
+                    throw new InvalidOperationException("Use ParseAsync to ensure parsable values");
+                });
+        }
+
+        class WebIdGuid : QueryMatchAttribute
         {
             public Guid Guid { get; private set; }
 
@@ -15,82 +69,31 @@ namespace BlackBarLabs.Api
             }
         }
 
-        private class WebIdGuids : WebIdQuery
+        class WebIdGuids : QueryMatchAttribute
         {
-            public Guid [] Guids { get; private set; }
+            public Guid[] Guids { get; private set; }
 
-            public WebIdGuids(Guid [] guids)
+            public WebIdGuids(Guid[] guids)
             {
                 this.Guids = guids;
             }
         }
 
-
-        private class WebIdEmpty : WebIdQuery
+        class WebIdEmpty : QueryMatchAttribute
         {
         }
 
-        private class WebIdBadRequest : WebIdQuery
+        internal static TResult ParseInternal<TResult>(this WebIdQuery query,
+            Func<QueryMatchAttribute, TResult> parsed,
+            Func<string, TResult> unparsable)
         {
+            return query.Parse(
+                (value) => parsed(new WebIdGuid(value)),
+                (values) => parsed(new WebIdGuids(values.ToArray())),
+                () => parsed(new WebIdEmpty()),
+                () => parsed(new WebIdEmpty()),
+                () => unparsable($"Could not parse WebId from {query}"));
         }
 
-        private class WebIdObject : WebIdQuery
-        {
-            public ResourceQueryBase Obj { get; private set; }
-
-            public WebIdObject(ResourceQueryBase obj)
-            {
-                this.Obj = obj;
-            }
-        }
-
-        [AttributeUsage(AttributeTargets.Method)]
-        private class QueryParameterTypeAttribute : System.Attribute
-        {
-            public QueryParameterTypeAttribute()
-            {
-            }
-
-            private Type webIdQueryType;
-            public Type WebIdQueryType
-            {
-                get
-                {
-                    return this.webIdQueryType;
-                }
-                set
-                {
-                    webIdQueryType = value;
-                }
-            }
-        }
-
-        [QueryParameterType(WebIdQueryType = typeof(WebIdGuid))]
-        public static Guid ParamSingle(this WebIdQuery query)
-        {
-            if (!(query is WebIdGuid))
-                throw new InvalidOperationException("Do not use ParamSingle outside of ParseAsync");
-
-            var wiqo = query as WebIdGuid;
-            return wiqo.Guid;
-        }
-
-        [QueryParameterType(WebIdQueryType = typeof(WebIdEmpty))]
-        public static Guid? ParamEmpty(this WebIdQuery query)
-        {
-            if (!(query is WebIdEmpty))
-                throw new InvalidOperationException("Do not use ParamEmpty outside of ParseAsync");
-            return default(Guid?);
-        }
-
-        [QueryParameterType(WebIdQueryType = typeof(WebIdGuids))]
-        public static Guid[] ParamOr(this WebIdQuery query)
-        {
-            if (!(query is WebIdGuids))
-                throw new InvalidOperationException("Do not use ParamOr outside of ParseAsync");
-
-            var wiqo = query as WebIdGuids;
-            return wiqo.Guids;
-        }
     }
 }

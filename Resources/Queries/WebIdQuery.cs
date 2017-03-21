@@ -11,7 +11,7 @@ using BlackBarLabs.Extensions;
 namespace BlackBarLabs.Api.Resources
 {
     [TypeConverter(typeof(WebIdQueryConverter))]
-    public class WebIdQuery : IWebParsable
+    public class WebIdQuery : IQueryParameter
     {
         public string UUIDs { get; set; }
 
@@ -97,7 +97,6 @@ namespace BlackBarLabs.Api.Resources
         }
 
         public TResult Parse<TResult>(
-            HttpRequestMessage request,
             Func<Guid, TResult> single,
             Func<IEnumerable<Guid>, TResult> multiple,
             Func<TResult> unspecified,
@@ -123,6 +122,14 @@ namespace BlackBarLabs.Api.Resources
             }
             return Parse(multiple, unspecified, unparsable);
         }
+
+        public TResult Parse<TResult>(
+            Func<QueryMatchAttribute, TResult> parsed,
+            Func<string, TResult> unparsable)
+        {
+            return this.ParseInternal(parsed, unparsable);
+        }
+
     }
 
     class WebIdQueryConverter : TypeConverter

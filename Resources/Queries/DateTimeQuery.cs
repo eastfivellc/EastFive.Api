@@ -10,15 +10,10 @@ using BlackBarLabs.Extensions;
 namespace BlackBarLabs.Api.Resources
 {
     [TypeConverter(typeof(DateTimeQueryConverter))]
-    public class DateTimeQuery : TypeConverter, IWebParsable
+    public class DateTimeQuery : IQueryParameter
     {
         private string query;
-
-        public bool IsSpecified()
-        {
-            return true;
-        }
-
+        
         public static implicit operator DateTimeQuery(string query)
         {
             if(default(string) == query)
@@ -84,24 +79,13 @@ namespace BlackBarLabs.Api.Resources
             }
             return unparsable();
         }
-    }
 
-    public static class DateTimeQueryExtensions
-    {
-        public static TResult Parse<TResult>(this DateTimeQuery query,
-            Func<DateTime, DateTime, TResult> range,
-            Func<DateTime, TResult> specific,
-            Func<TResult> empty,
-            Func<TResult> unspecified,
-            Func<TResult> unparsable,
-            Func<TResult> onNull)
+        public TResult Parse<TResult>(Func<QueryMatchAttribute, TResult> parsed, Func<string, TResult> unparsable)
         {
-            return query.HasValue(
-                (queryNotNull) => queryNotNull.ParseInternal(range, specific, empty, unspecified, unparsable),
-                () => onNull());
+            return this.ParseInternal(parsed, unparsable);
         }
     }
-
+    
     class DateTimeQueryConverter : TypeConverter
     {
         public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)

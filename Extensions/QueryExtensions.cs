@@ -13,19 +13,43 @@ using System.Threading.Tasks;
 
 namespace BlackBarLabs.Api
 {
-    public interface IWebParsable
+    public interface IQueryParameter
     {
-        bool IsSpecified();
+        TResult Parse<TResult>(
+            Func<QueryMatchAttribute, TResult> parsed,
+            Func<string, TResult> unparsable);
+    }
+
+    [AttributeUsage(AttributeTargets.Method)]
+    public class QueryParameterTypeAttribute : System.Attribute
+    {
+        public QueryParameterTypeAttribute()
+        {
+        }
+
+        private Type webIdQueryType;
+        public Type WebIdQueryType
+        {
+            get
+            {
+                return this.webIdQueryType;
+            }
+            set
+            {
+                webIdQueryType = value;
+            }
+        }
+    }
+
+    public class QueryMatchAttribute : Attribute
+    {
+
     }
 
     public static partial class QueryExtensions
     {
-        private class QueryUnspecified : IWebParsable
+        private class QueryUnspecified : QueryMatchAttribute
         {
-            public bool IsSpecified()
-            {
-                return false;
-            }
         }
 
         public static async Task<HttpResponseMessage> ParseAsync<TQuery>(this TQuery query, HttpRequestMessage request,
@@ -35,12 +59,12 @@ namespace BlackBarLabs.Api
             where TQuery : ResourceQueryBase
         {
             return await GetQueryObjectParamters(query, request,
-                async (queryObjectParameters, replacementQuery) =>
+                async (queryObjectParameters) =>
                 {
                     var response = await queriesSingle.WhichFormatSingle(queryObjectParameters,
                         async (selectedQueryFormat) =>
                         {
-                            var responseSingle = await selectedQueryFormat.Compile()(replacementQuery);
+                            var responseSingle = await selectedQueryFormat.Compile()(query);
                             return responseSingle;
                         },
                         async () =>
@@ -48,7 +72,7 @@ namespace BlackBarLabs.Api
                             var responsesMultipart = await queriesEnumerable.WhichFormatEnumerable(queryObjectParameters,
                                 async (selectedQueryFormat) =>
                                 {
-                                    var responsesEnumerable = await selectedQueryFormat.Compile()(replacementQuery);
+                                    var responsesEnumerable = await selectedQueryFormat.Compile()(query);
                                     var responseMultipart = await request.CreateMultipartResponseAsync(responsesEnumerable);
                                     return responseMultipart;
                                 },
@@ -57,7 +81,7 @@ namespace BlackBarLabs.Api
                                     var responseArray = await queriesArray.WhichFormatArray(queryObjectParameters,
                                         async (selectedQueryFormat) =>
                                         {
-                                            var responsesArray = await selectedQueryFormat.Compile()(replacementQuery);
+                                            var responsesArray = await selectedQueryFormat.Compile()(query);
                                             var responseMultipart = await request.CreateMultipartResponseAsync(responsesArray);
                                             return responseMultipart;
                                         },
@@ -71,7 +95,7 @@ namespace BlackBarLabs.Api
         }
 
         private static TResult WhichFormatSingle<TQuery, TResult>(this IEnumerable<Expression<Func<TQuery, Task<HttpResponseMessage>>>> queryFormats,
-            IDictionary<PropertyInfo, IWebParsable> queryObjectParameters,
+            IDictionary<PropertyInfo, QueryMatchAttribute> queryObjectParameters,
             Func<Expression<Func<TQuery, Task<HttpResponseMessage>>>, TResult> found,
             Func<TResult> notFound)
         {
@@ -88,7 +112,7 @@ namespace BlackBarLabs.Api
         }
         
         private static TResult WhichFormatEnumerable<TQuery, TResult>(this IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>> queryFormats,
-            IDictionary<PropertyInfo, IWebParsable> queryObjectParameters,
+            IDictionary<PropertyInfo, QueryMatchAttribute> queryObjectParameters,
             Func<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>, TResult> found,
             Func<TResult> notFound)
         {
@@ -105,7 +129,7 @@ namespace BlackBarLabs.Api
         }
 
         private static TResult WhichFormatArray<TQuery, TResult>(this IEnumerable<Expression<Func<TQuery, Task<HttpResponseMessage[]>>>> queryFormats,
-            IDictionary<PropertyInfo, IWebParsable> queryObjectParameters,
+            IDictionary<PropertyInfo, QueryMatchAttribute> queryObjectParameters,
             Func<Expression<Func<TQuery, Task<HttpResponseMessage[]>>>, TResult> found,
             Func<TResult> notFound)
         {
@@ -121,47 +145,31 @@ namespace BlackBarLabs.Api
             return result;
         }
 
-        private static bool IsMatch(IDictionary<PropertyInfo, IWebParsable> queryObjectParameters, IDictionary<PropertyInfo, Type> queryMethodParameters)
+        private static bool IsMatch(IDictionary<PropertyInfo, QueryMatchAttribute> queryObjectParameters,
+            IDictionary<PropertyInfo, Type> queryMethodParameters)
         {
             var queryObjectParametersSpecified = queryObjectParameters
-                .Where(propKvp => propKvp.Value.IsSpecified())
+                // .Where(propKvp => propKvp.Value.IsSpecified())
                 .ToArray();
 
             if (queryObjectParametersSpecified.Length != queryMethodParameters.Keys.Count)
                 return false;
 
-            foreach(var queryObjectParameter in queryObjectParametersSpecified)
-            {
-                bool foundMatch = false;
-                foreach(var queryMethodParameter in queryMethodParameters)
+            return queryObjectParametersSpecified.All(
+                queryObjectParameter =>
                 {
-                    if (string.Compare(queryMethodParameter.Key.Name, queryObjectParameter.Key.Name) == 0 &&
-                       queryMethodParameter.Value.IsInstanceOfType(queryObjectParameter.Value))
-                        foundMatch = true;
-                }
-                if (!foundMatch)
-                    return false;
-            }
-            return true;
-
-            //var queryObjectParametersMissing = queryObjectParametersSpecified
-            //    .Where(propKvp =>
-            //        {
-            //            if (!queryMethodParameters.ContainsKey(propKvp.Key))
-            //                return true;
-            //            if (!queryMethodParameters[propKvp.Key].IsInstanceOfType(propKvp.Value))
-            //                return true;
-            //            return false;
-            //        });
-
-            //return !queryObjectParametersMissing.Any();
+                    bool foundMatch = queryMethodParameters
+                        .Any(queryMethodParameter =>
+                            string.Compare(queryMethodParameter.Key.Name, queryObjectParameter.Key.Name) == 0 &&
+                            queryMethodParameter.Value.IsInstanceOfType(queryObjectParameter.Value));
+                    return foundMatch;
+                });
         }
 
         private static async Task<HttpResponseMessage> GetQueryObjectParamters<TQuery>(TQuery query, HttpRequestMessage request,
-            Func<IDictionary<PropertyInfo, IWebParsable>, TQuery, Task<HttpResponseMessage>> callback)
+            Func<IDictionary<PropertyInfo, QueryMatchAttribute>, Task<HttpResponseMessage>> callback)
             where TQuery : ResourceQueryBase
         {
-            var replacementQuery = Activator.CreateInstance<TQuery>();
             if (default(TQuery) == query)
                 query = Activator.CreateInstance<TQuery>();
 
@@ -175,94 +183,103 @@ namespace BlackBarLabs.Api
                     query.Id = idRefGuid;
             }
 
-            var queryProperties = query.GetType().GetProperties()
-                .Where(
-                    (prop) =>
+            return await query.GetType().GetProperties()
+                .SelectUntil<PropertyInfo, KeyValuePair<PropertyInfo, QueryMatchAttribute>?, Task<HttpResponseMessage>>(
+                    (prop, cont, stop) =>
                     {
-                        if (prop.PropertyType == typeof(WebIdQuery))
-                            return true;
-
-                        if (prop.PropertyType == typeof(DateTimeQuery))
-                            return true;
-
-                        if (prop.PropertyType == typeof(BoolQuery))
-                            return true;
-
-                        if (prop.PropertyType == typeof(BlackBarLabs.Api.ResourceQueryBase) &&
-                            prop.GetValue(query) != null)
-                            return true;
-
-                        prop.SetValue(replacementQuery, prop.GetValue(query));
-                        return false;
-                    })
-                    
-            //foreach (var prop in query.GetType().GetProperties()
-            //        .Where(prop => prop.PropertyType != typeof(WebIdQuery)))
-            //    prop.SetValue(replacementQuery, prop.GetValue(query));
-            
-            //var queryProperties = query.GetType().GetProperties()
-            //    .Where(prop => prop.PropertyType == typeof(WebIdQuery))
-                .Select(
-                    (queryProp) =>
-                    {
-                        if (queryProp.PropertyType == typeof(BlackBarLabs.Api.ResourceQueryBase))
+                        var value = prop.GetValue(query);
+                        if (null == value)
+                            return cont(default(KeyValuePair<PropertyInfo, QueryMatchAttribute>?));
+                        if (typeof(IQueryParameter).IsInstanceOfType(value))
                         {
-                            var valueObj = (BlackBarLabs.Api.ResourceQueryBase)queryProp.GetValue(query);
-                            return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, new WebIdObject(valueObj));
+                            return ((IQueryParameter)value).Parse(
+                                (v) => cont(new KeyValuePair<PropertyInfo, QueryMatchAttribute>(prop, v)),
+                                (why) => stop(request.CreateResponse(System.Net.HttpStatusCode.BadRequest).AddReason(why).ToTask()));
                         }
+                        return cont(default(KeyValuePair<PropertyInfo, QueryMatchAttribute>?));
+                    },
+                    (kvps) => callback(kvps.SelectWhereHasValue().ToDictionary()));
 
-                        if (queryProp.PropertyType == typeof(DateTimeQuery))
-                        {
-                            var valueDateTime = (DateTimeQuery)queryProp.GetValue(query);
-                            if (default(DateTimeQuery) == valueDateTime)
-                                return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, new QueryUnspecified());
+            //var queryPropertiesX = queryProperties
+            //    .Where(
+            //        (prop) =>
+            //        {
+            //            if (prop.PropertyType == typeof(WebIdQuery))
+            //                return true;
 
-                            var matchableReplacementValueDateTime = 
-                                    valueDateTime.Parse<IWebParsable>(
-                                        (from,to) => new DateTimeRangeQuery(from, to),
-                                        (when) => new DateTimeValue(when),
-                                        () => new DateTimeEmpty(),
-                                        () => new QueryUnspecified(),
-                                        () => new DateTimeBadRequest(),
-                                        () => new QueryUnspecified());
-                            queryProp.SetValue(replacementQuery, matchableReplacementValueDateTime);
-                            return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, matchableReplacementValueDateTime);
-                        }
+            //            if (prop.PropertyType == typeof(DateTimeQuery))
+            //                return true;
 
-                        if (queryProp.PropertyType == typeof(BoolQuery))
-                        {
-                            var valueBool = (BoolQuery)queryProp.GetValue(query);
-                            if (default(BoolQuery) == valueBool)
-                                return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, new QueryUnspecified());
+            //            if (prop.PropertyType == typeof(BoolQuery))
+            //                return true;
 
-                            var matchableReplacementValueBool =
-                                    valueBool.Parse<IWebParsable>(
-                                        (valueMaybe) => new BoolValue(valueMaybe.Value),
-                                        () => new QueryUnspecified(),
-                                        () => new BoolBadRequest());;
-                            queryProp.SetValue(replacementQuery, matchableReplacementValueBool);
-                            return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, matchableReplacementValueBool);
-                        }
+            //            if (prop.PropertyType == typeof(BlackBarLabs.Api.ResourceQueryBase) &&
+            //                prop.GetValue(query) != null)
+            //                return true;
 
-                        var value = (WebIdQuery)queryProp.GetValue(query);
-                        if (default(WebIdQuery) == value)
-                            return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, new QueryUnspecified());
+            //            prop.SetValue(replacementQuery, prop.GetValue(query));
+            //            return false;
+            //        })
+            //    .Select(
+            //        (queryProp) =>
+            //        {
+            //            if (queryProp.PropertyType == typeof(BlackBarLabs.Api.ResourceQueryBase))
+            //            {
+            //                var valueObj = (BlackBarLabs.Api.ResourceQueryBase)queryProp.GetValue(query);
+            //                return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, new WebIdObject(valueObj));
+            //            }
 
-                        var over = value.Parse<IWebParsable>(request,
-                                    (guid) => new WebIdGuid(guid),
-                                    (guids) => new WebIdGuids(guids.ToArray()),
-                                    () => new QueryUnspecified(),
-                                    () => new WebIdEmpty(),
-                                    () => new WebIdBadRequest());
-                        queryProp.SetValue(replacementQuery, over);
-                        return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, over);
-                    });
-            var queryObjectParameters =  queryProperties.ToDictionary();
+            //            if (queryProp.PropertyType == typeof(DateTimeQuery))
+            //            {
+            //                var valueDateTime = (DateTimeQuery)queryProp.GetValue(query);
+            //                if (default(DateTimeQuery) == valueDateTime)
+            //                    return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, new QueryUnspecified());
 
-            if (queryObjectParameters.Any(propKvp => propKvp.Value is WebIdBadRequest))
-                return request.CreateResponse(System.Net.HttpStatusCode.BadRequest);
+            //                var matchableReplacementValueDateTime = 
+            //                        valueDateTime.Parse<IWebParsable>(
+            //                            (from,to) => new DateTimeRangeQuery(from, to),
+            //                            (when) => new DateTimeValue(when),
+            //                            () => new DateTimeEmpty(),
+            //                            () => new QueryUnspecified(),
+            //                            () => new WebIdBadRequest(),
+            //                            () => new QueryUnspecified());
+            //                queryProp.SetValue(replacementQuery, matchableReplacementValueDateTime);
+            //                return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, matchableReplacementValueDateTime);
+            //            }
 
-            return await callback(queryObjectParameters, replacementQuery);
+            //            if (queryProp.PropertyType == typeof(BoolQuery))
+            //            {
+            //                var valueBool = (BoolQuery)queryProp.GetValue(query);
+            //                if (default(BoolQuery) == valueBool)
+            //                    return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, new QueryUnspecified());
+
+            //                var matchableReplacementValueBool =
+            //                        valueBool.Parse<IWebParsable>(
+            //                            (valueMaybe) => new BoolValue(valueMaybe.Value),
+            //                            () => new QueryUnspecified(),
+            //                            () => new BoolBadRequest());;
+            //                queryProp.SetValue(replacementQuery, matchableReplacementValueBool);
+            //                return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, matchableReplacementValueBool);
+            //            }
+
+            //            var value = (WebIdQuery)queryProp.GetValue(query);
+            //            if (default(WebIdQuery) == value)
+            //                return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, new QueryUnspecified());
+
+            //            var over = value.Parse<IWebParsable>(request,
+            //                        (guid) => new WebIdGuid(guid),
+            //                        (guids) => new WebIdGuids(guids.ToArray()),
+            //                        () => new QueryUnspecified(),
+            //                        () => new WebIdEmpty(),
+            //                        () => new WebIdBadRequest());
+            //            queryProp.SetValue(replacementQuery, over);
+            //            return new KeyValuePair<PropertyInfo, IWebParsable>(queryProp, over);
+            //        });
+            //var queryObjectParametersX =  queryPropertiesX.ToDictionary();
+            //if (queryObjectParameters.Any(propKvp => propKvp.Value is WebIdBadRequest))
+            //    return request.CreateResponse(System.Net.HttpStatusCode.BadRequest);
+
+            //return await callback(queryObjectParameters, replacementQuery);
         }
 
         private static IDictionary<PropertyInfo, Type> GetQueryMethodParamters<TQuery>(Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat)
