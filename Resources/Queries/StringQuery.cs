@@ -13,18 +13,7 @@ namespace BlackBarLabs.Api.Resources
     [TypeConverter(typeof(StringQueryConverter))]
     public class StringQuery : IQueryParameter
     {
-        public string UUIDs { get; set; }
-
-        public string URN { get; set; }
-
-        public string Source { get; set; }
-
         private string query;
-
-        public bool IsSpecified()
-        {
-            return true;
-        }
 
         public static implicit operator StringQuery(string query)
         {

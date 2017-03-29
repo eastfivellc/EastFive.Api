@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -43,6 +44,19 @@ namespace BlackBarLabs.Api
             var response = request.CreateResponse(HttpStatusCode.OK);
             response.Content = new ByteArrayContent(imageData);
             response.Content.Headers.ContentType = new MediaTypeHeaderValue(String.IsNullOrWhiteSpace(contentType)? "image/png" : contentType);
+            return response;
+        }
+
+        public static HttpResponseMessage CreateHtmlResponse(this HttpRequestMessage request, string html)
+        {
+            var response = request.CreateResponse(HttpStatusCode.OK);
+            MemoryStream stream = new MemoryStream();
+            StreamWriter writer = new StreamWriter(stream);
+            writer.Write(html);
+            writer.Flush();
+            stream.Position = 0;
+            response.Content = new StreamContent(stream);
+            response.Content.Headers.ContentType = new MediaTypeHeaderValue("text/html");
             return response;
         }
     }
