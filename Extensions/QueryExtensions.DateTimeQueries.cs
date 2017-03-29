@@ -12,7 +12,7 @@ namespace BlackBarLabs.Api
             return query.ParseInternal(
                 (start, end) => parsed(new DateTimeRangeAttribute(start, end)),
                 (when) => parsed(new DateTimeValueAttribute(when)),
-                () => parsed(new DateTimeEmptyAttribute()),
+                () => parsed(new DateTimeAnyAttribute()),
                 () => parsed(new DateTimeEmptyAttribute()),
                 () => unparsable("Could not parse date time query"));
         }
@@ -43,7 +43,23 @@ namespace BlackBarLabs.Api
                    (v) =>
                    {
                        if (!(v is DateTimeEmptyAttribute))
-                           throw new InvalidOperationException("Do not use ParamValue outside of ParseAsync");
+                           throw new InvalidOperationException("Do not use ParamEmpty outside of ParseAsync");
+                       return default(DateTime?);
+                   },
+                   (why) =>
+                   {
+                       throw new InvalidOperationException("Use ParseAsync to ensure parsable values");
+                   });
+        }
+
+        [QueryParameterType(WebIdQueryType = typeof(DateTimeAnyAttribute))]
+        public static object ParamAny(this DateTimeQuery query)
+        {
+            return query.Parse(
+                   (v) =>
+                   {
+                       if (!(v is DateTimeAnyAttribute))
+                           throw new InvalidOperationException("Do not use ParamAny outside of ParseAsync");
                        return default(DateTime?);
                    },
                    (why) =>
@@ -108,9 +124,12 @@ namespace BlackBarLabs.Api
                 this.DateTimesValue = dateTimes;
             }
         }
-
-
+        
         private class DateTimeEmptyAttribute : QueryMatchAttribute
+        {
+        }
+
+        private class DateTimeAnyAttribute : QueryMatchAttribute
         {
         }
 

@@ -31,17 +31,17 @@ namespace BlackBarLabs.Api.Resources
         internal TResult ParseInternal<TResult>(
             Func<DateTime, DateTime, TResult> range,
             Func<DateTime, TResult> specific,
+            Func<TResult> any,
             Func<TResult> empty,
-            Func<TResult> unspecified,
             Func<TResult> unparsable)
         {
-            if (String.IsNullOrWhiteSpace(this.query))
-                return unspecified();
-            if (String.Compare("empty", this.query.ToLower()) == 0)
+            if (!(String.IsNullOrWhiteSpace(this.query)) && String.Compare("any", this.query.ToLower()) == 0)
+                return any();
+            if (!(String.IsNullOrWhiteSpace(this.query)) && String.Compare("empty", this.query.ToLower()) == 0)
                 return empty();
-            if (String.Compare("null", this.query.ToLower()) == 0)
+            if (!(String.IsNullOrWhiteSpace(this.query)) && String.Compare("null", this.query.ToLower()) == 0)
                 return empty();
-            if (String.Compare("false", this.query.ToLower()) == 0)
+            if (!(String.IsNullOrWhiteSpace(this.query)) && String.Compare("false", this.query.ToLower()) == 0)
                 return empty();
 
             DateTime specificValue;
