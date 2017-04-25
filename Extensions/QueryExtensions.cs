@@ -59,20 +59,21 @@ namespace BlackBarLabs.Api
             where TQuery : ResourceQueryBase
         {
             return await GetQueryObjectParamters(query, request,
-                async (queryObjectParameters) =>
+                async (queryNonNull, queryObjectParameters) =>
                 {
                     var response = await queriesSingle.WhichFormatSingle(queryObjectParameters,
                         async (selectedQueryFormat) =>
                         {
-                            var responseSingle = await selectedQueryFormat.Compile()(query);
+                            var responseCallback = selectedQueryFormat.Compile();
+                            var responseSingle = await responseCallback(queryNonNull);
                             return responseSingle;
-                        },
+                        }, 
                         async () =>
                         {
                             var responsesMultipart = await queriesEnumerable.WhichFormatEnumerable(queryObjectParameters,
                                 async (selectedQueryFormat) =>
                                 {
-                                    var responsesEnumerable = await selectedQueryFormat.Compile()(query);
+                                    var responsesEnumerable = await selectedQueryFormat.Compile()(queryNonNull);
                                     var responseMultipart = await request.CreateMultipartResponseAsync(responsesEnumerable);
                                     return responseMultipart;
                                 },
@@ -81,7 +82,7 @@ namespace BlackBarLabs.Api
                                     var responseArray = await queriesArray.WhichFormatArray(queryObjectParameters,
                                         async (selectedQueryFormat) =>
                                         {
-                                            var responsesArray = await selectedQueryFormat.Compile()(query);
+                                            var responsesArray = await selectedQueryFormat.Compile()(queryNonNull);
                                             var responseMultipart = await request.CreateMultipartResponseAsync(responsesArray);
                                             return responseMultipart;
                                         },
@@ -167,11 +168,16 @@ namespace BlackBarLabs.Api
         }
 
         private static async Task<HttpResponseMessage> GetQueryObjectParamters<TQuery>(TQuery query, HttpRequestMessage request,
-            Func<IDictionary<PropertyInfo, QueryMatchAttribute>, Task<HttpResponseMessage>> callback)
+            Func<TQuery, IDictionary<PropertyInfo, QueryMatchAttribute>, Task<HttpResponseMessage>> callback)
             where TQuery : ResourceQueryBase
         {
             if (default(TQuery) == query)
-                query = Activator.CreateInstance<TQuery>();
+            {
+                var emptyQuery = Activator.CreateInstance<TQuery>();
+                if (default(TQuery) == emptyQuery)
+                    throw new Exception($"Could not activate object of type {typeof(TQuery).FullName}");
+                return await GetQueryObjectParamters(emptyQuery, request, callback);
+            }
 
             if(default(WebIdQuery) == query.Id &&
                String.IsNullOrWhiteSpace(request.RequestUri.Query) &&
@@ -198,7 +204,7 @@ namespace BlackBarLabs.Api
                         }
                         return cont(default(KeyValuePair<PropertyInfo, QueryMatchAttribute>?));
                     },
-                    (kvps) => callback(kvps.SelectWhereHasValue().ToDictionary()));
+                    (kvps) => callback(query, kvps.SelectWhereHasValue().ToDictionary()));
 
             //var queryPropertiesX = queryProperties
             //    .Where(
