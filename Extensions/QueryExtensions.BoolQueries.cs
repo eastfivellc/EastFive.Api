@@ -12,7 +12,7 @@ namespace BlackBarLabs.Api
             return query.Parse(
                 (v) =>
                 {
-                    if (!(v is BoolValueAttribute))
+                    if (!(v is BoolEmptyAttribute))
                         throw new InvalidOperationException("Do not use ParamValue outside of ParseAsync");
 
                     return default(bool?);
