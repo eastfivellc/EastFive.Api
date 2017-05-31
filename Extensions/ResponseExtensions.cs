@@ -10,7 +10,9 @@ namespace BlackBarLabs.Api
     {
         public static HttpResponseMessage AddReason(this HttpResponseMessage response, string reason)
         {
-            response.ReasonPhrase = reason.Replace('\n', ';').Replace("\r", "");
+            var reasonPhrase = reason.Replace('\n', ';').Replace("\r", "");
+            response.ReasonPhrase = reasonPhrase;
+            response.Headers.Add("Reason", reasonPhrase);
             return response;
         }
 

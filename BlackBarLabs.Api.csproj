@@ -109,6 +109,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Attributes\ResourceTypeAttribute.cs" />
+    <Compile Include="Configuration\AppSettings.cs" />
     <Compile Include="Configuration\SecurityDefinitions.cs" />
     <Compile Include="Controllers\BaseController.cs" />
     <Compile Include="Extensions\ClaimsExtensions.cs" />
@@ -152,6 +153,10 @@
     <ProjectReference Include="..\BlackBarLabs.Core\BlackBarLabs.Core.csproj">
       <Project>{73088f1b-3aca-476b-aa45-b7d6660f1c73}</Project>
       <Name>BlackBarLabs.Core</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\BlackBarLabs.Security\BlackBarLabs.Security.csproj">
+      <Project>{17a2e027-c32a-41db-9b46-5222d55c0e26}</Project>
+      <Name>BlackBarLabs.Security</Name>
     </ProjectReference>
     <ProjectReference Include="..\BlackBarLabs.Web\BlackBarLabs.Web.csproj">
       <Project>{5bb52391-2704-44c0-bc8a-dbbe31498814}</Project>
