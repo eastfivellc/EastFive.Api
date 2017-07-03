@@ -183,8 +183,8 @@ namespace BlackBarLabs.Api
             Func<IEnumerable<Claim>, TResult> success,
             Func<TResult> authorizationNotSet,
             Func<string, TResult> failure,
-            string issuerConfigSetting = "BlackBarLabs.Web.token-issuer",
-            string validationKeyConfigSetting = "BlackBarLabs.Web.token-issuer-key")
+            string issuerConfigSetting = EastFive.Security.AppSettings.TokenIssuer,
+            string validationKeyConfigSetting = EastFive.Security.AppSettings.TokenKey)
         {
             if (default(AuthenticationHeaderValue) == header)
                 return authorizationNotSet();
@@ -226,7 +226,7 @@ namespace BlackBarLabs.Api
                 return authorizationNotSet();
             var result = request.Headers.Authorization.GetClaimsFromAuthorizationHeader(
                 success, authorizationNotSet, failure,
-                "BlackBarLabs.Security.SessionServer.issuer", "BlackBarLabs.Security.SessionServer.key");
+                EastFive.Security.AppSettings.TokenIssuer, EastFive.Security.AppSettings.TokenKey);
             return result;
         }
 

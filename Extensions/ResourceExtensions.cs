@@ -66,6 +66,15 @@ namespace BlackBarLabs.Api
         }
 
         public static Resources.WebId GetWebId<TController>(this UrlHelper url,
+            Guid? idMaybe,
+            string routeName = "DefaultApi")
+        {
+            if (!idMaybe.HasValue)
+                return default(WebId);
+            return url.GetWebId<TController>(idMaybe.Value, routeName);
+        }
+
+        public static Resources.WebId GetWebId<TController>(this UrlHelper url,
             string urn,
             string routeName = "DefaultApi")
         {

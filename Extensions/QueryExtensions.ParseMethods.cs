@@ -187,6 +187,18 @@ namespace BlackBarLabs.Api
         public static async Task<HttpResponseMessage> ParseAsync<TQuery>(this TQuery query, HttpRequestMessage request,
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat1,
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat2,
+            Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat3)
+            where TQuery : ResourceQueryBase
+        {
+            var queriesSingle = new[] { queryFormat1, queryFormat2, queryFormat3 };
+            var queriesEnumerable = default(IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>>).NullToEmpty();
+            var queriesArray = default(IEnumerable<Expression<Func<TQuery, Task<HttpResponseMessage[]>>>>).NullToEmpty();
+            return await ParseAsync(query, request, queriesSingle, queriesEnumerable, queriesArray);
+        }
+
+        public static async Task<HttpResponseMessage> ParseAsync<TQuery>(this TQuery query, HttpRequestMessage request,
+            Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat1,
+            Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat2,
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat3,
             Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat4,
             Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat5)
