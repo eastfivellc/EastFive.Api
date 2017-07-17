@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Runtime.Serialization;
 
 namespace BlackBarLabs.Api.Resources
@@ -54,6 +55,16 @@ namespace BlackBarLabs.Api.Resources
         public static implicit operator WebId(ResourceBase value)
         {
             return value.Id;
+        }
+        
+        public static implicit operator WebId(ResourceQueryBase value)
+        {
+            return value.Id.Parse(
+                (v) => v,
+                (vs) => vs.First(),
+                () => default(WebId),
+                () => default(WebId),
+                () => default(WebId));
         }
     }
 }

@@ -65,6 +65,57 @@ namespace BlackBarLabs.Api
             };
         }
 
+        public static Resources.WebId GetWebIds<TController>(this UrlHelper url,
+            Guid [] ids,
+            string routeName = "DefaultApi")
+        {
+            var controllerName =
+                typeof(TController).Name.TrimEnd("Controller",
+                    (trimmedName) => trimmedName, (originalName) => originalName);
+            var keys = ids.Select(id => id.ToString("N")).Join(",");
+            var uuid = keys;
+            var urns = ids.Select(id => id.ToWebUrn(controllerName, "").AbsoluteUri).Join(",");
+            var location = url.Link(routeName,
+                new Dictionary<string, object>
+                {
+                    { "Controller", controllerName },
+                    { $"{controllerName}Id" , uuid },
+                });
+
+            return new Resources.WebId
+            {
+                Key = keys,
+                UUID = uuid,
+                URN = new Uri(urns),
+                Source = new Uri(location),
+            };
+        }
+
+
+        public static Resources.WebIdQuery GetWebIdQuery<TController>(this UrlHelper url,
+            Guid [] ids,
+            string routeName = "DefaultApi")
+        {
+            var controllerName =
+                typeof(TController).Name.TrimEnd("Controller",
+                    (trimmedName) => trimmedName, (originalName) => originalName);
+            var keys = ids.Select(id => id.ToString("N")).Join(",");
+            var uuid = keys;
+            var urns = ids.Select(id => id.ToWebUrn(controllerName, "").AbsoluteUri).Join(",");
+            var location = url.Link(routeName,
+                new Dictionary<string, object>
+                {
+                    { "Controller", controllerName },
+                    { $"{controllerName}Id" , uuid },
+                });
+            return new Resources.WebIdQuery
+            {
+                UUIDs = keys,
+                URN = urns,
+                Source = location,
+            };
+        }
+
         public static Resources.WebId GetWebId<TController>(this UrlHelper url,
             Guid? idMaybe,
             string routeName = "DefaultApi")
@@ -292,6 +343,30 @@ namespace BlackBarLabs.Api
             if (webId.UUID.IsDefaultOrEmpty())
                 return default(Guid);
             return webId.UUID;
+        }
+        
+        public static Guid? ToGuid(this Resources.WebIdQuery webIdQuery)
+        {
+            if (default(WebIdQuery) == webIdQuery)
+                return default(Guid?);
+            return webIdQuery.Parse(
+                (id) => (Guid?)id,
+                (ids) => default(Guid?),
+                () => default(Guid?),
+                () => default(Guid?),
+                () => default(Guid?));
+        }
+
+        public static Guid[] ToGuids(this Resources.WebIdQuery webIdQuery)
+        {
+            if (default(WebIdQuery) == webIdQuery)
+                return default(Guid []);
+            return webIdQuery.Parse(
+                (id) => new Guid[] { id },
+                (ids) => ids.ToArray(),
+                () => new Guid[] { },
+                () => new Guid[] { },
+                () => new Guid[] { });
         }
 
         public static Resources.WebId GetWebIdUUID(this Guid uuId)
