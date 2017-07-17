@@ -65,32 +65,12 @@ namespace BlackBarLabs.Api
             };
         }
 
-        public static Resources.WebId GetWebIds<TController>(this UrlHelper url,
+        public static Resources.WebId[] GetWebIds<TController>(this UrlHelper url,
             Guid [] ids,
             string routeName = "DefaultApi")
         {
-            var controllerName =
-                typeof(TController).Name.TrimEnd("Controller",
-                    (trimmedName) => trimmedName, (originalName) => originalName);
-            var keys = ids.Select(id => id.ToString("N")).Join(",");
-            var uuid = keys;
-            var urns = ids.Select(id => id.ToWebUrn(controllerName, "").AbsoluteUri).Join(",");
-            var location = url.Link(routeName,
-                new Dictionary<string, object>
-                {
-                    { "Controller", controllerName },
-                    { $"{controllerName}Id" , uuid },
-                });
-
-            return new Resources.WebId
-            {
-                Key = keys,
-                UUID = uuid,
-                URN = new Uri(urns),
-                Source = new Uri(location),
-            };
+            return ids.Select(id => url.GetWebId<TController>(id)).ToArray();
         }
-
 
         public static Resources.WebIdQuery GetWebIdQuery<TController>(this UrlHelper url,
             Guid [] ids,
