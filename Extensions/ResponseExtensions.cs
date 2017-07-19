@@ -12,6 +12,7 @@ namespace BlackBarLabs.Api
         {
             var reasonPhrase = reason.Replace('\n', ';').Replace("\r", "");
             response.ReasonPhrase = reasonPhrase;
+            // TODO: Check user agent and only set this on iOS and other crippled systems
             response.Headers.Add("Reason", reasonPhrase);
             return response;
         }

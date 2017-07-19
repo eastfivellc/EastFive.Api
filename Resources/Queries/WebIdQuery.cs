@@ -7,6 +7,8 @@ using System.Net.Http;
 using System.Text.RegularExpressions;
 
 using BlackBarLabs.Extensions;
+using Newtonsoft.Json;
+using System.Runtime.Serialization;
 
 namespace BlackBarLabs.Api.Resources
 {
@@ -14,9 +16,9 @@ namespace BlackBarLabs.Api.Resources
     public class WebIdQuery : IQueryParameter
     {
         public string UUIDs { get; set; }
-
+        
         public string URN { get; set; }
-
+        
         public string Source { get; set; }
 
         private string query;
@@ -38,7 +40,13 @@ namespace BlackBarLabs.Api.Resources
 
         public static implicit operator WebIdQuery(WebId value)
         {
-            return new WebIdQuery() { query = value.UUID.ToString() };
+            return (default(WebId) != value) ?
+                new WebIdQuery()
+                {
+                    query = value.UUID.ToString()
+                }
+                :
+                default(WebIdQuery);
         }
 
         public static implicit operator WebIdQuery(Guid [] values)
