@@ -1,8 +1,10 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Web;
 using System.Web.Http;
 
 namespace BlackBarLabs.Api
@@ -33,18 +35,68 @@ namespace BlackBarLabs.Api
             return await ParseMultipartAsync_<Func<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, TResult>, TResult>(content, callback);
         }
 
+        public static async Task<TResult> ParseFormDataAsync<TMethod, TResult>(this HttpContent content,
+            Expression<TMethod> callback)
+        {
+            var formData = await content.ReadAsFormDataAsync();
+
+            var paramsForCallback = callback.Parameters
+                .Select(
+                (param) =>
+                {
+                    var paramContentKey = formData.AllKeys
+                        .FirstOrDefault(key => String.Compare(
+                                key.Trim(new char[] { '"' }),
+                                param.Name,
+                            true) == 0);
+                    if (default(string) == paramContentKey)
+                        return param.Type.IsValueType ? Activator.CreateInstance(param.Type) : null;
+
+                    if (param.Type.GUID == typeof(string).GUID)
+                    {
+                        var stringValue = formData[paramContentKey];
+                        return (object)stringValue;
+                    }
+                    if (param.Type.GUID == typeof(Guid).GUID)
+                    {
+                        var guidStringValue = formData[paramContentKey];
+                        var guidValue = Guid.Parse(guidStringValue);
+                        return (object)guidValue;
+                    }
+                    if (param.Type.GUID == typeof(System.IO.Stream).GUID)
+                    {
+                        var streamValue = formData[paramContentKey];
+                        return (object)streamValue;
+                    }
+                    if (param.Type.GUID == typeof(byte[]).GUID)
+                    {
+                        var byteArrayBase64 = formData[paramContentKey];
+                        var byteArrayValue = Convert.FromBase64String(byteArrayBase64);
+                        return (object)byteArrayValue;
+                    }
+                    var value = formData[paramContentKey];
+                    return value;
+                }).ToArray();
+
+            var result = ((LambdaExpression)callback).Compile().DynamicInvoke(paramsForCallback);
+            return (TResult)result;
+        }
+
         public static async Task<TResult> ParseMultipartAsync_<TMethod, TResult>(this HttpContent content,
             Expression<TMethod> callback)
         {
             if (!content.IsMimeMultipartContent())
             {
+                if (content.IsFormData())
+                    return await content.ParseFormDataAsync<TMethod, TResult>(callback);
                 throw new ArgumentException("Content is not multipart", "content");
             }
 
             var streamProvider = new MultipartMemoryStreamProvider();
             await content.ReadAsMultipartAsync(streamProvider);
 
-            var paramTasks = callback.Parameters.Select(
+            var paramsForCallback = await callback.Parameters
+                .Select(
                 async (param) =>
                 {
                     var paramContent = streamProvider.Contents
@@ -71,16 +123,16 @@ namespace BlackBarLabs.Api
                         var streamValue = await paramContent.ReadAsStreamAsync();
                         return (object)streamValue;
                     }
-                    if (param.Type.GUID == typeof(byte []).GUID)
+                    if (param.Type.GUID == typeof(byte[]).GUID)
                     {
                         var byteArrayValue = await paramContent.ReadAsByteArrayAsync();
                         return (object)byteArrayValue;
                     }
                     var value = await paramContent.ReadAsAsync(param.Type);
                     return value;
-                });
-
-            var paramsForCallback = await Task.WhenAll(paramTasks);
+                })
+                .WhenAllAsync();
+            
             var result = ((LambdaExpression)callback).Compile().DynamicInvoke(paramsForCallback);
             return (TResult)result;
         }
