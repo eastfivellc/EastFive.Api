@@ -163,7 +163,7 @@
       <Name>BlackBarLabs.Web</Name>
     </ProjectReference>
     <ProjectReference Include="..\EastFive.Api.Services\EastFive.Api.Services.csproj">
-      <Project>{662CD006-C03A-47CA-83E3-F327E595DB0F}</Project>
+      <Project>{662cd006-c03a-47ca-83e3-f327e595db0f}</Project>
       <Name>EastFive.Api.Services</Name>
     </ProjectReference>
   </ItemGroup>
