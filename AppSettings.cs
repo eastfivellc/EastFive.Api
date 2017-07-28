@@ -8,7 +8,6 @@ namespace EastFive.Api
 {
     public static class AppSettings
     {
-        public const string ActorIdClaimType = "EastFive.Api.Security.AccountIdClaimType";
         public const string ActorIdSuperAdmin = "EastFive.Api.Security.SiteAdminAccountId";
         public const string SiteAdminAuthorization = "EastFive.Api.Security.SiteAdminAuthorization";
     }
