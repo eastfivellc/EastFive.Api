@@ -128,6 +128,17 @@ namespace BlackBarLabs.Api
                         var byteArrayValue = await paramContent.ReadAsByteArrayAsync();
                         return (object)byteArrayValue;
                     }
+                    if (param.Type.GUID == typeof(ByteArrayContent).GUID)
+                    {
+                        var byteArrayContentValue = paramContent as ByteArrayContent;
+                        if (default(ByteArrayContent) == byteArrayContentValue)
+                        {
+                            var byteArrayValue = await paramContent.ReadAsByteArrayAsync();
+                            byteArrayContentValue = new ByteArrayContent(byteArrayValue);
+                            byteArrayContentValue.Headers.ContentType = paramContent.Headers.ContentType;
+                        }
+                        return (object)byteArrayContentValue;
+                    }
                     var value = await paramContent.ReadAsAsync(param.Type);
                     return value;
                 })
