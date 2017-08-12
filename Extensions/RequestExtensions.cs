@@ -14,6 +14,7 @@ using Microsoft.Azure;
 using BlackBarLabs.Web;
 using System.Security.Claims;
 using System.Configuration;
+using EastFive.Api;
 
 namespace BlackBarLabs.Api
 {
@@ -168,7 +169,7 @@ namespace BlackBarLabs.Api
             var result = authorizationHeader.HasValue(
                 value =>
                 {
-                    var siteAdminAuthorization = CloudConfigurationManager.GetSetting("SiteAdminAuthorization");
+                    var siteAdminAuthorization = CloudConfigurationManager.GetSetting(AppSettings.SiteAdminAuthorization);
                     //TODO - log that this is not set
 
                     if (!string.IsNullOrEmpty(siteAdminAuthorization) && siteAdminAuthorization == value.ToString())
