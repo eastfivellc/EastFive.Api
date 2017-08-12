@@ -178,7 +178,7 @@ namespace BlackBarLabs.Api
                 () => notAuthorized("This account is not authorized to create accounts"));
             return result;
         }
-        
+
         public static TResult GetClaimsFromAuthorizationHeader<TResult>(this AuthenticationHeaderValue header,
             Func<IEnumerable<Claim>, TResult> success,
             Func<TResult> authorizationNotSet,
@@ -189,6 +189,16 @@ namespace BlackBarLabs.Api
             if (default(AuthenticationHeaderValue) == header)
                 return authorizationNotSet();
             var jwtString = header.ToString();
+            return jwtString.GetClaimsFromJwtToken(success, authorizationNotSet, failure, issuerConfigSetting, validationKeyConfigSetting);
+        }
+
+        public static TResult GetClaimsFromJwtToken<TResult>(this string jwtString,
+            Func<IEnumerable<Claim>, TResult> success,
+            Func<TResult> authorizationNotSet,
+            Func<string, TResult> failure,
+            string issuerConfigSetting = EastFive.Security.AppSettings.TokenIssuer,
+            string validationKeyConfigSetting = EastFive.Security.AppSettings.TokenKey)
+        {
             if (String.IsNullOrWhiteSpace(jwtString))
                 return authorizationNotSet();
             return jwtString.GetClaimsJwtString(
@@ -258,6 +268,24 @@ namespace BlackBarLabs.Api
                 (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason(why)
                     .ToEnumerable().ToArray().ToTask());
             return result;
+        }
+
+        public static Task<HttpResponseMessage> GetActorIdClaimsFromTokenAsync(this HttpRequestMessage request, string jwtToken,
+            Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage>> success)
+        {
+            return jwtToken.GetClaimsJwtString(
+                (claimsEnumerable) =>
+                {
+                    var claims = claimsEnumerable.ToArray();
+                    var accountIdClaimType =
+                        ConfigurationManager.AppSettings[EastFive.Api.Configuration.SecurityDefinitions.ActorIdClaimType];
+                    var result = claims.GetAccountIdAsync(
+                        request, accountIdClaimType,
+                        (accountId) => success(accountId, claims));
+                    return result;
+                },
+                (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized)
+                    .AddReason("Authorization header not set").ToTask());
         }
 
         public static Task<HttpResponseMessage> GetActorIdClaimsAsync(this HttpRequestMessage request,
