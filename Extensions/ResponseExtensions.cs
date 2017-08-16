@@ -41,6 +41,32 @@ namespace BlackBarLabs.Api
             return response;
         }
 
+        public static HttpResponseMessage CreateXlsxResponse(this HttpRequestMessage request, Stream xlsxData, string filename = "")
+        {
+            var content = new StreamContent(xlsxData);
+            return request.CreateXlsxResponse(content, filename);
+        }
+
+        public static HttpResponseMessage CreateXlsxResponse(this HttpRequestMessage request, byte [] xlsxData, string filename = "")
+        {
+            var content = new ByteArrayContent(xlsxData);
+            return request.CreateXlsxResponse(content, filename);
+        }
+
+
+        public static HttpResponseMessage CreateXlsxResponse(this HttpRequestMessage request, HttpContent xlsxContent, string filename = "")
+        {
+            var response = request.CreateResponse(HttpStatusCode.OK);
+            response.Content = xlsxContent;
+            response.Content.Headers.ContentType =
+                new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.template");
+            response.Content.Headers.ContentDisposition = new ContentDispositionHeaderValue("attachment")
+            {
+                FileName = String.IsNullOrWhiteSpace(filename) ? $"sheet.xlsx" : filename,
+            };
+            return response;
+        }
+
         public static HttpResponseMessage CreateImageResponse(this HttpRequestMessage request, byte [] imageData,
             string filename = default(string), string contentType = default(string))
         {
