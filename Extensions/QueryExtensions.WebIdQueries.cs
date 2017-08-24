@@ -87,6 +87,8 @@ namespace BlackBarLabs.Api
             Func<QueryMatchAttribute, TResult> parsed,
             Func<string, TResult> unparsable)
         {
+            if (default(WebIdQuery) == query)
+                return parsed(new WebIdEmpty());
             return query.Parse(
                 (value) => parsed(new WebIdGuid(value)),
                 (values) => parsed(new WebIdGuids(values.ToArray())),
