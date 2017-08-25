@@ -84,6 +84,7 @@ namespace BlackBarLabs.Api
                                 ContentType = contentContent.Headers.ContentType,
                                 ContentLocation = contentContent.Headers.ContentLocation,
                                 Content = await contentContent.ReadAsStringAsync(),
+                                ReasonPhrase = content.ReasonPhrase,
                             };
                             return response;
                         },
@@ -92,6 +93,7 @@ namespace BlackBarLabs.Api
                             var response = new Response
                             {
                                 StatusCode = content.StatusCode,
+                                ReasonPhrase = content.ReasonPhrase,
                             };
                             return Task.FromResult(response);
                         });
@@ -344,7 +346,17 @@ namespace BlackBarLabs.Api
         {
             var accountIdClaimTypeConfigurationSetting =
                 EastFive.Api.Configuration.SecurityDefinitions.ActorIdClaimType;
-            return GetActorIdClaimsAsync(request, accountIdClaimTypeConfigurationSetting, success);
+            return EastFive.Web.Configuration.Settings.GetString(
+                accountIdClaimTypeConfigurationSetting,
+                (accountIdClaimType) =>
+                    GetActorIdClaimsAsync(request, accountIdClaimType, success),
+                (error) =>
+                    (new HttpResponseMessage[]
+                    {
+                        request
+                            .CreateResponse(HttpStatusCode.Unauthorized)
+                            .AddReason(error)
+                    }).ToTask());
         }
     }
 }
