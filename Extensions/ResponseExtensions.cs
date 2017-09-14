@@ -88,5 +88,29 @@ namespace BlackBarLabs.Api
             response.Content.Headers.ContentType = new MediaTypeHeaderValue("text/html");
             return response;
         }
+
+        public static HttpResponseMessage CreateAlreadyExistsResponse<TController>(this HttpRequestMessage request, Guid existingResourceId, System.Web.Http.Routing.UrlHelper url,
+            string routeName = null)
+        {
+            var location = url.GetLocation<TController>(existingResourceId, routeName);
+            var reason = $"There is already a resource with ID = [{existingResourceId}]";
+            var response = request
+                        .CreateResponse(HttpStatusCode.Conflict)
+                        .AddReason(reason);
+            response.Headers.Location = location;
+            return response;
+        }
+
+        public static HttpResponseMessage CreateBrokenReferenceResponse<TController>(this HttpRequestMessage request, Guid? brokenResourceId, System.Web.Http.Routing.UrlHelper url,
+            string routeName = null)
+        {
+            var reference = url.GetWebId<TController>(brokenResourceId, routeName);
+            var reason = $"The resource with ID = [{brokenResourceId}] at [{reference.Source}] is not available";
+            var response = request
+                        .CreateResponse(HttpStatusCode.Conflict, reference)
+                        .AddReason(reason);
+            return response;
+        }
+        
     }
 }
