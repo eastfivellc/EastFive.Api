@@ -1,5 +1,9 @@
-﻿using System;
+﻿using BlackBarLabs.Api.Resources;
+using BlackBarLabs.Extensions;
+using System;
 using System.IO;
+using System.Linq;
+using System.Linq.Expressions;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -101,6 +105,15 @@ namespace BlackBarLabs.Api
             return response;
         }
 
+        /// <summary>
+        /// The resource could not be created or updated due to a link to a resource that no longer exists.
+        /// </summary>
+        /// <typeparam name="TController"></typeparam>
+        /// <param name="request"></param>
+        /// <param name="brokenResourceId"></param>
+        /// <param name="url"></param>
+        /// <param name="routeName"></param>
+        /// <returns></returns>
         public static HttpResponseMessage CreateBrokenReferenceResponse<TController>(this HttpRequestMessage request, Guid? brokenResourceId, System.Web.Http.Routing.UrlHelper url,
             string routeName = null)
         {
@@ -111,6 +124,37 @@ namespace BlackBarLabs.Api
                         .AddReason(reason);
             return response;
         }
-        
+
+        /// <summary>
+        /// A query parameter makes reference to a secondary resource that does not exist.
+        /// </summary>
+        /// <example>/Foo?bar=ABC where the resource referenced by parameter bar does not exist</example>
+        /// <typeparam name="TController">The Controller that represents the parameter linked resource</typeparam>
+        /// <param name="request"></param>
+        /// <param name="brokenResourceProperty"></param>
+        /// <param name="url"></param>
+        /// <param name="routeName"></param>
+        /// <returns></returns>
+        public static HttpResponseMessage[] CreateLinkedDocumentNotFoundResponse<TController, TQueryResource>(this HttpRequestMessage request,
+            TQueryResource query,
+            Expression<Func<TQueryResource, WebIdQuery>> brokenResourceProperty,
+            System.Web.Http.Routing.UrlHelper url,
+            string routeName = null)
+        {
+            var reference = default(WebIdQuery);
+            try
+            {
+                reference = brokenResourceProperty.Compile().Invoke(query);
+            } catch(Exception ex)
+            {
+
+            }
+
+            var reason = $"The resource with ID = [{reference.UUIDs}] at [{reference.Source}] is not available";
+            var response = request
+                        .CreateResponse(HttpStatusCode.Conflict, reference)
+                        .AddReason(reason);
+            return response.ToEnumerable().ToArray();
+        }
     }
 }
