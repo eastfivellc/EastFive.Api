@@ -37,6 +37,8 @@ namespace BlackBarLabs.Api.Resources
         {
             if (!(String.IsNullOrWhiteSpace(this.query)) && String.Compare("any", this.query.ToLower()) == 0)
                 return any();
+            if (!(String.IsNullOrWhiteSpace(this.query)) && String.Compare("true", this.query.ToLower()) == 0)
+                return any();
             if (!(String.IsNullOrWhiteSpace(this.query)) && String.Compare("empty", this.query.ToLower()) == 0)
                 return empty();
             if (!(String.IsNullOrWhiteSpace(this.query)) && String.Compare("null", this.query.ToLower()) == 0)
