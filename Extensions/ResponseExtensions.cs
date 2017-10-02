@@ -145,7 +145,7 @@ namespace BlackBarLabs.Api
             try
             {
                 reference = brokenResourceProperty.Compile().Invoke(query);
-            } catch(Exception ex)
+            } catch(Exception)
             {
 
             }

@@ -24,10 +24,7 @@ namespace BlackBarLabs.Api
 
         [IgnoreDataMember]
         protected UrlHelper Url { get; private set; }
-
-        [Obsolete("Use ToActionResult instead")]
-        private IEnumerable<System.Security.Claims.Claim> claimsContext;
-
+        
         [IgnoreDataMember]
         protected IEnumerable<System.Security.Claims.Claim> Claims
         {
