@@ -150,7 +150,10 @@ namespace BlackBarLabs.Api
 
             }
 
-            var reason = $"The resource with ID = [{reference.UUIDs}] at [{reference.Source}] is not available";
+            var reason = reference.IsDefault()?
+                $"The referenced [{typeof(TController).Name}] resource is not found"
+                :
+                $"The resource with ID = [{reference.UUIDs}] at [{reference.Source}] is not available";
             var response = request
                         .CreateResponse(HttpStatusCode.Conflict, reference)
                         .AddReason(reason);
