@@ -334,6 +334,7 @@ namespace BlackBarLabs.Api
                 (ids) => default(Guid?),
                 () => default(Guid?),
                 () => default(Guid?),
+                () => default(Guid?),
                 () => default(Guid?));
         }
 
@@ -344,6 +345,7 @@ namespace BlackBarLabs.Api
             return webIdQuery.Parse(
                 (id) => new Guid[] { id },
                 (ids) => ids.ToArray(),
+                () => new Guid[] { },
                 () => new Guid[] { },
                 () => new Guid[] { },
                 () => new Guid[] { });

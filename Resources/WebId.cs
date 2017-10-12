@@ -64,6 +64,7 @@ namespace BlackBarLabs.Api.Resources
                 (vs) => vs.First(),
                 () => default(WebId),
                 () => default(WebId),
+                () => default(WebId),
                 () => default(WebId));
         }
     }

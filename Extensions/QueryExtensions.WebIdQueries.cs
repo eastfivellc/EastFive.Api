@@ -25,6 +25,24 @@ namespace BlackBarLabs.Api
                 });
         }
 
+        [QueryParameterType(WebIdQueryType = typeof(WebIdAny))]
+        public static bool ParamAny(this WebIdQuery query)
+        {
+            return query.ParseInternal(
+                (v) =>
+                {
+                    if (!(v is WebIdAny))
+                        throw new InvalidOperationException("Do not use ParamSingle outside of ParseAsync");
+
+                    var wiqo = v as WebIdAny;
+                    return true;
+                },
+                (why) =>
+                {
+                    throw new InvalidOperationException("Use ParseAsync to ensure parsable values");
+                });
+        }
+
         [QueryParameterType(WebIdQueryType = typeof(WebIdEmpty))]
         public static Guid? ParamEmpty(this WebIdQuery query)
         {
@@ -83,6 +101,11 @@ namespace BlackBarLabs.Api
         {
         }
 
+        class WebIdAny : QueryMatchAttribute
+        {
+
+        }
+
         internal static TResult ParseInternal<TResult>(this WebIdQuery query,
             Func<QueryMatchAttribute, TResult> parsed,
             Func<string, TResult> unparsable)
@@ -94,6 +117,7 @@ namespace BlackBarLabs.Api
                 (values) => parsed(new WebIdGuids(values.ToArray())),
                 () => parsed(new WebIdEmpty()),
                 () => parsed(new WebIdEmpty()),
+                () => parsed(new WebIdAny()),
                 () => unparsable($"Could not parse WebId from {query}"));
         }
 

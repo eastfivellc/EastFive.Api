@@ -109,6 +109,7 @@ namespace BlackBarLabs.Api.Resources
             Func<IEnumerable<Guid>, TResult> multiple,
             Func<TResult> unspecified,
             Func<TResult> empty,
+            Func<TResult> any,
             Func<TResult> unparsable)
         {
             if (String.IsNullOrWhiteSpace(this.query))
@@ -117,6 +118,8 @@ namespace BlackBarLabs.Api.Resources
                 return empty();
             if (String.Compare("null", this.query.ToLower()) == 0)
                 return empty();
+            if (String.Compare("any", this.query.ToLower()) == 0)
+                return any();
 
             if (this.query.First() != '[' && this.query.Last() != ']')
             {
