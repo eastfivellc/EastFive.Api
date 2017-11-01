@@ -105,6 +105,15 @@ namespace BlackBarLabs.Api
             return response;
         }
 
+        public static HttpResponseMessage CreateResponseNotFound(this HttpRequestMessage request, Guid resourceId)
+        {
+            var reason = $"The resource with ID = [{resourceId}] was not found";
+            var response = request
+                .CreateResponse(HttpStatusCode.NotFound)
+                .AddReason(reason);
+            return response;
+        }
+
         /// <summary>
         /// The resource could not be created or updated due to a link to a resource that no longer exists.
         /// </summary>
