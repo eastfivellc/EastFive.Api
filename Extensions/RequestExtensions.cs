@@ -222,7 +222,7 @@ namespace BlackBarLabs.Api
                     var actorIdSuperAdmin = CloudConfigurationManager.GetSetting(
                         EastFive.Api.Configuration.SecurityDefinitions.ActorIdSuperAdmin);
                     var claim = new Claim(actorIdClaimType, actorIdSuperAdmin);
-                    return success(claim.ToEnumerable().ToArray());
+                    return success(claim.AsEnumerable().ToArray());
                 },
                 issuerConfigSetting,
                 validationKeyConfigSetting);
@@ -267,9 +267,9 @@ namespace BlackBarLabs.Api
                     return success(claims);
                 },
                 () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason("Authorization header not set")
-                    .ToEnumerable().ToArray().ToTask(),
+                    .AsEnumerable().ToArray().ToTask(),
                 (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason(why)
-                    .ToEnumerable().ToArray().ToTask());
+                    .AsEnumerable().ToArray().ToTask());
             return result;
         }
 
@@ -335,9 +335,9 @@ namespace BlackBarLabs.Api
                     return result;
                 },
                 () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized)
-                    .AddReason("Authorization header not set").ToEnumerable().ToArray().ToTask(),
+                    .AddReason("Authorization header not set").AsEnumerable().ToArray().ToTask(),
                 (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized)
-                    .AddReason(why).ToEnumerable().ToArray().ToTask());
+                    .AddReason(why).AsEnumerable().ToArray().ToTask());
             return resultGetClaims;
         }
 

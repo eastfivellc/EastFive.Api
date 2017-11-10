@@ -65,7 +65,7 @@ namespace BlackBarLabs.Api.Resources
 
             Guid singleGuid;
             if(Guid.TryParse(this.query, out singleGuid))
-                return multiple(singleGuid.ToEnumerable().ToArray());
+                return multiple(singleGuid.AsEnumerable().ToArray());
             
             var guidRegex = @"([a-f0-9A-F]{32}|([a-f0-9A-F]{8}-[a-f0-9A-F]{4}-[a-f0-9A-F]{4}-[a-f0-9A-F]{4}-[a-f0-9A-F]{12}))";
             if(!Regex.IsMatch(this.query, guidRegex))

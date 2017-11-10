@@ -33,7 +33,7 @@ namespace BlackBarLabs.Api
                 .FirstOrDefault((claim) => String.Compare(claim.Type, accountIdClaimType) == 0);
 
             if (default(System.Security.Claims.Claim) == adminClaim)
-                return request.CreateResponse(HttpStatusCode.Unauthorized).ToEnumerable().ToArray().ToTask();
+                return request.CreateResponse(HttpStatusCode.Unauthorized).AsEnumerable().ToArray().ToTask();
 
             var accountId = Guid.Parse(adminClaim.Value);
             return success(accountId);

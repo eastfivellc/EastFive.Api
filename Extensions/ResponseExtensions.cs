@@ -15,6 +15,8 @@ namespace BlackBarLabs.Api
         public static HttpResponseMessage AddReason(this HttpResponseMessage response, string reason)
         {
             var reasonPhrase = reason.Replace('\n', ';').Replace("\r", "");
+            if (reasonPhrase.Length > 510)
+                reasonPhrase = new string(reasonPhrase.Take(510).ToArray());
             response.ReasonPhrase = reasonPhrase;
             // TODO: Check user agent and only set this on iOS and other crippled systems
             response.Headers.Add("Reason", reasonPhrase);
@@ -166,7 +168,7 @@ namespace BlackBarLabs.Api
             var response = request
                         .CreateResponse(HttpStatusCode.Conflict, reference)
                         .AddReason(reason);
-            return response.ToEnumerable().ToArray();
+            return response.AsEnumerable().ToArray();
         }
     }
 }
