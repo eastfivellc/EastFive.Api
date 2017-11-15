@@ -172,7 +172,6 @@ namespace BlackBarLabs.Api
                 value =>
                 {
                     var siteAdminAuthorization = CloudConfigurationManager.GetSetting(AppSettings.SiteAdminAuthorization);
-                    //TODO - log that this is not set
 
                     if (!string.IsNullOrEmpty(siteAdminAuthorization) && siteAdminAuthorization == value.ToString())
                             return isAuthorized();
