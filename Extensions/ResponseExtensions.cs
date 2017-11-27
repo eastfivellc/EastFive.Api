@@ -95,6 +95,16 @@ namespace BlackBarLabs.Api
             return response;
         }
 
+        public static HttpResponseMessage CreateRedirectResponse<TController>(this HttpRequestMessage request, System.Web.Http.Routing.UrlHelper url,
+            string routeName = null)
+        {
+            var location = url.GetLocation<TController>(routeName);
+            var response = request
+                        .CreateResponse(HttpStatusCode.Redirect);
+            response.Headers.Location = location;
+            return response;
+        }
+
         public static HttpResponseMessage CreateAlreadyExistsResponse<TController>(this HttpRequestMessage request, Guid existingResourceId, System.Web.Http.Routing.UrlHelper url,
             string routeName = null)
         {
@@ -112,6 +122,35 @@ namespace BlackBarLabs.Api
             var reason = $"The resource with ID = [{resourceId}] was not found";
             var response = request
                 .CreateResponse(HttpStatusCode.NotFound)
+                .AddReason(reason);
+            return response;
+        }
+
+        public static HttpResponseMessage CreateResponseEmptyId<TQuery, TProperty>(this HttpRequestMessage request,
+            TQuery query, Expression<Func<TQuery, TProperty>> propertyFailing)
+        {
+            var value = string.Empty;
+            var reason = $"Property [{propertyFailing}] must have value.";
+            var response = request
+                .CreateResponse(HttpStatusCode.BadRequest)
+                .AddReason(reason);
+            return response;
+        }
+
+        public static HttpResponseMessage CreateResponseValidationFailure<TQuery, TProperty>(this HttpRequestMessage request, 
+            TQuery query, Expression<Func<TQuery, TProperty>> propertyFailing)
+        {
+            var value = string.Empty;
+            try
+            {
+                value = propertyFailing.Compile().Invoke(query).ToString();
+            } catch (Exception)
+            {
+
+            }
+            var reason = $"Property [{propertyFailing}] Value = [{value}] is not valid";
+            var response = request
+                .CreateResponse(HttpStatusCode.BadRequest)
                 .AddReason(reason);
             return response;
         }

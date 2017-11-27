@@ -1,4 +1,8 @@
-﻿using System;
+﻿using BlackBarLabs.Collections.Generic;
+using BlackBarLabs.Extensions;
+using EastFive.Collections.Generic;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
@@ -33,6 +37,21 @@ namespace BlackBarLabs.Api
             Expression<Func<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, TResult>> callback)
         {
             return await ParseMultipartAsync_<Func<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, TResult>, TResult>(content, callback);
+        }
+
+        public static async Task<TResult> ReadFormDataAsync<TResult>(this HttpContent content,
+            Func<System.Collections.Specialized.NameValueCollection, TResult> onFoundFormData,
+            Func<TResult> onNotFormData)
+        {
+            try
+            {
+                var formData = await content.ReadAsFormDataAsync();
+                return onFoundFormData(formData);
+            } catch (Exception ex)
+            {
+                ex.GetType();
+                return onNotFormData();
+            }
         }
 
         public static async Task<TResult> ParseFormDataAsync<TMethod, TResult>(this HttpContent content,
@@ -80,6 +99,24 @@ namespace BlackBarLabs.Api
 
             var result = ((LambdaExpression)callback).Compile().DynamicInvoke(paramsForCallback);
             return (TResult)result;
+        }
+
+        public static async Task<TResult> ReadMultipartContentAsync<TResult>(this HttpContent content,
+            Func<IDictionary<string, HttpContent>, TResult> onMultpartContentFound,
+            Func<TResult> onNotMultipartContent)
+        {
+            if (!content.IsMimeMultipartContent())
+                return onNotMultipartContent();
+
+            var streamProvider = new MultipartMemoryStreamProvider();
+            await content.ReadAsMultipartAsync(streamProvider);
+
+            var contents = streamProvider.Contents
+                .Select(file =>
+                    file.Headers.ContentDisposition.Name.Trim(new char[] { '"' })
+                    .PairWithValue(file))
+                .ToDictionary();
+            return onMultpartContentFound(contents);
         }
 
         public static async Task<TResult> ParseMultipartAsync_<TMethod, TResult>(this HttpContent content,

@@ -2,6 +2,7 @@ using BlackBarLabs.Api.Resources;
 using BlackBarLabs.Collections.Generic;
 using BlackBarLabs.Extensions;
 using BlackBarLabs.Linq;
+using EastFive.Collections.Generic;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;

@@ -24,61 +24,6 @@ namespace BlackBarLabs.Api
 
         [IgnoreDataMember]
         protected UrlHelper Url { get; private set; }
-        
-        [IgnoreDataMember]
-        protected IEnumerable<System.Security.Claims.Claim> Claims
-        {
-            get
-            {
-                if (null == Request) return new System.Security.Claims.Claim[] { };
-                if (null == Request.Headers) return new System.Security.Claims.Claim[] { };
-                return Request.Headers.Authorization.GetClaimsFromAuthorizationHeader(
-                    claimsContext =>
-                    {
-                        return claimsContext.ToArray();
-                    },
-                    () =>
-                    {
-                        return new System.Security.Claims.Claim[] { };
-                    },
-                    (why) =>
-                    {
-                        return new System.Security.Claims.Claim[] { };
-                    });
-            }
-        }
-
-        private ISendMessageService mailService;
-        protected ISendMessageService MailService
-        {
-            get
-            {
-                if (default(ISendMessageService) == this.mailService)
-                {
-                    var getMailService = (Func<ISendMessageService>)
-                        this.Request.Properties[ServicePropertyDefinitions.MailService];
-                    this.mailService = getMailService();
-                }
-                return this.mailService;
-            }
-        }
-
-        private ITimeService dateTimeService;
-        protected ITimeService DateTimeService
-        {
-            get
-            {
-                if (default(ITimeService) == this.dateTimeService)
-                {
-                    if (!this.Request.Properties.ContainsKey(BlackBarLabs.Api.ServicePropertyDefinitions.TimeService))
-                        return new TimeService();
-                    var dateTimeService = (Func<ITimeService>)
-                        this.Request.Properties[BlackBarLabs.Api.ServicePropertyDefinitions.TimeService];
-                    this.dateTimeService = dateTimeService();
-                }
-                return this.dateTimeService;
-            }
-        }
 
     }
 }

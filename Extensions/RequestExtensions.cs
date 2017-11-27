@@ -152,17 +152,6 @@ namespace BlackBarLabs.Api
                             HttpStatusCode.BadRequest, "No resource specified")
                         .ToActionResult()));
         }
-        
-        public static void AddOrUpdateService<TService>(this HttpRequestMessage request,
-            string servicePropertyDefinition, Func<TService> service)
-        {
-            if (request.Properties.ContainsKey(servicePropertyDefinition))
-            {
-                request.Properties[servicePropertyDefinition] = service;
-                return;
-            }
-            request.Properties.Add(servicePropertyDefinition, service);
-        }
 
         public static TResult HasSiteAdminAuthorization<TResult>(this AuthenticationHeaderValue authorizationHeader,
             Func<TResult> isAuthorized,
@@ -171,11 +160,14 @@ namespace BlackBarLabs.Api
             var result = authorizationHeader.HasValue(
                 value =>
                 {
-                    var siteAdminAuthorization = CloudConfigurationManager.GetSetting(AppSettings.SiteAdminAuthorization);
-
-                    if (!string.IsNullOrEmpty(siteAdminAuthorization) && siteAdminAuthorization == value.ToString())
-                            return isAuthorized();
-                        return notAuthorized("This account is not authorized to create accounts");
+                    return EastFive.Web.Configuration.Settings.GetString(AppSettings.SiteAdminAuthorization,
+                        siteAdminAuthorization =>
+                        {
+                            if (!string.IsNullOrEmpty(siteAdminAuthorization) && siteAdminAuthorization == value.ToString())
+                                return isAuthorized();
+                            return notAuthorized("This account is not authorized to create accounts");
+                        },
+                        (why) => notAuthorized("No site admin authorization has been configured"));
                 },
                 () => notAuthorized("This account is not authorized to create accounts"));
             return result;
@@ -288,6 +280,37 @@ namespace BlackBarLabs.Api
                 },
                 (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized)
                     .AddReason("Authorization header not set").ToTask());
+        }
+
+        public static Task<HttpResponseMessage> GetSessionIdClaimsAsync(this HttpRequestMessage request,
+            Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage>> success)
+        {
+            var sessionIdClaimTypeConfigurationSetting =
+                EastFive.Api.Configuration.SecurityDefinitions.SessionIdClaimType;
+            return GetSessionIdClaimsAsync(request, sessionIdClaimTypeConfigurationSetting, success);
+        }
+
+        public static Task<HttpResponseMessage> GetSessionIdClaimsAsync(this HttpRequestMessage request,
+            string sessionIdClaimTypeConfigurationSetting,
+            Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage>> success)
+        {
+            var resultGetClaims = request.GetClaims(
+                (claimsEnumerable) =>
+                {
+                    var claims = claimsEnumerable.ToArray();
+                    //var accountIdClaimType =
+                    //    ConfigurationManager.AppSettings[sessionIdClaimTypeConfigurationSetting];
+                    var sessionIdClaimType = Security.ClaimIds.Session;
+                    var result = claims.GetSessionIdAsync(
+                        request, sessionIdClaimType,
+                        (sessionId) => success(sessionId, claims));
+                    return result;
+                },
+                () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized)
+                    .AddReason("Authorization header not set").ToTask(),
+                (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized)
+                    .AddReason(why).ToTask());
+            return resultGetClaims;
         }
 
         public static Task<HttpResponseMessage> GetActorIdClaimsAsync(this HttpRequestMessage request,

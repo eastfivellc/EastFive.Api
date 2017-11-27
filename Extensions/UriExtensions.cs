@@ -1,4 +1,10 @@
-﻿using System;
+﻿using BlackBarLabs.Extensions;
+using EastFive;
+using EastFive.Collections.Generic;
+using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Linq;
 using System.Web;
 
 namespace BlackBarLabs.Api.Extensions
@@ -18,6 +24,15 @@ namespace BlackBarLabs.Api.Extensions
             ub.Query = httpValueCollection.ToString();
 
             return ub.Uri;
+        }
+
+        public static IDictionary<string, string> ParseQuery(this Uri uri)
+        {
+            if (uri.IsDefault() || uri.Query.IsNullOrWhiteSpace())
+                return new Dictionary<string, string>();
+
+            var queryNameCollection = HttpUtility.ParseQueryString(uri.Query);
+            return queryNameCollection.AsDictionary();
         }
 
         public static Guid ParseWebUri(this Uri uri, out string nid, out string ns)

@@ -16,12 +16,6 @@ namespace BlackBarLabs.Api.Controllers
         protected override void Initialize(HttpControllerContext controllerContext)
         {
             base.Initialize(controllerContext);
-
-            Func<ITimeService> fetchDateTimeUtc =
-                () => new TimeService();
-            controllerContext.Request.Properties.Add(
-                BlackBarLabs.Api.ServicePropertyDefinitions.TimeService,
-                fetchDateTimeUtc);
         }
     }
 }
