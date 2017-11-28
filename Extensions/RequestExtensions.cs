@@ -208,12 +208,20 @@ namespace BlackBarLabs.Api
                     if (String.Compare(siteAdminAuthorization, jwtString, false) != 0)
                         return failure(why);
 
-                    var actorIdClaimType = CloudConfigurationManager.GetSetting(
-                        EastFive.Api.Configuration.SecurityDefinitions.ActorIdClaimType);
-                    var actorIdSuperAdmin = CloudConfigurationManager.GetSetting(
-                        EastFive.Api.Configuration.SecurityDefinitions.ActorIdSuperAdmin);
-                    var claim = new Claim(actorIdClaimType, actorIdSuperAdmin);
-                    return success(claim.AsEnumerable().ToArray());
+                    return EastFive.Web.Configuration.Settings.GetString(
+                        EastFive.Api.Configuration.SecurityDefinitions.ActorIdClaimType,
+                        (actorIdClaimType) =>
+                        {
+                            return EastFive.Web.Configuration.Settings.GetString(
+                                EastFive.Api.Configuration.SecurityDefinitions.ActorIdSuperAdmin,
+                                (actorIdSuperAdmin) =>
+                                {
+                                    var claim = new Claim(actorIdClaimType, actorIdSuperAdmin);
+                                    return success(claim.AsArray());
+                                },
+                                failure);
+                        },
+                        failure);
                 },
                 issuerConfigSetting,
                 validationKeyConfigSetting);
