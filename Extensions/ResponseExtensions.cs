@@ -126,6 +126,14 @@ namespace BlackBarLabs.Api
             return response;
         }
 
+        public static HttpResponseMessage CreateResponseUnexpectedFailure(this HttpRequestMessage request, string why)
+        {
+            var response = request
+                .CreateResponse(HttpStatusCode.InternalServerError)
+                .AddReason(why);
+            return response;
+        }
+
         public static HttpResponseMessage CreateResponseEmptyId<TQuery, TProperty>(this HttpRequestMessage request,
             TQuery query, Expression<Func<TQuery, TProperty>> propertyFailing)
         {
