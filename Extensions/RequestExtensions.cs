@@ -200,7 +200,7 @@ namespace BlackBarLabs.Api
                 (why) =>
                 {
                     var siteAdminAuthorization = CloudConfigurationManager.GetSetting(
-                        EastFive.Api.Configuration.SecurityDefinitions.SiteAdminAuthorization);
+                        EastFive.Api.AppSettings.SiteAdminAuthorization);
 
                     if (string.IsNullOrEmpty(siteAdminAuthorization))
                         return failure(why); //TODO - log if this is not set?
@@ -209,11 +209,11 @@ namespace BlackBarLabs.Api
                         return failure(why);
 
                     return EastFive.Web.Configuration.Settings.GetString(
-                        EastFive.Api.Configuration.SecurityDefinitions.ActorIdClaimType,
+                        EastFive.Api.AppSettings.ActorIdClaimType,
                         (actorIdClaimType) =>
                         {
                             return EastFive.Web.Configuration.Settings.GetString(
-                                EastFive.Api.Configuration.SecurityDefinitions.ActorIdSuperAdmin,
+                                EastFive.Api.AppSettings.ActorIdSuperAdmin,
                                 (actorIdSuperAdmin) =>
                                 {
                                     var claim = new Claim(actorIdClaimType, actorIdSuperAdmin);
@@ -280,7 +280,7 @@ namespace BlackBarLabs.Api
                 {
                     var claims = claimsEnumerable.ToArray();
                     var accountIdClaimType =
-                        ConfigurationManager.AppSettings[EastFive.Api.Configuration.SecurityDefinitions.ActorIdClaimType];
+                        ConfigurationManager.AppSettings[EastFive.Api.AppSettings.ActorIdClaimType];
                     var result = claims.GetAccountIdAsync(
                         request, accountIdClaimType,
                         (accountId) => success(accountId, claims));
@@ -294,7 +294,7 @@ namespace BlackBarLabs.Api
             Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage>> success)
         {
             var sessionIdClaimTypeConfigurationSetting =
-                EastFive.Api.Configuration.SecurityDefinitions.SessionIdClaimType;
+                EastFive.Api.AppSettings.SessionIdClaimType;
             return GetSessionIdClaimsAsync(request, sessionIdClaimTypeConfigurationSetting, success);
         }
 
@@ -325,7 +325,7 @@ namespace BlackBarLabs.Api
             Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage>> success)
         {
             var accountIdClaimTypeConfigurationSetting =
-                EastFive.Api.Configuration.SecurityDefinitions.ActorIdClaimType;
+                EastFive.Api.AppSettings.ActorIdClaimType;
             return GetActorIdClaimsAsync(request, accountIdClaimTypeConfigurationSetting, success);
         }
 
@@ -375,7 +375,7 @@ namespace BlackBarLabs.Api
            Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage[]>> success)
         {
             var accountIdClaimTypeConfigurationSetting =
-                EastFive.Api.Configuration.SecurityDefinitions.ActorIdClaimType;
+                EastFive.Api.AppSettings.ActorIdClaimType;
             return EastFive.Web.Configuration.Settings.GetString(
                 accountIdClaimTypeConfigurationSetting,
                 (accountIdClaimType) =>

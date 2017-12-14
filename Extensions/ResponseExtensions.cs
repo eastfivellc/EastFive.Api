@@ -126,6 +126,14 @@ namespace BlackBarLabs.Api
             return response;
         }
 
+        public static HttpResponseMessage CreateResponseConfiguration(this HttpRequestMessage request, string configParameterName, string why)
+        {
+            var response = request
+                .CreateResponse(HttpStatusCode.ServiceUnavailable)
+                .AddReason(why);
+            return response;
+        }
+        
         public static HttpResponseMessage CreateResponseUnexpectedFailure(this HttpRequestMessage request, string why)
         {
             var response = request
