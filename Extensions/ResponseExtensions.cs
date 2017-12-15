@@ -99,6 +99,12 @@ namespace BlackBarLabs.Api
             string routeName = null)
         {
             var location = url.GetLocation<TController>(routeName);
+            return request.CreateRedirectResponse(location);
+        }
+
+        public static HttpResponseMessage CreateRedirectResponse(this HttpRequestMessage request, Uri location,
+            string routeName = null)
+        {
             var response = request
                         .CreateResponse(HttpStatusCode.Redirect);
             response.Headers.Location = location;
