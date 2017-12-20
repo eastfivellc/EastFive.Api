@@ -25,6 +25,41 @@ namespace BlackBarLabs.Api
                 });
         }
 
+        public static Guid? ParseMaybe(this WebIdQuery query)
+        {
+            return query.ParseInternal(
+                (v) =>
+                {
+                    if (!(v is WebIdMaybe))
+                        return default(Guid?);
+
+                    var wiqo = v as WebIdMaybe;
+                    return wiqo.GuidMaybe;
+                },
+                (why) =>
+                {
+                    return default(Guid?);
+                });
+        }
+
+        [QueryParameterType(WebIdQueryType = typeof(WebIdMaybe))]
+        public static Guid? ParamMaybe(this WebIdQuery query)
+        {
+            return query.ParseInternal(
+                (v) =>
+                {
+                    if (!(v is WebIdMaybe))
+                        throw new InvalidOperationException("Do not use ParamMaybe outside of ParseAsync");
+
+                    var wiqo = v as WebIdMaybe;
+                    return wiqo.GuidMaybe;
+                },
+                (why) =>
+                {
+                    throw new InvalidOperationException("Use ParseAsync to ensure parsable values");
+                });
+        }
+
         [QueryParameterType(WebIdQueryType = typeof(WebIdAny))]
         public static bool ParamAny(this WebIdQuery query)
         {
@@ -77,13 +112,23 @@ namespace BlackBarLabs.Api
                 });
         }
 
-        class WebIdGuid : QueryMatchAttribute
+        class WebIdGuid : WebIdMaybe
         {
             public Guid Guid { get; private set; }
 
-            public WebIdGuid(Guid guid)
+            public WebIdGuid(Guid guid) : base(guid)
             {
                 this.Guid = guid;
+            }
+        }
+
+        class WebIdMaybe : QueryMatchAttribute
+        {
+            public Guid? GuidMaybe { get; private set; }
+
+            public WebIdMaybe(Guid? guid)
+            {
+                this.GuidMaybe = guid;
             }
         }
 
@@ -97,13 +142,18 @@ namespace BlackBarLabs.Api
             }
         }
 
-        class WebIdEmpty : QueryMatchAttribute
+        class WebIdEmpty : WebIdMaybe
         {
+            public WebIdEmpty() : base(default(Guid?))
+            {
+            }
         }
 
-        class WebIdAny : QueryMatchAttribute
+        class WebIdAny : WebIdMaybe
         {
-
+            public WebIdAny() : base(default(Guid?))
+            {
+            }
         }
 
         internal static TResult ParseInternal<TResult>(this WebIdQuery query,

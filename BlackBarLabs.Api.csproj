@@ -96,6 +96,7 @@
     <Compile Include="Controllers\BaseController.cs" />
     <Compile Include="Extensions\ClaimsExtensions.cs" />
     <Compile Include="Extensions\HttpConfigurationExtensions.cs" />
+    <Compile Include="Extensions\QueryExtensions.IntQueries.cs" />
     <Compile Include="Extensions\QueryExtensions.BoolQueries.cs" />
     <Compile Include="Extensions\QueryExtensions.ParseMethods.cs" />
     <Compile Include="Extensions\QueryExtensions.DateTimeQueries.cs" />
@@ -116,6 +117,7 @@
     <Compile Include="Resources\Exceptions.cs" />
     <Compile Include="Resources\MultipartResponse.cs" />
     <Compile Include="Resources\OptionsResource.cs" />
+    <Compile Include="Resources\Queries\IntQuery.cs" />
     <Compile Include="Resources\Queries\BoolQuery.cs" />
     <Compile Include="Resources\Queries\DateTimeQuery.cs" />
     <Compile Include="Resources\Queries\StringQuery.cs" />

@@ -40,7 +40,42 @@ namespace BlackBarLabs.Api
                     throw new InvalidOperationException("Use ParseAsync to ensure parsable values");
                 });
         }
-        
+
+        public static bool? ParseMaybe(this BoolQuery query)
+        {
+            return query.Parse(
+                (v) =>
+                {
+                    if (!(v is BoolMaybeAttribute))
+                        return default(bool?);
+
+                    var wiqo = v as BoolMaybeAttribute;
+                    return wiqo.ValueMaybe;
+                },
+                (why) =>
+                {
+                    return default(bool?);
+                });
+        }
+
+        [QueryParameterType(WebIdQueryType = typeof(BoolMaybeAttribute))]
+        public static bool? ParamMaybe(this BoolQuery query)
+        {
+            return query.Parse(
+                (v) =>
+                {
+                    if (!(v is BoolMaybeAttribute))
+                        throw new InvalidOperationException("Do not use ParamValue outside of ParseAsync");
+
+                    var wiqo = v as BoolMaybeAttribute;
+                    return wiqo.ValueMaybe;
+                },
+                (why) =>
+                {
+                    throw new InvalidOperationException("Use ParseAsync to ensure parsable values");
+                });
+        }
+
         internal static TResult ParseInternal<TResult>(this BoolQuery query, string value,
             Func<QueryMatchAttribute, TResult> parsed,
             Func<string, TResult> unparsable)
@@ -57,19 +92,34 @@ namespace BlackBarLabs.Api
             return unparsable($"Could not parse '{value}' to bool");
         }
 
-        private class BoolValueAttribute : QueryMatchAttribute
+        private class BoolValueAttribute : BoolMaybeAttribute
         {
             public bool Value;
 
             public BoolValueAttribute(bool value)
+                : base(value)
             {
                 this.Value = value;
             }
         }
 
-        private class BoolEmptyAttribute : QueryMatchAttribute
+        private class BoolEmptyAttribute : BoolMaybeAttribute
         {
+            public BoolEmptyAttribute() : base(default(bool?))
+            {
+
+            }
         }
-        
+
+        private class BoolMaybeAttribute : QueryMatchAttribute
+        {
+            public bool? ValueMaybe;
+
+            public BoolMaybeAttribute(bool? value)
+            {
+                this.ValueMaybe = value;
+            }
+        }
+
     }
 }
