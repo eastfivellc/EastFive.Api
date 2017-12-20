@@ -6,7 +6,6 @@ using System.Net.Http.Headers;
 using System.Web.Http;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-
 using BlackBarLabs.Extensions;
 using BlackBarLabs.Api.Resources;
 using BlackBarLabs.Linq;
@@ -15,6 +14,7 @@ using BlackBarLabs.Web;
 using System.Security.Claims;
 using System.Configuration;
 using EastFive.Api;
+using EastFive.Linq;
 
 namespace BlackBarLabs.Api
 {

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Net.Http;
 using System.Threading.Tasks;
+using EastFive.Linq;
 
 namespace BlackBarLabs.Api
 {
