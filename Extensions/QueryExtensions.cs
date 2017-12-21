@@ -40,11 +40,23 @@ namespace BlackBarLabs.Api
                 webIdQueryType = value;
             }
         }
+
+        private bool isOptional = false;
+        public bool IsOptional
+        {
+            get
+            {
+                return isOptional;
+            }
+            set
+            {
+                isOptional = value;
+            }
+        }
     }
 
     public class QueryMatchAttribute : Attribute
     {
-
     }
 
     public static partial class QueryExtensions
@@ -57,7 +69,6 @@ namespace BlackBarLabs.Api
             IEnumerable<Expression<Func<TQuery, Task<HttpResponseMessage>>>>              queriesSingle,
             IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>> queriesEnumerable,
             IEnumerable<Expression<Func<TQuery, Task<HttpResponseMessage[]>>>>            queriesArray)
-            where TQuery : ResourceQueryBase
         {
             return await GetQueryObjectParamters(query, request,
                 async (queryNonNull, queryObjectParameters) =>
@@ -68,7 +79,7 @@ namespace BlackBarLabs.Api
                             var responseCallback = selectedQueryFormat.Compile();
                             var responseSingle = await responseCallback(queryNonNull);
                             return responseSingle;
-                        }, 
+                        },
                         async () =>
                         {
                             var responsesMultipart = await queriesEnumerable.WhichFormat(queryObjectParameters,
@@ -165,51 +176,73 @@ namespace BlackBarLabs.Api
         }
 
         private static bool IsMatch(IDictionary<PropertyInfo, QueryMatchAttribute> queryObjectParameters,
-            IDictionary<PropertyInfo, Type> queryMethodParameters)
+            IDictionary<PropertyInfo, QueryParameterTypeAttribute> queryMethodParameters)
         {
             var queryObjectParametersSpecified = queryObjectParameters
                 // .Where(propKvp => propKvp.Value.IsSpecified())
                 .ToArray();
 
-            if (queryObjectParametersSpecified.Length != queryMethodParameters.Keys.Count)
-                return false;
-
-            return queryObjectParametersSpecified.All(
-                queryObjectParameter =>
+            return queryObjectParameters.Merge(queryMethodParameters,
+                queryObjectParameter => queryObjectParameter.Key,
+                queryMethodParameter => queryMethodParameter.Key,
+                (matched, unmatchedQueryParameters, unmatchedMethodOParameters) =>
                 {
-                    bool foundMatch = queryMethodParameters
-                        .Any(
-                            queryMethodParameter =>
-                            {
-                                if (string.Compare(queryMethodParameter.Key.Name, queryObjectParameter.Key.Name) != 0)
-                                    return false; // The queryMethodParameter does not correspond to the queryObjectParameter
+                    if (unmatchedQueryParameters.Any())
+                        return false;
 
-                                return queryMethodParameter.Value.IsAssignableFrom(queryObjectParameter.Value.GetType());
-                            });
-                    return foundMatch;
-                });
+                    if (unmatchedMethodOParameters.SelectValues().Any(
+                        qma => !qma.IsOptional))
+                        return false;
+
+                    // TODO: Activate and add the optionals
+
+                    return matched.SelectValues().All(
+                        match => match.Value.Value.WebIdQueryType.IsAssignableFrom(match.Key.Value.GetType()));
+                },
+                (propInfo1, propInfo2) =>
+                {
+                    return string.Compare(propInfo1.Name, propInfo2.Name) == 0;
+                },
+                (name) => name.Name.GetHashCode());
         }
 
         private static async Task<HttpResponseMessage> GetQueryObjectParamters<TQuery>(TQuery query, HttpRequestMessage request,
             Func<TQuery, IDictionary<PropertyInfo, QueryMatchAttribute>, Task<HttpResponseMessage>> callback)
-            where TQuery : ResourceQueryBase
         {
-            if (default(TQuery) == query)
+            if (query.IsDefault())
             {
                 var emptyQuery = Activator.CreateInstance<TQuery>();
-                if (default(TQuery) == emptyQuery)
+                if (emptyQuery.IsDefault())
                     throw new Exception($"Could not activate object of type {typeof(TQuery).FullName}");
                 return await GetQueryObjectParamters(emptyQuery, request, callback);
             }
 
-            if(default(WebIdQuery) == query.Id &&
-               String.IsNullOrWhiteSpace(request.RequestUri.Query) &&
-               request.RequestUri.Segments.Any())
+            if (query is ResourceQueryBase)
             {
-                var idRefQuery = request.RequestUri.Segments.Last();
-                Guid idRefGuid;
-                if (Guid.TryParse(idRefQuery, out idRefGuid))
-                    query.Id = idRefGuid;
+                var resourceQuery = query as ResourceQueryBase;
+                if (resourceQuery.Id.IsDefault() &&
+                   String.IsNullOrWhiteSpace(request.RequestUri.Query) &&
+                   request.RequestUri.Segments.Any())
+                {
+                    var idRefQuery = request.RequestUri.Segments.Last();
+                    Guid idRefGuid;
+                    if (Guid.TryParse(idRefQuery, out idRefGuid))
+                        resourceQuery.Id = idRefGuid;
+                }
+            }
+
+            if (query is ResourceBase)
+            {
+                var resource = query as ResourceBase;
+                if (resource.Id.IsDefault() &&
+                   String.IsNullOrWhiteSpace(request.RequestUri.Query) &&
+                   request.RequestUri.Segments.Any())
+                {
+                    var idRefQuery = request.RequestUri.Segments.Last();
+                    Guid idRefGuid;
+                    if (Guid.TryParse(idRefQuery, out idRefGuid))
+                        resource.Id = idRefGuid;
+                }
             }
 
             return await query.GetType().GetProperties()
@@ -248,7 +281,7 @@ namespace BlackBarLabs.Api
         //    return GetQueryMethodParamters(args);
         //}
 
-        private static IDictionary<PropertyInfo, Type> GetQueryMethodParamters<TQuery, TExpressionResult>(Expression<Func<TQuery, Task<TExpressionResult>>> queryFormat)
+        private static IDictionary<PropertyInfo, QueryParameterTypeAttribute> GetQueryMethodParamters<TQuery, TExpressionResult>(Expression<Func<TQuery, Task<TExpressionResult>>> queryFormat)
         {
             var args = queryFormat.GetArguments();
             return GetQueryMethodParamters(args);
@@ -263,7 +296,7 @@ namespace BlackBarLabs.Api
             return bodyMethod.Arguments;
         }
 
-        private static IDictionary<PropertyInfo, Type> GetQueryMethodParamters(ReadOnlyCollection<Expression> arguments)
+        private static IDictionary<PropertyInfo, QueryParameterTypeAttribute> GetQueryMethodParamters(ReadOnlyCollection<Expression> arguments)
         {
             var kvps = arguments
                 .Where(arg => arg is MethodCallExpression)
@@ -275,15 +308,15 @@ namespace BlackBarLabs.Api
                     {
                         var args = methodCall.Arguments.First() as MemberExpression;
                         if (!(args.Member is PropertyInfo))
-                            return default(KeyValuePair<PropertyInfo, Type>?);
+                            return default(KeyValuePair<PropertyInfo, QueryParameterTypeAttribute>?);
                         var memberExp = args.Member as PropertyInfo;
                         var method = methodCall.Method;
                         var customAttributes = method.GetCustomAttributes<QueryParameterTypeAttribute>().ToArray();
                         if (customAttributes.Length == 0)
-                            return default(KeyValuePair<PropertyInfo, Type>?);
+                            return default(KeyValuePair<PropertyInfo, QueryParameterTypeAttribute>?);
 
-                        var queryType = customAttributes.First().WebIdQueryType;
-                        return new KeyValuePair<PropertyInfo, Type>(memberExp, queryType);
+                        var queryType = customAttributes.First();
+                        return new KeyValuePair<PropertyInfo, QueryParameterTypeAttribute>(memberExp, queryType);
                     })
                 .SelectWhereHasValue()
                 .ToDictionary();

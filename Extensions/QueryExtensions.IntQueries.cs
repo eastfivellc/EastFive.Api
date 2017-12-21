@@ -1,4 +1,5 @@
 ﻿using BlackBarLabs.Api.Resources;
+using BlackBarLabs.Extensions;
 using System;
 using System.ComponentModel;
 
@@ -41,26 +42,13 @@ namespace BlackBarLabs.Api
                 });
         }
         
-        public static int? ParseMaybe(this IntQuery query)
-        {
-            return query.Parse(
-                (v) =>
-                {
-                    if (!(v is IntMaybeAttribute))
-                        return default(int?);
 
-                    var wiqo = v as IntMaybeAttribute;
-                    return wiqo.ValueMaybe;
-                },
-                (why) =>
-                {
-                    return default(int?);
-                });
-        }
-
-        [QueryParameterType(WebIdQueryType = typeof(IntMaybeAttribute))]
+        [QueryParameterType(WebIdQueryType = typeof(IntMaybeAttribute), IsOptional = true)]
         public static int? ParamMaybe(this IntQuery query)
         {
+            if (query.IsDefault())
+                return default(int?);
+
             return query.Parse(
                 (v) =>
                 {

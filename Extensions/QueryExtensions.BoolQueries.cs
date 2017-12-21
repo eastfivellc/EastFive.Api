@@ -1,4 +1,5 @@
 ﻿using BlackBarLabs.Api.Resources;
+using BlackBarLabs.Extensions;
 using System;
 using System.ComponentModel;
 
@@ -41,26 +42,12 @@ namespace BlackBarLabs.Api
                 });
         }
 
-        public static bool? ParseMaybe(this BoolQuery query)
-        {
-            return query.Parse(
-                (v) =>
-                {
-                    if (!(v is BoolMaybeAttribute))
-                        return default(bool?);
-
-                    var wiqo = v as BoolMaybeAttribute;
-                    return wiqo.ValueMaybe;
-                },
-                (why) =>
-                {
-                    return default(bool?);
-                });
-        }
-
-        [QueryParameterType(WebIdQueryType = typeof(BoolMaybeAttribute))]
+        [QueryParameterType(WebIdQueryType = typeof(BoolMaybeAttribute), IsOptional = true)]
         public static bool? ParamMaybe(this BoolQuery query)
         {
+            if (query.IsDefault())
+                return default(bool?);
+
             return query.Parse(
                 (v) =>
                 {

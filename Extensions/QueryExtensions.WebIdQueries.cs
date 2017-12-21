@@ -1,4 +1,5 @@
 using BlackBarLabs.Api.Resources;
+using BlackBarLabs.Extensions;
 using System;
 using System.Linq;
 
@@ -24,27 +25,13 @@ namespace BlackBarLabs.Api
                     throw new InvalidOperationException("Use ParseAsync to ensure parsable values");
                 });
         }
-
-        public static Guid? ParseMaybe(this WebIdQuery query)
-        {
-            return query.ParseInternal(
-                (v) =>
-                {
-                    if (!(v is WebIdMaybe))
-                        return default(Guid?);
-
-                    var wiqo = v as WebIdMaybe;
-                    return wiqo.GuidMaybe;
-                },
-                (why) =>
-                {
-                    return default(Guid?);
-                });
-        }
-
-        [QueryParameterType(WebIdQueryType = typeof(WebIdMaybe))]
+        
+        [QueryParameterType(WebIdQueryType = typeof(WebIdMaybe), IsOptional = true)]
         public static Guid? ParamMaybe(this WebIdQuery query)
         {
+            if (query.IsDefault())
+                return default(Guid?);
+            
             return query.ParseInternal(
                 (v) =>
                 {
@@ -112,16 +99,6 @@ namespace BlackBarLabs.Api
                 });
         }
 
-        class WebIdGuid : WebIdMaybe
-        {
-            public Guid Guid { get; private set; }
-
-            public WebIdGuid(Guid guid) : base(guid)
-            {
-                this.Guid = guid;
-            }
-        }
-
         class WebIdMaybe : QueryMatchAttribute
         {
             public Guid? GuidMaybe { get; private set; }
@@ -129,6 +106,16 @@ namespace BlackBarLabs.Api
             public WebIdMaybe(Guid? guid)
             {
                 this.GuidMaybe = guid;
+            }
+        }
+
+        class WebIdGuid : WebIdMaybe
+        {
+            public Guid Guid { get; private set; }
+
+            public WebIdGuid(Guid guid) : base(guid)
+            {
+                this.Guid = guid;
             }
         }
 
