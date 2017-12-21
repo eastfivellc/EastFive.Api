@@ -53,6 +53,15 @@ namespace BlackBarLabs.Api
             return success(accountId);
         }
 
+        public static TResult GetActorId<TResult>(this IEnumerable<System.Security.Claims.Claim> claims,
+            Func<Guid, TResult> success,
+            Func<TResult> actorIdNotFound)
+        {
+            var accountIdClaimTypeConfigurationSetting =
+                EastFive.Api.AppSettings.ActorIdClaimType;
+            return claims.GetActorId(accountIdClaimTypeConfigurationSetting, success, actorIdNotFound);
+        }
+
         public static TResult GetActorId<TResult>(this IEnumerable<System.Security.Claims.Claim> claims, 
             string accountIdClaimType,
             Func<Guid, TResult> success,

@@ -231,5 +231,23 @@ namespace BlackBarLabs.Api
                         .AddReason(reason);
             return response.AsEnumerable().ToArray();
         }
+
+        /// <summary>
+        /// WARNING: This isn't really baked
+        /// </summary>
+        /// <param name="viewName"></param>
+        /// <param name="model"></param>
+        /// <returns></returns>
+        public static HttpResponseMessage CreateResponseHtml(string viewName, dynamic model)
+        {
+            // var view = File.ReadAllText(Path.Combine(viewDirectory, viewName + ".cshtml"));
+            var response = new HttpResponseMessage(HttpStatusCode.OK);
+
+            var template = new RazorEngine.Templating.NameOnlyTemplateKey(viewName, RazorEngine.Templating.ResolveType.Global, null);
+            var parsedView = RazorEngine.Engine.Razor.Run(template, model.GetType(), model);
+            response.Content = new StringContent(parsedView);
+            response.Content.Headers.ContentType = new MediaTypeHeaderValue("text/html");
+            return response;
+        }
     }
 }
