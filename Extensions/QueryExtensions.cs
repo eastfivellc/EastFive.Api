@@ -107,57 +107,6 @@ namespace BlackBarLabs.Api
                 });
         }
 
-        //private static TResult WhichFormatSingle<TQuery, TResult>(this IEnumerable<Expression<Func<TQuery, Task<HttpResponseMessage>>>> queryFormats,
-        //    IDictionary<PropertyInfo, QueryMatchAttribute> queryObjectParameters,
-        //    Func<Expression<Func<TQuery, Task<HttpResponseMessage>>>, TResult> found,
-        //    Func<TResult> notFound)
-        //{
-        //    var matchingFormat = queryFormats.Where(
-        //        queryFormat =>
-        //        {
-        //            var queryMethodParameters = GetQueryMethodParamters(queryFormat);
-        //            return IsMatch(queryObjectParameters, queryMethodParameters);
-        //        });
-        //    var result = matchingFormat.FirstOrDefault(
-        //        (first) => found(first),
-        //        () => notFound());
-        //    return result;
-        //}
-        
-        //private static TResult WhichFormatEnumerable<TQuery, TResult>(this IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>> queryFormats,
-        //    IDictionary<PropertyInfo, QueryMatchAttribute> queryObjectParameters,
-        //    Func<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>, TResult> found,
-        //    Func<TResult> notFound)
-        //{
-        //    var matchingFormat = queryFormats.Where(
-        //        queryFormat =>
-        //        {
-        //            var queryMethodParameters = GetQueryMethodParamters(queryFormat);
-        //            return IsMatch(queryObjectParameters, queryMethodParameters);
-        //        });
-        //    var result = matchingFormat.FirstOrDefault(
-        //        (first) => found(first),
-        //        () => notFound());
-        //    return result;
-        //}
-
-        //private static TResult WhichFormatArray<TQuery, TResult>(this IEnumerable<Expression<Func<TQuery, Task<HttpResponseMessage[]>>>> queryFormats,
-        //    IDictionary<PropertyInfo, QueryMatchAttribute> queryObjectParameters,
-        //    Func<Expression<Func<TQuery, Task<HttpResponseMessage[]>>>, TResult> found,
-        //    Func<TResult> notFound)
-        //{
-        //    var matchingFormat = queryFormats.Where(
-        //        queryFormat =>
-        //        {
-        //            var queryMethodParameters = GetQueryMethodParamters(queryFormat);
-        //            return IsMatch(queryObjectParameters, queryMethodParameters);
-        //        });
-        //    var result = matchingFormat.FirstOrDefault(
-        //        (first) => found(first),
-        //        () => notFound());
-        //    return result;
-        //}
-
         private static TResult WhichFormat<TQuery, TResult, TExpressionResult>(this IEnumerable<Expression<Func<TQuery, Task<TExpressionResult>>>> queryFormats,
             IDictionary<PropertyInfo, QueryMatchAttribute> queryObjectParameters,
             Func<Expression<Func<TQuery, Task<TExpressionResult>>>, TResult> found,
@@ -262,24 +211,6 @@ namespace BlackBarLabs.Api
                     },
                     (kvps) => callback(query, kvps.SelectWhereHasValue().ToDictionary()));
         }
-
-        //private static IDictionary<PropertyInfo, Type> GetQueryMethodParamters<TQuery>(Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat)
-        //{
-        //    var args = queryFormat.GetArguments();
-        //    return GetQueryMethodParamters(args);
-        //}
-
-        //private static IDictionary<PropertyInfo, Type> GetQueryMethodParamters<TQuery>(Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>> queryFormat)
-        //{
-        //    var args = queryFormat.GetArguments();
-        //    return GetQueryMethodParamters(args);
-        //}
-
-        //private static IDictionary<PropertyInfo, Type> GetQueryMethodParamters<TQuery>(Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat)
-        //{
-        //    var args = queryFormat.GetArguments();
-        //    return GetQueryMethodParamters(args);
-        //}
 
         private static IDictionary<PropertyInfo, QueryParameterTypeAttribute> GetQueryMethodParamters<TQuery, TExpressionResult>(Expression<Func<TQuery, Task<TExpressionResult>>> queryFormat)
         {
