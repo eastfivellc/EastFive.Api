@@ -1,10 +1,4 @@
-﻿using BlackBarLabs.Api.Resources;
-using BlackBarLabs.Extensions;
-using EastFive;
-using EastFive.Linq.Expressions;
-using EastFive.Sheets;
-using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -14,10 +8,18 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Threading.Tasks;
+
+using Newtonsoft.Json;
+
 using EastFive.Linq;
 using BlackBarLabs.Linq.Async;
 using BlackBarLabs.Api.Extensions;
 using BlackBarLabs.Linq;
+using BlackBarLabs.Api.Resources;
+using BlackBarLabs.Extensions;
+using EastFive;
+using EastFive.Linq.Expressions;
+using EastFive.Sheets;
 
 namespace BlackBarLabs.Api
 {
