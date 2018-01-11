@@ -149,6 +149,10 @@
       <Project>{5bb52391-2704-44c0-bc8a-dbbe31498814}</Project>
       <Name>BlackBarLabs.Web</Name>
     </ProjectReference>
+    <ProjectReference Include="..\EastFive.Sheets\EastFive.Sheets.csproj">
+      <Project>{A6A53D1C-FC21-4385-AFD7-F5748CC5135B}</Project>
+      <Name>EastFive.Sheets</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

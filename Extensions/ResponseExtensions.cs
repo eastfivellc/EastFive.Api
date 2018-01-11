@@ -1,12 +1,23 @@
 ﻿using BlackBarLabs.Api.Resources;
 using BlackBarLabs.Extensions;
+using EastFive;
+using EastFive.Linq.Expressions;
+using EastFive.Sheets;
+using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Reflection;
+using System.Threading.Tasks;
+using EastFive.Linq;
+using BlackBarLabs.Linq.Async;
+using BlackBarLabs.Api.Extensions;
+using BlackBarLabs.Linq;
 
 namespace BlackBarLabs.Api
 {
@@ -71,6 +82,247 @@ namespace BlackBarLabs.Api
                 FileName = String.IsNullOrWhiteSpace(filename) ? $"sheet.xlsx" : filename,
             };
             return response;
+        }
+
+
+        public static HttpResponseMessage CreateXlsxResponse<TResource>(this HttpRequestMessage request,
+            IDictionary<string, string> properties, IEnumerable<TResource> resources,
+            string filename = "")
+        {
+            try
+            {
+                var responseStream = ConvertToXlsxStreamAsync(properties, resources,
+                    (stream) => stream);
+                var response = request.CreateXlsxResponse(responseStream, filename);
+                return response;
+            }
+            catch (Exception ex)
+            {
+                return request.CreateResponse(HttpStatusCode.Conflict, ex.StackTrace).AddReason(ex.Message);
+            }
+        }
+
+        private static TResult ConvertToXlsxStreamAsync<TResource, TResult>(
+            IDictionary<string, string> properties, IEnumerable<TResource> resources,
+            Func<byte[], TResult> callback)
+        {
+            using (var stream = new MemoryStream())
+            {
+                OpenXmlWorkbook.Create(stream,
+                    (workbook) =>
+                    {
+                        #region Custom properties
+
+                        workbook.WriteCustomProperties(
+                            (writeProp) =>
+                            {
+                                properties.Select(
+                                    prop =>
+                                    {
+                                        writeProp(prop.Key, prop.Value);
+                                        return true;
+                                    }).ToArray();
+                                return true;
+                            });
+
+                        #endregion
+
+                        workbook.WriteSheetByRow(
+                            (writeRow) =>
+                            {
+                                var propertyOrder = typeof(TResource).GetProperties();
+                                #region Header 
+                                
+                                var headers = propertyOrder
+                                    .Select(
+                                        propInfo => propInfo.GetCustomAttribute<JsonPropertyAttribute, string>(
+                                            attr => attr.PropertyName,
+                                            () => propInfo.Name))
+                                    .ToArray();
+                                writeRow(headers);
+
+                                #endregion
+
+                                #region Body
+
+                                var rows = resources.Select(
+                                    (result, index) =>
+                                    {
+                                        var values = propertyOrder
+                                            .Select(
+                                                property => property.GetValue(result).CastToXlsSerialization())
+                                            .ToArray();
+                                        writeRow(values);
+                                        return true;
+                                    }).ToArray();
+
+                                #endregion
+
+                                return true;
+                            });
+
+                        return true;
+                    });
+
+                var buffer = stream.ToArray();
+                return callback(buffer);
+            }
+        }
+
+        private static object CastToXlsSerialization(this object obj)
+        {
+            if(obj is WebId)
+            {
+                var webId = obj as WebId;
+                return webId.URN;
+            }
+            return obj;
+        }
+
+        private static TResult TryCastFromXlsSerialization<TResult>(PropertyInfo property, string valueString,
+            Func<object, TResult> onParsed,
+            Func<TResult> onNotParsed)
+        {
+            if (property.PropertyType.IsGenericType && property.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
+            {
+                var propertyType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+                return TryCastFromXlsSerialization(propertyType, valueString,
+                    (value) =>
+                    {
+                        dynamic objValue = System.Activator.CreateInstance(property.PropertyType);
+                        objValue = value;
+                        return onParsed((object)objValue);
+                    },
+                    onNotParsed);
+            }
+
+            if (property.PropertyType.IsEnum)
+            {
+                var enumUnderlyingType = Enum.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+                if (int.TryParse(valueString, out int enumValueInt))
+                {
+                    object underlyingValueInt = System.Convert.ChangeType(enumValueInt, enumUnderlyingType);
+                    return onParsed(underlyingValueInt);
+                }
+                var values = Enum.GetValues(property.PropertyType);
+                var names = Enum.GetNames(property.PropertyType);
+                if (!names.Contains(valueString))
+                    return onNotParsed();
+
+                return names.IndexOf(valueString, (s1, s2) => String.Compare(s1, s2, true) == 0,
+                    (valueIndex) =>
+                    {
+                        var enumValue = values.GetValue(valueIndex);
+                        object underlyingValue = System.Convert.ChangeType(enumValue, enumUnderlyingType);
+                        return onParsed(underlyingValue);
+                    },
+                    onNotParsed);
+            }
+
+            return TryCastFromXlsSerialization(property.PropertyType, valueString,
+                    onParsed, onNotParsed);
+        }
+
+        private static TResult TryCastFromXlsSerialization<TResult>(Type type, string valueString,
+            Func<object, TResult> onParsed,
+            Func<TResult> onNotParsed)
+        {
+            if (type.GUID == typeof(WebId).GUID)
+                if (Uri.TryCreate(valueString, UriKind.RelativeOrAbsolute, out Uri urn))
+                    return urn.TryParseWebUrn(
+                        (nid, ns, uuid) => onParsed(new WebId
+                        {
+                            UUID = uuid,
+                        }),
+                        (why) => onNotParsed());
+                else
+                    return onNotParsed();
+
+            if (type.GUID == typeof(string).GUID)
+                return onParsed(valueString);
+
+            return type.TryParse<bool, TResult>(valueString, bool.TryParse, onParsed,
+                () => type.TryParse<Guid, TResult>(valueString, Guid.TryParse, onParsed,
+                () => type.TryParse<Int32, TResult>(valueString, Int32.TryParse, onParsed,
+                () => type.TryParse<decimal, TResult>(valueString, decimal.TryParse, onParsed,
+                () => type.TryParse<double, TResult>(valueString, double.TryParse, onParsed,
+                () => type.TryParse<float, TResult>(valueString, float.TryParse, onParsed,
+                () => type.TryParse<byte, TResult>(valueString, byte.TryParse, onParsed,
+                () => type.TryParse<long, TResult>(valueString, long.TryParse, onParsed,
+                () => type.TryParse<DateTime, TResult>(valueString, DateTime.TryParse, onParsed,
+                onNotParsed)))))))));
+        }
+
+        private delegate bool FuncOut<T>(string valueString, out T value);
+
+        private static TResult TryParse<T, TResult>(this Type type, string valueString, FuncOut<T> callback,
+            Func<object, TResult> onParsed,
+            Func<TResult> onNotParsed)
+        {
+            if (type.GUID == typeof(T).GUID)
+                if (callback(valueString, out T value))
+                    return onParsed(value);
+
+            return onNotParsed();
+        }
+
+        public static async Task<TResult> ParseXlsxAsync<TResource, TResult>(this HttpRequestMessage request,
+                Stream xlsx,
+                Func<TResource, KeyValuePair<string, string>[], Task<HttpResponseMessage>> executePost,
+                Func<TResource, KeyValuePair<string, string>[], Task<HttpResponseMessage>> executePut,
+            Func<HttpResponseMessage[], TResult> onComplete)
+            where TResource : ResourceBase
+        {
+            var result = await OpenXmlWorkbook.Read(xlsx,
+                async (workbook) =>
+                {
+                    return await workbook.ReadCustomValues(
+                        async (customValues) =>
+                        {
+                            var propertyOrder = typeof(TResource).GetProperties();
+                            var x = await workbook.ReadSheets()
+                                .Select(
+                                    sheet =>
+                                    {
+                                        var rows = sheet
+                                            .ReadRows()
+                                            .ToArray();
+                                        if (!rows.Any())
+                                            return (new HttpResponseMessage[] { }).ToTask();
+
+                                        return rows
+                                            .Skip(1)
+                                            .Select(
+                                                row =>
+                                                {
+                                                    var resource = propertyOrder
+                                                        .Aggregate(Activator.CreateInstance<TResource>(),
+                                                            (aggr, property, index) =>
+                                                            {
+                                                                var value = row.Length > index ?
+                                                                    row[index] : default(string);
+                                                                TryCastFromXlsSerialization(property, value,
+                                                                    (valueCasted) =>
+                                                                    {
+                                                                        property.SetValue(aggr, valueCasted);
+                                                                        return true;
+                                                                    },
+                                                                    () => false);
+                                                                return aggr;
+                                                            });
+                                                    if (resource.Id.IsEmpty())
+                                                        return executePost(resource, customValues);
+                                                    return executePut(resource, customValues);
+                                                })
+                                            .WhenAllAsync();
+                                    })
+                               .WhenAllAsync()
+                               .SelectManyAsync()
+                               .ToArrayAsync();
+                            return onComplete(x);
+                        });
+                });
+            return result;
         }
 
         public static HttpResponseMessage CreateImageResponse(this HttpRequestMessage request, byte [] imageData,
@@ -228,6 +480,21 @@ namespace BlackBarLabs.Api
                 $"The resource with ID = [{reference.UUIDs}] at [{reference.Source}] is not available";
             var response = request
                         .CreateResponse(HttpStatusCode.Conflict, reference)
+                        .AddReason(reason);
+            return response.AsEnumerable().ToArray();
+        }
+
+        public static HttpResponseMessage[] CreateLinkedDocumentNotFoundResponse<TController, TQueryResource>(this HttpRequestMessage request,
+            Guid value,
+            Expression<Func<TQueryResource, WebIdQuery>> brokenResourceProperty,
+            System.Web.Http.Routing.UrlHelper url,
+            string routeName = null)
+        {
+            var reason = brokenResourceProperty.PropertyName(
+                propertyName => $"The referenced [{typeof(TController).Name}] resource [Property({propertyName}) = {value}] is not found",
+                () => $"The referenced {typeof(TController).Name} resource = [{value}] is not found");
+            var response = request
+                        .CreateResponse(HttpStatusCode.Conflict)
                         .AddReason(reason);
             return response.AsEnumerable().ToArray();
         }

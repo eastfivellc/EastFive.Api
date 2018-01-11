@@ -187,7 +187,21 @@ namespace BlackBarLabs.Api
             var queriesArray = new[] { queryFormat3, queryFormat4 };
             return await ParseAsync(query, request, queriesSingle, queriesEnumerable, queriesArray);
         }
-        
+
+        public static async Task<HttpResponseMessage> ParseAsync<TQuery>(this TQuery query, HttpRequestMessage request,
+            Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat1,
+            Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat2,
+            Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat3,
+            Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat4,
+            Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat5)
+            where TQuery : ResourceQueryBase
+        {
+            var queriesSingle = new[] { queryFormat1, queryFormat2 };
+            var queriesEnumerable = default(IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>>).NullToEmpty();
+            var queriesArray = new[] { queryFormat3, queryFormat4 };
+            return await ParseAsync(query, request, queriesSingle, queriesEnumerable, queriesArray);
+        }
+
         public static async Task<HttpResponseMessage> ParseAsync<TQuery>(this TQuery query, HttpRequestMessage request,
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat1,
             Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat2,
@@ -287,6 +301,21 @@ namespace BlackBarLabs.Api
             var queriesEnumerable = default(IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>>).NullToEmpty();
             var queriesArray = default(IEnumerable<Expression<Func<TQuery, Task<HttpResponseMessage[]>>>>).NullToEmpty();
             return await ParseAsync(query, request, queries, queriesEnumerable, queriesArray);
+        }
+
+        public static async Task<HttpResponseMessage> ParseAsync<TQuery>(this TQuery query, HttpRequestMessage request,
+            Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat1,
+            Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat2,
+            Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat3,
+            Expression<Func<TQuery, Task<HttpResponseMessage>>> queryFormat4,
+            Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat5,
+            Expression<Func<TQuery, Task<HttpResponseMessage[]>>> queryFormat6)
+            where TQuery : ResourceQueryBase
+        {
+            var queriesSingle = new[] { queryFormat1, queryFormat2, queryFormat3, queryFormat4, };
+            var queriesEnumerable = default(IEnumerable<Expression<Func<TQuery, Task<IEnumerable<HttpResponseMessage>>>>>).NullToEmpty();
+            var queriesArray = new[] { queryFormat5, queryFormat6, };
+            return await ParseAsync(query, request, queriesSingle, queriesEnumerable, queriesArray);
         }
 
         public static async Task<HttpResponseMessage> ParseAsync<TQuery>(this TQuery query, HttpRequestMessage request,

@@ -47,6 +47,22 @@ namespace BlackBarLabs.Api.Extensions
             return urn.ParseWebUrn(out nid, out ns);
         }
 
+        public static TResult TryParseWebUrn<TResult>(this Uri urn, 
+            Func<string, string, Guid, TResult> onParsed,
+            Func<string, TResult> onInvalid)
+        {
+            string[] compositeNs = urn.ParseUrnNamespaceString(out string nid);
+            if (compositeNs.Length != 2)
+                return onInvalid(String.Format("URN[{0}] is not a Web URN", urn));
+
+            Guid guid;
+            if (!Guid.TryParse(compositeNs[1], out guid))
+                return onInvalid(String.Format("Invalid UUID[{0}] in URN[{1}]", compositeNs[1], urn));
+
+            var ns = compositeNs[0];
+            return onParsed(nid, ns, guid);
+        }
+
         public static Guid ParseWebUrn(this Uri urn, out string nid, out string ns)
         {
             string[] compositeNs = urn.ParseUrnNamespaceString(out nid);
