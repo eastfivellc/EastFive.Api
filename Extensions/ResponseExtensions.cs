@@ -20,6 +20,9 @@ using BlackBarLabs.Extensions;
 using EastFive;
 using EastFive.Linq.Expressions;
 using EastFive.Sheets;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 
 namespace BlackBarLabs.Api
 {
@@ -59,6 +62,8 @@ namespace BlackBarLabs.Api
             };
             return response;
         }
+
+        #region Xlsx
 
         public static HttpResponseMessage CreateXlsxResponse(this HttpRequestMessage request, Stream xlsxData, string filename = "")
         {
@@ -327,12 +332,143 @@ namespace BlackBarLabs.Api
             return result;
         }
 
+        #endregion
+
         public static HttpResponseMessage CreateImageResponse(this HttpRequestMessage request, byte [] imageData,
+            int? width = default(int?), int? height = default(int?), bool? fill = default(bool?),
             string filename = default(string), string contentType = default(string))
         {
+            if(width.HasValue || height.HasValue || fill.HasValue)
+            {
+                var image = System.Drawing.Image.FromStream(new MemoryStream(imageData));
+                return request.CreateImageResponse(image, width, height, fill, filename);
+            }
             var response = request.CreateResponse(HttpStatusCode.OK);
             response.Content = new ByteArrayContent(imageData);
             response.Content.Headers.ContentType = new MediaTypeHeaderValue(String.IsNullOrWhiteSpace(contentType)? "image/png" : contentType);
+            return response;
+        }
+
+        public static HttpResponseMessage CreateImageResponse(this HttpRequestMessage request, Image image,
+            int? width = default(int?), int? height = default(int?), bool? fill = default(bool?),
+            string filename = default(string))
+        {
+            var response = request.CreateResponse(HttpStatusCode.OK);
+            var ratio = ((double)image.Size.Width) / ((double)image.Size.Height);
+            var newWidth = (int)Math.Round(width.HasValue ?
+                    width.Value
+                    :
+                    height.HasValue ?
+                        height.Value * ratio
+                        :
+                        image.Size.Width);
+            var newHeight = (int)Math.Round(height.HasValue ?
+                    height.Value
+                    :
+                    width.HasValue ?
+                        width.Value / ratio
+                        :
+                        image.Size.Width);
+
+            var newImage = new Bitmap(newWidth, newHeight);
+
+            //set the new resolution
+            newImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
+
+            //start the resizing
+            using (var graphics = Graphics.FromImage(newImage))
+            {
+                //set some encoding specs
+                graphics.CompositingMode = CompositingMode.SourceCopy;
+                graphics.CompositingQuality = CompositingQuality.HighQuality;
+                graphics.SmoothingMode = SmoothingMode.HighQuality;
+                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                graphics.DrawImage(image, 0, 0, newWidth, newHeight);
+            }
+
+            var encoder = getEncoderInfo("image/jpeg");
+            response.Content = new PushStreamContent(
+                async (outputStream, httpContent, transportContext) =>
+                {
+                    var encoderParameters = new EncoderParameters(1);
+                    encoderParameters.Param[0] = new EncoderParameter(Encoder.Quality, 80L);
+
+                    newImage.Save(outputStream, encoder, encoderParameters);
+                    outputStream.Close();
+                }, new MediaTypeHeaderValue(encoder.MimeType));
+            return response;
+        }
+
+        private static ImageCodecInfo getEncoderInfo(string mimeType)
+        {
+            ImageCodecInfo[] encoders = ImageCodecInfo.GetImageEncoders();
+
+            for (int j = 0; j < encoders.Length; ++j)
+            {
+                if (encoders[j].MimeType.ToLower() == mimeType.ToLower())
+                {
+                    return encoders[j];
+                }
+            }
+
+            return null;
+        }
+
+
+        public static HttpResponseMessage CreateResponseVideoStream(this HttpRequestMessage request,
+            byte [] video, string contentType)
+        {
+            var response = request.CreateResponse(HttpStatusCode.PartialContent);
+            var ranges =
+                (
+                    request.Headers.Range.IsDefaultOrNull() ?
+                        default(RangeItemHeaderValue[])
+                        :
+                        request.Headers.Range.Ranges
+                )
+                .NullToEmpty();
+            if (!ranges.Any())
+                ranges = new RangeItemHeaderValue[]
+                    {
+                        new RangeItemHeaderValue(0, video.LongLength-1)
+                    };
+
+            response.Content = new PushStreamContent(
+                async (outputStream, httpContent, transportContext) =>
+                {
+                    try
+                    {
+                        foreach (var range in ranges)
+                        {
+                            if (!range.From.HasValue)
+                                continue;
+                            var length = range.To.HasValue ?
+                                (range.To.Value - range.From.Value)
+                                :
+                                (video.LongLength - range.From.Value);
+                            await outputStream.WriteAsync(video, (int)range.From.Value, (int)length);
+                        }
+                    }
+                    catch (System.Web.HttpException ex)
+                    {
+                        return;
+                    }
+                    finally
+                    {
+                        outputStream.Close();
+                    }
+                }, new MediaTypeHeaderValue(contentType));
+            response.Headers.AcceptRanges.Add("bytes");
+            response.Headers.CacheControl = new CacheControlHeaderValue() { MaxAge = TimeSpan.FromSeconds(10368000), };
+            response.Content.Headers.ContentLength = video.LongLength;
+            var rangeFirst = ranges.First();
+            var to = rangeFirst.To.HasValue ?
+                rangeFirst.To.Value
+                :
+                video.LongLength;
+            response.Content.Headers.ContentRange = new ContentRangeHeaderValue(rangeFirst.From.Value, to, video.Length);
             return response;
         }
 
