@@ -112,6 +112,7 @@ namespace BlackBarLabs.Api
             return multipartResponse;
         }
 
+        [Obsolete("User ParseAsync")]
         public static IHttpActionResult MergeIds<TResource>(this HttpRequestMessage request, Guid idUrl, TResource resource,
             Func<TResource, HttpActionDelegate> actionCallback,
             Func<Guid, WebId> createIdCallback)
