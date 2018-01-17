@@ -3,6 +3,7 @@ using BlackBarLabs.Collections.Generic;
 using BlackBarLabs.Extensions;
 using BlackBarLabs.Linq;
 using EastFive.Collections.Generic;
+using EastFive.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;

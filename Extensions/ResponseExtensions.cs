@@ -23,6 +23,7 @@ using EastFive.Sheets;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
+using EastFive.Extensions;
 
 namespace BlackBarLabs.Api
 {

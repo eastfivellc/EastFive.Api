@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Net;
 using EastFive.Linq;
 using EastFive;
+using EastFive.Extensions;
 
 namespace BlackBarLabs.Api
 {

@@ -15,6 +15,7 @@ using System.Security.Claims;
 using System.Configuration;
 using EastFive.Api;
 using EastFive.Linq;
+using EastFive.Extensions;
 
 namespace BlackBarLabs.Api
 {
