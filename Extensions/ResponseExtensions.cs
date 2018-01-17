@@ -37,7 +37,7 @@ namespace BlackBarLabs.Api
             // TODO: Check user agent and only set this on iOS and other crippled systems
             response.Headers.Add("Reason", reasonPhrase);
             if(response.StatusCode == HttpStatusCode.Unauthorized)
-                response.Content = new StringContent(reason);
+                response.Content = new StringContent(Newtonsoft.Json.JsonConvert.SerializeObject(new { Message = reason }));
             return response;
         }
 
