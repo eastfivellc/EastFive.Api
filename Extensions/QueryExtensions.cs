@@ -12,6 +12,8 @@ using System.Linq.Expressions;
 using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
+using EastFive.Linq.Async;
+using EastFive.Linq;
 
 namespace BlackBarLabs.Api
 {
