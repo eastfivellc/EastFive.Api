@@ -6,6 +6,25 @@ namespace BlackBarLabs.Api
 {
     public static partial class QueryExtensions
     {
+
+        [QueryParameterType(WebIdQueryType = typeof(StringMaybeParameterAttribute), IsOptional = true)]
+        public static string ParamMaybe(this StringQuery query)
+        {
+            return query.Parse(
+                (v) =>
+                {
+                    if (!(v is StringMaybeParameterAttribute))
+                        throw new InvalidOperationException("Do not use ParamValue outside of ParseAsync");
+
+                    var wiqo = v as StringMaybeParameterAttribute;
+                    return wiqo.Value;
+                },
+                (why) =>
+                {
+                    throw new InvalidOperationException("Use ParseAsync to ensure parsable values");
+                });
+        }
+
         [QueryParameterType(WebIdQueryType = typeof(StringValueParameterAttribute))]
         public static string ParamValue(this StringQuery query)
         {
@@ -24,11 +43,20 @@ namespace BlackBarLabs.Api
                 });
         }
         
-        class StringValueParameterAttribute : QueryMatchAttribute
+        class StringValueParameterAttribute : StringMaybeParameterAttribute
+        {
+            public StringValueParameterAttribute(string value)
+                : base(value)
+            {
+                this.Value = value;
+            }
+        }
+
+        class StringMaybeParameterAttribute : QueryMatchAttribute
         {
             internal string Value;
 
-            public StringValueParameterAttribute(string value)
+            public StringMaybeParameterAttribute(string value)
             {
                 this.Value = value;
             }
