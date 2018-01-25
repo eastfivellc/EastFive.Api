@@ -1,4 +1,5 @@
 using BlackBarLabs.Api.Resources;
+using EastFive.Extensions;
 using System;
 using System.Linq;
 
@@ -10,6 +11,8 @@ namespace BlackBarLabs.Api
         [QueryParameterType(WebIdQueryType = typeof(StringMaybeParameterAttribute), IsOptional = true)]
         public static string ParamMaybe(this StringQuery query)
         {
+            if (query.IsDefaultOrNull())
+                return default(string);
             return query.Parse(
                 (v) =>
                 {

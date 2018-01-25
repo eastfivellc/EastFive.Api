@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 using BlackBarLabs.Extensions;
 using Newtonsoft.Json;
 using System.Runtime.Serialization;
+using EastFive;
 
 namespace BlackBarLabs.Api.Resources
 {
@@ -141,6 +142,10 @@ namespace BlackBarLabs.Api.Resources
             return this.ParseInternal(parsed, unparsable);
         }
 
+        public static string Compile(Guid[] guids)
+        {
+            return $"[{guids.Select(guid => guid.ToString("N")).Join(",")}]";
+        }
     }
 
     class WebIdQueryConverter : TypeConverter
