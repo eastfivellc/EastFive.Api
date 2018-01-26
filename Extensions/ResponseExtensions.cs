@@ -322,10 +322,13 @@ namespace BlackBarLabs.Api
                                                                 return aggr;
                                                             });
                                                     if (resource.Id.IsEmpty())
+                                                    {
+                                                        resource.Id = Guid.NewGuid();
                                                         return executePost(resource, customValues);
+                                                    }
                                                     return executePut(resource, customValues);
                                                 })
-                                            .WhenAllAsync();
+                                            .WhenAllAsync(10);
                                     })
                                .WhenAllAsync()
                                .SelectManyAsync()
