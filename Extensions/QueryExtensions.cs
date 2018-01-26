@@ -148,8 +148,9 @@ namespace BlackBarLabs.Api
 
                     // TODO: Activate and add the optionals
 
-                    return matched.SelectValues().All(
+                    var matchedResult = matched.SelectValues().All(
                         match => match.Value.Value.WebIdQueryType.IsAssignableFrom(match.Key.Value.GetType()));
+                    return matchedResult;
                 },
                 (propInfo1, propInfo2) =>
                 {
