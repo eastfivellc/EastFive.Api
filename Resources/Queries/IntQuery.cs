@@ -14,6 +14,11 @@ namespace BlackBarLabs.Api.Resources
     {
         private string query;
         
+        public IntQuery()
+        {
+            this.GetType();
+        }
+
         public static implicit operator IntQuery(string query)
         {
             if(default(string) == query)

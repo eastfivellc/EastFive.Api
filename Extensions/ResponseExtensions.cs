@@ -508,10 +508,10 @@ namespace BlackBarLabs.Api
 
         public static HttpResponseMessage CreateResponseBackground(this HttpRequestMessage request,
                 System.Web.Http.Routing.UrlHelper urlHelper,
-            Func<Func<HttpResponseMessage, int>, Task<int[]>> callback,
+            Func<Func<HttpResponseMessage, BackgroundProgressController.Process>, Task<BackgroundProgressController.Process[]>> callback,
             int? estimatedProcessLength = default(int?))
         {
-            var processId = Guid.NewGuid();
+            var processId = BackgroundProgressController.CreateProcess(callback, estimatedProcessLength);
             return request.CreateResponse(HttpStatusCode.Accepted, urlHelper.GetLocation<BackgroundProgressController>(processId));
         }
 

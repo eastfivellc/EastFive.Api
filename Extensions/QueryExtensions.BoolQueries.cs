@@ -68,8 +68,7 @@ namespace BlackBarLabs.Api
             Func<QueryMatchAttribute, TResult> parsed,
             Func<string, TResult> unparsable)
         {
-            bool specificValue;
-            if (bool.TryParse(value, out specificValue))
+            if (bool.TryParse(value, out bool specificValue))
                 return parsed(new BoolValueAttribute(specificValue));
 
             if (String.Compare("empty", value.ToLower()) == 0)
@@ -78,6 +77,16 @@ namespace BlackBarLabs.Api
                 return parsed(new BoolEmptyAttribute());
 
             return unparsable($"Could not parse '{value}' to bool");
+        }
+
+        private class BoolMaybeAttribute : QueryMatchAttribute
+        {
+            public bool? ValueMaybe;
+
+            public BoolMaybeAttribute(bool? value)
+            {
+                this.ValueMaybe = value;
+            }
         }
 
         private class BoolValueAttribute : BoolMaybeAttribute
@@ -96,16 +105,6 @@ namespace BlackBarLabs.Api
             public BoolEmptyAttribute() : base(default(bool?))
             {
 
-            }
-        }
-
-        private class BoolMaybeAttribute : QueryMatchAttribute
-        {
-            public bool? ValueMaybe;
-
-            public BoolMaybeAttribute(bool? value)
-            {
-                this.ValueMaybe = value;
             }
         }
 

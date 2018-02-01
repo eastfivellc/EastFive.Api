@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace BlackBarLabs.Api
 {
 
-    [AttributeUsage(AttributeTargets.Class)]
+    [AttributeUsage(AttributeTargets.Property)]
     public class SheetColumnAttribute : System.Attribute
     {
         public SheetColumnAttribute()
