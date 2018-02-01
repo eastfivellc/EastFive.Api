@@ -25,6 +25,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using EastFive.Extensions;
 using EastFive.Linq.Async;
+using EastFive.Api.Controllers;
 
 namespace BlackBarLabs.Api
 {
@@ -38,7 +39,7 @@ namespace BlackBarLabs.Api
             response.ReasonPhrase = reasonPhrase;
             // TODO: Check user agent and only set this on iOS and other crippled systems
             response.Headers.Add("Reason", reasonPhrase);
-            if(response.StatusCode == HttpStatusCode.Unauthorized)
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
                 response.Content = new StringContent(Newtonsoft.Json.JsonConvert.SerializeObject(new { Message = reason }));
             return response;
         }
@@ -51,7 +52,7 @@ namespace BlackBarLabs.Api
             return result;
         }
 
-        public static HttpResponseMessage CreatePdfResponse(this HttpRequestMessage request, byte [] pdfData,
+        public static HttpResponseMessage CreatePdfResponse(this HttpRequestMessage request, byte[] pdfData,
             string filename = default(string), bool inline = false)
         {
             var response = request.CreateResponse(HttpStatusCode.OK);
@@ -75,7 +76,7 @@ namespace BlackBarLabs.Api
             return request.CreateXlsxResponse(content, filename);
         }
 
-        public static HttpResponseMessage CreateXlsxResponse(this HttpRequestMessage request, byte [] xlsxData, string filename = "")
+        public static HttpResponseMessage CreateXlsxResponse(this HttpRequestMessage request, byte[] xlsxData, string filename = "")
         {
             var content = new ByteArrayContent(xlsxData);
             return request.CreateXlsxResponse(content, filename);
@@ -143,7 +144,7 @@ namespace BlackBarLabs.Api
                             {
                                 var propertyOrder = typeof(TResource).GetProperties();
                                 #region Header 
-                                
+
                                 var headers = propertyOrder
                                     .Select(
                                         propInfo => propInfo.GetCustomAttribute<JsonPropertyAttribute, string>(
@@ -182,7 +183,7 @@ namespace BlackBarLabs.Api
 
         private static object CastToXlsSerialization(this object obj)
         {
-            if(obj is WebId)
+            if (obj is WebId)
             {
                 var webId = obj as WebId;
                 return webId.URN;
@@ -239,7 +240,7 @@ namespace BlackBarLabs.Api
             Func<TResult> onNotParsed)
         {
             if (type.GUID == typeof(WebId).GUID)
-                if (Uri.TryCreate(valueString, UriKind.RelativeOrAbsolute, out Uri urn))
+                if (Uri.TryCreate(valueString, UriKind.Absolute, out Uri urn))
                     return urn.TryParseWebUrn(
                         (nid, ns, uuid) => onParsed(new WebId
                         {
@@ -277,6 +278,87 @@ namespace BlackBarLabs.Api
             return onNotParsed();
         }
 
+        public static TResult ParseXlsx<TResource, TResult>(this HttpRequestMessage request, System.Web.Http.Routing.UrlHelper urlHelper,
+                Stream xlsx,
+                Func<TResource, KeyValuePair<string, string>[], Task<HttpResponseMessage>> executePost,
+                Func<TResource, KeyValuePair<string, string>[], Task<HttpResponseMessage>> executePut,
+            Func<HttpResponseMessage, TResult> onComplete)
+            where TResource : ResourceBase
+        {
+            return OpenXmlWorkbook.Read(xlsx,
+                (workbook) =>
+                {
+                    return workbook.ReadCustomValues(
+                        (customValues) =>
+                        {
+                            var rowsFromAllSheets = workbook.ReadSheets()
+                                .SelectMany(
+                                    sheet =>
+                                    {
+                                        var rows = sheet
+                                            .ReadRows()
+                                            .ToArray();
+                                        if (!rows.Any())
+                                            return rows;
+                                        return rows.Skip(1);
+                                    }).ToArray();
+                            return request.ParseXlsxBackground(urlHelper, customValues, rowsFromAllSheets,
+                                executePost, executePut, onComplete);
+                        });
+                });
+        }
+
+        private static TResult ParseXlsxBackground<TResource, TResult>(this HttpRequestMessage request, System.Web.Http.Routing.UrlHelper urlHelper,
+                KeyValuePair<string, string>[] customValues, string[][] rows,
+                Func<TResource, KeyValuePair<string, string>[], Task<HttpResponseMessage>> executePost,
+                Func<TResource, KeyValuePair<string, string>[], Task<HttpResponseMessage>> executePut,
+            Func<HttpResponseMessage, TResult> onComplete)
+            where TResource : ResourceBase
+        {
+            var response = request.CreateResponseBackground(urlHelper,
+                (updateProgress) =>
+                {
+                    var propertyOrder = typeof(TResource)
+                        .GetProperties()
+                        .OrderBy(propInfo =>
+                            propInfo.GetCustomAttribute(
+                                (SheetColumnAttribute sheetColumn) => sheetColumn.GetSortValue(propInfo),
+                                () => propInfo.Name));
+
+                    return rows
+                        .Select(
+                            async (row) =>
+                            {
+                                var resource = propertyOrder
+                                    .Aggregate(Activator.CreateInstance<TResource>(),
+                                        (aggr, property, index) =>
+                                        {
+                                            var value = row.Length > index ?
+                                                row[index] : default(string);
+                                            TryCastFromXlsSerialization(property, value,
+                                                (valueCasted) =>
+                                                {
+                                                    property.SetValue(aggr, valueCasted);
+                                                    return true;
+                                                },
+                                                () => false);
+                                            return aggr;
+                                        });
+                                if (resource.Id.IsEmpty())
+                                {
+                                    resource.Id = Guid.NewGuid();
+                                    var postResponse = await executePost(resource, customValues);
+                                    return updateProgress(postResponse);
+                                }
+                                var putResponse = await executePut(resource, customValues);
+                                return updateProgress(putResponse);
+                            })
+                       .WhenAllAsync(10);
+                },
+                rows.Length);
+            return onComplete(response);
+        }
+
         public static async Task<TResult> ParseXlsxAsync<TResource, TResult>(this HttpRequestMessage request,
                 Stream xlsx,
                 Func<TResource, KeyValuePair<string, string>[], Task<HttpResponseMessage>> executePost,
@@ -285,74 +367,75 @@ namespace BlackBarLabs.Api
             where TResource : ResourceBase
         {
             var result = await OpenXmlWorkbook.Read(xlsx,
-                async (workbook) =>
-                {
-                    return await workbook.ReadCustomValues(
-                        async (customValues) =>
-                        {
-                            var propertyOrder = typeof(TResource).GetProperties();
-                            var x = await workbook.ReadSheets()
-                                .Select(
-                                    sheet =>
-                                    {
-                                        var rows = sheet
-                                            .ReadRows()
-                                            .ToArray();
-                                        if (!rows.Any())
-                                            return (new HttpResponseMessage[] { }).ToTask();
 
-                                        return rows
-                                            .Skip(1)
-                                            .Select(
-                                                row =>
+            async (workbook) =>
+            {
+                return await workbook.ReadCustomValues(
+                    async (customValues) =>
+                    {
+                        var propertyOrder = typeof(TResource).GetProperties();
+                        var x = await workbook.ReadSheets()
+                            .Select(
+                                sheet =>
+                                {
+                                    var rows = sheet
+                                        .ReadRows()
+                                        .ToArray();
+                                    if (!rows.Any())
+                                        return (new HttpResponseMessage[] { }).ToTask();
+
+                                    return rows
+                                        .Skip(1)
+                                        .Select(
+                                            row =>
+                                            {
+                                                var resource = propertyOrder
+                                                    .Aggregate(Activator.CreateInstance<TResource>(),
+                                                        (aggr, property, index) =>
+                                                        {
+                                                            var value = row.Length > index ?
+                                                                row[index] : default(string);
+                                                            TryCastFromXlsSerialization(property, value,
+                                                                (valueCasted) =>
+                                                                {
+                                                                    property.SetValue(aggr, valueCasted);
+                                                                    return true;
+                                                                },
+                                                                () => false);
+                                                            return aggr;
+                                                        });
+                                                if (resource.Id.IsEmpty())
                                                 {
-                                                    var resource = propertyOrder
-                                                        .Aggregate(Activator.CreateInstance<TResource>(),
-                                                            (aggr, property, index) =>
-                                                            {
-                                                                var value = row.Length > index ?
-                                                                    row[index] : default(string);
-                                                                TryCastFromXlsSerialization(property, value,
-                                                                    (valueCasted) =>
-                                                                    {
-                                                                        property.SetValue(aggr, valueCasted);
-                                                                        return true;
-                                                                    },
-                                                                    () => false);
-                                                                return aggr;
-                                                            });
-                                                    if (resource.Id.IsEmpty())
-                                                    {
-                                                        resource.Id = Guid.NewGuid();
-                                                        return executePost(resource, customValues);
-                                                    }
-                                                    return executePut(resource, customValues);
-                                                })
-                                            .WhenAllAsync(10);
-                                    })
-                               .WhenAllAsync()
-                               .SelectManyAsync()
-                               .ToArrayAsync();
-                            return onComplete(x);
-                        });
-                });
+                                                    resource.Id = Guid.NewGuid();
+                                                    return executePost(resource, customValues);
+                                                }
+                                                return executePut(resource, customValues);
+                                            })
+                                        .WhenAllAsync(10);
+                                })
+                           .WhenAllAsync()
+                           .SelectManyAsync()
+                           .ToArrayAsync();
+                        return onComplete(x);
+                    });
+            });
             return result;
         }
 
         #endregion
 
-        public static HttpResponseMessage CreateImageResponse(this HttpRequestMessage request, byte [] imageData,
+        public static HttpResponseMessage CreateImageResponse(this HttpRequestMessage request, byte[] imageData,
             int? width = default(int?), int? height = default(int?), bool? fill = default(bool?),
             string filename = default(string), string contentType = default(string))
         {
-            if(width.HasValue || height.HasValue || fill.HasValue)
+            if (width.HasValue || height.HasValue || fill.HasValue)
             {
                 var image = System.Drawing.Image.FromStream(new MemoryStream(imageData));
                 return request.CreateImageResponse(image, width, height, fill, filename);
             }
             var response = request.CreateResponse(HttpStatusCode.OK);
             response.Content = new ByteArrayContent(imageData);
-            response.Content.Headers.ContentType = new MediaTypeHeaderValue(String.IsNullOrWhiteSpace(contentType)? "image/png" : contentType);
+            response.Content.Headers.ContentType = new MediaTypeHeaderValue(String.IsNullOrWhiteSpace(contentType) ? "image/png" : contentType);
             return response;
         }
 
@@ -423,6 +506,14 @@ namespace BlackBarLabs.Api
             return null;
         }
 
+        public static HttpResponseMessage CreateResponseBackground(this HttpRequestMessage request,
+                System.Web.Http.Routing.UrlHelper urlHelper,
+            Func<Func<HttpResponseMessage, int>, Task<int[]>> callback,
+            int? estimatedProcessLength = default(int?))
+        {
+            var processId = Guid.NewGuid();
+            return request.CreateResponse(HttpStatusCode.Accepted, urlHelper.GetLocation<BackgroundProgressController>(processId));
+        }
 
         public static HttpResponseMessage CreateResponseVideoStream(this HttpRequestMessage request,
             byte [] video, string contentType)
