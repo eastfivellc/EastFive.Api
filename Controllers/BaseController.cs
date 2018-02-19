@@ -366,6 +366,16 @@ namespace EastFive.Api.Controllers
 
     public class ApiController<TResource, TQuery> : ApiController
     {
+        public delegate Task<HttpResponseMessage> RequestGetById<TContext>(
+                Security security,
+                TContext context,
+                TQuery query,
+                HttpRequestMessage request,
+                System.Web.Http.Routing.UrlHelper url,
+                ContentResponse onContent,
+                NotFoundResponse onNotFound,
+                UnauthorizedResponse onUnauthorized);
+
         public delegate Task<Task<HttpResponseMessage>> RequestGetMultiple<TContext>(
                 Security security,
                 TContext context,
