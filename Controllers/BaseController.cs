@@ -65,6 +65,7 @@ namespace EastFive.Api.Controllers
 {
     public delegate HttpResponseMessage GeneralConflictResponse(string value);
     public delegate HttpResponseMessage CreatedResponse();
+    public delegate HttpResponseMessage CreatedWithContentResponse(object value);
     public delegate HttpResponseMessage AlreadyExistsResponse();
     public delegate HttpResponseMessage AlreadyExistsReferencedResponse(Guid value);
     public delegate HttpResponseMessage NoContentResponse();
@@ -117,11 +118,32 @@ namespace EastFive.Api.Controllers
         {
 
         }
+        public class ValidationNotWhitspaceAttribute : ValidationAttribute
+        {
+
+        }
+
+        public class NullOrWhitespaceAttribute : ValidationAttribute
+        {
+
+        }
 
         [ValidationValue]
         public static Guid ParamGuid(this WebId sourceValue)
         {
             return sourceValue.UUID;
+        }
+
+        [ValidationNotWhitspace]
+        public static string ParamNotWhitespace(this string sourceValue)
+        {
+            return sourceValue;
+        }
+
+        [NullOrWhitespace]
+        public static string ParamNullOrWhitespace(this string sourceValue)
+        {
+            return sourceValue;
         }
 
         [ValidationValue]
@@ -186,6 +208,16 @@ namespace EastFive.Api.Controllers
                     new Dictionary<Type, ParseInputDelegate>()
                     {
                         { typeof(bool), ParseDateTimeBool },
+                    }
+                },
+                {
+                    typeof(string),
+                    new Dictionary<Type, ParseInputDelegate>()
+                    {
+                        { typeof(string), (v, controller) => String.IsNullOrWhiteSpace((string)v)?
+                            (ApiValidations.ValidationAttribute)new ApiValidations.NullOrWhitespaceAttribute()
+                            :
+                            (ApiValidations.ValidationAttribute)new ApiValidations.ValidationNotWhitspaceAttribute()},
                     }
                 },
             };
@@ -309,11 +341,26 @@ namespace EastFive.Api.Controllers
                         return success((object)dele);
                     }
                 },
+                {
+                    typeof(CreatedWithContentResponse),
+                    (controller, success) =>
+                    {
+                        CreatedWithContentResponse dele = (content) => controller.Request.CreateResponse(System.Net.HttpStatusCode.Created, content);
+                        return success((object)dele);
+                    }
+                },
             };
 
         public static void AddInstigator(Type type, Func<ApiController, Func<object, Task<HttpResponseMessage>>, Task<HttpResponseMessage>> instigator)
         {
             instigators.Add(type, instigator);
+        }
+
+        public static void AddParamFunction(Type from, Type to, ParseInputDelegate parser)
+        {
+            if(!paramFunctions.ContainsKey(from))
+                paramFunctions.Add(from, new Dictionary<Type, ParseInputDelegate>());
+            paramFunctions[from].Add(to, parser);
         }
 
         private static ApiValidations.ValidationAttribute ParseWebIdGuid(object v, ApiController controller)
@@ -471,7 +518,12 @@ namespace EastFive.Api.Controllers
                                                 return props;
                                             var memberLookupArgument = memberLookupArgumentsMatchingResourceType.First();
                                             var member = ((memberLookupArgument as MemberExpression).Member as MemberInfo);
+
+                                            // Get the value of the property if the resource is not null
+                                            if(null == resource)
+                                                return props.Append(member).ToArray();
                                             var v = member.GetValue(resource);
+
                                             var conversionMethod = methodCallExpression.Method;
                                             var validationFunction = paramFunctions[memberLookupArgument.Type][conversionMethod.ReturnType];
                                             var validationResult = validationFunction(v, this);
