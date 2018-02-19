@@ -26,6 +26,20 @@ namespace BlackBarLabs.Api
             return success(accountId);
         }
 
+        public static HttpResponseMessage GetAccountId(this IEnumerable<System.Security.Claims.Claim> claims,
+            HttpRequestMessage request, string accountIdClaimType,
+            Func<Guid, HttpResponseMessage> success)
+        {
+            var adminClaim = claims
+                .FirstOrDefault((claim) => String.Compare(claim.Type, accountIdClaimType) == 0);
+
+            if (default(System.Security.Claims.Claim) == adminClaim)
+                return request.CreateResponse(HttpStatusCode.Unauthorized);
+
+            var accountId = Guid.Parse(adminClaim.Value);
+            return success(accountId);
+        }
+
         public static Task<HttpResponseMessage> GetAccountIdAsync(this IEnumerable<System.Security.Claims.Claim> claims,
             HttpRequestMessage request, string accountIdClaimType,
             Func<Guid, Task<HttpResponseMessage>> success)

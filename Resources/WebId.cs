@@ -1,4 +1,6 @@
-﻿using System;
+﻿using EastFive.Api;
+using EastFive.Extensions;
+using System;
 using System.Linq;
 using System.Runtime.Serialization;
 
@@ -46,7 +48,7 @@ namespace BlackBarLabs.Api.Resources
         /// </summary>
         [DataMember(Name = "source")]
         public Uri Source { get; set; }
-
+        
         public static implicit operator WebId(Guid value)
         {
             return value.GetWebIdUUID();

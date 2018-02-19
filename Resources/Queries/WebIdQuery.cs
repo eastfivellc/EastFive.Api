@@ -67,7 +67,11 @@ namespace BlackBarLabs.Api.Resources
             Guid singleGuid;
             if(Guid.TryParse(this.query, out singleGuid))
                 return multiple(singleGuid.AsEnumerable().ToArray());
-            
+
+            // Catch case of empty array
+            if (this.query == "[]")
+                return multiple(new Guid[] { });
+
             var guidRegex = @"([a-f0-9A-F]{32}|([a-f0-9A-F]{8}-[a-f0-9A-F]{4}-[a-f0-9A-F]{4}-[a-f0-9A-F]{4}-[a-f0-9A-F]{12}))";
             if(!Regex.IsMatch(this.query, guidRegex))
                 return unparsable();
@@ -103,6 +107,33 @@ namespace BlackBarLabs.Api.Resources
                 }
             }
             return Parse(multiple, unspecified, unparsable);
+        }
+
+        public TResult Parse2<TResult>(
+            HttpRequestMessage request,
+            Func<Guid, TResult> single,
+            Func<IEnumerable<Guid>, TResult> multiple,
+            Func<TResult> unspecified,
+            Func<TResult> unparsable)
+        {
+            if (String.IsNullOrWhiteSpace(request.RequestUri.Query))
+            {
+                if (String.IsNullOrWhiteSpace(this.query))
+                    return unspecified();
+                Guid singleGuid;
+                if (Guid.TryParse(this.query, out singleGuid))
+                {
+                    return single(singleGuid);
+                }
+            }
+            return Parse(
+                (guids) =>
+                {
+                    if (guids.Length == 1 && (!query.Contains(",") && !query.Contains("[")))
+                        return single(guids.First());
+                    return multiple(guids);
+                },
+                unspecified, unparsable);
         }
 
         public TResult Parse<TResult>(

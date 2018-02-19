@@ -118,7 +118,7 @@ namespace BlackBarLabs.Api
             var matchingFormat = queryFormats.Where(
                 queryFormat =>
                 {
-                    var queryMethodParameters = GetQueryMethodParamters(queryFormat);
+                    var queryMethodParameters = GetQueryMethodParameters(queryFormat);
                     return IsMatch(queryObjectParameters, queryMethodParameters);
                 });
             var result = matchingFormat.FirstOrDefault(
@@ -159,7 +159,7 @@ namespace BlackBarLabs.Api
                 (name) => name.Name.GetHashCode());
         }
 
-        private static async Task<HttpResponseMessage> GetQueryObjectParamters<TQuery>(TQuery query, HttpRequestMessage request,
+        internal static async Task<HttpResponseMessage> GetQueryObjectParamters<TQuery>(TQuery query, HttpRequestMessage request,
             Func<TQuery, IDictionary<PropertyInfo, QueryMatchAttribute>, Task<HttpResponseMessage>> callback)
         {
             if (query.IsDefault())
@@ -216,7 +216,7 @@ namespace BlackBarLabs.Api
                     (kvps) => callback(query, kvps.SelectWhereHasValue().ToDictionary()));
         }
 
-        private static IDictionary<PropertyInfo, QueryParameterTypeAttribute> GetQueryMethodParamters<TQuery, TExpressionResult>(Expression<Func<TQuery, Task<TExpressionResult>>> queryFormat)
+        private static IDictionary<PropertyInfo, QueryParameterTypeAttribute> GetQueryMethodParameters<TQuery, TExpressionResult>(Expression<Func<TQuery, Task<TExpressionResult>>> queryFormat)
         {
             var args = queryFormat.GetArguments();
             return GetQueryMethodParamters(args);

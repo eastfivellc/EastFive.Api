@@ -322,6 +322,36 @@ namespace BlackBarLabs.Api
                     .AddReason(why).ToTask());
             return resultGetClaims;
         }
+        
+        public static HttpResponseMessage GetActorIdClaims(this HttpRequestMessage request,
+            Func<Guid, System.Security.Claims.Claim[], HttpResponseMessage> success)
+        {
+            var accountIdClaimTypeConfigurationSetting =
+                EastFive.Api.AppSettings.ActorIdClaimType;
+            return GetActorIdClaims(request, accountIdClaimTypeConfigurationSetting, success);
+        }
+
+        public static HttpResponseMessage GetActorIdClaims(this HttpRequestMessage request,
+            string accountIdClaimTypeConfigurationSetting,
+            Func<Guid, System.Security.Claims.Claim[], HttpResponseMessage> success)
+        {
+            var resultGetClaims = request.GetClaims(
+                (claimsEnumerable) =>
+                {
+                    var claims = claimsEnumerable.ToArray();
+                    var accountIdClaimType =
+                        ConfigurationManager.AppSettings[accountIdClaimTypeConfigurationSetting];
+                    var result = claims.GetAccountId(
+                        request, accountIdClaimType,
+                        (accountId) => success(accountId, claims));
+                    return result;
+                },
+                () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized)
+                    .AddReason("Authorization header not set"),
+                (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized)
+                    .AddReason(why));
+            return resultGetClaims;
+        }
 
         public static Task<HttpResponseMessage> GetActorIdClaimsAsync(this HttpRequestMessage request,
             Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage>> success)

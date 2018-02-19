@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Web.Http.Routing;
-using BlackBarLabs.Api.Extensions;
 using BlackBarLabs.Extensions;
 using System.Web;
 using BlackBarLabs.Api.Resources;
@@ -11,6 +10,7 @@ using System.Net;
 using EastFive.Linq;
 using EastFive;
 using EastFive.Extensions;
+using EastFive.Api;
 
 namespace BlackBarLabs.Api
 {

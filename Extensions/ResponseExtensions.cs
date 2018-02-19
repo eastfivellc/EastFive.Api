@@ -13,8 +13,6 @@ using Newtonsoft.Json;
 
 using EastFive.Linq;
 using BlackBarLabs.Linq.Async;
-using BlackBarLabs.Api.Extensions;
-using BlackBarLabs.Linq;
 using BlackBarLabs.Api.Resources;
 using BlackBarLabs.Extensions;
 using EastFive;
@@ -26,6 +24,7 @@ using System.Drawing.Imaging;
 using EastFive.Extensions;
 using EastFive.Linq.Async;
 using EastFive.Api.Controllers;
+using EastFive.Api;
 
 namespace BlackBarLabs.Api
 {

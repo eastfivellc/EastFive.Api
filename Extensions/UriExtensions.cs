@@ -1,117 +1,94 @@
 ﻿using BlackBarLabs.Extensions;
-using EastFive;
-using EastFive.Collections.Generic;
-using EastFive.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Web;
 
-namespace BlackBarLabs.Api.Extensions
+using EastFive;
+using EastFive.Collections.Generic;
+using EastFive.Linq.Expressions;
+using BlackBarLabs.Api.Resources;
+
+namespace EastFive.Api
 {
     public static class UriExtensions
     {
-        public static Uri AddQuery(this Uri uri, string name, string value)
+        public static WebIdQuery ParseQueryParameter<QueryType>(this Uri uri,
+            Expression<Func<QueryType, WebIdQuery>> parameterExpr)
         {
-            var ub = new UriBuilder(uri);
-
-            // decodes urlencoded pairs from uri.Query to HttpValueCollection
-            var httpValueCollection = HttpUtility.ParseQueryString(uri.Query);
-
-            httpValueCollection.Add(name, value);
-
-            // urlencodes the whole HttpValueCollection
-            ub.Query = httpValueCollection.ToString();
-
-            return ub.Uri;
+            return uri.ParseQueryParameter(parameterExpr,
+                (webId) => webId,
+                () => default(WebIdQuery));
         }
 
-        public static IDictionary<string, string> ParseQuery(this Uri uri)
+        public static TResult ParseQueryParameter<QueryType, TResult>(this Uri uri,
+            Expression<Func<QueryType, WebIdQuery>> parameterExpr,
+            Func<WebIdQuery, TResult> onFound,
+            Func<TResult> onNotInQueryString)
         {
-            if (uri.IsDefault() || uri.Query.IsNullOrWhiteSpace())
-                return new Dictionary<string, string>();
-
-            var queryNameCollection = HttpUtility.ParseQueryString(uri.Query);
-            return queryNameCollection.AsDictionary();
+            return uri.ParseQueryParameter(parameterExpr,
+                (valueString) => (WebIdQuery)valueString,
+                onFound,
+                onNotInQueryString);
         }
 
-        public static Guid ParseWebUri(this Uri uri, out string nid, out string ns)
+        public static BoolQuery ParseQueryParameter<QueryType>(this Uri uri,
+            Expression<Func<QueryType, BoolQuery>> parameterExpr)
         {
-            if (String.Equals(uri.Scheme, "urn", StringComparison.OrdinalIgnoreCase))
-            {
-                return uri.ParseWebUrn(out nid, out ns);
-            }
-            var parameters = System.Web.HttpUtility.ParseQueryString(uri.Query);
-            var urnString = parameters.Get("self");
-            var urn = new Uri(urnString);
-            return urn.ParseWebUrn(out nid, out ns);
+            return uri.ParseQueryParameter(parameterExpr,
+                (webId) => webId,
+                () => default(BoolQuery));
         }
 
-        public static TResult TryParseWebUrn<TResult>(this Uri urn, 
-            Func<string, string, Guid, TResult> onParsed,
-            Func<string, TResult> onInvalid)
+        public static TResult ParseQueryParameter<QueryType, TResult>(this Uri uri,
+            Expression<Func<QueryType, BoolQuery>> parameterExpr,
+            Func<BoolQuery, TResult> onFound,
+            Func<TResult> onNotInQueryString)
         {
-            string[] compositeNs = urn.ParseUrnNamespaceString(out string nid);
-            if (compositeNs.Length != 2)
-                return onInvalid(String.Format("URN[{0}] is not a Web URN", urn));
-
-            Guid guid;
-            if (!Guid.TryParse(compositeNs[1], out guid))
-                return onInvalid(String.Format("Invalid UUID[{0}] in URN[{1}]", compositeNs[1], urn));
-
-            var ns = compositeNs[0];
-            return onParsed(nid, ns, guid);
+            return uri.ParseQueryParameter(parameterExpr,
+                (valueString) => (BoolQuery)valueString,
+                onFound,
+                onNotInQueryString);
         }
 
-        public static Guid ParseWebUrn(this Uri urn, out string nid, out string ns)
+        public static IntQuery ParseQueryParameter<QueryType>(this Uri uri,
+            Expression<Func<QueryType, IntQuery>> parameterExpr)
         {
-            string[] compositeNs = urn.ParseUrnNamespaceString(out nid);
-            if (compositeNs.Length != 2)
-            {
-                throw new ArgumentException(String.Format("URN[{0}] is not a Web URN", urn), "urn");
-            }
-            Guid guid;
-            if (!Guid.TryParse(compositeNs[1], out guid))
-            {
-                throw new ArgumentException(String.Format("Invalid UUID[{0}] in URN[{1}]", compositeNs[1], urn), "urn");
-            }
-            ns = compositeNs[0];
-            return guid;
+            return uri.ParseQueryParameter(parameterExpr,
+                (webId) => webId,
+                () => default(IntQuery));
         }
 
-        public static string ParseWebUrnString(this Uri urn, out string nid, out string ns)
+        public static TResult ParseQueryParameter<QueryType, TResult>(this Uri uri,
+            Expression<Func<QueryType, IntQuery>> parameterExpr,
+            Func<IntQuery, TResult> onFound,
+            Func<TResult> onNotInQueryString)
         {
-            string[] compositeNs = urn.ParseUrnNamespaceString(out nid);
-            if (compositeNs.Length != 2)
-            {
-                throw new ArgumentException(String.Format("URN[{0}] is not a Web URN", urn), "urn");
-            }
-            ns = compositeNs[0];
-            string id = compositeNs[1];
-            return id;
+            return uri.ParseQueryParameter(parameterExpr,
+                (valueString) => (IntQuery)valueString,
+                onFound,
+                onNotInQueryString);
         }
 
-        public static Uri ToWebUrn(this Guid guid, string nid, string ns)
+        public static StringQuery ParseQueryParameter<QueryType>(this Uri uri,
+            Expression<Func<QueryType, StringQuery>> parameterExpr)
         {
-            string uriStr = String.Format("urn:{0}:{1}:{2}", nid, ns, guid.ToString());
-            Uri uri;
-            if (!Uri.TryCreate(uriStr, UriKind.Absolute, out uri))
-            {
-                throw new ArgumentException("Invalid id or namespace for creating a web URN");
-            }
-            return uri;
+            return uri.ParseQueryParameter(parameterExpr,
+                (webId) => webId,
+                () => default(StringQuery));
         }
 
-        public static Uri ToWebUrn(this string id, string nid, string ns)
+        public static TResult ParseQueryParameter<QueryType, TResult>(this Uri uri,
+            Expression<Func<QueryType, StringQuery>> parameterExpr,
+            Func<StringQuery, TResult> onFound,
+            Func<TResult> onNotInQueryString)
         {
-            string uriStr = String.Format("urn:{0}:{1}:{2}", nid, ns, id);
-            Uri uri;
-            if (!Uri.TryCreate(uriStr, UriKind.Absolute, out uri))
-            {
-                throw new ArgumentException("Invalid id or namespace for creating a web URN");
-            }
-            return uri;
+            return uri.ParseQueryParameter(parameterExpr,
+                (valueString) => (StringQuery)valueString,
+                onFound,
+                onNotInQueryString);
         }
     }
 }
