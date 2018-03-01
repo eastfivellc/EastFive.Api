@@ -193,6 +193,15 @@ namespace BlackBarLabs.Api
         }
 
         public static Uri GetLocation<TController>(this UrlHelper url,
+            Guid? idMaybe,
+            string routeName = default(string))
+        {
+            if (idMaybe.HasValue)
+                return url.GetLocation<TController>(idMaybe.Value, routeName);
+            return default(Uri);
+        }
+
+        public static Uri GetLocation<TController>(this UrlHelper url,
             Guid id,
             string routeName = default(string))
         {

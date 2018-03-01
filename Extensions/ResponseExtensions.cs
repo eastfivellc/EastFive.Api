@@ -314,7 +314,7 @@ namespace BlackBarLabs.Api
             Func<HttpResponseMessage, TResult> onComplete)
             where TResource : ResourceBase
         {
-            var response = request.CreateResponseBackground(urlHelper,
+            var response = request.CreateResponsesBackground(urlHelper,
                 (updateProgress) =>
                 {
                     var propertyOrder = typeof(TResource)
@@ -505,13 +505,28 @@ namespace BlackBarLabs.Api
             return null;
         }
 
-        public static HttpResponseMessage CreateResponseBackground(this HttpRequestMessage request,
+        public static HttpResponseMessage CreateResponsesBackground(this HttpRequestMessage request,
                 System.Web.Http.Routing.UrlHelper urlHelper,
             Func<Func<HttpResponseMessage, BackgroundProgressController.Process>, Task<BackgroundProgressController.Process[]>> callback,
             int? estimatedProcessLength = default(int?))
         {
             var processId = BackgroundProgressController.CreateProcess(callback, estimatedProcessLength);
-            return request.CreateResponse(HttpStatusCode.Accepted, urlHelper.GetLocation<BackgroundProgressController>(processId));
+            var response = request.CreateResponse(HttpStatusCode.Accepted);
+            response.Content.Headers.Add("Access-Control-Expose-Headers", "x-backgroundprocess");
+            response.Headers.Add("x-backgroundprocess", urlHelper.GetLocation<BackgroundProgressController>(processId).AbsoluteUri);
+            return response;
+        }
+
+        public static HttpResponseMessage CreateResponseBackground(this HttpRequestMessage request,
+                System.Web.Http.Routing.UrlHelper urlHelper,
+            Func<Action<double>, Task<HttpResponseMessage>> callback,
+            double? estimatedProcessLength = default(double?))
+        {
+            var processId = BackgroundProgressController.CreateProcess(callback, estimatedProcessLength);
+            var response = request.CreateResponse(HttpStatusCode.Accepted);
+            response.Headers.Add("Access-Control-Expose-Headers", "x-backgroundprocess");
+            response.Headers.Add("x-backgroundprocess", urlHelper.GetLocation<BackgroundProgressController>(processId).AbsoluteUri);
+            return response;
         }
 
         public static HttpResponseMessage CreateResponseVideoStream(this HttpRequestMessage request,

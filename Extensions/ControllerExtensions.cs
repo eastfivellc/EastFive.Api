@@ -1,6 +1,7 @@
 ﻿using BlackBarLabs.Collections.Generic;
 using BlackBarLabs.Extensions;
 using EastFive.Collections.Generic;
+using EastFive.Extensions;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -127,6 +128,9 @@ namespace BlackBarLabs.Api
             Expression<TMethod> callback,
             Func<TResult> onNotMultipart)
         {
+            if (content.IsDefaultOrNull())
+                return onNotMultipart();
+
             if (!content.IsMimeMultipartContent())
             {
                 if (content.IsFormData())

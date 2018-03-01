@@ -95,12 +95,16 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Attributes\ControllerMethodAttributes.cs" />
     <Compile Include="Attributes\SheetColumnAttribute.cs" />
     <Compile Include="Attributes\ResourceTypeAttribute.cs" />
     <Compile Include="AppSettings.cs" />
     <Compile Include="Configuration\SecurityDefinitions.cs" />
+    <Compile Include="Controllers\ApiController.cs" />
+    <Compile Include="Controllers\ApiValidations.cs" />
     <Compile Include="Controllers\BackgroundProgressController.cs" />
     <Compile Include="Controllers\BaseController.cs" />
+    <Compile Include="Controllers\ResponseDelegates.cs" />
     <Compile Include="Extensions\ClaimsExtensions.cs" />
     <Compile Include="Extensions\HttpConfigurationExtensions.cs" />
     <Compile Include="Extensions\QueryExtensions.IntQueries.cs" />

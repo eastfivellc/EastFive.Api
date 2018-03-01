@@ -4,6 +4,7 @@ using BlackBarLabs.Api.Resources;
 using BlackBarLabs.Extensions;
 using EastFive.Extensions;
 using EastFive.Linq;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -24,14 +25,26 @@ namespace EastFive.Api.Controllers
         public IntQuery Count { get; set; }
     }
 
+    public class BackgroundProgress : BlackBarLabs.Api.ResourceBase
+    {
+        [JsonProperty(PropertyName = "progress")]
+        public double Progress { get; set; }
+
+        [JsonProperty(PropertyName = "total")]
+        public double Total { get; set; }
+
+    }
+
     public class BackgroundProgressController : BaseController
     {
         public class Process
         {
             internal Guid id;
             internal HttpResponseMessage[] responses;
-            internal int? length;
+            internal double? length;
             internal Thread thread;
+            internal double progress;
+            internal HttpResponseMessage response;
         }
 
         private static ConcurrentDictionary<Guid, Process> processes = new ConcurrentDictionary<Guid, Process>();
@@ -48,11 +61,25 @@ namespace EastFive.Api.Controllers
         {
             if (!processes.TryGetValue(processId, out Process process))
                 return request.CreateResponse(HttpStatusCode.NotFound).ToTask();
-            var result = process.length.HasValue ?
-                ((double)process.responses.Length) / ((double)process.length.Value)
+            var result =
+                process.responses.IsDefaultOrNull()?
+                    process.length.HasValue?
+                        process.progress / process.length.Value
+                        :
+                        0.0
                 :
-                0.0;
-            return this.Request.CreateResponse(HttpStatusCode.OK, result).ToTask();
+                    process.length.HasValue ?
+                        ((double)process.responses.Length) / ((double)process.length.Value)
+                        :
+                        0.0;
+
+            return this.Request.CreateResponse(HttpStatusCode.OK,
+                new BackgroundProgress
+                {
+                    Id = Url.GetWebId<BackgroundProgressController>(processId),
+                    Progress = result,
+                    Total = process.length.HasValue ? process.length.Value : 0.0,
+                }).ToTask();
         }
 
         private async Task<HttpResponseMessage[]> GetByRange(Guid processId, int top, int? count, HttpRequestMessage request)
@@ -86,7 +113,7 @@ namespace EastFive.Api.Controllers
             {
                 id = processId,
                 responses = new HttpResponseMessage[] { },
-                length = estimatedProcessLength,
+                length = estimatedProcessLength.HasValue? (double)estimatedProcessLength.Value : default(double?),
             };
             if (callback != null)
             {
@@ -113,6 +140,45 @@ namespace EastFive.Api.Controllers
             }
             processes.AddOrUpdate(processId, process, (id, proc) => proc);
             return processId;
+        }
+
+        internal static Guid CreateProcess(
+            Func<Action<double>, Task<HttpResponseMessage>> launched,
+            double? estimatedProcessLength)
+        {
+            var processId = Guid.NewGuid();
+            var process = new Process
+            {
+                id = processId,
+                responses = default(HttpResponseMessage[]),
+                response = default(HttpResponseMessage),
+                length = estimatedProcessLength,
+                progress = 0.0,
+            };
+            if (launched != null)
+            {
+                process.thread = new Thread(
+                    () =>
+                    {
+                        var task = new Task<HttpResponseMessage>(
+                            () =>
+                            {
+                                Action<double> callback = (progress) =>
+                                {
+                                    lock (process)
+                                    {
+                                        process.progress = progress;
+                                    }
+                                };
+                                var completeTask = launched(callback);
+                                return completeTask.Result;
+                            });
+                        task.RunSynchronously();
+                    });
+                process.thread.Start();
+            }
+            processes.AddOrUpdate(processId, process, (id, proc) => proc);
+            return (processId);
         }
     }
 }
