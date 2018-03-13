@@ -201,13 +201,12 @@ namespace BlackBarLabs.Api
             return default(Uri);
         }
 
-        public static Uri GetLocation<TController>(this UrlHelper url,
-            Guid id,
-            string routeName = default(string))
+        public static Uri GetLocation(this UrlHelper url, Type controllerType, Guid id,
+            string routeName = "DefaultApi")
         {
             if (String.IsNullOrWhiteSpace(routeName))
             {
-                var routePrefixes = typeof(TController)
+                var routePrefixes = controllerType
                             .GetCustomAttributes<System.Web.Http.RoutePrefixAttribute>()
                             .Select(routePrefix => routePrefix.Prefix)
                             .ToArray();
@@ -218,10 +217,17 @@ namespace BlackBarLabs.Api
             }
 
             var controllerName =
-                typeof(TController).Name.TrimEnd("Controller",
+                controllerType.Name.TrimEnd("Controller",
                     (trimmedName) => trimmedName, (originalName) => originalName);
             var location = url.Link(routeName, new { Controller = controllerName, Id = id });
             return new Uri(location);
+        }
+
+        public static Uri GetLocation<TController>(this UrlHelper url,
+            Guid id,
+            string routeName = default(string))
+        {
+            return url.GetLocation(typeof(TController), id, routeName);
         }
         
         public static Uri GetLocation<TController>(this UrlHelper url,

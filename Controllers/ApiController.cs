@@ -96,7 +96,7 @@ namespace EastFive.Api.Controllers
                     typeof(AlreadyExistsReferencedResponse),
                     (controller, success) =>
                     {
-                        AlreadyExistsReferencedResponse dele = (why) => controller.Request.CreateAlreadyExistsResponse<ApiController>(why, controller.Url);
+                        AlreadyExistsReferencedResponse dele = (why) => controller.Request.CreateAlreadyExistsResponse(controller.GetType(), why, controller.Url);
                         return success((object)dele);
                     }
                 },

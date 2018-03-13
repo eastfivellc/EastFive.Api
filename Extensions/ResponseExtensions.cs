@@ -625,6 +625,18 @@ namespace BlackBarLabs.Api
             return response;
         }
 
+        public static HttpResponseMessage CreateAlreadyExistsResponse(this HttpRequestMessage request, Type controllerType, Guid existingResourceId, System.Web.Http.Routing.UrlHelper url,
+            string routeName = null)
+        {
+            var location = url.GetLocation(controllerType, existingResourceId, routeName);
+            var reason = $"There is already a resource with ID = [{existingResourceId}]";
+            var response = request
+                        .CreateResponse(HttpStatusCode.Conflict)
+                        .AddReason(reason);
+            response.Headers.Location = location;
+            return response;
+        }
+
         public static HttpResponseMessage CreateResponseNotFound(this HttpRequestMessage request, Guid resourceId)
         {
             var reason = $"The resource with ID = [{resourceId}] was not found";
