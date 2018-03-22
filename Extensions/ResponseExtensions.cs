@@ -512,7 +512,7 @@ namespace BlackBarLabs.Api
         {
             var processId = BackgroundProgressController.CreateProcess(callback, estimatedProcessLength);
             var response = request.CreateResponse(HttpStatusCode.Accepted);
-            response.Content.Headers.Add("Access-Control-Expose-Headers", "x-backgroundprocess");
+            response.Headers.Add("Access-Control-Expose-Headers", "x-backgroundprocess");
             response.Headers.Add("x-backgroundprocess", urlHelper.GetLocation<BackgroundProgressController>(processId).AbsoluteUri);
             return response;
         }
