@@ -104,6 +104,7 @@
     <Compile Include="Controllers\ApiValidations.cs" />
     <Compile Include="Controllers\BackgroundProgressController.cs" />
     <Compile Include="Controllers\BaseController.cs" />
+    <Compile Include="Controllers\RequestDelegates.cs" />
     <Compile Include="Controllers\ResponseDelegates.cs" />
     <Compile Include="Extensions\ClaimsExtensions.cs" />
     <Compile Include="Extensions\HttpConfigurationExtensions.cs" />
@@ -138,6 +139,7 @@
     <Compile Include="Resources\Resource.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Resources\Response.cs" />
+    <Compile Include="Resources\SheetsStream.cs" />
     <Compile Include="Resources\WebId.cs" />
     <Compile Include="Services\IIdentityService.cs" />
     <Compile Include="Services\ServiceConfiguration.cs" />

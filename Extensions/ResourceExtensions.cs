@@ -63,6 +63,17 @@ namespace BlackBarLabs.Api
             };
         }
 
+        public static Resources.WebId GetWebId(this UrlHelper url,
+            Guid id, string ns)
+        {
+            return new Resources.WebId
+            {
+                Key = id.ToString(),
+                UUID = id,
+                URN = id.ToWebUrn(ns, ""),
+            };
+        }
+
         public static Resources.WebId[] GetWebIds<TController>(this UrlHelper url,
             Guid [] ids,
             string routeName = "DefaultApi")
@@ -385,6 +396,14 @@ namespace BlackBarLabs.Api
                 .Select(guid => url.GetWebId<TController>(guid))
                 .ToArray();
             return webIds;
+        }
+
+        public static DateTime? AsZulu(this DateTime? datetime)
+        {
+            return datetime.HasValue && (!datetime.Value.IsDefault()) ?
+                    datetime.Value.ToUniversalTime()
+                    :
+                    default(DateTime?);
         }
         
     }
