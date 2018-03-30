@@ -521,7 +521,7 @@ namespace BlackBarLabs.Api
 
         public static TResult ParseXlsx<TResource, TResult>(this HttpRequestMessage request,
                 Stream xlsx,
-                Func<KeyValuePair<TResource[], KeyValuePair<string, string>[]>[], TResult> execute)
+                Func<KeyValuePair<string, string>[], KeyValuePair<string, TResource[]>[], TResult> execute)
             where TResource : ResourceBase
         {
             var result = OpenXmlWorkbook.Read(xlsx,
@@ -564,11 +564,11 @@ namespace BlackBarLabs.Api
                                                     return resource;
                                                 })
                                             .ToArray();
-                                        return next(resources.PairWithValue(customValues));
+                                        return next(sheet.Name.PairWithValue(resources));
                                     },
-                                    (KeyValuePair<TResource[], KeyValuePair<string, string>[]>[] resourceLists) =>
+                                    (KeyValuePair<string, TResource[]>[] resourceLists) =>
                                     {
-                                        return execute(resourceLists);
+                                        return execute(customValues, resourceLists);
                                     });
                             return resourceList;
                         });

@@ -361,7 +361,7 @@ namespace EastFive.Api.Controllers
                 UnauthorizedResponse onUnauthorized);
 
         public delegate Task<HttpResponseMessage> ParseXlsxDelegate(
-                 Func<KeyValuePair<TResource[], KeyValuePair<string, string>[]>[], Task<HttpResponseMessage>> execute);
+                 Func<KeyValuePair<string, string>[], KeyValuePair<string, TResource[]>[], Task<HttpResponseMessage>> execute);
 
         public delegate Task<HttpResponseMessage> ParseXlsxMultipartDelegate(
                  Func<TResource, KeyValuePair<string, string>[], Task<HttpResponseMessage>> executePost,
@@ -400,6 +400,15 @@ namespace EastFive.Api.Controllers
                             .CreateResponse(System.Net.HttpStatusCode.BadRequest, "xlsx file was not provided")
                             .ToTask());
                 });
+
+            AddGenericInstigator(
+                typeof(TResource),
+                async (controller, success) =>
+                {
+                    var contentString = await this.Request.Content.ReadAsStringAsync();
+                    var create = Newtonsoft.Json.JsonConvert.DeserializeObject<TResource>(contentString);
+                    return await success(create);
+                });
         }
 
         private static Task<HttpResponseMessage> ParseSheetAsync(ApiController controller, System.IO.Stream xlsx, Func<object, Task<HttpResponseMessage>> success)
@@ -430,19 +439,7 @@ namespace EastFive.Api.Controllers
 
         public IHttpActionResult Post([FromUri]TQuery resource)
         {
-            return new HttpActionResult(() => GetQueryObjectParameters(resource, this.Request,
-                async (validations) =>
-                {
-                    return await await GetBodyObjectParameters(this.Request.Content.ParseMultipartAsync(
-                        (System.IO.Stream offers) => offers.CreatePriceSheetAsync(this.Request, this.Url),
-                        async () =>
-                        {
-                            var contentString = await this.Request.Content.ReadAsStringAsync();
-                            var create = Newtonsoft.Json.JsonConvert.DeserializeObject<Resources.PriceSheetProductOffer>(contentString);
-                            return await create.CreateAsync(this.Request, this.Url);
-                        }));
-                    return Invoke<TQuery, HttpGetAttribute>(resource, validations);
-                }));
+            return new HttpActionResult(() => Invoke<HttpPostAttribute>(resource, new PropertyInfo[] { }));
         }
 
         public IHttpActionResult Get([FromUri]TQuery resource)
@@ -450,21 +447,21 @@ namespace EastFive.Api.Controllers
             return new HttpActionResult(() => GetQueryObjectParameters(resource, this.Request,
                 (validations) =>
                 {
-                    return Invoke<TQuery, HttpGetAttribute>(resource, validations);
+                    return Invoke<HttpGetAttribute>(resource, validations);
                 }));
         }
 
-        public IHttpActionResult Put([FromBody]TResource resource)
+        public IHttpActionResult Put([FromUri]TQuery resource)
         {
-            return new HttpActionResult(() => Invoke<TResource, HttpPutAttribute>(resource, new PropertyInfo[] { }));
+            return new HttpActionResult(() => Invoke<HttpPutAttribute>(resource, new PropertyInfo[] { }));
         }
 
         public IHttpActionResult Delete([FromUri]TQuery resource)
         {
-            return new HttpActionResult(() => Invoke<TQuery, HttpDeleteAttribute>(resource, new PropertyInfo[] { }));
+            return new HttpActionResult(() => Invoke<HttpDeleteAttribute>(resource, new PropertyInfo[] { }));
         }
 
-        private Task<HttpResponseMessage> Invoke<T, TAttribute>(T resource, PropertyInfo[] mustMatchProperties)
+        private Task<HttpResponseMessage> Invoke<TAttribute>(TQuery resource, PropertyInfo[] mustMatchProperties)
             where TAttribute : System.Attribute
         {
             var responseMessage = this.GetType()
@@ -509,11 +506,11 @@ namespace EastFive.Api.Controllers
                                     return methodCallExpression.Method.GetCustomAttribute(
                                         (ApiValidations.ValidationAttribute validationAttr) =>
                                         {
-                                            // TODO: Catch convert here
+                                            // TODO: Catch convert here for Casted parameters (defined -> nullable, etc)
                                             var memberLookupArgumentsMatchingResourceType = methodCallExpression.Arguments
                                                 .Where(arg => arg is MemberExpression)
                                                 .Where(arg => (arg as MemberExpression).Member is MemberInfo)
-                                                .Where(arg => ((arg as MemberExpression).Member as MemberInfo).ReflectedType.IsAssignableFrom(typeof(T)));
+                                                .Where(arg => ((arg as MemberExpression).Member as MemberInfo).ReflectedType.IsAssignableFrom(typeof(TQuery)));
                                             if (!memberLookupArgumentsMatchingResourceType.Any())
                                                 return props;
                                             var memberLookupArgument = memberLookupArgumentsMatchingResourceType.First();
@@ -544,7 +541,7 @@ namespace EastFive.Api.Controllers
                             .Aggregate<ParameterExpression, object[], Task<HttpResponseMessage>>(new object[] { },
                                 (paramValues, param, next) =>
                                 {
-                                    if (param.Type == typeof(T))
+                                    if (param.Type == typeof(TQuery))
                                         return next(paramValues.Append(resource).ToArray());
                                     if (instigators.ContainsKey(param.Type))
                                         return instigators[param.Type](this,
