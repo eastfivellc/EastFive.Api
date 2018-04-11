@@ -47,6 +47,26 @@ namespace EastFive.Api.Controllers
                 },
             };
 
+        public delegate Task<HttpResponseMessage> OptionalGeneratorDelegate(
+                ApiController controller,
+            Func<object, Task<HttpResponseMessage>> onSuccess,
+            Func<Task<HttpResponseMessage>> onNotAvailable);
+
+        protected static Dictionary<Type, OptionalGeneratorDelegate> optionalGenerators =
+           new Dictionary<Type, OptionalGeneratorDelegate>()
+           {
+                {
+                    typeof(System.IO.Stream),
+                    async (controller, onSuccess, onNotAvailable) =>
+                    {
+                        return await await controller.Request.Content.ParseMultipartAsync(
+                             (System.IO.Stream xlsx) => onSuccess(xlsx),
+                             () => onNotAvailable());
+                    }
+                },
+           };
+        
+
         protected static Dictionary<Type, Func<ApiController, Func<object, Task<HttpResponseMessage>>, Task<HttpResponseMessage>>> instigators =
             new Dictionary<Type, Func<ApiController, Func<object, Task<HttpResponseMessage>>, Task<HttpResponseMessage>>>()
             {
@@ -129,25 +149,6 @@ namespace EastFive.Api.Controllers
                     (controller, success) =>
                     {
                         MultipartResponseAsync dele = (responses) => controller.Request.CreateMultipartResponseAsync(responses);
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(MultipartAcceptResponseAsync),
-                    (controller, success) =>
-                    {
-                        MultipartAcceptResponseAsync dele =
-                            (objects) =>
-                            {
-                                if (controller.Request.Headers.Accept.Contains(accept => accept.MediaType.ToLower().Contains("xlsx")))
-                                {
-                                    return controller.Request.CreateXlsxResponse(
-                                        new Dictionary<string, string>(),
-                                        objects).ToTask();
-                                }
-                                var responses = objects.Select(obj => controller.Request.CreateResponse(System.Net.HttpStatusCode.OK, obj));
-                                return controller.Request.CreateMultipartResponseAsync(responses);
-                            };
                         return success((object)dele);
                     }
                 },
@@ -345,7 +346,7 @@ namespace EastFive.Api.Controllers
                 HttpRequestMessage request,
                 System.Web.Http.Routing.UrlHelper url,
                 ContentResponse onContent,
-                MultipartAcceptResponseAsync onMultipart,
+                MultipartAcceptArrayResponseAsync onMultipart,
                 ReferencedDocumentNotFoundResponse onQueryByDoc,
                 UnauthorizedResponse onUnauthorized);
 
@@ -361,7 +362,7 @@ namespace EastFive.Api.Controllers
                 UnauthorizedResponse onUnauthorized);
 
         public delegate Task<HttpResponseMessage> ParseXlsxDelegate(
-                 Func<KeyValuePair<string, string>[], KeyValuePair<string, TResource[]>[], Task<HttpResponseMessage>> execute);
+                 Func<KeyValuePair<string, string>[], KeyValuePair<string, ResourceBase[]>[], Task<HttpResponseMessage>> execute);
 
         public delegate Task<HttpResponseMessage> ParseXlsxMultipartDelegate(
                  Func<TResource, KeyValuePair<string, string>[], Task<HttpResponseMessage>> executePost,
@@ -384,7 +385,7 @@ namespace EastFive.Api.Controllers
                 async (controller, success) =>
                 {
                     return await await controller.Request.Content.ParseMultipartAsync(
-                        (System.IO.Stream xlsx) => ParseSheetAsync(controller, xlsx, success),
+                        (System.IO.Stream xlsx, Type [] types) => ParseSheetAsync(controller, xlsx, types, success),
                         () => controller.Request
                             .CreateResponse(System.Net.HttpStatusCode.BadRequest, "xlsx file was not provided")
                             .ToTask());
@@ -405,18 +406,19 @@ namespace EastFive.Api.Controllers
                 typeof(TResource),
                 async (controller, success) =>
                 {
-                    var contentString = await this.Request.Content.ReadAsStringAsync();
+                    var contentString = await controller.Request.Content.ReadAsStringAsync();
                     var create = Newtonsoft.Json.JsonConvert.DeserializeObject<TResource>(contentString);
                     return await success(create);
                 });
         }
 
-        private static Task<HttpResponseMessage> ParseSheetAsync(ApiController controller, System.IO.Stream xlsx, Func<object, Task<HttpResponseMessage>> success)
+        private static Task<HttpResponseMessage> ParseSheetAsync(ApiController controller, System.IO.Stream xlsx, Type[] types,
+            Func<object, Task<HttpResponseMessage>> success)
         {
             ParseXlsxDelegate dele =
                 (execute) =>
                 {
-                    return controller.Request.ParseXlsx(xlsx, execute);
+                    return controller.Request.ParseXlsx(xlsx, types, execute);
                 };
             return success(dele);
         }
@@ -451,9 +453,10 @@ namespace EastFive.Api.Controllers
                 }));
         }
 
-        public IHttpActionResult Put([FromUri]TQuery resource)
+        public async Task<IHttpActionResult> Put([FromUri]TQuery resource)
         {
-            return new HttpActionResult(() => Invoke<HttpPutAttribute>(resource, new PropertyInfo[] { }));
+            var response = await Invoke<HttpPutAttribute>(resource, new PropertyInfo[] { });
+            return new HttpActionResult(() => response.ToTask());
         }
 
         public IHttpActionResult Delete([FromUri]TQuery resource)
@@ -468,32 +471,24 @@ namespace EastFive.Api.Controllers
                 .GetFields()
                 .Where(field => field.ContainsCustomAttribute<TAttribute>())
                 .Where(field => field.FieldType.IsSubClassOfGeneric(typeof(Expression<>)))
-                .Aggregate(
-                    new
+                .SelectReduce(
+                    (propertyType, nextExpression, skipExpression) =>
                     {
-                        response = default(Task<HttpResponseMessage>),
-                        unvalidateds = new MemberInfo[][] { },
-                    },
-                    (aggr, propertyType) =>
-                    {
-                        if (!aggr.response.IsDefault())
-                            return aggr;
-
                         var expression = propertyType.GetValue(this);
                         if (!(expression is LambdaExpression))
-                            return aggr;
+                            return skipExpression();
                         var lambdaExpr = expression as LambdaExpression;
                         var parameters = lambdaExpr.Parameters;
                         var body = lambdaExpr.Body;
                         if (!(body is MethodCallExpression))
-                            return aggr;
+                            return skipExpression();
 
                         var doubleAwait = false;
                         var methodBody = body as MethodCallExpression;
                         if (!typeof(Task<HttpResponseMessage>).IsAssignableFrom(methodBody.Method.ReturnType))
                         {
                             if (!typeof(Task<Task<HttpResponseMessage>>).IsAssignableFrom(methodBody.Method.ReturnType))
-                                return aggr;
+                                return skipExpression();
                             doubleAwait = true;
                         }
 
@@ -531,44 +526,41 @@ namespace EastFive.Api.Controllers
                                 });
 
                         if (unvalidatedProperties.Any())
-                            return new
-                            {
-                                response = default(Task<HttpResponseMessage>),
-                                unvalidateds = aggr.unvalidateds.Append(unvalidatedProperties.ToArray()).ToArray(),
-                            };
+                            return nextExpression(unvalidatedProperties.ToArray());
                         
-                        var response = parameters
-                            .Aggregate<ParameterExpression, object[], Task<HttpResponseMessage>>(new object[] { },
-                                (paramValues, param, next) =>
+                        return parameters
+                            .SelectReduce(
+                                (param, next) =>
                                 {
                                     if (param.Type == typeof(TQuery))
-                                        return next(paramValues.Append(resource).ToArray());
+                                        return next(resource);
                                     if (instigators.ContainsKey(param.Type))
                                         return instigators[param.Type](this,
-                                            (v) => next(paramValues.Append(v).ToArray()));
+                                            (v) => next(v));
+                                    if (optionalGenerators.ContainsKey(param.Type))
+                                    {
+                                        return optionalGenerators[param.Type](this,
+                                                generatedValue => next(generatedValue),
+                                                () => nextExpression(unvalidatedProperties.ToArray()));
+                                    }
                                     return Request.CreateResponse(System.Net.HttpStatusCode.InternalServerError)
                                         .AddReason($"Could not instatiate type: {param.Type.FullName}")
                                         .ToTask();
                                 },
-                                async (paramValues) =>
+                                async (object[] paramValues) =>
                                 {
                                     // Expression.Call()
                                     // lambdaExpr.CompileToMethod()
-                                    if (doubleAwait)
-                                        return await await (Task<Task<HttpResponseMessage>>)lambdaExpr.Compile().DynamicInvoke(paramValues);
-                                    return await (Task<HttpResponseMessage>)lambdaExpr.Compile().DynamicInvoke(paramValues);
+                                    HttpResponseMessage response = (doubleAwait)?
+                                        await await (Task<Task<HttpResponseMessage>>)lambdaExpr.Compile().DynamicInvoke(paramValues)
+                                        :
+                                        await (Task<HttpResponseMessage>)lambdaExpr.Compile().DynamicInvoke(paramValues);
+                                    return response;
                                 });
-                        return new
-                        {
-                            response = response,
-                            unvalidateds = aggr.unvalidateds,
-                        };
                     },
-                    (aggr) =>
+                    (MemberInfo[][] unvalidateds) =>
                     {
-                        if (!aggr.response.IsDefaultOrNull())
-                            return aggr.response;
-                        var content = $"Please include a value for one of [{aggr.unvalidateds.Select(uvs => uvs.Select(uv => uv.Name).Join(",")).Join(" or ")}]";
+                        var content = $"Please include a value for one of [{unvalidateds.Select(uvs => uvs.Select(uv => uv.Name).Join(",")).Join(" or ")}]";
                         return Request
                             .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
                             .AddReason(content)

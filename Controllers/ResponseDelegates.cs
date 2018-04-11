@@ -18,7 +18,6 @@ namespace EastFive.Api.Controllers
     public delegate HttpResponseMessage NotFoundResponse();
     public delegate HttpResponseMessage ContentResponse(object content);
     public delegate Task<HttpResponseMessage> MultipartResponseAsync(IEnumerable<HttpResponseMessage> responses);
-    public delegate Task<HttpResponseMessage> MultipartAcceptResponseAsync(IEnumerable<object> responses);
     public delegate Task<HttpResponseMessage> MultipartAcceptArrayResponseAsync(IEnumerable<object> responses);
     public delegate HttpResponseMessage ReferencedDocumentNotFoundResponse();
     public delegate HttpResponseMessage UnauthorizedResponse();

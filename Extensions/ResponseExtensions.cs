@@ -232,9 +232,9 @@ namespace BlackBarLabs.Api
                             return "Unknown";
                         if (res.Id.URN.IsDefaultOrNull())
                             return "Unknown";
-                        if (!res.Id.URN.TryParseUrnNamespaceString(out string[] nss, out string ns))
-                            return "Unknown";
-                        return ns;
+                        return res.Id.URN.ParseUrnNamespaceString(
+                            (ns, nss) => ns,
+                            (why) => "Unknown");
                     });
 
             var guidReferences = resourceGroups
@@ -338,7 +338,7 @@ namespace BlackBarLabs.Api
 
                 webId.URN.TryParseUrnNamespaceString(out string[] nss, out string nid);
                 var objId = objIdMaybe.Value;
-                var resourceDisplayValue = $"{nid}/{objId}";
+                var resourceDisplayValue = webId.URN.AbsoluteUri; // $"{nid}/{objId}";
                 if (property.Name == "Id" || !lookups.ContainsKey(objId)) // TODO: Use custom property attributes
                     return resourceDisplayValue;
 
@@ -519,18 +519,17 @@ namespace BlackBarLabs.Api
             return onComplete(response);
         }
 
-        public static TResult ParseXlsx<TResource, TResult>(this HttpRequestMessage request,
-                Stream xlsx,
-                Func<KeyValuePair<string, string>[], KeyValuePair<string, TResource[]>[], TResult> execute)
-            where TResource : ResourceBase
+        public static TResult ParseXlsx<TResult>(this HttpRequestMessage request,
+                Stream xlsx, Type [] sheetTypes,
+                Func<KeyValuePair<string, string>[], KeyValuePair<string, ResourceBase[]>[], TResult> execute)
         {
             var result = OpenXmlWorkbook.Read(xlsx,
                 (workbook) =>
                 {
+                    var propertyOrders = sheetTypes.Select(type => type.PairWithValue(type.GetProperties().Reverse().ToArray())).ToArray();
                     var x = workbook.ReadCustomValues(
                         (customValues) =>
                         {
-                            var propertyOrder = typeof(TResource).GetProperties();
                             var resourceList = workbook.ReadSheets()
                                 .SelectReduce(
                                     (sheet, next, skip) =>
@@ -546,8 +545,37 @@ namespace BlackBarLabs.Api
                                             .Select(
                                                 row =>
                                                 {
-                                                    var resource = propertyOrder
-                                                        .Aggregate(Activator.CreateInstance<TResource>(),
+                                                    var propertyOrderOptions = propertyOrders
+                                                        .Where(
+                                                            kvp =>
+                                                            {
+                                                                var ids = kvp.Value
+                                                                    .Select((po, index) => index.PairWithValue(po))
+                                                                    .Where(poKvp => poKvp.Value.Name == "Id");
+                                                                if (!ids.Any())
+                                                                    return false;
+                                                                var id = ids.First();
+                                                                if (row.Length <= id.Key)
+                                                                    return false;
+                                                                if (!Uri.TryCreate(row[id.Key], UriKind.RelativeOrAbsolute, out Uri urn))
+                                                                    return false;
+                                                                if (!urn.TryParseUrnNamespaceString(out string[] nss, out string nid))
+                                                                {
+                                                                    var sections = row[id.Key].Split(new char[] { '/' });
+                                                                    if (!sections.Any())
+                                                                        return false;
+                                                                    nid = sections[0];
+                                                                }
+                                                                return nid == kvp.Key.Name;
+                                                            })
+                                                        .ToArray();
+                                                    var propertyOrder = propertyOrderOptions.Any() ?
+                                                        propertyOrderOptions.First()
+                                                        :
+                                                        typeof(ResourceBase).PairWithValue(typeof(ResourceBase).GetProperties().Reverse().ToArray());
+
+                                                    var resource = (ResourceBase)propertyOrder.Value
+                                                        .Aggregate(Activator.CreateInstance(propertyOrder.Key),
                                                             (aggr, property, index) =>
                                                             {
                                                                 var value = row.Length > index ?
@@ -566,7 +594,7 @@ namespace BlackBarLabs.Api
                                             .ToArray();
                                         return next(sheet.Name.PairWithValue(resources));
                                     },
-                                    (KeyValuePair<string, TResource[]>[] resourceLists) =>
+                                    (KeyValuePair<string, ResourceBase[]>[] resourceLists) =>
                                     {
                                         return execute(customValues, resourceLists);
                                     });
@@ -832,6 +860,16 @@ namespace BlackBarLabs.Api
             return response;
         }
 
+        public static HttpResponseMessage CreateResponseSeeOther<TController>(this HttpRequestMessage request, Guid otherResourceId, System.Web.Http.Routing.UrlHelper url,
+            string routeName = null)
+        {
+            var location = url.GetLocation<TController>(otherResourceId, routeName);
+            var response = request
+                        .CreateResponse(HttpStatusCode.SeeOther);
+            response.Headers.Location = location;
+            return response;
+        }
+        
         public static HttpResponseMessage CreateAlreadyExistsResponse<TController>(this HttpRequestMessage request, Guid existingResourceId, System.Web.Http.Routing.UrlHelper url,
             string routeName = null)
         {
