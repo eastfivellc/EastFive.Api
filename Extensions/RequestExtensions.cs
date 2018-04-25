@@ -86,6 +86,7 @@ namespace BlackBarLabs.Api
                                 ContentLocation = contentContent.Headers.ContentLocation,
                                 Content = await contentContent.ReadAsStringAsync(),
                                 ReasonPhrase = content.ReasonPhrase,
+                                Location = content.Headers.Location,
                             };
                             return response;
                         },
@@ -95,6 +96,7 @@ namespace BlackBarLabs.Api
                             {
                                 StatusCode = content.StatusCode,
                                 ReasonPhrase = content.ReasonPhrase,
+                                Location = content.Headers.Location,
                             };
                             return Task.FromResult(response);
                         });

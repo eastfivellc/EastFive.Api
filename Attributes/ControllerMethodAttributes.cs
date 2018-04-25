@@ -30,4 +30,10 @@ namespace EastFive.Api
     {
 
     }
+
+    [AttributeUsage(AttributeTargets.Field)]
+    public class HttpOptionsAttribute : Attribute
+    {
+
+    }
 }

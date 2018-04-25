@@ -124,8 +124,11 @@
     <Compile Include="Extensions\UriExtensions.cs" />
     <Compile Include="Extensions\WebUrnExtensions.cs" />
     <Compile Include="Extensions\ValidationExtensions.cs" />
+    <Compile Include="FVC\FunctionViewControllerAttribute.cs" />
+    <Compile Include="FVC\QueryValidationAttribute.cs" />
     <Compile Include="HttpActionResult.cs" />
     <Compile Include="InjectableAssemblyResolver.cs" />
+    <Compile Include="FVC\Modules\ControllerModule.cs" />
     <Compile Include="Resources\Exceptions.cs" />
     <Compile Include="Resources\MultipartResponse.cs" />
     <Compile Include="Resources\OptionsResource.cs" />
