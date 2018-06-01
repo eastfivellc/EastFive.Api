@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 
 using BlackBarLabs.Extensions;
+using BlackBarLabs.Web;
 using Microsoft.Azure;
 
 namespace BlackBarLabs.Api
@@ -81,7 +82,9 @@ namespace BlackBarLabs.Api
             Func<Guid, TResult> success,
             Func<TResult> actorIdNotFound)
         {
-            var accountIdClaimValue = CloudConfigurationManager.GetSetting(accountIdClaimType);
+            //var accountIdClaimValue = CloudConfigurationManager.GetSetting(accountIdClaimType);
+            var accountIdClaimValue = ConfigurationContext.Instance.AppSettings[accountIdClaimType];
+
             //TODO - Log if not found
 
             var adminClaim = claims

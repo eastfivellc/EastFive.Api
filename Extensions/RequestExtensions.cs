@@ -203,8 +203,10 @@ namespace BlackBarLabs.Api
                 success,
                 (why) =>
                 {
-                    var siteAdminAuthorization = CloudConfigurationManager.GetSetting(
-                        EastFive.Api.AppSettings.SiteAdminAuthorization);
+                    //var siteAdminAuthorization = CloudConfigurationManager.GetSetting(
+                    //    EastFive.Api.AppSettings.SiteAdminAuthorization);
+                    var siteAdminAuthorization = ConfigurationContext.Instance.AppSettings[
+                        EastFive.Api.AppSettings.SiteAdminAuthorization];
 
                     if (string.IsNullOrEmpty(siteAdminAuthorization))
                         return failure(why); //TODO - log if this is not set?
