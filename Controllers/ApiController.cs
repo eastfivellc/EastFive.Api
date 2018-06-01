@@ -52,7 +52,7 @@ namespace EastFive.Api.Controllers
             Func<object, Task<HttpResponseMessage>> onSuccess,
             Func<Task<HttpResponseMessage>> onNotAvailable);
 
-        protected static Dictionary<Type, OptionalGeneratorDelegate> optionalGenerators =
+        public static Dictionary<Type, OptionalGeneratorDelegate> optionalGenerators =
            new Dictionary<Type, OptionalGeneratorDelegate>()
            {
                 {
@@ -67,7 +67,7 @@ namespace EastFive.Api.Controllers
            };
         
 
-        protected static Dictionary<Type, Func<ApiController, Func<object, Task<HttpResponseMessage>>, Task<HttpResponseMessage>>> instigators =
+        public static Dictionary<Type, Func<ApiController, Func<object, Task<HttpResponseMessage>>, Task<HttpResponseMessage>>> instigators =
             new Dictionary<Type, Func<ApiController, Func<object, Task<HttpResponseMessage>>, Task<HttpResponseMessage>>>()
             {
                 {

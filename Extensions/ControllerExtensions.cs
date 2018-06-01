@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Net.Http;
+using System.Reflection;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
@@ -58,52 +59,104 @@ namespace BlackBarLabs.Api
                 return onNotFormData();
             }
         }
-
-        public static async Task<TResult> ParseFormDataAsync<TMethod, TResult>(this HttpContent content,
+        
+        public static Task<TResult> ParseFormDataAsync<TMethod, TResult>(this HttpContent content,
             Expression<TMethod> callback)
+        {
+            return content.ParseFormDataAsync(callback.Parameters.Select(p => p.Name.PairWithValue(p.Type)),
+                paramsForCallback =>
+                {
+                    var result = ((LambdaExpression)callback).Compile().DynamicInvoke(paramsForCallback);
+                    return (TResult)result;
+                });
+        }
+
+        public static async Task<TResult> ParseFormDataAsync<TResult>(this HttpContent content,
+            IEnumerable<KeyValuePair<string, Type>> parameterInfos,
+            Func<object[], TResult> onPopulated)
         {
             var formData = await content.ReadAsFormDataAsync();
 
-            var paramsForCallback = callback.Parameters
+            var paramsForCallback = parameterInfos
                 .Select(
-                (param) =>
-                {
-                    var paramContentKey = formData.AllKeys
-                        .FirstOrDefault(key => String.Compare(
+                    (param) =>
+                    {
+                        var paramContentKey = formData.AllKeys
+                            .FirstOrDefault(key => String.Compare(
                                 key.Trim(new char[] { '"' }),
-                                param.Name,
-                            true) == 0);
-                    if (default(string) == paramContentKey)
-                        return param.Type.IsValueType ? Activator.CreateInstance(param.Type) : null;
+                                param.Key,
+                                true) == 0);
+                        if (default(string) == paramContentKey)
+                            return param.Value.IsValueType ? Activator.CreateInstance(param.Value) : null;
 
-                    if (param.Type.GUID == typeof(string).GUID)
-                    {
-                        var stringValue = formData[paramContentKey];
-                        return (object)stringValue;
-                    }
-                    if (param.Type.GUID == typeof(Guid).GUID)
-                    {
-                        var guidStringValue = formData[paramContentKey];
-                        var guidValue = Guid.Parse(guidStringValue);
-                        return (object)guidValue;
-                    }
-                    if (param.Type.GUID == typeof(System.IO.Stream).GUID)
-                    {
-                        var streamValue = formData[paramContentKey];
-                        return (object)streamValue;
-                    }
-                    if (param.Type.GUID == typeof(byte[]).GUID)
-                    {
-                        var byteArrayBase64 = formData[paramContentKey];
-                        var byteArrayValue = Convert.FromBase64String(byteArrayBase64);
-                        return (object)byteArrayValue;
-                    }
-                    var value = formData[paramContentKey];
-                    return value;
-                }).ToArray();
+                        if (param.Value.GUID == typeof(string).GUID)
+                        {
+                            var stringValue = formData[paramContentKey];
+                            return (object)stringValue;
+                        }
+                        if (param.Value.GUID == typeof(Guid).GUID)
+                        {
+                            var guidStringValue = formData[paramContentKey];
+                            var guidValue = Guid.Parse(guidStringValue);
+                            return (object)guidValue;
+                        }
+                        if (param.Value.GUID == typeof(System.IO.Stream).GUID)
+                        {
+                            var streamValue = formData[paramContentKey];
+                            return (object)streamValue;
+                        }
+                        if (param.Value.GUID == typeof(byte[]).GUID)
+                        {
+                            var byteArrayBase64 = formData[paramContentKey];
+                            var byteArrayValue = Convert.FromBase64String(byteArrayBase64);
+                            return (object)byteArrayValue;
+                        }
+                        var value = formData[paramContentKey];
+                        return value;
+                    }).ToArray();
 
-            var result = ((LambdaExpression)callback).Compile().DynamicInvoke(paramsForCallback);
-            return (TResult)result;
+            return onPopulated(paramsForCallback);
+        }
+
+        public static async Task<KeyValuePair<string, Func<Type, object>>[]> ParseOptionalFormDataAsync(this HttpContent content)
+        {
+            var formData = await content.ReadAsFormDataAsync();
+
+            var parameters = formData.AllKeys
+                .Select(key => key.PairWithValue<string, Func<Type, object>>(
+                    (type) => StringContentToType(type, formData[key])))
+                .ToArray();
+
+            return (parameters);
+        }
+
+        internal static object StringContentToType(Type type, string content)
+        {
+            if (type.IsAssignableFrom(typeof(string)))
+            {
+                var stringValue = content;
+                return (object)stringValue;
+            }
+            if (type.IsAssignableFrom(typeof(Guid)))
+            {
+                var guidStringValue = content;
+                var guidValue = Guid.Parse(guidStringValue);
+                return (object)guidValue;
+            }
+            if (type.IsAssignableFrom(typeof(Stream)))
+            {
+                var byteArrayBase64 = content;
+                var byteArrayValue = Convert.FromBase64String(byteArrayBase64);
+                return (object)new MemoryStream(byteArrayValue);
+            }
+            if (type.IsAssignableFrom(typeof(byte[])))
+            {
+                var byteArrayBase64 = content;
+                var byteArrayValue = Convert.FromBase64String(byteArrayBase64);
+                return (object)byteArrayValue;
+            }
+            var value = content;
+            return value;
         }
 
         public static async Task<TResult> ReadMultipartContentAsync<TResult>(this HttpContent content,
@@ -124,6 +177,80 @@ namespace BlackBarLabs.Api
             return onMultpartContentFound(contents);
         }
 
+        public static async Task<TResult> ParseMultipartAsync<TResult>(this HttpContent httpContent,
+            IEnumerable<KeyValuePair<string, Type>> parameterInfos,
+            Func<object [], TResult> onPopulated,
+            Func<TResult> onNotMultipart)
+        {
+            if (httpContent.IsDefaultOrNull())
+                return onNotMultipart();
+
+            if (!httpContent.IsMimeMultipartContent())
+            {
+                if (httpContent.IsFormData())
+                    return await httpContent.ParseFormDataAsync(parameterInfos, onPopulated);
+                return onNotMultipart();
+            }
+
+            var streamProvider = new MultipartMemoryStreamProvider();
+            await httpContent.ReadAsMultipartAsync(streamProvider);
+
+            var parametersPopulated = await parameterInfos
+                .Select(
+                    async (param) =>
+                    {
+                        var paramContent = streamProvider.Contents
+                            .FirstOrDefault(file => String.Compare(
+                                    file.Headers.ContentDisposition.Name.Trim(new char[] { '"' }),
+                                    param.Key,
+                                true) == 0);
+                        return ContentToTypeAsync(param.Value, paramContent);
+                    })
+                .WhenAllAsync();
+            return onPopulated(parametersPopulated);
+        }
+
+        private static async Task<object> ContentToTypeAsync(Type type, HttpContent content)
+        {
+            if (default(HttpContent) == content)
+                return type.IsValueType ? Activator.CreateInstance(type) : null;
+
+            if (type.IsAssignableFrom(typeof(string)))
+            {
+                var stringValue = await content.ReadAsStringAsync();
+                return (object)stringValue;
+            }
+            if (type.IsAssignableFrom(typeof(Guid)))
+            {
+                var guidStringValue = await content.ReadAsStringAsync();
+                var guidValue = Guid.Parse(guidStringValue);
+                return (object)guidValue;
+            }
+            if (type.IsAssignableFrom(typeof(Stream)))
+            {
+                var streamValue = await content.ReadAsStreamAsync();
+                return (object)streamValue;
+            }
+            if (type.IsAssignableFrom(typeof(byte[])))
+            {
+                var byteArrayValue = await content.ReadAsByteArrayAsync();
+                return (object)byteArrayValue;
+            }
+            if (type.IsAssignableFrom(typeof(ByteArrayContent)))
+            {
+                var byteArrayContentValue = content as ByteArrayContent;
+                if (default(ByteArrayContent) == byteArrayContentValue)
+                {
+                    var byteArrayValue = await content.ReadAsByteArrayAsync();
+                    byteArrayContentValue = new ByteArrayContent(byteArrayValue);
+                    byteArrayContentValue.Headers.ContentType = content.Headers.ContentType;
+                }
+                return (object)byteArrayContentValue;
+            }
+            var value = await content.ReadAsAsync(type);
+            return value;
+        }
+
         public static async Task<TResult> ParseMultipartAsync_<TMethod, TResult>(this HttpContent content,
             Expression<TMethod> callback,
             Func<TResult> onNotMultipart)
@@ -141,57 +268,45 @@ namespace BlackBarLabs.Api
             var streamProvider = new MultipartMemoryStreamProvider();
             await content.ReadAsMultipartAsync(streamProvider);
 
-            var paramsForCallback = await callback.Parameters
-                .Select(
-                async (param) =>
+            return await content.ParseMultipartAsync(callback.Parameters.Select(p => p.Name.PairWithValue(p.Type)),
+                paramsForCallback =>
                 {
-                    var paramContent = streamProvider.Contents
-                        .FirstOrDefault(file => String.Compare(
-                                file.Headers.ContentDisposition.Name.Trim(new char[] { '"' }),
-                                param.Name,
-                            true) == 0);
-                    if (default(HttpContent) == paramContent)
-                        return param.Type.IsValueType ? Activator.CreateInstance(param.Type) : null;
+                    var result = ((LambdaExpression)callback).Compile().DynamicInvoke(paramsForCallback);
+                    return (TResult)result;
+                },
+                onNotMultipart);
+        }
 
-                    if (param.Type.GUID == typeof(string).GUID)
-                    {
-                        var stringValue = await paramContent.ReadAsStringAsync();
-                        return (object)stringValue;
-                    }
-                    if (param.Type.GUID == typeof(Guid).GUID)
-                    {
-                        var guidStringValue = await paramContent.ReadAsStringAsync();
-                        var guidValue = Guid.Parse(guidStringValue);
-                        return (object)guidValue;
-                    }
-                    if (param.Type.GUID == typeof(System.IO.Stream).GUID)
-                    {
-                        var streamValue = await paramContent.ReadAsStreamAsync();
-                        return (object)streamValue;
-                    }
-                    if (param.Type.GUID == typeof(byte[]).GUID)
-                    {
-                        var byteArrayValue = await paramContent.ReadAsByteArrayAsync();
-                        return (object)byteArrayValue;
-                    }
-                    if (param.Type.GUID == typeof(ByteArrayContent).GUID)
-                    {
-                        var byteArrayContentValue = paramContent as ByteArrayContent;
-                        if (default(ByteArrayContent) == byteArrayContentValue)
-                        {
-                            var byteArrayValue = await paramContent.ReadAsByteArrayAsync();
-                            byteArrayContentValue = new ByteArrayContent(byteArrayValue);
-                            byteArrayContentValue.Headers.ContentType = paramContent.Headers.ContentType;
-                        }
-                        return (object)byteArrayContentValue;
-                    }
-                    var value = await paramContent.ReadAsAsync(param.Type);
-                    return value;
-                })
-                .WhenAllAsync();
-            
-            var result = ((LambdaExpression)callback).Compile().DynamicInvoke(paramsForCallback);
-            return (TResult)result;
+        public static async Task<KeyValuePair<string, Func<Type, Task<object>>>[]> ParseOptionalMultipartValuesAsync(this HttpContent content)
+        {
+            if (content.IsDefaultOrNull())
+                return (new KeyValuePair<string, Func<Type, Task<object>>>[] { });
+
+            if (!content.IsMimeMultipartContent())
+            {
+                if (content.IsFormData())
+                {
+                    var optionalFormData = await content.ParseOptionalFormDataAsync();
+                    return (
+                        optionalFormData
+                            .Select(
+                                formDataCallbackKvp => formDataCallbackKvp.Key.PairWithValue<string, Func<Type, Task<object>>>(
+                                    (type) => formDataCallbackKvp.Value(type).ToTask()))
+                            .ToArray());
+                }
+                return (new KeyValuePair<string, Func<Type, Task<object>>>[] { });
+            }
+
+            var streamProvider = new MultipartMemoryStreamProvider();
+            await content.ReadAsMultipartAsync(streamProvider);
+
+            return (
+                streamProvider.Contents
+                    .Select(
+                        file => file.Headers.ContentDisposition.Name.Trim(new char[] { '"' })
+                            .PairWithValue<string, Func<Type, Task<object>>>(
+                                type => ContentToTypeAsync(type, file)))
+                    .ToArray());
         }
 
         public static IHttpActionResult ToActionResult(this HttpActionDelegate action)

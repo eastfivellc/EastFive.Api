@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace EastFive.FVC
+namespace EastFive.Api
 {
     public class FunctionViewControllerAttribute : Attribute
     {

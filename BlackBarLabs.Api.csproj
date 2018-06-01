@@ -104,6 +104,7 @@
     <Compile Include="Controllers\ApiValidations.cs" />
     <Compile Include="Controllers\BackgroundProgressController.cs" />
     <Compile Include="Controllers\BaseController.cs" />
+    <Compile Include="Controllers\Instigations.cs" />
     <Compile Include="Controllers\RequestDelegates.cs" />
     <Compile Include="Controllers\ResponseDelegates.cs" />
     <Compile Include="Extensions\ClaimsExtensions.cs" />
@@ -125,7 +126,7 @@
     <Compile Include="Extensions\WebUrnExtensions.cs" />
     <Compile Include="Extensions\ValidationExtensions.cs" />
     <Compile Include="FVC\FunctionViewControllerAttribute.cs" />
-    <Compile Include="FVC\QueryValidationAttribute.cs" />
+    <Compile Include="Controllers\QueryValidationAttribute.cs" />
     <Compile Include="HttpActionResult.cs" />
     <Compile Include="InjectableAssemblyResolver.cs" />
     <Compile Include="FVC\Modules\ControllerModule.cs" />
