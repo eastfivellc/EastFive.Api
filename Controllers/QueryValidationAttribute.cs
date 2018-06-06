@@ -28,7 +28,7 @@ namespace EastFive.Api
             return (TResult)obj;
         }
 
-        internal Task<TResult> OnEmptyValueAsync<TResult>(HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterRequiringValidation,
+        internal virtual Task<TResult> OnEmptyValueAsync<TResult>(HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterRequiringValidation,
             Func<object, TResult> onValid,
             Func<TResult> onInvalid)
         {
@@ -44,5 +44,16 @@ namespace EastFive.Api
     {
     }
 
-    
+
+    public class OptionalAttribute : QueryValidationAttribute
+    {
+        internal override Task<TResult> OnEmptyValueAsync<TResult>(HttpApplication httpApp, 
+                HttpRequestMessage request, ParameterInfo parameterRequiringValidation, 
+            Func<object, TResult> onValid,
+            Func<TResult> onInvalid)
+        {
+            return onValid(parameterRequiringValidation.ParameterType.GetDefault()).ToTask();
+        }
+    }
+
 }

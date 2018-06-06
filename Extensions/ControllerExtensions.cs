@@ -143,6 +143,19 @@ namespace BlackBarLabs.Api
                 var guidValue = Guid.Parse(guidStringValue);
                 return (object)guidValue;
             }
+            if (type.IsAssignableFrom(typeof(bool)))
+            {
+                var boolStringValue = content;
+                if (bool.TryParse(boolStringValue, out bool boolValue))
+                    return (object)boolValue;
+
+                if ("t" == boolStringValue)
+                    return (object)true;
+                if ("f" == boolStringValue)
+                    return (object)false;
+
+                return false;
+            }
             if (type.IsAssignableFrom(typeof(Stream)))
             {
                 var byteArrayBase64 = content;
@@ -155,6 +168,7 @@ namespace BlackBarLabs.Api
                 var byteArrayValue = Convert.FromBase64String(byteArrayBase64);
                 return (object)byteArrayValue;
             }
+
             var value = content;
             return value;
         }
@@ -226,6 +240,17 @@ namespace BlackBarLabs.Api
                 var guidValue = Guid.Parse(guidStringValue);
                 return (object)guidValue;
             }
+            if (type.IsAssignableFrom(typeof(bool)))
+            {
+                var boolStringValue = await content.ReadAsStringAsync();
+                if (bool.TryParse(boolStringValue, out bool boolValue))
+                    return (object)boolValue;
+                if (boolStringValue.ToLower() == "t")
+                    return true;
+                if (boolStringValue.ToLower() == "on") // used in check boxes
+                    return true;
+                return false;
+            }
             if (type.IsAssignableFrom(typeof(Stream)))
             {
                 var streamValue = await content.ReadAsStreamAsync();
@@ -246,6 +271,22 @@ namespace BlackBarLabs.Api
                     byteArrayContentValue.Headers.ContentType = content.Headers.ContentType;
                 }
                 return (object)byteArrayContentValue;
+            }
+            if (type.IsAssignableFrom(typeof(EastFive.Api.Controllers.ContentBytes)))
+            {
+                return new EastFive.Api.Controllers.ContentBytes()
+                {
+                    content = await content.ReadAsByteArrayAsync(),
+                    contentType = content.Headers.ContentType,
+                };
+            }
+            if (type.IsAssignableFrom(typeof(EastFive.Api.Controllers.ContentStream)))
+            {
+                return new EastFive.Api.Controllers.ContentStream()
+                {
+                    content = await content.ReadAsStreamAsync(),
+                    contentType = content.Headers.ContentType,
+                };
             }
             var value = await content.ReadAsAsync(type);
             return value;

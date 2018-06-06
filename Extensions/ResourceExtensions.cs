@@ -11,6 +11,10 @@ using EastFive.Linq;
 using EastFive;
 using EastFive.Extensions;
 using EastFive.Api;
+using System.Reflection;
+using System.Linq.Expressions;
+using System.Net.Http;
+using EastFive.Collections.Generic;
 
 namespace BlackBarLabs.Api
 {
@@ -150,6 +154,67 @@ namespace BlackBarLabs.Api
             };
         }
 
+        public static Resources.WebId GetWebId<T1>(this UrlHelper url,
+            T1 queryParam1,
+            Expression<Func<T1, Task<HttpResponseMessage>>> queryMethodExpression,
+            string routeName = "DefaultApi")
+            where T1 : struct
+        {
+            return ParseMethod(queryParam1, queryMethodExpression,
+                (controllerName, queryParameters) =>
+                {
+
+                    // TODO: Urns
+
+                    var location = url.Link(routeName, queryParameters);
+                    if (queryParam1 is Guid)
+                    {
+                        var id = new Guid(queryParam1.ToString()); // Wow this is hoaky
+                        return new Resources.WebId
+                        {
+                            Key = queryParam1.ToString(),
+                            UUID = id,
+                            URN = default(Uri),
+                            Source = new Uri(location),
+                        };
+                    }
+                    return new Resources.WebId
+                    {
+                        Key = queryParam1.ToString(),
+                        UUID = default(Guid), // Wow this is hoaky
+                        URN = default(Uri),
+                        Source = new Uri(location),
+                    };
+                });
+        }
+
+        private static TResult ParseMethod<T1, TResult>(
+            T1 queryParam1,
+            Expression<Func<T1, Task<HttpResponseMessage>>> queryMethodExpression,
+            Func<string, IDictionary<string, object>, TResult> onParsed)
+        {
+            var methodCallExpression = queryMethodExpression.Body as MethodCallExpression;
+            var controllerType = methodCallExpression.Method.DeclaringType;
+            var controllerName = controllerType.GetCustomAttribute<FunctionViewControllerAttribute, string>(
+                (attr) => attr.Route,
+                () => controllerType.Name.TrimEnd("Controller",
+                    (trimmedName) => trimmedName, (originalName) => originalName));
+
+            // TODO: Check if method has Get attribute?
+
+            var queryParameters = methodCallExpression.Arguments
+                .Zip(methodCallExpression.Method.GetParameters(), (k1, k2) => k1.PairWithValue(k2))
+                .Where(arg => arg.Key is ParameterExpression)
+                // TODO: Zip with T1, T2... etc when passes as a list 
+                .Select(arg => (arg.Key as ParameterExpression).PairWithValue(arg.Value))
+                .Select(arg => arg.Value.Name.PairWithValue((object)queryParam1)) // TODO: Change to call to ConvertToQueryParameter()
+                .Append("Controller".PairWithValue((object)controllerName))
+                .ToDictionary();
+            // TODO: Check if query param has DefaultId attribute 
+
+            return onParsed(controllerName, queryParameters);
+        }
+
         public static Uri GetUrn(this Type controllerType,
             string urnNamespace)
         {
@@ -169,6 +234,16 @@ namespace BlackBarLabs.Api
                 }
             }
             return urn;
+        }
+
+        public static Uri GetLocation<T1>(this UrlHelper url,
+            T1 queryParam1,
+            Expression<Func<T1, Task<HttpResponseMessage>>> queryMethodExpression,
+            string routeName = "DefaultApi")
+            where T1 : struct
+        {
+            return ParseMethod(queryParam1, queryMethodExpression,
+                (controllerName, queryParams) => new Uri(url.Link(routeName, queryParams)));
         }
 
         public static Uri GetLocation(this UrlHelper url, Type controllerType,

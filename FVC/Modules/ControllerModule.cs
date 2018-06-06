@@ -35,13 +35,13 @@ namespace EastFive.Api.Modules
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            if(!request.Properties.ContainsKey("MS_HttpContext"))
+            if (!request.Properties.ContainsKey("MS_HttpContext"))
                 return await base.SendAsync(request, cancellationToken);
             var httpApp = ((System.Web.HttpContextWrapper)request.Properties["MS_HttpContext"]).ApplicationInstance;
 
             string filePath = request.RequestUri.AbsolutePath;
             string fileName = VirtualPathUtility.GetFileName(filePath);
-            
+
             var routeName = fileName.IsNullOrWhiteSpace().IfElse(
                 () =>
                 {
@@ -67,11 +67,6 @@ namespace EastFive.Api.Modules
             return httpResponseMessage;
         }
 
-        //public void Dispose()
-        //{
-        //    //throw new NotImplementedException();
-        //}
-
         public void Init(HttpApplication context)
         {
             var wrapper = new EventHandlerTaskAsyncHelper(RouteToControllerAsync);
@@ -85,7 +80,7 @@ namespace EastFive.Api.Modules
             var context = httpApp.Context;
             string filePath = context.Request.FilePath;
             string fileName = VirtualPathUtility.GetFileName(filePath);
-            
+
             if (lookup.IsDefault())
                 LocateControllers();
 
@@ -117,13 +112,13 @@ namespace EastFive.Api.Modules
 
             HttpContext.Current.ApplicationInstance.CompleteRequest();
         }
-        
+
         private void LocateControllers()
         {
             var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies()
                 .Where(assembly => (!assembly.GlobalAssemblyCache))
                 .ToArray();
-            
+
             lock (lookupLock)
             {
                 AppDomain.CurrentDomain.AssemblyLoad += (object sender, AssemblyLoadEventArgs args) =>
@@ -183,28 +178,112 @@ namespace EastFive.Api.Modules
             }
         }
 
+        private struct MultipartParameter
+        {
+            public string index;
+            public string key;
+            public Func<Type, Task<object>> fetchValue;
+        }
+
+        private static KeyValuePair<TKey, TValue> KvpCreate<TKey, TValue>(TKey key, TValue value)
+        {
+            return new KeyValuePair<TKey, TValue>(key, value);
+        }
+
+        private static IDictionary<TKey, TValue> DictionaryCreate<TKey, TValue>(KeyValuePair<TKey, TValue>[] kvps)
+        {
+            return kvps.ToDictionary();
+        }
+
+        private static KeyValuePair<TKey, TValue>[] CastToKvp<TKey, TValue>(IEnumerable<object> objs)
+        {
+            return objs.Cast<KeyValuePair<TKey, TValue>>().ToArray();
+        }
+
         private async Task<HttpResponseMessage> CreateResponseAsync(HttpApplication httpApp, HttpRequestMessage request, MethodInfo[] methods)
         {
             var queryParams = request.RequestUri.ParseQuery()
                 .Select(kvp => kvp.Key.ToLower().PairWithValue<string, Func<Type, Task<object>>>(type => ControllerExtensions.StringContentToType(type, kvp.Value).ToTask()))
                 .Concat(await request.Content.ParseOptionalMultipartValuesAsync())
                 .SelectPartition(
-                    (param, plain, dictionary) => param.Key.MatchRegex<KeyValuePair<string, string>, Dictionary<string, Func<Type, Task<object>>>>(
-                        @"(?<Key>[a-zA-Z0-9]+)\[(?<EAN>[a-zA-Z0-9]+)\]",
-                        (kvp) => dictionary(kvp.Key.PairWithValue(kvp.Value.PairWithValue(param.Value))),
-                        () => plain(param),
-                        kvp => kvp.Key,
-                        kvp => kvp.Value),
-                    (KeyValuePair<string, Func<Type, Task<object>>> [] plains, KeyValuePair<string, KeyValuePair<string, Func<Type, Task<object>>>>[] dictionaries) =>
+                    (param, plain, dictionary) => param.Key.MatchRegexInvoke(
+                        @"(?<key>[a-zA-Z0-9]+)\[(?<value>[a-zA-Z0-9]+)\]",
+                        (string key, string value) => new KeyValuePair<string, string>(key, value),
+                        (kvps) =>
+                        {
+                            if (!kvps.Any())
+                                return plain(param);
+
+                            var kvp = kvps.First();
+                            var multipartParam = new MultipartParameter
+                            {
+                                index = kvp.Key,
+                                key = kvp.Value,
+                                fetchValue = param.Value,
+                            };
+                            return dictionary(multipartParam);
+                        }),
+                    (KeyValuePair<string, Func<Type, Task<object>>> [] plains, MultipartParameter[] collectionParameters) =>
                     {
-                        return plains.ToDictionary();
-                        //.Concat(
-                        //    dictionaries
-                        //        .GroupBy(kvp => kvp.Key)
-                        //        .Select(grp => grp.Key
-                        //        kvp =>  ,
-                        //    )
-                        //    .ToDictionary();
+                        var options = collectionParameters
+                            .GroupBy(collectionParameter => collectionParameter.index)
+                            .Select(
+                                collectionParameterGrp =>
+                                    collectionParameterGrp.Key.ToLower().PairWithValue<string, Func<Type, Task<object>>>(
+                                        async (Type collectionType) =>
+                                        {
+                                            if(collectionType.IsGenericType)
+                                            {
+                                                var genericArgs = collectionType.GenericTypeArguments;
+                                                if (genericArgs.Length == 1)
+                                                {
+                                                    // It's an array
+                                                    var lookup = await collectionParameterGrp
+                                                        .Select(collectionParameter => collectionParameter.fetchValue(genericArgs.First()))
+                                                        .WhenAllAsync();
+                                                    return lookup;
+                                                }
+                                                if (genericArgs.Length == 2)
+                                                {
+                                                    // It's an dictionary
+                                                    var kvpCreateMethod = typeof(ControllerModule).GetMethod("KvpCreate", BindingFlags.Static | BindingFlags.NonPublic);
+                                                    var correctGenericKvpCreate = kvpCreateMethod.MakeGenericMethod(genericArgs);
+                                                    var lookup = await collectionParameterGrp
+                                                        .Select(async collectionParameter => correctGenericKvpCreate.Invoke(null,
+                                                            new object[] { collectionParameter.key, await collectionParameter.fetchValue(genericArgs[1]) }))
+                                                        .WhenAllAsync();
+
+                                                    var castMethod = typeof(ControllerModule).GetMethod("CastToKvp", BindingFlags.Static | BindingFlags.NonPublic);
+                                                    var correctKvpsCast = castMethod.MakeGenericMethod(genericArgs);
+                                                    var kvpsOfCorrectTypes = correctKvpsCast.Invoke(null, lookup.AsArray());
+
+                                                    var dictCreateMethod = typeof(ControllerModule).GetMethod("DictionaryCreate", BindingFlags.Static | BindingFlags.NonPublic);
+                                                    var correctGenericDictCreate = dictCreateMethod.MakeGenericMethod(genericArgs);
+                                                    var dictionaryOfCorrectTypes = correctGenericDictCreate.Invoke(null, kvpsOfCorrectTypes.AsArray());
+                                                    return dictionaryOfCorrectTypes;
+                                                }
+                                                throw new ArgumentException();
+                                            }
+                                            if (typeof(Enumerable).IsAssignableFrom(collectionType))
+                                            {
+                                                // It's an array
+                                                var lookup = await collectionParameterGrp
+                                                    .Select(collectionParameter => collectionParameter.fetchValue(typeof(object)))
+                                                    .WhenAllAsync();
+                                                return lookup;
+                                            }
+                                            if (typeof(System.Collections.DictionaryBase).IsAssignableFrom(collectionType))
+                                            {
+                                                // It's an dictionary
+                                                var lookup = await collectionParameterGrp
+                                                    .Select(async collectionParameter => collectionParameter.key
+                                                        .PairWithValue(await collectionParameter.fetchValue(typeof(object))))
+                                                    .WhenAllAsync();
+                                                return lookup.ToDictionary();
+                                            }
+                                            throw new ArgumentException();
+                                        }));
+                        return plains.Concat(options).ToDictionary();
                     });
 
             var response = await methods
@@ -397,6 +476,14 @@ namespace EastFive.Api.Modules
                     (httpApp, request, paramInfo, success) =>
                     {
                         Controllers.MultipartResponseAsync dele = (responses) => request.CreateMultipartResponseAsync(responses);
+                        return success((object)dele);
+                    }
+                },
+                {
+                    typeof(Controllers.RedirectResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.RedirectResponse dele = (redirectLocation) => request.CreateRedirectResponse(redirectLocation);
                         return success((object)dele);
                     }
                 },
