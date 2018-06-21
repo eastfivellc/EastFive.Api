@@ -1,4 +1,7 @@
-﻿using BlackBarLabs.Extensions;
+﻿using BlackBarLabs.Api;
+using BlackBarLabs.Extensions;
+using EastFive.Extensions;
+using EastFive.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,14 +14,22 @@ using System.Web;
 namespace EastFive.Api
 {
     [AttributeUsage(AttributeTargets.Parameter)]
+    public class QueryDefaultParameterAttribute : System.Attribute
+    {
+
+    }
+
+    [AttributeUsage(AttributeTargets.Parameter)]
     public class QueryValidationAttribute : System.Attribute
     {
+        public string Name { get; set; }
+
         public delegate Task<object> CastDelegate(Type type,
             Func<object, object> onCasted,
             Func<string, object> onFailedToCast);
 
-        internal async Task<TResult> TryCastAsync<TResult>(HttpApplication httpApp, HttpRequestMessage request,
-                ParameterInfo parameterRequiringValidation, CastDelegate fetch,
+        public virtual async Task<TResult> TryCastAsync<TResult>(HttpApplication httpApp, HttpRequestMessage request,
+                MethodInfo method, ParameterInfo parameterRequiringValidation, CastDelegate fetch,
             Func<object, TResult> onCasted,
             Func<string, TResult> onInvalid)
         {
@@ -28,7 +39,7 @@ namespace EastFive.Api
             return (TResult)obj;
         }
 
-        internal virtual Task<TResult> OnEmptyValueAsync<TResult>(HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterRequiringValidation,
+        public virtual Task<TResult> OnEmptyValueAsync<TResult>(HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterRequiringValidation,
             Func<object, TResult> onValid,
             Func<TResult> onInvalid)
         {
@@ -40,15 +51,14 @@ namespace EastFive.Api
     {
     }
 
-    public class RequiredAndAvailableInPath : QueryValidationAttribute
+    public class RequiredAndAvailableInPathAttribute : QueryValidationAttribute
     {
     }
 
-
     public class OptionalAttribute : QueryValidationAttribute
     {
-        internal override Task<TResult> OnEmptyValueAsync<TResult>(HttpApplication httpApp, 
-                HttpRequestMessage request, ParameterInfo parameterRequiringValidation, 
+        public override Task<TResult> OnEmptyValueAsync<TResult>(HttpApplication httpApp,
+                HttpRequestMessage request, ParameterInfo parameterRequiringValidation,
             Func<object, TResult> onValid,
             Func<TResult> onInvalid)
         {
@@ -56,4 +66,151 @@ namespace EastFive.Api
         }
     }
 
+    public class PropertyAttribute : QueryValidationAttribute
+    {
+        public override Task<TResult> TryCastAsync<TResult>(HttpApplication httpApp, HttpRequestMessage request,
+                MethodInfo method, ParameterInfo parameterRequiringValidation, CastDelegate fetch,
+            Func<object, TResult> onCasted,
+            Func<string, TResult> onInvalid)
+        {
+            return method.GetCustomAttribute<HttpBodyAttribute, Task<TResult>>(
+                bodyAttr =>
+                {
+                    if (bodyAttr.Type.IsDefaultOrNull())
+                        return onInvalid($"Cannot determine property type for parameter: {method.DeclaringType.FullName}.{method.Name}({parameterRequiringValidation.ParameterType.FullName} {parameterRequiringValidation.Name}).").ToTask();
+                    var name = this.Name.IsNullOrWhiteSpace() ? parameterRequiringValidation.Name : this.Name;
+                    return bodyAttr.Type.GetProperties()
+                        .First(
+                            async (prop, next) =>
+                            {
+                                var propertyName = prop.GetCustomAttribute<Newtonsoft.Json.JsonPropertyAttribute, string>(
+                                    attr => attr.PropertyName,
+                                    () => prop.Name);
+
+                                if (propertyName != name)
+                                    return await next();
+                                var obj = await fetch(prop.PropertyType,
+                                    v => Convert(parameterRequiringValidation.ParameterType, v,
+                                        (vCasted) => onCasted(vCasted),
+                                        (why) => onInvalid($"Property {name}:{why}")),
+                                    why => onInvalid(why));
+                                return (TResult)obj;
+                            },
+                            () => onInvalid($"No match for property {name}").ToTask());
+                },
+                () =>
+                {
+                    // TODO: Check the FunctionViewController for a type
+                    return onInvalid($"{method.DeclaringType.FullName}.{method.Name}'s does not contain a type specifier.").ToTask();
+                });
+        }
+
+        public virtual TResult Convert<TResult>(Type type, object value,
+            Func<object, TResult> onCasted,
+            Func<string, TResult> onInvalid)
+        {
+            return onCasted(value);
+        }
+    }
+
+    public class PropertyGuidAttribute : PropertyAttribute
+    {
+        public override TResult Convert<TResult>(Type type, object value,
+            Func<object, TResult> onCasted,
+            Func<string, TResult> onInvalid)
+        {
+            if (value is Guid)
+            {
+                var valueGuid = (Guid)value;
+                return onCasted(valueGuid);
+            }
+
+            if (value is BlackBarLabs.Api.Resources.WebId)
+            {
+                var webId = value as BlackBarLabs.Api.Resources.WebId;
+                if (typeof(Guid).GUID == type.GUID)
+                {
+                    var guidMaybe = webId.ToGuid();
+                    if (!guidMaybe.HasValue)
+                        return onInvalid("Value did not provide a UUID.");
+                    return onCasted(guidMaybe.Value);
+                }
+                if (typeof(Guid?).GUID == type.GUID)
+                {
+                    var guidMaybe = webId.ToGuid();
+                    return onCasted(guidMaybe.Value);
+                }
+                return onInvalid($"Could not cast WebId to {type.FullName}");
+            }
+
+            if (value is string)
+            {
+                var valueString = value as string;
+                if (Guid.TryParse(valueString, out Guid valueGuid))
+                    return onCasted(valueGuid);
+            }
+
+
+            return onInvalid($"PropertyGuid could not cast {value.GetType().FullName} to {type.FullName}");
+        }
+    }
+
+    public class PropertyEnumAttribute : PropertyAttribute
+    {
+        public override TResult Convert<TResult>(Type type, object value,
+            Func<object, TResult> onCasted,
+            Func<string, TResult> onInvalid)
+        {
+            if (value.GetType().GUID == type.GUID)
+                return onCasted(value);
+
+            if (!type.IsEnum)
+                return type.IsNullable(
+                    underlyingType =>
+                    {
+                        if (value.IsDefaultOrNull())
+                            return onCasted(type.GetDefault());
+                        return Convert(underlyingType, value,
+                            underlyingValue => onCasted(Activator.CreateInstance(type, underlyingValue)),
+                            onInvalid);
+                    },
+                    () => onInvalid($"PropertyEnum is not a valid query validation for type {type.FullName}"));
+
+            if (value is int)
+            {
+                var valueInt = (int)value;
+                var valueEnum = Enum.ToObject(type, valueInt);
+                return onCasted(valueEnum);
+            }
+
+            if (value is string)
+            {
+                var valueString = value as string;
+                if(Enum.IsDefined(type, valueString))
+                {
+                    var valueEnum = Enum.Parse(type, valueString);
+                    return onCasted(valueEnum);
+                }
+                return onInvalid($"{valueString} is not one of [{Enum.GetNames(type).Join(",")}]");
+            }
+
+            return onInvalid($"PropertyEnum could not cast {value.GetType().FullName} to {type.FullName}");
+        }
+    }
+
+    public class PropertyStringAttribute : PropertyAttribute
+    {
+        public override TResult Convert<TResult>(Type type, object value,
+            Func<object, TResult> onCasted,
+            Func<string, TResult> onInvalid)
+        {
+            if (value.GetType().GUID == type.GUID)
+                return onCasted(value);
+
+            if (value is string && type.IsAssignableFrom(typeof(string)))
+                return onCasted(value);
+
+            return onInvalid($"PropertyString could not cast {value.GetType().FullName} to {type.FullName}");
+        }
+    }
 }

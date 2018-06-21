@@ -40,16 +40,9 @@ namespace EastFive.Api.Modules
             var httpApp = ((System.Web.HttpContextWrapper)request.Properties["MS_HttpContext"]).ApplicationInstance;
 
             string filePath = request.RequestUri.AbsolutePath;
-            string fileName = VirtualPathUtility.GetFileName(filePath);
-
-            var routeName = fileName.IsNullOrWhiteSpace().IfElse(
-                () =>
-                {
-                    var path = filePath.Split(new char[] { '/' });
-                    return path.Any() ? path.Last() : "";
-                },
-                () => fileName);
-
+            var path = filePath.Split(new char[] { '/' }).Where(pathPart => !pathPart.IsNullOrWhiteSpace()).ToArray();
+            var routeName =  path.Length >= 2 ? path[1] : "";
+            
             if (!lookup.ContainsKey(routeName))
                 return await base.SendAsync(request, cancellationToken);
 
@@ -61,57 +54,13 @@ namespace EastFive.Api.Modules
             if (!matchingKey.Any())
                 return request.CreateResponse(HttpStatusCode.NotImplemented);
 
-            var httpResponseMessage = await CreateResponseAsync(httpApp, request, possibleHttpMethods[matchingKey.First()]);
-            //context.Response.
+            var controllerName = matchingKey.First();
+            var httpResponseMessage = await CreateResponseAsync(httpApp, request, routeName, possibleHttpMethods[controllerName]);
 
             return httpResponseMessage;
         }
 
-        public void Init(HttpApplication context)
-        {
-            var wrapper = new EventHandlerTaskAsyncHelper(RouteToControllerAsync);
-            context.AddOnBeginRequestAsync(wrapper.BeginEventHandler, wrapper.EndEventHandler);
-
-        }
-
-        private async Task RouteToControllerAsync(object sender, EventArgs e)
-        {
-            var httpApp = (HttpApplication)sender;
-            var context = httpApp.Context;
-            string filePath = context.Request.FilePath;
-            string fileName = VirtualPathUtility.GetFileName(filePath);
-
-            if (lookup.IsDefault())
-                LocateControllers();
-
-            var routeName = fileName.IsNullOrWhiteSpace().IfElse(
-                () =>
-                {
-                    var path = filePath.Split(new char[] { '/' });
-                    return path.Any() ? path.Last() : "";
-                },
-                () => fileName);
-
-            if (!lookup.ContainsKey(routeName))
-                return;
-
-            var possibleHttpMethods = lookup[routeName];
-            var matchingKey = possibleHttpMethods
-                .SelectKeys()
-                .Where(key => key.Method == context.Request.HttpMethod);
-
-            if (!matchingKey.Any())
-                context.Response.StatusCode = (int)HttpStatusCode.NotImplemented;
-
-            if (!HttpContext.Current.Items.Contains("MS_HttpRequestMessage"))
-                return;
-
-            var httpRequestMessage = new HttpRequestMessage(new HttpMethod(context.Request.HttpMethod), context.Request.Url); // HttpContext.Current.Items["MS_HttpRequestMessage"] as HttpRequestMessage;
-            var httpResponseMessage = await CreateResponseAsync(httpApp, httpRequestMessage, possibleHttpMethods[matchingKey.First()]);
-            //context.Response.
-
-            HttpContext.Current.ApplicationInstance.CompleteRequest();
-        }
+        #region Load Controllers
 
         private void LocateControllers()
         {
@@ -177,6 +126,10 @@ namespace EastFive.Api.Modules
                 ex.GetType();
             }
         }
+        
+        #endregion
+
+        #region Invoke correct method
 
         private struct MultipartParameter
         {
@@ -200,11 +153,19 @@ namespace EastFive.Api.Modules
             return objs.Cast<KeyValuePair<TKey, TValue>>().ToArray();
         }
 
-        private async Task<HttpResponseMessage> CreateResponseAsync(HttpApplication httpApp, HttpRequestMessage request, MethodInfo[] methods)
+        private const string defaultKeyPlaceholder = "__DEFAULT_ID__";
+
+        private async Task<HttpResponseMessage> CreateResponseAsync(HttpApplication httpApp, HttpRequestMessage request, string controllerName, MethodInfo[] methods)
         {
-            var queryParams = request.RequestUri.ParseQuery()
+            var allParamInvokators = request.RequestUri.ParseQuery()
                 .Select(kvp => kvp.Key.ToLower().PairWithValue<string, Func<Type, Task<object>>>(type => ControllerExtensions.StringContentToType(type, kvp.Value).ToTask()))
-                .Concat(await request.Content.ParseOptionalMultipartValuesAsync())
+                .If(true,
+                    queryParamsFromUri => request.RequestUri.AbsoluteUri.MatchRegexInvoke($".*/{controllerName}/(?<defaultQueryParam>[a-zA-Z0-9-]+)",
+                        defaultQueryParam => queryParamsFromUri
+                            .Append(defaultKeyPlaceholder.PairWithValue<string, Func<Type, Task<object>>>(
+                                type => ControllerExtensions.StringContentToType(type, request.RequestUri.AbsoluteUri.Split(new char[] { '/' }).Last()).ToTask())),
+                        updates => updates.Any()? updates.First() : queryParamsFromUri))
+                .Concat(await request.Content.ParseContentValuesAsync())
                 .SelectPartition(
                     (param, plain, dictionary) => param.Key.MatchRegexInvoke(
                         @"(?<key>[a-zA-Z0-9]+)\[(?<value>[a-zA-Z0-9]+)\]",
@@ -283,8 +244,15 @@ namespace EastFive.Api.Modules
                                             }
                                             throw new ArgumentException();
                                         }));
-                        return plains.Concat(options).ToDictionary();
+
+                        return plains.Concat(options).ToArray();
                     });
+
+
+            var duplicates = allParamInvokators.SelectKeys().Duplicates((s1, s2) => s1 == s2);
+            if (duplicates.Any())
+                return request.CreateResponse(HttpStatusCode.BadRequest).AddReason($"Conflicting query and body parameters for: [{duplicates.Join(" and ")}]");
+            var queryParams = allParamInvokators.ToDictionary();
 
             var response = await methods
                 .SelectPartition(
@@ -304,12 +272,26 @@ namespace EastFive.Api.Modules
                                         async (parameterRequiringValidation, validValue, group2) =>
                                         {
                                             var validator = parameterRequiringValidation.GetCustomAttribute<QueryValidationAttribute>();
-                                            if(queryParams.ContainsKey(parameterRequiringValidation.Name.ToLower()))
-                                                return await await validator.TryCastAsync(httpApp, request, parameterRequiringValidation,
-                                                    async (type, success, failure) => success(await queryParams[parameterRequiringValidation.Name.ToLower()](type)),
+                                            var lookupName = validator.Name.IsNullOrWhiteSpace() ? parameterRequiringValidation.Name.ToLower() : validator.Name;
+
+                                            // Handle default params
+                                            if(!queryParams.ContainsKey(lookupName))
+                                                lookupName = parameterRequiringValidation.GetCustomAttribute<QueryDefaultParameterAttribute, string>(
+                                                    defaultAttr => defaultKeyPlaceholder,
+                                                    () => lookupName);
+
+                                            if (queryParams.ContainsKey(lookupName))
+                                                return await await validator.TryCastAsync(httpApp, request, method, parameterRequiringValidation,
+                                                        async (type, success, failure) =>
+                                                        {
+                                                            var queryParamValue = await queryParams[lookupName](type);
+                                                            if (queryParamValue is Exception)
+                                                                return failure((queryParamValue as Exception).Message);
+                                                            return success(queryParamValue);
+                                                        },
                                                     v => validValue(parameterRequiringValidation.PairWithValue(v)),
                                                     (why) => group2(parameterRequiringValidation.PairWithValue(why)));
-
+                                            
                                             return await await validator.OnEmptyValueAsync(httpApp, request, parameterRequiringValidation,
                                                 v => validValue(parameterRequiringValidation.PairWithValue(v)),
                                                 () => group2(parameterRequiringValidation.PairWithValue("Value not provided")));
@@ -321,38 +303,71 @@ namespace EastFive.Api.Modules
 
                                             var parametersNotRequiringValidationWithValues = await parametersNotRequiringValidation
                                                 .Where(unvalidatedParam => queryParams.ContainsKey(unvalidatedParam.Name.ToLower()))
-                                                .Select(async unvalidatedParam => unvalidatedParam.PairWithValue(await queryParams[unvalidatedParam.Name.ToLower()](unvalidatedParam.ParameterType)))
+                                                .Select(
+                                                    async (unvalidatedParam) =>
+                                                    {
+                                                        var queryParamValue = await queryParams[unvalidatedParam.Name.ToLower()](unvalidatedParam.ParameterType);
+                                                        if (queryParamValue is Exception)
+                                                            return unvalidatedParam.PairWithValue(unvalidatedParam.ParameterType.GetDefault()); // TODO: Fail here? (queryParamValue as Exception).Message);
+                                                        return unvalidatedParam.PairWithValue(queryParamValue);
+                                                    })
                                                 .WhenAllAsync();
 
                                             var parametersWithValues = parametersNotRequiringValidationWithValues
                                                 .Concat(parametersRequiringValidationWithValues)
                                                 .ToArray();
 
-                                            #region Check for extra parameters that did not match anything
-
-                                            var matchedParamsLookup = parametersRequiringValidation.Concat(parametersNotRequiringValidation).Select(pi => pi.Name.ToLower()).AsHashSet();
-                                            var extraParams = queryParams.SelectKeys().Except(matchedParamsLookup).ToArray();
-                                            if (extraParams.Any())
-                                                return await removeParams(extraParams);
-
-                                            #endregion
-
-                                            return await InvokeValidatedMethod(httpApp, request, method, parametersWithValues,
-                                                (missingParams) => addParams(missingParams.Select(param => param.PairWithValue("Missing")).ToArray()));
+                                            return await HasExtraParameters(method,
+                                                    parametersRequiringValidation.Concat(parametersNotRequiringValidation),
+                                                    queryParams.SelectKeys(),
+                                                () => InvokeValidatedMethod(httpApp, request, method, parametersWithValues,
+                                                    (missingParams) => addParams(missingParams.Select(param => param.PairWithValue("Missing")).ToArray())),
+                                                (extraParams) => removeParams(extraParams));
+                                            
                                         });
                                 });
                     },
                     (string[][] removeParams, KeyValuePair<ParameterInfo, string>[][] addParams) =>
                     {
                         var content =
-                            addParams.Any() ? $"Please correct the value for [{addParams.Select(uvs => uvs.Select(uv => $"{uv.Key.Name} ({uv.Value})").Join(",")).Join(" or ")}]." : "" +
-                            (removeParams.Any() ? $"Remove query parameters [{removeParams.Select(uvs => uvs.Select(uv => uv).Join(",")).Join(" or ")}]" : "");
+                            (addParams.Any()    ? $"Please correct the value for [{addParams.Select(uvs => uvs.Select(uv => $"{uv.Key.Name} ({uv.Value})").Join(",")).Join(" or ")}]." : "")
+                            +
+                            (removeParams.Any() ? $"Remove query parameters [{  removeParams.Select(uvs => uvs.Select(uv => uv)                           .Join(",")).Join(" or ")}]." : "");
                         return request
                             .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
                             .AddReason(content)
                             .ToTask();
                     });
             return response;
+        }
+
+        private TResult HasExtraParameters<TResult>(MethodInfo method, 
+                IEnumerable<ParameterInfo> parameters, IEnumerable<string> queryKeys,
+            Func<TResult> noExtraParameters,
+            Func<string[], TResult> onExtraParams)
+        {
+            return method.GetCustomAttribute<HttpVerbAttribute, TResult>(
+                verbAttr =>
+                {
+                    if (!verbAttr.MatchAllParameters)
+                        return noExtraParameters();
+
+                    var matchedParamsLookup = parameters
+                        .Select(pi => pi.GetCustomAttribute<QueryValidationAttribute, string>(
+                            validator => validator.Name.IsNullOrWhiteSpace() ? pi.Name.ToLower() : validator.Name,
+                            () => pi.Name.ToLower()))
+                            .AsHashSet();
+                    var extraParams = queryKeys
+                        .Where(key => key != defaultKeyPlaceholder)
+                        .Except(matchedParamsLookup)
+                        .ToArray();
+
+                    if (extraParams.Any())
+                        return onExtraParams(extraParams);
+
+                    return noExtraParameters();
+                },
+                noExtraParameters);
         }
 
         private Task<HttpResponseMessage> InvokeValidatedMethod(HttpApplication httpApp, HttpRequestMessage request, MethodInfo method, 
@@ -389,6 +404,10 @@ namespace EastFive.Api.Modules
                     });
         }
         
+        #endregion
+
+        #region Instigators
+
         public delegate Task<HttpResponseMessage> InstigatorDelegate(
                 HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess);
@@ -594,5 +613,8 @@ namespace EastFive.Api.Modules
         {
             instigators.Add(type, instigator);
         }
+
+        #endregion
+
     }
 }

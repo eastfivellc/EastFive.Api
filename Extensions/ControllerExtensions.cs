@@ -140,8 +140,8 @@ namespace BlackBarLabs.Api
             if (type.IsAssignableFrom(typeof(Guid)))
             {
                 var guidStringValue = content;
-                var guidValue = Guid.Parse(guidStringValue);
-                return (object)guidValue;
+                if(Guid.TryParse(guidStringValue, out Guid guidValue))
+                    return (object)guidValue;
             }
             if (type.IsAssignableFrom(typeof(bool)))
             {
@@ -348,6 +348,74 @@ namespace BlackBarLabs.Api
                             .PairWithValue<string, Func<Type, Task<object>>>(
                                 type => ContentToTypeAsync(type, file)))
                     .ToArray());
+        }
+        
+        public static async Task<KeyValuePair<string, Func<Type, Task<object>>>[]> ParseContentValuesAsync(this HttpContent content)
+        {
+            if (content.IsDefaultOrNull())
+                return (new KeyValuePair<string, Func<Type, Task<object>>>[] { });
+            
+            if (
+                (!content.Headers.IsDefaultOrNull()) &&
+                (!content.Headers.ContentType.IsDefaultOrNull()) &&
+                String.Compare("application/json", content.Headers.ContentType.MediaType, true) == 0)
+            {
+                var contentString = await content.ReadAsStringAsync();
+                try
+                {
+                    var contentJObject = Newtonsoft.Json.Linq.JObject.Parse(contentString);
+                    return contentJObject
+                        .Properties()
+                        .Select(
+                            jProperty =>
+                            {
+                                var key = jProperty.Name;
+                                return key.PairWithValue<string, Func<Type, Task<object>>>(
+                                    (type) =>
+                                    {
+                                        try
+                                        {
+                                            return jProperty.First.ToObject(type).ToTask();
+                                        // return Newtonsoft.Json.JsonConvert.DeserializeObject(value, type).ToTask();
+                                    }
+                                        catch (Exception ex)
+                                        {
+                                            return ((object)ex).ToTask();
+                                        }
+                                    });
+                            })
+                        .ToArray();
+                } catch (Exception ex)
+                {
+                }
+            }
+
+            if (content.IsMimeMultipartContent())
+            {
+                var streamProvider = new MultipartMemoryStreamProvider();
+                await content.ReadAsMultipartAsync(streamProvider);
+
+                return (
+                    streamProvider.Contents
+                        .Select(
+                            file => file.Headers.ContentDisposition.Name.Trim(new char[] { '"' })
+                                .PairWithValue<string, Func<Type, Task<object>>>(
+                                    type => ContentToTypeAsync(type, file)))
+                        .ToArray());
+            }
+            
+            if (content.IsFormData())
+            {
+                var optionalFormData = await content.ParseOptionalFormDataAsync();
+                return (
+                    optionalFormData
+                        .Select(
+                            formDataCallbackKvp => formDataCallbackKvp.Key.PairWithValue<string, Func<Type, Task<object>>>(
+                                (type) => formDataCallbackKvp.Value(type).ToTask()))
+                        .ToArray());
+            }
+
+            return (new KeyValuePair<string, Func<Type, Task<object>>>[] { });
         }
 
         public static IHttpActionResult ToActionResult(this HttpActionDelegate action)
