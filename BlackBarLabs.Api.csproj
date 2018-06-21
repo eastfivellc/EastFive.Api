@@ -127,6 +127,7 @@
     <Compile Include="Extensions\ValidationExtensions.cs" />
     <Compile Include="FVC\FunctionViewControllerAttribute.cs" />
     <Compile Include="Controllers\QueryValidationAttribute.cs" />
+    <Compile Include="FVC\Modules\MonitoringModule.cs" />
     <Compile Include="HttpActionResult.cs" />
     <Compile Include="InjectableAssemblyResolver.cs" />
     <Compile Include="FVC\Modules\ControllerModule.cs" />
