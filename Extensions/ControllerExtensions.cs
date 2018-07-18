@@ -442,7 +442,7 @@ namespace BlackBarLabs.Api
             return new HttpActionResult(() => executeAsync());
         }
 
-        public static IHttpActionResult ActionResult(this ApiController controller, HttpActionDelegate action)
+        public static IHttpActionResult ActionResult(this System.Web.Http.ApiController controller, HttpActionDelegate action)
         {
             return action.ToActionResult();
         }
