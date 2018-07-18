@@ -1,5 +1,6 @@
 ﻿using BlackBarLabs.Collections.Generic;
 using BlackBarLabs.Extensions;
+using EastFive.Api.Controllers;
 using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using System;
@@ -124,53 +125,61 @@ namespace BlackBarLabs.Api
 
             var parameters = formData.AllKeys
                 .Select(key => key.PairWithValue<string, Func<Type, object>>(
-                    (type) => StringContentToType(type, formData[key])))
+                    (type) => StringContentToType(type, formData[key],
+                        v => v,
+                        why => { throw new Exception(why); })))
                 .ToArray();
 
             return (parameters);
         }
 
-        internal static object StringContentToType(Type type, string content)
+        internal static TResult StringContentToType<TResult>(Type type, string content,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> notConvertable)
         {
             if (type.IsAssignableFrom(typeof(string)))
             {
                 var stringValue = content;
-                return (object)stringValue;
+                return onParsed((object)stringValue);
             }
             if (type.IsAssignableFrom(typeof(Guid)))
             {
                 var guidStringValue = content;
                 if(Guid.TryParse(guidStringValue, out Guid guidValue))
-                    return (object)guidValue;
+                    return onParsed(guidValue);
             }
             if (type.IsAssignableFrom(typeof(bool)))
             {
                 var boolStringValue = content;
                 if (bool.TryParse(boolStringValue, out bool boolValue))
-                    return (object)boolValue;
+                    return onParsed(boolValue);
 
                 if ("t" == boolStringValue)
-                    return (object)true;
+                    return onParsed(true);
                 if ("f" == boolStringValue)
-                    return (object)false;
+                    return onParsed(false);
 
-                return false;
+                return onParsed(false);
             }
             if (type.IsAssignableFrom(typeof(Stream)))
             {
                 var byteArrayBase64 = content;
                 var byteArrayValue = Convert.FromBase64String(byteArrayBase64);
-                return (object)new MemoryStream(byteArrayValue);
+                return onParsed(new MemoryStream(byteArrayValue));
             }
             if (type.IsAssignableFrom(typeof(byte[])))
             {
                 var byteArrayBase64 = content;
                 var byteArrayValue = Convert.FromBase64String(byteArrayBase64);
-                return (object)byteArrayValue;
+                return (onParsed(byteArrayValue));
+            }
+            if (type.IsAssignableFrom(typeof(WebIdAny)))
+            {
+                if(String.Compare(content.ToLower(), "any") == 0)
+                    return onParsed(new WebIdAny());
             }
 
-            var value = content;
-            return value;
+            return notConvertable($"Cannot convert `{content}` to type {type.FullName}");
         }
 
         public static async Task<TResult> ReadMultipartContentAsync<TResult>(this HttpContent content,

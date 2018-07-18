@@ -119,38 +119,81 @@ namespace EastFive.Api
             Func<object, TResult> onCasted,
             Func<string, TResult> onInvalid)
         {
-            if (value is Guid)
+            if (typeof(Guid).GUID == type.GUID)
             {
-                var valueGuid = (Guid)value;
-                return onCasted(valueGuid);
-            }
-
-            if (value is BlackBarLabs.Api.Resources.WebId)
-            {
-                var webId = value as BlackBarLabs.Api.Resources.WebId;
-                if (typeof(Guid).GUID == type.GUID)
+                if (value is Guid)
                 {
+                    var valueGuid = (Guid)value;
+                    return onCasted(valueGuid);
+                }
+
+                if (value is Guid?)
+                {
+                    var valueGuidMaybe = (Guid?)value;
+                    if (!valueGuidMaybe.HasValue)
+                        return onInvalid("A value is required.");
+                    return onCasted(valueGuidMaybe);
+                }
+
+                if (value is BlackBarLabs.Api.Resources.WebId)
+                {
+                    var webId = value as BlackBarLabs.Api.Resources.WebId;
+
                     var guidMaybe = webId.ToGuid();
                     if (!guidMaybe.HasValue)
                         return onInvalid("Value did not provide a UUID.");
                     return onCasted(guidMaybe.Value);
                 }
-                if (typeof(Guid?).GUID == type.GUID)
+
+                if (value is string)
                 {
-                    var guidMaybe = webId.ToGuid();
-                    return onCasted(guidMaybe.Value);
+                    var valueString = value as string;
+                    if (Guid.TryParse(valueString, out Guid valueGuid))
+                        return onCasted(valueGuid);
                 }
-                return onInvalid($"Could not cast WebId to {type.FullName}");
+
+                return onInvalid($"PropertyGuid could not cast {value.GetType().FullName} to {type.FullName}");
             }
 
-            if (value is string)
+            if (typeof(Guid?).GUID == type.GUID)
             {
-                var valueString = value as string;
-                if (Guid.TryParse(valueString, out Guid valueGuid))
-                    return onCasted(valueGuid);
+                if (value is Guid)
+                {
+                    var valueGuid = (Guid)value;
+                    var valueGuidMaybe = (Guid?)valueGuid;
+                    return onCasted(valueGuidMaybe);
+                }
+
+                if (value is Guid?)
+                {
+                    var valueGuidMaybe = (Guid?)value;
+                    return onCasted(valueGuidMaybe);
+                }
+                
+                if (value.IsDefaultOrNull())
+                {
+                    var valueGuidMaybe = default(Guid?);
+                    return onCasted(valueGuidMaybe);
+                }
+
+                if (value is BlackBarLabs.Api.Resources.WebId)
+                {
+                    var webId = value as BlackBarLabs.Api.Resources.WebId;
+                    var guidMaybe = webId.ToGuid();
+                    return onCasted(guidMaybe);
+                }
+
+                if (value is string)
+                {
+                    var valueString = value as string;
+                    if (Guid.TryParse(valueString, out Guid valueGuid))
+                    {
+                        var valueGuidMaybe = (Guid?)valueGuid;
+                        return onCasted(valueGuidMaybe);
+                    }
+                }
             }
-
-
+            
             return onInvalid($"PropertyGuid could not cast {value.GetType().FullName} to {type.FullName}");
         }
     }

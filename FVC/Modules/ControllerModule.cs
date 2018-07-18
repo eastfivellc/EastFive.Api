@@ -41,7 +41,7 @@ namespace EastFive.Api.Modules
 
             string filePath = request.RequestUri.AbsolutePath;
             var path = filePath.Split(new char[] { '/' }).Where(pathPart => !pathPart.IsNullOrWhiteSpace()).ToArray();
-            var routeName =  path.Length >= 2 ? path[1] : "";
+            var routeName =  (path.Length >= 2 ? path[1] : "").ToLower();
             
             if (!lookup.ContainsKey(routeName))
                 return await base.SendAsync(request, cancellationToken);
@@ -115,8 +115,11 @@ namespace EastFive.Api.Modules
                                             .Where(method => method.ContainsCustomAttribute(methodKvp.Key))
                                     .ToArray()))
                                 .ToDictionary();
-                            return attr.Route.IfThen(attr.Route.IsNullOrWhiteSpace(),
-                                (route) => type.Name).PairWithValue(methods);
+                            return attr.Route
+                                .IfThen(attr.Route.IsNullOrWhiteSpace(),
+                                    (route) => type.Name)
+                                .ToLower()
+                                .PairWithValue(methods);
                         })
                     .ToArray();
 
@@ -135,7 +138,7 @@ namespace EastFive.Api.Modules
         {
             public string index;
             public string key;
-            public Func<Type, Task<object>> fetchValue;
+            public ParseContentDelegate<object[]> fetchValue;
         }
 
         private static KeyValuePair<TKey, TValue> KvpCreate<TKey, TValue>(TKey key, TValue value)
@@ -155,17 +158,39 @@ namespace EastFive.Api.Modules
 
         private const string defaultKeyPlaceholder = "__DEFAULT_ID__";
 
+        delegate TResult ParseContentDelegate<TResult>(Type type, Func<object, TResult> onParsed, Func<string, TResult> onFailure);
+
         private async Task<HttpResponseMessage> CreateResponseAsync(HttpApplication httpApp, HttpRequestMessage request, string controllerName, MethodInfo[] methods)
         {
-            var allParamInvokators = request.RequestUri.ParseQuery()
-                .Select(kvp => kvp.Key.ToLower().PairWithValue<string, Func<Type, Task<object>>>(type => ControllerExtensions.StringContentToType(type, kvp.Value).ToTask()))
+            var allParamInvokators =
+                // Query parameters from URI
+                request.RequestUri.ParseQuery()
+                .Select(kvp => kvp.Key.ToLower().PairWithValue<string, ParseContentDelegate<object[]>>(
+                    (type, onParsed, onFailure) => ControllerExtensions.StringContentToType(type, kvp.Value, v => onParsed(v), (why) => onFailure(why))))
+
+                // File name from URI
                 .If(true,
-                    queryParamsFromUri => request.RequestUri.AbsoluteUri.MatchRegexInvoke($".*/{controllerName}/(?<defaultQueryParam>[a-zA-Z0-9-]+)",
+                    queryParamsFromUri => request.RequestUri.AbsoluteUri.MatchRegexInvoke($".*/(?i){controllerName}(?-i)/(?<defaultQueryParam>[a-zA-Z0-9-]+)",
                         defaultQueryParam => queryParamsFromUri
-                            .Append(defaultKeyPlaceholder.PairWithValue<string, Func<Type, Task<object>>>(
-                                type => ControllerExtensions.StringContentToType(type, request.RequestUri.AbsoluteUri.Split(new char[] { '/' }).Last()).ToTask())),
+                                .Append(defaultKeyPlaceholder.PairWithValue<string, ParseContentDelegate<object[]>>(
+                                    (type, onParsed, onFailure) => ControllerExtensions.StringContentToType(type,
+                                        defaultQueryParam, v => onParsed(v),
+                                        (why) => onFailure(why)))),
                         updates => updates.Any()? updates.First() : queryParamsFromUri))
-                .Concat(await request.Content.ParseContentValuesAsync())
+                
+                // Body parameters
+                .Concat((await request.Content.ParseContentValuesAsync())
+                    .Select(
+                        parser =>
+                        {
+                            ParseContentDelegate<object[]> callback = (type, onParsed, onFailure) =>
+                            {
+                                return onParsed(parser.Value(type));
+                            };
+                            return parser.Key.PairWithValue(callback);
+                        }))
+                
+                // Convert parameters into Collections if necessary
                 .SelectPartition(
                     (param, plain, dictionary) => param.Key.MatchRegexInvoke(
                         @"(?<key>[a-zA-Z0-9]+)\[(?<value>[a-zA-Z0-9]+)\]",
@@ -184,14 +209,14 @@ namespace EastFive.Api.Modules
                             };
                             return dictionary(multipartParam);
                         }),
-                    (KeyValuePair<string, Func<Type, Task<object>>> [] plains, MultipartParameter[] collectionParameters) =>
+                    (KeyValuePair<string, ParseContentDelegate<object[]>> [] plains, MultipartParameter[] collectionParameters) =>
                     {
                         var options = collectionParameters
                             .GroupBy(collectionParameter => collectionParameter.index)
                             .Select(
                                 collectionParameterGrp =>
-                                    collectionParameterGrp.Key.ToLower().PairWithValue<string, Func<Type, Task<object>>>(
-                                        async (Type collectionType) =>
+                                    collectionParameterGrp.Key.ToLower().PairWithValue<string, ParseContentDelegate<object[]>>(
+                                        (collectionType, onParsed, onFailure) =>
                                         {
                                             if(collectionType.IsGenericType)
                                             {
@@ -199,20 +224,25 @@ namespace EastFive.Api.Modules
                                                 if (genericArgs.Length == 1)
                                                 {
                                                     // It's an array
-                                                    var lookup = await collectionParameterGrp
-                                                        .Select(collectionParameter => collectionParameter.fetchValue(genericArgs.First()))
-                                                        .WhenAllAsync();
-                                                    return lookup;
+                                                    var typeToCast = genericArgs.First();
+                                                    return collectionParameterGrp
+                                                        .FlatMap(
+                                                            (collectionParameter, next, skip) => collectionParameter.fetchValue(typeToCast, v => next(v), (why) => skip()),
+                                                            (IEnumerable<object> lookup) => lookup.ToArray());
                                                 }
                                                 if (genericArgs.Length == 2)
                                                 {
                                                     // It's an dictionary
+                                                    var typeToCast = genericArgs[1];
                                                     var kvpCreateMethod = typeof(ControllerModule).GetMethod("KvpCreate", BindingFlags.Static | BindingFlags.NonPublic);
                                                     var correctGenericKvpCreate = kvpCreateMethod.MakeGenericMethod(genericArgs);
-                                                    var lookup = await collectionParameterGrp
-                                                        .Select(async collectionParameter => correctGenericKvpCreate.Invoke(null,
-                                                            new object[] { collectionParameter.key, await collectionParameter.fetchValue(genericArgs[1]) }))
-                                                        .WhenAllAsync();
+                                                    var lookup = collectionParameterGrp
+                                                        .FlatMap(
+                                                            (collectionParameter, next, skip) =>
+                                                                collectionParameter.fetchValue(typeToCast,
+                                                                    v => next(correctGenericKvpCreate.Invoke(null, new object[] { collectionParameter.key, v } )),
+                                                                    (why) => skip()),
+                                                            (IEnumerable<object> lookupInner) => lookupInner.ToArray());
 
                                                     var castMethod = typeof(ControllerModule).GetMethod("CastToKvp", BindingFlags.Static | BindingFlags.NonPublic);
                                                     var correctKvpsCast = castMethod.MakeGenericMethod(genericArgs);
@@ -221,28 +251,31 @@ namespace EastFive.Api.Modules
                                                     var dictCreateMethod = typeof(ControllerModule).GetMethod("DictionaryCreate", BindingFlags.Static | BindingFlags.NonPublic);
                                                     var correctGenericDictCreate = dictCreateMethod.MakeGenericMethod(genericArgs);
                                                     var dictionaryOfCorrectTypes = correctGenericDictCreate.Invoke(null, kvpsOfCorrectTypes.AsArray());
-                                                    return dictionaryOfCorrectTypes;
+                                                    return onParsed(dictionaryOfCorrectTypes);
                                                 }
-                                                throw new ArgumentException();
+                                                return onFailure($"Cannot parse collection of type {collectionType.FullName}");
                                             }
                                             if (typeof(Enumerable).IsAssignableFrom(collectionType))
                                             {
                                                 // It's an array
-                                                var lookup = await collectionParameterGrp
-                                                    .Select(collectionParameter => collectionParameter.fetchValue(typeof(object)))
-                                                    .WhenAllAsync();
-                                                return lookup;
+                                                var typeToCast = typeof(object);
+                                                return collectionParameterGrp
+                                                    .FlatMap(
+                                                        (collectionParameter, next, skip) => collectionParameter.fetchValue(typeToCast, v => next(v), (why) => skip()),
+                                                        (IEnumerable<object> lookup) => onParsed(lookup.ToArray()));
                                             }
                                             if (typeof(System.Collections.DictionaryBase).IsAssignableFrom(collectionType))
                                             {
                                                 // It's an dictionary
-                                                var lookup = await collectionParameterGrp
-                                                    .Select(async collectionParameter => collectionParameter.key
-                                                        .PairWithValue(await collectionParameter.fetchValue(typeof(object))))
-                                                    .WhenAllAsync();
-                                                return lookup.ToDictionary();
+                                                var typeToCast = typeof(object);
+                                                return collectionParameterGrp
+                                                    .FlatMap(
+                                                        (collectionParameter, next, skip) => collectionParameter.fetchValue(typeToCast, 
+                                                            v => next(collectionParameter.key.PairWithValue(v)),
+                                                            (why) => skip()),
+                                                        (IEnumerable<KeyValuePair<string, object>> lookups) => onParsed(lookups.ToDictionary()));
                                             }
-                                            throw new ArgumentException();
+                                            return onFailure($"Cannot parse collection of type {collectionType.FullName}");
                                         }));
 
                         return plains.Concat(options).ToArray();
@@ -269,10 +302,10 @@ namespace EastFive.Api.Modules
                                 (ParameterInfo[] parametersRequiringValidation, ParameterInfo[] parametersNotRequiringValidation) =>
                                 {
                                     return parametersRequiringValidation.SelectPartition(
-                                        async (parameterRequiringValidation, validValue, group2) =>
+                                        async (parameterRequiringValidation, validValue, didNotValidate) =>
                                         {
                                             var validator = parameterRequiringValidation.GetCustomAttribute<QueryValidationAttribute>();
-                                            var lookupName = validator.Name.IsNullOrWhiteSpace() ? parameterRequiringValidation.Name.ToLower() : validator.Name;
+                                            var lookupName = validator.Name.IsNullOrWhiteSpace() ? parameterRequiringValidation.Name.ToLower() : validator.Name.ToLower();
 
                                             // Handle default params
                                             if(!queryParams.ContainsKey(lookupName))
@@ -284,34 +317,36 @@ namespace EastFive.Api.Modules
                                                 return await await validator.TryCastAsync(httpApp, request, method, parameterRequiringValidation,
                                                         async (type, success, failure) =>
                                                         {
-                                                            var queryParamValue = await queryParams[lookupName](type);
-                                                            if (queryParamValue is Exception)
-                                                                return failure((queryParamValue as Exception).Message);
-                                                            return success(queryParamValue);
+                                                            // Hack here
+                                                            var strArray = queryParams[lookupName](type,
+                                                                (value) => value.AsArray(),
+                                                                (why) => new object[] { "", why });
+                                                            if (strArray.Length == 1)
+                                                                return success(strArray[0]);
+                                                            return failure((string)strArray[1]);
                                                         },
                                                     v => validValue(parameterRequiringValidation.PairWithValue(v)),
-                                                    (why) => group2(parameterRequiringValidation.PairWithValue(why)));
+                                                    (why) => didNotValidate(parameterRequiringValidation.PairWithValue(why)));
                                             
                                             return await await validator.OnEmptyValueAsync(httpApp, request, parameterRequiringValidation,
                                                 v => validValue(parameterRequiringValidation.PairWithValue(v)),
-                                                () => group2(parameterRequiringValidation.PairWithValue("Value not provided")));
+                                                () => didNotValidate(parameterRequiringValidation.PairWithValue("Value not provided")));
                                         },
                                         async (KeyValuePair<ParameterInfo, object>[] parametersRequiringValidationWithValues, KeyValuePair<ParameterInfo, string>[] parametersRequiringValidationThatDidNotValidate) =>
                                         {
                                             if (parametersRequiringValidationThatDidNotValidate.Any())
                                                 return await addParams(parametersRequiringValidationThatDidNotValidate);
 
-                                            var parametersNotRequiringValidationWithValues = await parametersNotRequiringValidation
+                                            var parametersNotRequiringValidationWithValues = parametersNotRequiringValidation
                                                 .Where(unvalidatedParam => queryParams.ContainsKey(unvalidatedParam.Name.ToLower()))
                                                 .Select(
-                                                    async (unvalidatedParam) =>
+                                                    (unvalidatedParam) =>
                                                     {
-                                                        var queryParamValue = await queryParams[unvalidatedParam.Name.ToLower()](unvalidatedParam.ParameterType);
-                                                        if (queryParamValue is Exception)
-                                                            return unvalidatedParam.PairWithValue(unvalidatedParam.ParameterType.GetDefault()); // TODO: Fail here? (queryParamValue as Exception).Message);
+                                                        var queryParamValue = queryParams[unvalidatedParam.Name.ToLower()](unvalidatedParam.ParameterType,
+                                                            v => v.AsArray(),
+                                                            why => unvalidatedParam.ParameterType.GetDefault().AsArray()).First();
                                                         return unvalidatedParam.PairWithValue(queryParamValue);
-                                                    })
-                                                .WhenAllAsync();
+                                                    });
 
                                             var parametersWithValues = parametersNotRequiringValidationWithValues
                                                 .Concat(parametersRequiringValidationWithValues)
@@ -354,7 +389,7 @@ namespace EastFive.Api.Modules
 
                     var matchedParamsLookup = parameters
                         .Select(pi => pi.GetCustomAttribute<QueryValidationAttribute, string>(
-                            validator => validator.Name.IsNullOrWhiteSpace() ? pi.Name.ToLower() : validator.Name,
+                            validator => validator.Name.IsNullOrWhiteSpace() ? pi.Name.ToLower() : validator.Name.ToLower(),
                             () => pi.Name.ToLower()))
                             .AsHashSet();
                     var extraParams = queryKeys
@@ -486,7 +521,13 @@ namespace EastFive.Api.Modules
                     typeof(Controllers.ContentResponse),
                     (httpApp, request, paramInfo, success) =>
                     {
-                        Controllers.ContentResponse dele = (obj) => request.CreateResponse(System.Net.HttpStatusCode.OK, obj);
+                        Controllers.ContentResponse dele = (obj, contentType) =>
+                        {
+                            var response = request.CreateResponse(System.Net.HttpStatusCode.OK, obj);
+                            if(!contentType.IsNullOrWhiteSpace())
+                                response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+                            return response;
+                        };
                         return success((object)dele);
                     }
                 },
@@ -564,6 +605,21 @@ namespace EastFive.Api.Modules
                     (httpApp, request, paramInfo, success) =>
                     {
                         Controllers.CreatedResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.Created);
+                        return success((object)dele);
+                    }
+                },
+                {
+                    typeof(Controllers.CreatedBodyResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.CreatedBodyResponse dele =
+                            (obj, contentType) =>
+                            {
+                                var response = request.CreateResponse(System.Net.HttpStatusCode.OK, obj);
+                                if(!contentType.IsNullOrWhiteSpace())
+                                    response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+                                return response;
+                            };
                         return success((object)dele);
                     }
                 },

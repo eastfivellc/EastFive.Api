@@ -188,6 +188,32 @@ namespace BlackBarLabs.Api
                 });
         }
 
+        private static TResult ParseMethod<TResult>(
+            object [] queryParams,
+            MethodCallExpression methodCallExpression,
+            Func<string, IDictionary<string, object>, TResult> onParsed)
+        {
+            var controllerType = methodCallExpression.Method.DeclaringType;
+            var controllerName = controllerType.GetCustomAttribute<FunctionViewControllerAttribute, string>(
+                (attr) => attr.Route,
+                () => controllerType.Name.TrimEnd("Controller",
+                    (trimmedName) => trimmedName, (originalName) => originalName)).ToLower();
+
+            // TODO: Check if method has Get attribute?
+
+            var queryParameters = methodCallExpression.Arguments
+                .Zip(methodCallExpression.Method.GetParameters(), (k1, k2) => k1.PairWithValue(k2))
+                .Where(arg => arg.Key is ParameterExpression)
+                .Select(arg => (arg.Key as ParameterExpression).PairWithValue(arg.Value))
+                .Zip(queryParams, (arg, queryParam) => arg.Value.Name.PairWithValue(queryParam)) // TODO: Change to call to ConvertToQueryParameter()
+                // .Select(arg => arg.Value.Name.PairWithValue((object)queryParam1)) // TODO: Change to call to ConvertToQueryParameter()
+                .Append("Controller".PairWithValue((object)controllerName))
+                .ToDictionary();
+            // TODO: Check if query param has DefaultId attribute 
+
+            return onParsed(controllerName, queryParameters);
+        }
+
         private static TResult ParseMethod<T1, TResult>(
             T1 queryParam1,
             Expression<Func<T1, Task<HttpResponseMessage>>> queryMethodExpression,
@@ -198,7 +224,7 @@ namespace BlackBarLabs.Api
             var controllerName = controllerType.GetCustomAttribute<FunctionViewControllerAttribute, string>(
                 (attr) => attr.Route,
                 () => controllerType.Name.TrimEnd("Controller",
-                    (trimmedName) => trimmedName, (originalName) => originalName));
+                    (trimmedName) => trimmedName, (originalName) => originalName)).ToLower();
 
             // TODO: Check if method has Get attribute?
 
@@ -243,6 +269,16 @@ namespace BlackBarLabs.Api
             where T1 : struct
         {
             return ParseMethod(queryParam1, queryMethodExpression,
+                (controllerName, queryParams) => new Uri(url.Link(routeName, queryParams)));
+        }
+
+        public static Uri GetLocation<T1, T2>(this UrlHelper url,
+            T1 queryParam1, T2 queryParam2,
+            Expression<Func<T1, T2, Task<HttpResponseMessage>>> queryMethodExpression,
+            string routeName = "DefaultApi")
+            where T1 : struct
+        {
+            return ParseMethod(new object[] { queryParam1, queryParam2 }, queryMethodExpression.Body as MethodCallExpression,
                 (controllerName, queryParams) => new Uri(url.Link(routeName, queryParams)));
         }
 

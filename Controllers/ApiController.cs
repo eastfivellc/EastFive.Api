@@ -140,7 +140,13 @@ namespace EastFive.Api.Controllers
                     typeof(ContentResponse),
                     (controller, success) =>
                     {
-                        ContentResponse dele = (obj) => controller.Request.CreateResponse(System.Net.HttpStatusCode.OK, obj);
+                        ContentResponse dele = (obj, contentType) =>
+                        {
+                            var response = controller.Request.CreateResponse(System.Net.HttpStatusCode.OK, obj);
+                            if(!contentType.IsNullOrWhiteSpace())
+                                response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+                            return response;
+                        };
                         return success((object)dele);
                     }
                 },
@@ -210,6 +216,21 @@ namespace EastFive.Api.Controllers
                     (controller, success) =>
                     {
                         CreatedResponse dele = () => controller.Request.CreateResponse(System.Net.HttpStatusCode.Created);
+                        return success((object)dele);
+                    }
+                },
+                {
+                    typeof(CreatedBodyResponse),
+                    (controller, success) =>
+                    {
+                        CreatedBodyResponse dele =
+                            (obj, contentType) =>
+                            {
+                                var response = controller.Request.CreateResponse(System.Net.HttpStatusCode.OK, obj);
+                                if(!contentType.IsNullOrWhiteSpace())
+                                    response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+                                return response;
+                            };
                         return success((object)dele);
                     }
                 },
