@@ -109,6 +109,53 @@ namespace EastFive.Api
             Func<object, TResult> onCasted,
             Func<string, TResult> onInvalid)
         {
+            if(value is Guid?)
+            {
+                var guidMaybe = value as Guid?;
+                if (typeof(Guid).GUID == type.GUID)
+                {
+                    if (!guidMaybe.HasValue)
+                        return onInvalid("Value did not provide a UUID.");
+                    return onCasted(guidMaybe.Value);
+                }
+                if (typeof(Guid?).GUID == type.GUID)
+                {
+                    return onCasted(guidMaybe);
+                }
+            }
+            if (value is string)
+            {
+                var valueString = value as string;
+                if (typeof(Guid).GUID == type.GUID)
+                {
+                    if (Guid.TryParse(valueString, out Guid valueGuid))
+                        return onCasted(valueGuid);
+                    return onInvalid($"[{valueString}] is not a valid UUID.");
+                }
+                if (typeof(Guid?).GUID == type.GUID)
+                {
+                    if (valueString.IsNullOrWhiteSpace())
+                        return onCasted(default(Guid?));
+                    if (Guid.TryParse(valueString, out Guid valueGuid))
+                        return onCasted(valueGuid);
+                    return onInvalid($"[{valueString}] needs to be empty or a valid UUID.");
+                }
+                if (typeof(DateTime).GUID == type.GUID)
+                {
+                    if (DateTime.TryParse(valueString, out DateTime valueDateTime))
+                        return onCasted(valueDateTime);
+                    return onInvalid($"[{valueString}] needs to be a valid date/time.");
+                }
+                if (typeof(DateTime?).GUID == type.GUID)
+                {
+                    if (valueString.IsNullOrWhiteSpace())
+                        return onCasted(default(DateTime?));
+                    if (DateTime.TryParse(valueString, out DateTime valueDateTime))
+                        return onCasted(valueDateTime);
+                    return onInvalid($"[{valueString}] needs to be empty or a valid date/time.");
+                }
+            }
+
             return onCasted(value);
         }
     }
