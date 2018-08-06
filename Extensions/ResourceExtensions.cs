@@ -54,8 +54,16 @@ namespace BlackBarLabs.Api
             Guid id,
             string routeName = "DefaultApi")
         {
+            return url.GetWebId(typeof(TController), id, routeName);
+        }
+
+        public static Resources.WebId GetWebId(this UrlHelper url,
+            Type controllerType,
+            Guid id,
+            string routeName = "DefaultApi")
+        {
             var controllerName =
-                typeof(TController).Name.TrimEnd("Controller",
+                controllerType.Name.TrimEnd("Controller",
                     (trimmedName) => trimmedName, (originalName) => originalName);
             var location = url.Link(routeName, new { Controller = controllerName, Id = id });
             return new Resources.WebId
@@ -116,6 +124,16 @@ namespace BlackBarLabs.Api
             if (!idMaybe.HasValue)
                 return default(WebId);
             return url.GetWebId<TController>(idMaybe.Value, routeName);
+        }
+
+        public static Resources.WebId GetWebId(this UrlHelper url,
+            Type controllerType,
+            Guid? idMaybe,
+            string routeName = "DefaultApi")
+        {
+            if (!idMaybe.HasValue)
+                return default(WebId);
+            return url.GetWebId(controllerType, idMaybe.Value, routeName);
         }
 
         public static Resources.WebId GetWebId<TController>(this UrlHelper url,

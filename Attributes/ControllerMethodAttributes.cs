@@ -80,6 +80,12 @@ namespace EastFive.Api
     }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Method)]
+    public class HttpPatchAttribute : HttpBodyAttribute
+    {
+
+    }
+
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Method)]
     public class HttpDeleteAttribute : HttpBodyAttribute
     {
 

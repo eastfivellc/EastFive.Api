@@ -90,13 +90,18 @@ namespace EastFive.Api
                                 if (propertyName != name)
                                     return await next();
                                 var obj = await fetch(prop.PropertyType,
-                                    v => Convert(parameterRequiringValidation.ParameterType, v,
+                                    v => Convert(httpApp, parameterRequiringValidation.ParameterType, v,
                                         (vCasted) => onCasted(vCasted),
                                         (why) => onInvalid($"Property {name}:{why}")),
                                     why => onInvalid(why));
                                 return (TResult)obj;
                             },
-                            () => onInvalid($"No match for property {name}").ToTask());
+                            () =>
+                            {
+                                return onInvalid("Inform server developer:" +
+                                    $"HttpBodyAttribute on `{method.DeclaringType.FullName}.{method.Name}` resolves to type `{bodyAttr.Type.FullName}` " + 
+                                    $"and specifies parameter `{name}` which is not a member of {bodyAttr.Type.FullName}").ToTask();
+                            });
                 },
                 () =>
                 {
@@ -105,11 +110,37 @@ namespace EastFive.Api
                 });
         }
 
-        public virtual TResult Convert<TResult>(Type type, object value,
+        public virtual TResult Convert<TResult>(HttpApplication httpApp, Type type, object value,
             Func<object, TResult> onCasted,
             Func<string, TResult> onInvalid)
         {
-            if(value is Guid?)
+            if (value.IsDefaultOrNull())
+            {
+                return onCasted(type.GetDefault());
+            }
+
+            if (type.IsAssignableFrom(value.GetType()))
+                return onCasted(value);
+
+            if (value is BlackBarLabs.Api.Resources.WebId)
+            {
+                var webId = value as BlackBarLabs.Api.Resources.WebId;
+                if (typeof(Guid).GUID == type.GUID)
+                {
+                    if (webId.IsDefaultOrNull())
+                        return onInvalid("Value did not provide a UUID.");
+                    return onCasted(webId.UUID);
+                }
+                if (typeof(Guid?).GUID == type.GUID)
+                {
+                    if (webId.IsDefaultOrNull())
+                        return onCasted(default(Guid?));
+                    var valueGuidMaybe = (Guid?)webId.UUID;
+                    return onCasted(valueGuidMaybe);
+                }
+            }
+            
+            if (value is Guid?)
             {
                 var guidMaybe = value as Guid?;
                 if (typeof(Guid).GUID == type.GUID)
@@ -123,6 +154,7 @@ namespace EastFive.Api
                     return onCasted(guidMaybe);
                 }
             }
+            
             if (value is string)
             {
                 var valueString = value as string;
@@ -154,153 +186,96 @@ namespace EastFive.Api
                         return onCasted(valueDateTime);
                     return onInvalid($"[{valueString}] needs to be empty or a valid date/time.");
                 }
+
+                if (type.IsEnum)
+                {
+                    if (Enum.IsDefined(type, valueString))
+                    {
+                        var valueEnum = Enum.Parse(type, valueString);
+                        return onCasted(valueEnum);
+                    }
+                    return onInvalid($"{valueString} is not one of [{Enum.GetNames(type).Join(",")}]");
+                }
+
+                if(typeof(Type).GUID == type.GUID)
+                {
+                    return onCasted(httpApp.GetResourceType(valueString));
+                }
             }
 
-            return onCasted(value);
+            if (value is int)
+            {
+                if (type.IsEnum)
+                {
+                    var valueInt = (int)value;
+                    var valueEnum = Enum.ToObject(type, valueInt);
+                    return onCasted(valueEnum);
+                }
+            }
+
+            if(value.GetType().IsArray)
+            {
+                if (type.IsArray)
+                {
+                    var elementType = type.GetElementType();
+                    var array = (object[])value;
+
+                    //var casted = Array.ConvertAll(array,
+                    //    item => item.ToString());
+                    //var typeConverted = casted.Cast<int>().ToArray();
+
+                    var casted = Array.ConvertAll(array,
+                        item => Convert(httpApp, elementType, item, (v) => v, (why) => elementType.GetDefault()));
+                    var typeConvertedEnumerable = typeof(System.Linq.Enumerable)
+                        .GetMethod("Cast", BindingFlags.Static | BindingFlags.Public)
+                        .MakeGenericMethod(new Type[] { elementType })
+                        .Invoke(null, new object[] { casted });
+                    var typeConvertedArray = typeof(System.Linq.Enumerable)
+                        .GetMethod("ToArray", BindingFlags.Static | BindingFlags.Public)
+                        .MakeGenericMethod(new Type[] { elementType })
+                        .Invoke(null, new object[] { typeConvertedEnumerable });
+                    
+                    return onCasted(typeConvertedArray);
+                }
+            }
+            
+            return onInvalid($"Could not convert `{value.GetType().FullName}` to `{type.FullName}`.");
+        }
+    }
+
+    public class PropertyOptionalAttribute : PropertyAttribute
+    {
+        public override async Task<TResult> OnEmptyValueAsync<TResult>(HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterRequiringValidation,
+            Func<object, TResult> onValid,
+            Func<TResult> onInvalid)
+        {
+            if (parameterRequiringValidation.ParameterType == typeof(Guid?))
+                return onValid(default(Guid?));
+            if (parameterRequiringValidation.ParameterType == typeof(DateTime?))
+                return onValid(default(DateTime?));
+            if (parameterRequiringValidation.ParameterType == typeof(string))
+                return onValid(default(string));
+            if (parameterRequiringValidation.ParameterType.IsArray)
+                return onValid(null);
+
+            if (!parameterRequiringValidation.ParameterType.IsEnum)
+                return parameterRequiringValidation.ParameterType.IsNullable(
+                    underlyingType =>
+                    {
+                        return onValid(parameterRequiringValidation.ParameterType.GetDefault());
+                    },
+                    () => onValid(Activator.CreateInstance(parameterRequiringValidation.ParameterType)));
+            
+            return await onInvalid().ToTask();
         }
     }
 
     public class PropertyGuidAttribute : PropertyAttribute
     {
-        public override TResult Convert<TResult>(Type type, object value,
-            Func<object, TResult> onCasted,
-            Func<string, TResult> onInvalid)
-        {
-            if (typeof(Guid).GUID == type.GUID)
-            {
-                if (value is Guid)
-                {
-                    var valueGuid = (Guid)value;
-                    return onCasted(valueGuid);
-                }
-
-                if (value is Guid?)
-                {
-                    var valueGuidMaybe = (Guid?)value;
-                    if (!valueGuidMaybe.HasValue)
-                        return onInvalid("A value is required.");
-                    return onCasted(valueGuidMaybe);
-                }
-
-                if (value is BlackBarLabs.Api.Resources.WebId)
-                {
-                    var webId = value as BlackBarLabs.Api.Resources.WebId;
-
-                    var guidMaybe = webId.ToGuid();
-                    if (!guidMaybe.HasValue)
-                        return onInvalid("Value did not provide a UUID.");
-                    return onCasted(guidMaybe.Value);
-                }
-
-                if (value is string)
-                {
-                    var valueString = value as string;
-                    if (Guid.TryParse(valueString, out Guid valueGuid))
-                        return onCasted(valueGuid);
-                }
-
-                return onInvalid($"PropertyGuid could not cast {value.GetType().FullName} to {type.FullName}");
-            }
-
-            if (typeof(Guid?).GUID == type.GUID)
-            {
-                if (value is Guid)
-                {
-                    var valueGuid = (Guid)value;
-                    var valueGuidMaybe = (Guid?)valueGuid;
-                    return onCasted(valueGuidMaybe);
-                }
-
-                if (value is Guid?)
-                {
-                    var valueGuidMaybe = (Guid?)value;
-                    return onCasted(valueGuidMaybe);
-                }
-                
-                if (value.IsDefaultOrNull())
-                {
-                    var valueGuidMaybe = default(Guid?);
-                    return onCasted(valueGuidMaybe);
-                }
-
-                if (value is BlackBarLabs.Api.Resources.WebId)
-                {
-                    var webId = value as BlackBarLabs.Api.Resources.WebId;
-                    var guidMaybe = webId.ToGuid();
-                    return onCasted(guidMaybe);
-                }
-
-                if (value is string)
-                {
-                    var valueString = value as string;
-                    if (Guid.TryParse(valueString, out Guid valueGuid))
-                    {
-                        var valueGuidMaybe = (Guid?)valueGuid;
-                        return onCasted(valueGuidMaybe);
-                    }
-                }
-            }
-            
-            return onInvalid($"PropertyGuid could not cast {value.GetType().FullName} to {type.FullName}");
-        }
+        
     }
 
     public class PropertyEnumAttribute : PropertyAttribute
     {
-        public override TResult Convert<TResult>(Type type, object value,
-            Func<object, TResult> onCasted,
-            Func<string, TResult> onInvalid)
-        {
-            if (value.GetType().GUID == type.GUID)
-                return onCasted(value);
-
-            if (!type.IsEnum)
-                return type.IsNullable(
-                    underlyingType =>
-                    {
-                        if (value.IsDefaultOrNull())
-                            return onCasted(type.GetDefault());
-                        return Convert(underlyingType, value,
-                            underlyingValue => onCasted(Activator.CreateInstance(type, underlyingValue)),
-                            onInvalid);
-                    },
-                    () => onInvalid($"PropertyEnum is not a valid query validation for type {type.FullName}"));
-
-            if (value is int)
-            {
-                var valueInt = (int)value;
-                var valueEnum = Enum.ToObject(type, valueInt);
-                return onCasted(valueEnum);
-            }
-
-            if (value is string)
-            {
-                var valueString = value as string;
-                if(Enum.IsDefined(type, valueString))
-                {
-                    var valueEnum = Enum.Parse(type, valueString);
-                    return onCasted(valueEnum);
-                }
-                return onInvalid($"{valueString} is not one of [{Enum.GetNames(type).Join(",")}]");
-            }
-
-            return onInvalid($"PropertyEnum could not cast {value.GetType().FullName} to {type.FullName}");
-        }
-    }
-
-    public class PropertyStringAttribute : PropertyAttribute
-    {
-        public override TResult Convert<TResult>(Type type, object value,
-            Func<object, TResult> onCasted,
-            Func<string, TResult> onInvalid)
-        {
-            if (value.GetType().GUID == type.GUID)
-                return onCasted(value);
-
-            if (value is string && type.IsAssignableFrom(typeof(string)))
-                return onCasted(value);
-
-            return onInvalid($"PropertyString could not cast {value.GetType().FullName} to {type.FullName}");
-        }
     }
 }

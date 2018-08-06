@@ -13,6 +13,8 @@ using System.Reflection;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
+using EastFive.Text;
+using EastFive;
 
 namespace BlackBarLabs.Api
 {
@@ -118,69 +120,7 @@ namespace BlackBarLabs.Api
 
             return onPopulated(paramsForCallback);
         }
-
-        public static async Task<KeyValuePair<string, Func<Type, object>>[]> ParseOptionalFormDataAsync(this HttpContent content)
-        {
-            var formData = await content.ReadAsFormDataAsync();
-
-            var parameters = formData.AllKeys
-                .Select(key => key.PairWithValue<string, Func<Type, object>>(
-                    (type) => StringContentToType(type, formData[key],
-                        v => v,
-                        why => { throw new Exception(why); })))
-                .ToArray();
-
-            return (parameters);
-        }
-
-        internal static TResult StringContentToType<TResult>(Type type, string content,
-            Func<object, TResult> onParsed,
-            Func<string, TResult> notConvertable)
-        {
-            if (type.IsAssignableFrom(typeof(string)))
-            {
-                var stringValue = content;
-                return onParsed((object)stringValue);
-            }
-            if (type.IsAssignableFrom(typeof(Guid)))
-            {
-                var guidStringValue = content;
-                if(Guid.TryParse(guidStringValue, out Guid guidValue))
-                    return onParsed(guidValue);
-            }
-            if (type.IsAssignableFrom(typeof(bool)))
-            {
-                var boolStringValue = content;
-                if (bool.TryParse(boolStringValue, out bool boolValue))
-                    return onParsed(boolValue);
-
-                if ("t" == boolStringValue)
-                    return onParsed(true);
-                if ("f" == boolStringValue)
-                    return onParsed(false);
-
-                return onParsed(false);
-            }
-            if (type.IsAssignableFrom(typeof(Stream)))
-            {
-                var byteArrayBase64 = content;
-                var byteArrayValue = Convert.FromBase64String(byteArrayBase64);
-                return onParsed(new MemoryStream(byteArrayValue));
-            }
-            if (type.IsAssignableFrom(typeof(byte[])))
-            {
-                var byteArrayBase64 = content;
-                var byteArrayValue = Convert.FromBase64String(byteArrayBase64);
-                return (onParsed(byteArrayValue));
-            }
-            if (type.IsAssignableFrom(typeof(WebIdAny)))
-            {
-                if(String.Compare(content.ToLower(), "any") == 0)
-                    return onParsed(new WebIdAny());
-            }
-
-            return notConvertable($"Cannot convert `{content}` to type {type.FullName}");
-        }
+        
 
         public static async Task<TResult> ReadMultipartContentAsync<TResult>(this HttpContent content,
             Func<IDictionary<string, HttpContent>, TResult> onMultpartContentFound,
@@ -326,107 +266,7 @@ namespace BlackBarLabs.Api
                 },
                 onNotMultipart);
         }
-
-        public static async Task<KeyValuePair<string, Func<Type, Task<object>>>[]> ParseOptionalMultipartValuesAsync(this HttpContent content)
-        {
-            if (content.IsDefaultOrNull())
-                return (new KeyValuePair<string, Func<Type, Task<object>>>[] { });
-
-            if (!content.IsMimeMultipartContent())
-            {
-                if (content.IsFormData())
-                {
-                    var optionalFormData = await content.ParseOptionalFormDataAsync();
-                    return (
-                        optionalFormData
-                            .Select(
-                                formDataCallbackKvp => formDataCallbackKvp.Key.PairWithValue<string, Func<Type, Task<object>>>(
-                                    (type) => formDataCallbackKvp.Value(type).ToTask()))
-                            .ToArray());
-                }
-                return (new KeyValuePair<string, Func<Type, Task<object>>>[] { });
-            }
-
-            var streamProvider = new MultipartMemoryStreamProvider();
-            await content.ReadAsMultipartAsync(streamProvider);
-
-            return (
-                streamProvider.Contents
-                    .Select(
-                        file => file.Headers.ContentDisposition.Name.Trim(new char[] { '"' })
-                            .PairWithValue<string, Func<Type, Task<object>>>(
-                                type => ContentToTypeAsync(type, file)))
-                    .ToArray());
-        }
         
-        public static async Task<KeyValuePair<string, Func<Type, Task<object>>>[]> ParseContentValuesAsync(this HttpContent content)
-        {
-            if (content.IsDefaultOrNull())
-                return (new KeyValuePair<string, Func<Type, Task<object>>>[] { });
-            
-            if (
-                (!content.Headers.IsDefaultOrNull()) &&
-                (!content.Headers.ContentType.IsDefaultOrNull()) &&
-                String.Compare("application/json", content.Headers.ContentType.MediaType, true) == 0)
-            {
-                var contentString = await content.ReadAsStringAsync();
-                try
-                {
-                    var contentJObject = Newtonsoft.Json.Linq.JObject.Parse(contentString);
-                    return contentJObject
-                        .Properties()
-                        .Select(
-                            jProperty =>
-                            {
-                                var key = jProperty.Name;
-                                return key.PairWithValue<string, Func<Type, Task<object>>>(
-                                    (type) =>
-                                    {
-                                        try
-                                        {
-                                            return jProperty.First.ToObject(type).ToTask();
-                                        // return Newtonsoft.Json.JsonConvert.DeserializeObject(value, type).ToTask();
-                                    }
-                                        catch (Exception ex)
-                                        {
-                                            return ((object)ex).ToTask();
-                                        }
-                                    });
-                            })
-                        .ToArray();
-                } catch (Exception ex)
-                {
-                }
-            }
-
-            if (content.IsMimeMultipartContent())
-            {
-                var streamProvider = new MultipartMemoryStreamProvider();
-                await content.ReadAsMultipartAsync(streamProvider);
-
-                return (
-                    streamProvider.Contents
-                        .Select(
-                            file => file.Headers.ContentDisposition.Name.Trim(new char[] { '"' })
-                                .PairWithValue<string, Func<Type, Task<object>>>(
-                                    type => ContentToTypeAsync(type, file)))
-                        .ToArray());
-            }
-            
-            if (content.IsFormData())
-            {
-                var optionalFormData = await content.ParseOptionalFormDataAsync();
-                return (
-                    optionalFormData
-                        .Select(
-                            formDataCallbackKvp => formDataCallbackKvp.Key.PairWithValue<string, Func<Type, Task<object>>>(
-                                (type) => formDataCallbackKvp.Value(type).ToTask()))
-                        .ToArray());
-            }
-
-            return (new KeyValuePair<string, Func<Type, Task<object>>>[] { });
-        }
-
         public static IHttpActionResult ToActionResult(this HttpActionDelegate action)
         {
             return new HttpActionResult(action);

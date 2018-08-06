@@ -143,14 +143,17 @@
     <Compile Include="Extensions\UriExtensions.cs" />
     <Compile Include="Extensions\WebUrnExtensions.cs" />
     <Compile Include="Extensions\ValidationExtensions.cs" />
+    <Compile Include="FVC\HttpResourceAttribute.cs" />
     <Compile Include="FVC\FunctionViewControllerAttribute.cs" />
     <Compile Include="Controllers\QueryValidationAttribute.cs" />
+    <Compile Include="FVC\HttpApplication.cs" />
     <Compile Include="FVC\Modules\MonitoringModule.cs" />
     <Compile Include="HttpActionResult.cs" />
     <Compile Include="InjectableAssemblyResolver.cs" />
     <Compile Include="FVC\Modules\ControllerModule.cs" />
     <Compile Include="Monitoring\MonitoringDocument.cs" />
     <Compile Include="Resources\Exceptions.cs" />
+    <Compile Include="Resources\Manifest.cs" />
     <Compile Include="Resources\MultipartResponse.cs" />
     <Compile Include="Resources\OptionsResource.cs" />
     <Compile Include="Resources\Queries\IntQuery.cs" />

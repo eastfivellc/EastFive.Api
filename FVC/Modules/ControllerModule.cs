@@ -23,114 +23,42 @@ namespace EastFive.Api.Modules
 {
     public class ControllerModule : System.Net.Http.DelegatingHandler
     {
-        private IDictionary<string, IDictionary<HttpMethod, MethodInfo[]>> lookup;
-        private object lookupLock = new object();
         private System.Web.Http.HttpConfiguration config;
 
         public ControllerModule(System.Web.Http.HttpConfiguration config)
         {
             this.config = config;
-            LocateControllers();
         }
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            if (!request.Properties.ContainsKey("MS_HttpContext"))
+            if (!request.Properties.ContainsKey("MS_HttpContext")) //  Maybe someday this will be in System.Web.Http.Hosting.HttpPropertyKeys.
                 return await base.SendAsync(request, cancellationToken);
-            var httpApp = ((System.Web.HttpContextWrapper)request.Properties["MS_HttpContext"]).ApplicationInstance;
+
+            var httpAppCore = ((System.Web.HttpContextWrapper)request.Properties["MS_HttpContext"]).ApplicationInstance;
+            if(!(httpAppCore is HttpApplication))
+                return await base.SendAsync(request, cancellationToken);
+            var httpApp = httpAppCore as HttpApplication;
 
             string filePath = request.RequestUri.AbsolutePath;
             var path = filePath.Split(new char[] { '/' }).Where(pathPart => !pathPart.IsNullOrWhiteSpace()).ToArray();
             var routeName =  (path.Length >= 2 ? path[1] : "").ToLower();
-            
-            if (!lookup.ContainsKey(routeName))
-                return await base.SendAsync(request, cancellationToken);
 
-            var possibleHttpMethods = lookup[routeName];
-            var matchingKey = possibleHttpMethods
-                .SelectKeys()
-                .Where(key => key == request.Method);
-
-            if (!matchingKey.Any())
-                return request.CreateResponse(HttpStatusCode.NotImplemented);
-
-            var controllerName = matchingKey.First();
-            var httpResponseMessage = await CreateResponseAsync(httpApp, request, routeName, possibleHttpMethods[controllerName]);
-
-            return httpResponseMessage;
-        }
-
-        #region Load Controllers
-
-        private void LocateControllers()
-        {
-            var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies()
-                .Where(assembly => (!assembly.GlobalAssemblyCache))
-                .ToArray();
-
-            lock (lookupLock)
-            {
-                AppDomain.CurrentDomain.AssemblyLoad += (object sender, AssemblyLoadEventArgs args) =>
+            return await httpApp.GetControllerMethods(routeName,
+                async (possibleHttpMethods) =>
                 {
-                    lock (lookupLock)
-                    {
-                        AddControllersFromAssembly(args.LoadedAssembly);
-                    }
-                };
+                    var matchingKey = possibleHttpMethods
+                        .SelectKeys()
+                        .Where(key => String.Compare(key.Method, request.Method.Method, true) == 0);
 
-                foreach (var assembly in loadedAssemblies)
-                {
-                    AddControllersFromAssembly(assembly);
-                }
-            }
+                    if (!matchingKey.Any())
+                        return request.CreateResponse(HttpStatusCode.NotImplemented);
+
+                    var httpMethod = matchingKey.First();
+                    return await CreateResponseAsync(httpApp, request, routeName, possibleHttpMethods[httpMethod]);
+                },
+                () => base.SendAsync(request, cancellationToken));
         }
-
-        IDictionary<Type, HttpMethod> methodLookup =
-            new Dictionary<Type, HttpMethod>()
-            {
-                { typeof(EastFive.Api.HttpGetAttribute), HttpMethod.Get },
-                { typeof(EastFive.Api.HttpDeleteAttribute), HttpMethod.Delete },
-                { typeof(EastFive.Api.HttpPostAttribute), HttpMethod.Post },
-                { typeof(EastFive.Api.HttpPutAttribute), HttpMethod.Put },
-                { typeof(EastFive.Api.HttpOptionsAttribute), HttpMethod.Options },
-            };
-
-        private void AddControllersFromAssembly(System.Reflection.Assembly assembly)
-        {
-            try
-            {
-                var types = assembly
-                    .GetTypes();
-                var results = types
-                    .Where(type => type.IsClass && type.ContainsCustomAttribute<FunctionViewControllerAttribute>())
-                    .Select(
-                        (type) =>
-                        {
-                            var attr = type.GetCustomAttribute<FunctionViewControllerAttribute>();
-                            IDictionary<HttpMethod, MethodInfo[]> methods = methodLookup
-                                .Select(
-                                    methodKvp => methodKvp.Value.PairWithValue(
-                                        type
-                                            .GetMethods(BindingFlags.Public | BindingFlags.Static)
-                                            .Where(method => method.ContainsCustomAttribute(methodKvp.Key))
-                                    .ToArray()))
-                                .ToDictionary();
-                            return attr.Route
-                                .IfThen(attr.Route.IsNullOrWhiteSpace(),
-                                    (route) => type.Name)
-                                .ToLower()
-                                .PairWithValue(methods);
-                        })
-                    .ToArray();
-
-                this.lookup = this.lookup.NullToEmpty().Concat(results).ToDictionary();
-            } catch (Exception ex)
-            {
-                ex.GetType();
-            }
-        }
-        
-        #endregion
 
         #region Invoke correct method
 
@@ -166,20 +94,20 @@ namespace EastFive.Api.Modules
                 // Query parameters from URI
                 request.RequestUri.ParseQuery()
                 .Select(kvp => kvp.Key.ToLower().PairWithValue<string, ParseContentDelegate<object[]>>(
-                    (type, onParsed, onFailure) => ControllerExtensions.StringContentToType(type, kvp.Value, v => onParsed(v), (why) => onFailure(why))))
+                    (type, onParsed, onFailure) => httpApp.StringContentToType(type, kvp.Value, v => onParsed(v), (why) => onFailure(why))))
 
                 // File name from URI
                 .If(true,
                     queryParamsFromUri => request.RequestUri.AbsoluteUri.MatchRegexInvoke($".*/(?i){controllerName}(?-i)/(?<defaultQueryParam>[a-zA-Z0-9-]+)",
                         defaultQueryParam => queryParamsFromUri
                                 .Append(defaultKeyPlaceholder.PairWithValue<string, ParseContentDelegate<object[]>>(
-                                    (type, onParsed, onFailure) => ControllerExtensions.StringContentToType(type,
+                                    (type, onParsed, onFailure) => httpApp.StringContentToType(type,
                                         defaultQueryParam, v => onParsed(v),
                                         (why) => onFailure(why)))),
                         updates => updates.Any()? updates.First() : queryParamsFromUri))
                 
                 // Body parameters
-                .Concat((await request.Content.ParseContentValuesAsync())
+                .Concat((await httpApp.ParseContentValuesAsync(request.Content))
                     .Select(
                         parser =>
                         {
@@ -305,7 +233,10 @@ namespace EastFive.Api.Modules
                                         async (parameterRequiringValidation, validValue, didNotValidate) =>
                                         {
                                             var validator = parameterRequiringValidation.GetCustomAttribute<QueryValidationAttribute>();
-                                            var lookupName = validator.Name.IsNullOrWhiteSpace() ? parameterRequiringValidation.Name.ToLower() : validator.Name.ToLower();
+                                            var lookupName = validator.Name.IsNullOrWhiteSpace() ?
+                                                parameterRequiringValidation.Name.ToLower()
+                                                :
+                                                validator.Name.ToLower();
 
                                             // Handle default params
                                             if(!queryParams.ContainsKey(lookupName))
@@ -313,24 +244,24 @@ namespace EastFive.Api.Modules
                                                     defaultAttr => defaultKeyPlaceholder,
                                                     () => lookupName);
 
-                                            if (queryParams.ContainsKey(lookupName))
-                                                return await await validator.TryCastAsync(httpApp, request, method, parameterRequiringValidation,
-                                                        async (type, success, failure) =>
-                                                        {
-                                                            // Hack here
-                                                            var strArray = queryParams[lookupName](type,
-                                                                (value) => value.AsArray(),
-                                                                (why) => new object[] { "", why });
-                                                            if (strArray.Length == 1)
-                                                                return success(strArray[0]);
-                                                            return failure((string)strArray[1]);
-                                                        },
+                                            if (!queryParams.ContainsKey(lookupName))
+                                                return await await validator.OnEmptyValueAsync(httpApp, request, parameterRequiringValidation,
                                                     v => validValue(parameterRequiringValidation.PairWithValue(v)),
-                                                    (why) => didNotValidate(parameterRequiringValidation.PairWithValue(why)));
-                                            
-                                            return await await validator.OnEmptyValueAsync(httpApp, request, parameterRequiringValidation,
+                                                    () => didNotValidate(parameterRequiringValidation.PairWithValue("Value not provided")));
+
+                                            return await await validator.TryCastAsync(httpApp, request, method, parameterRequiringValidation,
+                                                async (type, success, failure) =>
+                                                {
+                                                    // Hack here
+                                                    var strArray = queryParams[lookupName](type,
+                                                        (value) => value.AsArray(),
+                                                        (why) => new object[] { "", why });
+                                                    if (strArray.Length == 1)
+                                                        return success(strArray[0]);
+                                                    return failure((string)strArray[1]);
+                                                },
                                                 v => validValue(parameterRequiringValidation.PairWithValue(v)),
-                                                () => didNotValidate(parameterRequiringValidation.PairWithValue("Value not provided")));
+                                                (why) => didNotValidate(parameterRequiringValidation.PairWithValue(why)));
                                         },
                                         async (KeyValuePair<ParameterInfo, object>[] parametersRequiringValidationWithValues, KeyValuePair<ParameterInfo, string>[] parametersRequiringValidationThatDidNotValidate) =>
                                         {
@@ -364,8 +295,27 @@ namespace EastFive.Api.Modules
                     },
                     (string[][] removeParams, KeyValuePair<ParameterInfo, string>[][] addParams) =>
                     {
+                        var addParamsNamed = addParams
+                            .Select(
+                                addParamKvps =>
+                                {
+                                    return addParamKvps
+                                        .Select(
+                                            addParamKvp =>
+                                            {
+                                                var validator = addParamKvp.Key.GetCustomAttribute<QueryValidationAttribute>();
+                                                var lookupName = validator.Name.IsNullOrWhiteSpace() ?
+                                                    addParamKvp.Key.Name.ToLower()
+                                                    :
+                                                    validator.Name.ToLower();
+                                                return lookupName.PairWithValue(addParamKvp.Value);
+                                            })
+                                        .ToArray();
+                                })
+                            .ToArray();
+
                         var content =
-                            (addParams.Any()    ? $"Please correct the value for [{addParams.Select(uvs => uvs.Select(uv => $"{uv.Key.Name} ({uv.Value})").Join(",")).Join(" or ")}]." : "")
+                            (addParamsNamed.Any()    ? $"Please correct the value for [{addParamsNamed.Select(uvs => uvs.Select(uv => $"{uv.Key} ({uv.Value})").Join(",")).Join(" or ")}]." : "")
                             +
                             (removeParams.Any() ? $"Remove query parameters [{  removeParams.Select(uvs => uvs.Select(uv => uv)                           .Join(",")).Join(" or ")}]." : "");
                         return request
@@ -417,23 +367,34 @@ namespace EastFive.Api.Modules
                         if (queryParameterOptions.ContainsKey(methodParameter.Name))
                             return await next(queryParameterOptions[methodParameter.Name]);
 
-                        if (ControllerModule.instigators.ContainsKey(methodParameter.ParameterType))
-                            return await ControllerModule.instigators[methodParameter.ParameterType](httpApp, request, methodParameter, 
+                        if (httpApp.instigators.ContainsKey(methodParameter.ParameterType))
+                            return await httpApp.instigators[methodParameter.ParameterType](httpApp, request, methodParameter, 
                                 (v) => next(v));
+
+                        if (methodParameter.ParameterType.IsInstanceOfType(httpApp))
+                            return await next(httpApp);
 
                         return request.CreateResponse(System.Net.HttpStatusCode.InternalServerError)
                             .AddReason($"Could not instigate type: {methodParameter.ParameterType.FullName}. Please add an instigator for that type.");
                     },
                     async (object[] methodParameters) =>
                     {
-                        var response = method.Invoke(null, methodParameters);
-                        if (typeof(HttpResponseMessage).IsAssignableFrom(method.ReturnType))
-                            return ((HttpResponseMessage)response);
-                        if (typeof(Task<HttpResponseMessage>).IsAssignableFrom(method.ReturnType))
-                            return (await (Task<HttpResponseMessage>)response);
-                        if (typeof(Task<Task<HttpResponseMessage>>).IsAssignableFrom(method.ReturnType))
-                            return (await await (Task<Task<HttpResponseMessage>>)response);
+                        try
+                        {
+                            var response = method.Invoke(null, methodParameters);
+                            if (typeof(HttpResponseMessage).IsAssignableFrom(method.ReturnType))
+                                return ((HttpResponseMessage)response);
+                            if (typeof(Task<HttpResponseMessage>).IsAssignableFrom(method.ReturnType))
+                                return (await (Task<HttpResponseMessage>)response);
+                            if (typeof(Task<Task<HttpResponseMessage>>).IsAssignableFrom(method.ReturnType))
+                                return (await await (Task<Task<HttpResponseMessage>>)response);
 
+                        } catch(Exception ex)
+                        {
+                            // TODO: Only do this in a development environment
+                            return request.CreateResponse(HttpStatusCode.InternalServerError, ex.StackTrace).AddReason(ex.Message);
+                        }
+                        
                         return (request.CreateResponse(System.Net.HttpStatusCode.InternalServerError)
                             .AddReason($"Could not convert type: {method.ReturnType.FullName} to HttpResponseMessage."));
                     });
@@ -441,236 +402,7 @@ namespace EastFive.Api.Modules
         
         #endregion
 
-        #region Instigators
-
-        public delegate Task<HttpResponseMessage> InstigatorDelegate(
-                HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess);
         
-        public static Dictionary<Type, InstigatorDelegate> instigators =
-            new Dictionary<Type, InstigatorDelegate>()
-            {
-                {
-                    typeof(EastFive.Api.Controllers.Security),
-                    (httpApp, request, paramInfo, success) => request.GetActorIdClaimsAsync(
-                        (actorId, claims) => success(
-                            new Controllers.Security
-                            {
-                                performingAsActorId = actorId,
-                                claims = claims,
-                            }))
-                },
-                {
-                    typeof(System.Web.Http.Routing.UrlHelper),
-                    (httpApp, request, paramInfo, success) => success(
-                        new System.Web.Http.Routing.UrlHelper(request))
-                },
-                {
-                    typeof(HttpRequestMessage),
-                    (httpApp, request, paramInfo, success) => success(request)
-                },
-                {
-                    typeof(Controllers.GeneralConflictResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.GeneralConflictResponse dele = (why) => request.CreateResponse(System.Net.HttpStatusCode.Conflict).AddReason(why);
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.GeneralFailureResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.GeneralFailureResponse dele = (why) => request.CreateResponse(System.Net.HttpStatusCode.InternalServerError).AddReason(why);
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.AlreadyExistsResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.AlreadyExistsResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.Conflict).AddReason("Resource has already been created");
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.AlreadyExistsReferencedResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.AlreadyExistsReferencedResponse dele = (existingId) => request.CreateResponse(System.Net.HttpStatusCode.Conflict).AddReason("The resource already exists");
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.NoContentResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.NoContentResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.NoContent);
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.NotFoundResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.NotFoundResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.NotFound);
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.ContentResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.ContentResponse dele = (obj, contentType) =>
-                        {
-                            var response = request.CreateResponse(System.Net.HttpStatusCode.OK, obj);
-                            if(!contentType.IsNullOrWhiteSpace())
-                                response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
-                            return response;
-                        };
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.MultipartResponseAsync),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.MultipartResponseAsync dele = (responses) => request.CreateMultipartResponseAsync(responses);
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.RedirectResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.RedirectResponse dele = (redirectLocation) => request.CreateRedirectResponse(redirectLocation);
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.MultipartAcceptArrayResponseAsync),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.MultipartAcceptArrayResponseAsync dele =
-                            (objects) =>
-                            {
-                                if (request.Headers.Accept.Contains(accept => accept.MediaType.ToLower().Contains("xlsx")))
-                                {
-                                    return request.CreateMultisheetXlsxResponse(
-                                        new Dictionary<string, string>(),
-                                        objects.Cast<ResourceBase>()).ToTask();
-                                }
-                                var responses = objects.Select(obj => request.CreateResponse(System.Net.HttpStatusCode.OK, obj));
-                                return request.CreateMultipartResponseAsync(responses);
-                            };
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.ReferencedDocumentNotFoundResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.ReferencedDocumentNotFoundResponse dele = () => request
-                            .CreateResponse(System.Net.HttpStatusCode.BadRequest)
-                            .AddReason("The query parameter did not reference an existing document.");
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.UnauthorizedResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.UnauthorizedResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized);
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.AcceptedResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.AcceptedResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.Accepted);
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.NotModifiedResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.NotModifiedResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.NotModified);
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.CreatedResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.CreatedResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.Created);
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.CreatedBodyResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.CreatedBodyResponse dele =
-                            (obj, contentType) =>
-                            {
-                                var response = request.CreateResponse(System.Net.HttpStatusCode.OK, obj);
-                                if(!contentType.IsNullOrWhiteSpace())
-                                    response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
-                                return response;
-                            };
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(EastFive.Api.Controllers.ViewFileResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        EastFive.Api.Controllers.ViewFileResponse dele =
-                            (viewPath, content) =>
-                            {
-                                try
-                                {
-                                    var viewContent = System.IO.File.OpenText($"{HttpRuntime.AppDomainAppPath}Views\\{viewPath}").ReadToEnd();
-                                    var response = request.CreateResponse(HttpStatusCode.OK);
-                                    var parsedView =  RazorEngine.Razor.Parse(viewContent, content);
-                                    response.Content = new StringContent(parsedView);
-                                    response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/html");
-                                    return response;
-                                } catch(Exception ex)
-                                {
-                                    var response = request.CreateResponse(HttpStatusCode.InternalServerError).AddReason($"Could not load template {viewPath}");
-                                    return response;
-                                }
-                            };
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(EastFive.Api.Controllers.ViewStringResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        EastFive.Api.Controllers.ViewStringResponse dele =
-                            (razorTemplate, content) =>
-                            {
-                                var response = request.CreateResponse(HttpStatusCode.OK);
-                                var parsedView =  RazorEngine.Razor.Parse(razorTemplate, content);
-                                response.Content = new StringContent(parsedView);
-                                response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/html");
-                                return response;
-                            };
-                        return success((object)dele);
-                    }
-                },
-            };
-
-        public static void AddInstigator(Type type, InstigatorDelegate instigator)
-        {
-            instigators.Add(type, instigator);
-        }
-
-        #endregion
 
     }
 }
