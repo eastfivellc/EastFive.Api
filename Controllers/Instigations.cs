@@ -24,4 +24,24 @@ namespace EastFive.Api.Controllers
         public System.IO.Stream content;
         public MediaTypeHeaderValue contentType;
     }
+    
+    public struct DateTimeEmpty
+    {
+
+    }
+    
+    public struct DateTimeAny
+    {
+
+    }
+    
+    public struct WebIdAny
+    {
+
+    }
+
+    public struct WebIdNone
+    {
+
+    }
 }
