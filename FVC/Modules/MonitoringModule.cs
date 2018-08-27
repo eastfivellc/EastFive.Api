@@ -35,35 +35,85 @@ namespace EastFive.Api.Modules
             this.config = config;
         }
 
-        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        private Task<HttpResponseMessage> StoreMonitoringInfoAndFireRequestAsync(HttpRequestMessage request, CancellationToken cancellationToken, Guid authenticationId)
         {
-            var httpResponseMessage = default(HttpResponseMessage);
-            HttpResponseMessage maybeResponse = await request.GetActorIdClaimsAsync(
-                async (authenticationId, claims) =>
+            return GetControllerNameAndId(request, 
+                async (controllerName, iden) =>
                 {
-                    var controllerName = GetControllerName(request);
-                    Task createLogTask = MonitoringDocument.CreateAsync(storageAppSettingKey, Guid.NewGuid(), authenticationId, "", 
-                        DateTime.UtcNow, request.Method.ToString(), controllerName, request.Content.ToString(), ()=> true);
+                    var queryString = GetParamInfo(request, iden);
 
-                    httpResponseMessage = await base.SendAsync(request, cancellationToken);
+                    Task createLogTask = MonitoringDocument.CreateAsync(storageAppSettingKey, Guid.NewGuid(), authenticationId,
+                        DateTime.UtcNow, request.Method.ToString(), controllerName, queryString, () => true);
+
+                    var httpResponseMessage = await base.SendAsync(request, cancellationToken);
 
                     await createLogTask;
                     return httpResponseMessage;
+                },
+                ()=>
+                {
+                    return default(HttpResponseMessage).ToTask();
+                });
+        }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var httpResponseMessage = await request.GetActorIdClaimsFromBearerParamAsync(
+                async (authenticationId, claims) =>
+                {
+                    return await StoreMonitoringInfoAndFireRequestAsync(request, cancellationToken, authenticationId);
+                },
+                async () =>
+                {
+                    return await request.GetActorIdClaimsAsync(
+                        async (authenticationId, claims) =>
+                        {
+                            return await StoreMonitoringInfoAndFireRequestAsync(request, cancellationToken, authenticationId);
+                        });
+                },
+                () =>
+                {
+                    return default(HttpResponseMessage).ToTask();
+                },
+                () =>
+                {
+                    return default(HttpResponseMessage).ToTask();
                 });
             if (httpResponseMessage.IsDefaultOrNull())
                 return await base.SendAsync(request, cancellationToken);
             return httpResponseMessage;
         }
 
-        private string GetControllerName(HttpRequestMessage request)
+        private TResult GetControllerNameAndId<TResult>(HttpRequestMessage request,
+            Func<string, string, TResult> onSuccess,
+            Func<TResult> onUndetermined)
         {
-            var attributedRoutesData = request.GetRouteData().GetSubRoutes();
-            var subRouteData = attributedRoutesData.FirstOrDefault();
+            // controller and id
+            if (request.RequestUri.Segments.Length == 4)
+                return onSuccess(request.RequestUri.Segments[2], request.RequestUri.Segments[3]);
 
-            var actions = (ReflectedHttpActionDescriptor[])subRouteData.Route.DataTokens["actions"];
-            var controllerName = actions[0].ControllerDescriptor.ControllerName;
-            return controllerName;
+            // just controller
+            if (request.RequestUri.Segments.Length == 3 )
+                return onSuccess(request.RequestUri.Segments[2], string.Empty);
+
+            if (request.RequestUri.Segments.Length == 2)
+                return onSuccess(request.RequestUri.Segments[1], string.Empty);
+
+            if (request.RequestUri.Segments.Length == 1)
+                return onSuccess(request.RequestUri.Segments[0], string.Empty);
+
+            return onUndetermined();
         }
 
+        private string GetParamInfo(HttpRequestMessage request, string iden)
+        {
+            var queryParams = request.GetQueryNameValuePairs();
+            var queryElements = queryParams.Select(qP => $"{qP.Key}:{qP.Value}");
+
+            if (!iden.IsNullOrWhiteSpace())
+                queryElements = queryElements.Concat(new[] { $"Id:{iden}" });
+
+            return queryElements.Join(" | ");
+        }
     }
 }
