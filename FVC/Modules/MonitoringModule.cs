@@ -65,11 +65,15 @@ namespace EastFive.Api.Modules
                 },
                 async () =>
                 {
-                    return await request.GetActorIdClaimsAsync(
+                    var response = await request.GetActorIdClaimsAsync(
                         async (authenticationId, claims) =>
                         {
                             return await StoreMonitoringInfoAndFireRequestAsync(request, cancellationToken, authenticationId);
                         });
+                    if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                        return default(HttpResponseMessage);
+
+                    return response;
                 },
                 () =>
                 {
