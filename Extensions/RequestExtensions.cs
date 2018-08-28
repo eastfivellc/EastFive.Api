@@ -365,6 +365,36 @@ namespace BlackBarLabs.Api
             return GetActorIdClaimsAsync(request, accountIdClaimTypeConfigurationSetting, success);
         }
 
+        public static Task<HttpResponseMessage> GetActorIdClaimsFromBearerParamAsync(this HttpRequestMessage request,
+            Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage>> onSuccess,
+            Func<Task<HttpResponseMessage>> onNoBearerParameterFound,
+            Func<Task<HttpResponseMessage>> onAuthorizationNotSet,
+            Func<Task<HttpResponseMessage>> onFailure)
+
+        {
+            var accountIdClaimTypeConfigurationSetting =
+                EastFive.Api.AppSettings.ActorIdClaimType;
+
+            var maybeBearer = request.GetQueryNameValuePairs().Where(qP => qP.Key.ToLower() == "bearer").ToArray();
+            if (maybeBearer.Length == 0)
+                return onNoBearerParameterFound();
+
+            var foundClaims = maybeBearer[0].Value.GetClaimsFromJwtToken(
+                claims =>
+                {
+                    var accountIdClaimType =
+                        ConfigurationManager.AppSettings[accountIdClaimTypeConfigurationSetting];
+                    var result = claims.GetAccountIdAsync(
+                        request, accountIdClaimType,
+                        (accountId) => onSuccess(accountId, claims.ToArray()));
+                    return result;
+                },
+                onAuthorizationNotSet,
+                (why) => onFailure());
+
+            return foundClaims;
+        }
+
         public static Task<HttpResponseMessage> GetActorIdClaimsAsync(this HttpRequestMessage request,
             string accountIdClaimTypeConfigurationSetting,
             Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage>> success)

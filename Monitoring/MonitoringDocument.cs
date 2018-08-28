@@ -25,12 +25,10 @@ namespace BlackBarLabs.Api.Monitoring
 
         public Guid Id => Guid.Parse(this.RowKey);
         public Guid AuthenticationId { get; set; }
-        public string UserName { get; set; }
         public DateTime Time { get; set; }
         public string Method { get; set; }
         public string Controller { get; set; }
         public string Content { get; set; }
-
 
         private static AzureStorageRepository GetRepo(string storageAppSettingKey)
         {
@@ -40,7 +38,7 @@ namespace BlackBarLabs.Api.Monitoring
             return repo;
         }
 
-        public static async Task<TResult> CreateAsync<TResult>(string storageAppSettingKey, Guid id, Guid authenticationId, string username, DateTime time, string method, string controller, string content,
+        public static async Task<TResult> CreateAsync<TResult>(string storageAppSettingKey, Guid id, Guid authenticationId, DateTime time, string method, string controller, string content,
             Func<TResult> onSuccess)
         {
             var repo = GetRepo(storageAppSettingKey);
@@ -48,7 +46,6 @@ namespace BlackBarLabs.Api.Monitoring
                 async (created, doc, saveAsync) =>
                 {
                     doc.AuthenticationId = authenticationId;
-                    doc.UserName = username;
                     doc.Time = time;
                     doc.Method = method;
                     doc.Controller = controller;
