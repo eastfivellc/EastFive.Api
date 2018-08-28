@@ -74,14 +74,23 @@ namespace EastFive.Api.Resources
                 this.Required = !(paramInfo.ContainsCustomAttribute<PropertyOptionalAttribute>() ||
                     paramInfo.ContainsCustomAttribute<OptionalAttribute>());
                 this.Default = paramInfo.ContainsCustomAttribute<QueryDefaultParameterAttribute>();
-                this.Type = paramInfo.ParameterType;
+                this.Type = GetTypeName(paramInfo.ParameterType);
+            }
+
+            private static string GetTypeName(Type type)
+            {
+                if (type.IsArray)
+                    return $"{GetTypeName(type.GetElementType())}[]";
+                return type.IsNullable(
+                    nullableBase => $"{GetTypeName(nullableBase)}?",
+                    () => type.Name);
             }
 
             public string Name { get; set; }
             public bool Required { get; set; }
             public bool Default { get; set; }
 
-            public Type Type { get; set; }
+            public string Type { get; set; }
         }
 
         public class Response
