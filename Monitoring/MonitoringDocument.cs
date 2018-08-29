@@ -42,7 +42,8 @@ namespace BlackBarLabs.Api.Monitoring
             Func<TResult> onSuccess)
         {
             var repo = GetRepo(storageAppSettingKey);
-            return await repo.CreateOrUpdateAsync<MonitoringDocument, TResult>(id,
+            var monthBucketedPartitionKey = GenerateMonthBucketedPartitionKey(time);
+            return await repo.CreateOrUpdateAsync<MonitoringDocument, TResult>(id, monthBucketedPartitionKey,
                 async (created, doc, saveAsync) =>
                 {
                     doc.AuthenticationId = authenticationId;
@@ -53,6 +54,11 @@ namespace BlackBarLabs.Api.Monitoring
                     await saveAsync(doc);
                     return onSuccess();
                 });
+        }
+
+        private static string GenerateMonthBucketedPartitionKey(DateTime date)
+        {
+            return date.ToString("yyyy") + date.ToString("MM");
         }
     }
 }
