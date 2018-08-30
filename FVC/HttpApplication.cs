@@ -430,7 +430,7 @@ namespace EastFive.Api
                     typeof(Controllers.RedirectResponse),
                     (httpApp, request, paramInfo, success) =>
                     {
-                        Controllers.RedirectResponse dele = (redirectLocation) => request.CreateRedirectResponse(redirectLocation);
+                        Controllers.RedirectResponse dele = (redirectLocation, why) => request.CreateRedirectResponse(redirectLocation).AddReason(why);
                         return success((object)dele);
                     }
                 },

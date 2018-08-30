@@ -36,6 +36,6 @@ namespace EastFive.Api.Controllers
     public delegate HttpResponseMessage ReferencedDocumentDoesNotExistsResponse();
     public delegate HttpResponseMessage UnauthorizedResponse();
     public delegate HttpResponseMessage NotModifiedResponse();
-    public delegate HttpResponseMessage RedirectResponse(Uri redirectLocation);
+    public delegate HttpResponseMessage RedirectResponse(Uri redirectLocation, string reason);
 
 }

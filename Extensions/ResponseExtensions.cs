@@ -33,6 +33,9 @@ namespace BlackBarLabs.Api
     {
         public static HttpResponseMessage AddReason(this HttpResponseMessage response, string reason)
         {
+            if (string.IsNullOrEmpty(reason))
+                return response;
+
             var reasonPhrase = reason.Replace('\n', ';').Replace("\r", "");
             if (reasonPhrase.Length > 510)
                 reasonPhrase = new string(reasonPhrase.Take(510).ToArray());
