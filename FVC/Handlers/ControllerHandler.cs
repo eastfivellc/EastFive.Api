@@ -21,25 +21,15 @@ using System.Threading;
 
 namespace EastFive.Api.Modules
 {
-    public class ControllerModule : System.Net.Http.DelegatingHandler
+    public class ControllerHandler : ApplicationHandler
     {
-        private System.Web.Http.HttpConfiguration config;
-
-        public ControllerModule(System.Web.Http.HttpConfiguration config)
+        public ControllerHandler(System.Web.Http.HttpConfiguration config)
+            : base(config)
         {
-            this.config = config;
         }
 
-        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override async Task<HttpResponseMessage> SendAsync(HttpApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            if (!request.Properties.ContainsKey("MS_HttpContext")) //  Maybe someday this will be in System.Web.Http.Hosting.HttpPropertyKeys.
-                return await base.SendAsync(request, cancellationToken);
-
-            var httpAppCore = ((System.Web.HttpContextWrapper)request.Properties["MS_HttpContext"]).ApplicationInstance;
-            if(!(httpAppCore is HttpApplication))
-                return await base.SendAsync(request, cancellationToken);
-            var httpApp = httpAppCore as HttpApplication;
-
             string filePath = request.RequestUri.AbsolutePath;
             var path = filePath.Split(new char[] { '/' }).Where(pathPart => !pathPart.IsNullOrWhiteSpace()).ToArray();
             var routeName =  (path.Length >= 2 ? path[1] : "").ToLower();
@@ -162,7 +152,7 @@ namespace EastFive.Api.Modules
                                                 {
                                                     // It's an dictionary
                                                     var typeToCast = genericArgs[1];
-                                                    var kvpCreateMethod = typeof(ControllerModule).GetMethod("KvpCreate", BindingFlags.Static | BindingFlags.NonPublic);
+                                                    var kvpCreateMethod = typeof(ControllerHandler).GetMethod("KvpCreate", BindingFlags.Static | BindingFlags.NonPublic);
                                                     var correctGenericKvpCreate = kvpCreateMethod.MakeGenericMethod(genericArgs);
                                                     var lookup = collectionParameterGrp
                                                         .FlatMap(
@@ -172,11 +162,11 @@ namespace EastFive.Api.Modules
                                                                     (why) => skip()),
                                                             (IEnumerable<object> lookupInner) => lookupInner.ToArray());
 
-                                                    var castMethod = typeof(ControllerModule).GetMethod("CastToKvp", BindingFlags.Static | BindingFlags.NonPublic);
+                                                    var castMethod = typeof(ControllerHandler).GetMethod("CastToKvp", BindingFlags.Static | BindingFlags.NonPublic);
                                                     var correctKvpsCast = castMethod.MakeGenericMethod(genericArgs);
                                                     var kvpsOfCorrectTypes = correctKvpsCast.Invoke(null, lookup.AsArray());
 
-                                                    var dictCreateMethod = typeof(ControllerModule).GetMethod("DictionaryCreate", BindingFlags.Static | BindingFlags.NonPublic);
+                                                    var dictCreateMethod = typeof(ControllerHandler).GetMethod("DictionaryCreate", BindingFlags.Static | BindingFlags.NonPublic);
                                                     var correctGenericDictCreate = dictCreateMethod.MakeGenericMethod(genericArgs);
                                                     var dictionaryOfCorrectTypes = correctGenericDictCreate.Invoke(null, kvpsOfCorrectTypes.AsArray());
                                                     return onParsed(dictionaryOfCorrectTypes);

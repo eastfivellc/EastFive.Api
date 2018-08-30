@@ -16,7 +16,8 @@ namespace EastFive.Api.Services
             Func<ISendMessageService> sendMessageService,
             Func<ITimeService> timeService)
         {
-            config.MessageHandlers.Add(new Modules.ControllerModule(config));
+            config.MessageHandlers.Add(new Modules.ControllerHandler(config));
+            config.MessageHandlers.Add(new Modules.MonitoringHandler(config));
             EastFive.Web.Services.ServiceConfiguration.Initialize(sendMessageService, timeService);
         }
 

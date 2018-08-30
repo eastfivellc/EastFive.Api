@@ -147,11 +147,11 @@
     <Compile Include="FVC\FunctionViewControllerAttribute.cs" />
     <Compile Include="Controllers\QueryValidationAttribute.cs" />
     <Compile Include="FVC\HttpApplication.cs" />
-    <Compile Include="FVC\Modules\MonitoringModule.cs" />
+    <Compile Include="ApplicationHandler.cs" />
+    <Compile Include="FVC\Handlers\MonitoringHandler.cs" />
     <Compile Include="HttpActionResult.cs" />
     <Compile Include="InjectableAssemblyResolver.cs" />
-    <Compile Include="FVC\Modules\ControllerModule.cs" />
-    <Compile Include="Monitoring\MonitoringDocument.cs" />
+    <Compile Include="FVC\Handlers\ControllerHandler.cs" />
     <Compile Include="Resources\Exceptions.cs" />
     <Compile Include="Resources\Manifest.cs" />
     <Compile Include="Resources\MultipartResponse.cs" />

@@ -17,20 +17,53 @@ using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using System.IO;
 using BlackBarLabs;
+using System.Threading;
 
 namespace EastFive.Api
 {
     public class HttpApplication : System.Web.HttpApplication
     {
+
+        private Task initialization;
+        private ManualResetEvent initializationLock;
+
         public HttpApplication()
             : base()
         {
-            if(lookup.IsDefaultOrNull())
-                LocateControllers();
+            initializationLock = new ManualResetEvent(false);
+        }
+
+        protected virtual void Application_Start()
+        {
+            LocateControllers();
+        }
+
+        protected class Initialized
+        {
+            private Initialized()
+            {
+
+            }
+
+            internal static Initialized Create()
+            {
+                return new Initialized();
+            }
+        }
+
+        protected virtual Task<Initialized> InitializeAsync()
+        {
+            initializationLock.Set();
+            return Initialized.Create().ToTask();
+        }
+
+        protected void InitializationWait()
+        {
+            initializationLock.WaitOne();
         }
 
         #region Url Handlers
-        
+
         public Type GetResourceType(string resourceType)
         {
             return contentTypeLookup.First(
@@ -57,6 +90,15 @@ namespace EastFive.Api
             if (!resourceIdMaybe.HasValue)
                 return default(WebId);
             return GetResourceLink(resourceType, resourceIdMaybe.Value, url);
+        }
+
+        public delegate Task StoreMonitoringDelegate(Guid monitorRecordId, Guid authenticationId, DateTime when, string method, string controllerName, string queryString);
+
+        public virtual TResult DoesStoreMonitoring<TResult>(
+            Func<StoreMonitoringDelegate, TResult> onMonitorUsingThisCallback,
+            Func<TResult> onNoMonitoring)
+        {
+            return onNoMonitoring();
         }
 
         public WebId GetResourceLink(string resourceType, Guid resourceId, UrlHelper url)

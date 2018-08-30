@@ -21,6 +21,20 @@ namespace BlackBarLabs.Api
 {
     public static class RequestExtensions
     {
+        public static TResult GetApplication<TResult>(this HttpRequestMessage request,
+            Func<HttpApplication, TResult> onAvailable,
+            Func<TResult> onNotAvailable)
+        {
+            if (!request.Properties.ContainsKey("MS_HttpContext")) //  Maybe someday this will be in System.Web.Http.Hosting.HttpPropertyKeys.
+                return onNotAvailable();
+
+            var httpAppCore = ((System.Web.HttpContextWrapper)request.Properties["MS_HttpContext"]).ApplicationInstance;
+            if (!(httpAppCore is HttpApplication))
+                return onNotAvailable();
+            var httpApp = httpAppCore as HttpApplication;
+            return onAvailable(httpApp);
+        }
+
         public static async Task<IHttpActionResult> GetPossibleMultipartResponseAsync<TResource>(this HttpRequestMessage request,
             IEnumerable<TResource> query,
             Func<TResource, Task<HttpResponseMessage>> singlepart,
