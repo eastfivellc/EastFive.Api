@@ -33,10 +33,10 @@ namespace EastFive.Api.Modules
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             return request.GetApplication(
-                httpApp => SendAsync(httpApp, request, cancellationToken),
+                httpApp => SendAsync(httpApp, request, cancellationToken, (requestBase, cancellationTokenBase)=> base.SendAsync(requestBase, cancellationTokenBase)),
                 () => base.SendAsync(request, cancellationToken));
         }
 
-        protected abstract Task<HttpResponseMessage> SendAsync(HttpApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken);
+        protected abstract Task<HttpResponseMessage> SendAsync(HttpApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken, Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> continuation);
     }
 }

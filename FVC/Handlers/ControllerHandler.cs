@@ -28,7 +28,7 @@ namespace EastFive.Api.Modules
         {
         }
 
-        protected override async Task<HttpResponseMessage> SendAsync(HttpApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override async Task<HttpResponseMessage> SendAsync(HttpApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken, Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> continuation)
         {
             string filePath = request.RequestUri.AbsolutePath;
             var path = filePath.Split(new char[] { '/' }).Where(pathPart => !pathPart.IsNullOrWhiteSpace()).ToArray();
@@ -47,7 +47,7 @@ namespace EastFive.Api.Modules
                     var httpMethod = matchingKey.First();
                     return await CreateResponseAsync(httpApp, request, routeName, possibleHttpMethods[httpMethod]);
                 },
-                () => base.SendAsync(request, cancellationToken));
+                () => continuation(request, cancellationToken));
         }
 
         #region Invoke correct method
