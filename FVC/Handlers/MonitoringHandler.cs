@@ -53,7 +53,7 @@ namespace EastFive.Api.Modules
                 ()=> base.SendAsync(request, cancellationToken));
         }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpApplication httpApplication, HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override Task<HttpResponseMessage> SendAsync(HttpApplication httpApplication, HttpRequestMessage request, CancellationToken cancellationToken, Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> continuation)
         {
             return request.GetActorIdClaimsFromBearerParamAsync(
                 (authenticationId, claims) => StoreMonitoringInfoAndFireRequestAsync(
@@ -71,11 +71,11 @@ namespace EastFive.Api.Modules
                                 (authenticationId) => StoreMonitoringInfoAndFireRequestAsync(httpApplication, request, cancellationToken, authenticationId));
                             return result;
                         },
-                        () => base.SendAsync(request, cancellationToken),
-                        (why) => base.SendAsync(request, cancellationToken));
+                        () => continuation(request, cancellationToken),
+                        (why) => continuation(request, cancellationToken));
                 },
-                () => base.SendAsync(request, cancellationToken),
-                () => base.SendAsync(request, cancellationToken));
+                () => continuation(request, cancellationToken),
+                () => continuation(request, cancellationToken));
         }
 
         private TResult GetControllerNameAndId<TResult>(HttpRequestMessage request,
