@@ -46,6 +46,31 @@ namespace BlackBarLabs.Api
                 response.Content = new StringContent(Newtonsoft.Json.JsonConvert.SerializeObject(new { Message = reason }));
             return response;
         }
+        
+        public static HttpResponseMessage CreateContentResponse(this HttpRequestMessage request, byte [] content, string mediaType)
+        {
+            var response = request.CreateResponse(HttpStatusCode.OK);
+            response.Content = new ByteArrayContent(content);
+            response.Content.Headers.ContentType = new MediaTypeHeaderValue(mediaType);
+            return response;
+        }
+
+        public static HttpResponseMessage CreateFileResponse(this HttpRequestMessage request, byte [] content, string mediaType,
+            bool? inline = default(bool?), string filename = default(string))
+        {
+            var response = request.CreateResponse(HttpStatusCode.OK);
+            response.Content = new ByteArrayContent(content);
+            response.Content.Headers.ContentType = new MediaTypeHeaderValue(mediaType);
+            if(inline.HasValue)
+                response.Content.Headers.ContentDisposition = new ContentDispositionHeaderValue(inline.Value ? "inline" : "attachment")
+                {
+                    FileName =
+                            default(string) == filename ?
+                                Guid.NewGuid().ToString("N") + ".pdf" :
+                                filename,
+                };
+            return response;
+        }
 
         public static HttpResponseMessage CreatePdfResponse(this HttpRequestMessage request, System.IO.Stream stream,
             string filename = default(string), bool inline = false)

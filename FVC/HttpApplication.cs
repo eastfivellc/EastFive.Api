@@ -18,6 +18,7 @@ using EastFive.Extensions;
 using System.IO;
 using BlackBarLabs;
 using System.Threading;
+using System.Web.Http;
 
 namespace EastFive.Api
 {
@@ -36,6 +37,13 @@ namespace EastFive.Api
         protected virtual void Application_Start()
         {
             LocateControllers();
+            GlobalConfiguration.Configure(this.Configure);
+        }
+
+        protected virtual void Configure(HttpConfiguration config)
+        {
+            config.MessageHandlers.Add(new Modules.ControllerHandler(config));
+            config.MessageHandlers.Add(new Modules.MonitoringHandler(config));
         }
 
         protected class Initialized

@@ -147,7 +147,7 @@
     <Compile Include="FVC\FunctionViewControllerAttribute.cs" />
     <Compile Include="Controllers\QueryValidationAttribute.cs" />
     <Compile Include="FVC\HttpApplication.cs" />
-    <Compile Include="ApplicationHandler.cs" />
+    <Compile Include="FVC\Handlers\ApplicationHandler.cs" />
     <Compile Include="FVC\Handlers\MonitoringHandler.cs" />
     <Compile Include="HttpActionResult.cs" />
     <Compile Include="InjectableAssemblyResolver.cs" />
