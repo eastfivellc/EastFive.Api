@@ -32,6 +32,7 @@ namespace EastFive.Api
             : base()
         {
             initializationLock = new ManualResetEvent(false);
+            this.initialization = InitializeAsync();
         }
 
         protected virtual void Application_Start()
