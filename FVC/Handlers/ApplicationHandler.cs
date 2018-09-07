@@ -24,6 +24,7 @@ namespace EastFive.Api.Modules
     public abstract class ApplicationHandler : System.Net.Http.DelegatingHandler
     {
         protected System.Web.Http.HttpConfiguration config;
+        private string applicationProperty = Guid.NewGuid().ToString("N");
 
         public ApplicationHandler(System.Web.Http.HttpConfiguration config)
         {
@@ -32,8 +33,24 @@ namespace EastFive.Api.Modules
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            // In the event that SendAsync(HttpApplication ...) calls base.SendAsync(request, cancellationToken) then this method
+            // would be called. This method would then in turn call back to SendAsync(HttpApplication...) which would cause 
+            // recursion to stack overflow. Therefore, a property (.applicationProperty) is added to the request to identify if this method has
+            // already been called.
+            // This situation can be avoided by using the contiuation callback instead of calling base, this serves a defensive programming.
+
+            // Check if this method has already been called
+            if (request.Properties.ContainsKey(applicationProperty))
+                // TODO: Log event here.
+                return base.SendAsync(request, cancellationToken);
+
             return request.GetApplication(
-                httpApp => SendAsync(httpApp, request, cancellationToken, (requestBase, cancellationTokenBase)=> base.SendAsync(requestBase, cancellationTokenBase)),
+                httpApp =>
+                {
+                    // add applicationProperty as a property to identify this method has already been called.
+                    request.Properties.Add(applicationProperty, httpApp);
+                    return SendAsync(httpApp, request, cancellationToken, (requestBase, cancellationTokenBase) => base.SendAsync(requestBase, cancellationTokenBase));
+                },
                 () => base.SendAsync(request, cancellationToken));
         }
 

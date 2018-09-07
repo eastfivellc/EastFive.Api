@@ -30,7 +30,8 @@ namespace EastFive.Api.Modules
         {
         }
 
-        private Task<HttpResponseMessage> StoreMonitoringInfoAndFireRequestAsync(HttpApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken, Guid authenticationId)
+        private Task<HttpResponseMessage> StoreMonitoringInfoAndFireRequestAsync(HttpApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken, Guid authenticationId,
+            Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> continuation)
         {
             return GetControllerNameAndId(request, 
                 async (controllerName, iden) =>
@@ -43,21 +44,22 @@ namespace EastFive.Api.Modules
                             var createLogTask = monitoringCallback(Guid.NewGuid(), authenticationId,
                                 DateTime.UtcNow, request.Method.ToString(), controllerName, queryString);
 
-                            var httpResponseMessage = await base.SendAsync(request, cancellationToken);
+                            var httpResponseMessage = await continuation(request, cancellationToken);
 
                             await createLogTask;
                             return httpResponseMessage;
                         },
-                        () => base.SendAsync(request, cancellationToken));
+                        () => continuation(request, cancellationToken));
                 },
-                ()=> base.SendAsync(request, cancellationToken));
+                ()=> continuation(request, cancellationToken));
         }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpApplication httpApplication, HttpRequestMessage request, CancellationToken cancellationToken, Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> continuation)
+        protected override Task<HttpResponseMessage> SendAsync(HttpApplication httpApplication, HttpRequestMessage request, CancellationToken cancellationToken,
+            Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> continuation)
         {
             return request.GetActorIdClaimsFromBearerParamAsync(
                 (authenticationId, claims) => StoreMonitoringInfoAndFireRequestAsync(
-                    httpApplication, request, cancellationToken, authenticationId),
+                    httpApplication, request, cancellationToken, authenticationId, continuation),
                 () =>
                 {
                     return request.GetClaims(
@@ -68,7 +70,7 @@ namespace EastFive.Api.Modules
                             var accountIdClaimType = System.Configuration.ConfigurationManager.AppSettings[accountIdClaimTypeConfigurationSetting];
                             var result = claims.GetAccountIdAsync(
                                 request, accountIdClaimType,
-                                (authenticationId) => StoreMonitoringInfoAndFireRequestAsync(httpApplication, request, cancellationToken, authenticationId));
+                                (authenticationId) => StoreMonitoringInfoAndFireRequestAsync(httpApplication, request, cancellationToken, authenticationId, continuation));
                             return result;
                         },
                         () => continuation(request, cancellationToken),
