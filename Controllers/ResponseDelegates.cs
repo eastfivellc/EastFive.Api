@@ -33,7 +33,7 @@ namespace EastFive.Api.Controllers
     /// The when creating a document referenced in the create does not exits.
     /// </summary>
     /// <returns></returns>
-    public delegate HttpResponseMessage ReferencedDocumentDoesNotExistsResponse();
+    public delegate HttpResponseMessage ReferencedDocumentDoesNotExistsResponse<TResource>();
     public delegate HttpResponseMessage UnauthorizedResponse();
     public delegate HttpResponseMessage NotModifiedResponse();
     public delegate HttpResponseMessage RedirectResponse(Uri redirectLocation, string reason);
