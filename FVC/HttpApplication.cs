@@ -37,8 +37,14 @@ namespace EastFive.Api
 
         protected virtual void Application_Start()
         {
+            System.Web.Mvc.AreaRegistration.RegisterAllAreas();
             LocateControllers();
             GlobalConfiguration.Configure(this.Configure);
+        }
+
+        public void ApplicationStart()
+        {
+            Application_Start();
         }
 
         protected virtual void Configure(HttpConfiguration config)
