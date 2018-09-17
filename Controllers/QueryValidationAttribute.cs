@@ -270,6 +270,11 @@ namespace EastFive.Api
         }
     }
 
+    public class PropertyValueAttribute : PropertyAttribute
+    {
+
+    }
+
     public class PropertyGuidAttribute : PropertyAttribute
     {
         
