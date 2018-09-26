@@ -37,14 +37,19 @@ namespace EastFive.Api
 
         protected virtual void Application_Start()
         {
-            System.Web.Mvc.AreaRegistration.RegisterAllAreas();
             LocateControllers();
-            GlobalConfiguration.Configure(this.Configure);
         }
 
         public void ApplicationStart()
         {
+            System.Web.Mvc.AreaRegistration.RegisterAllAreas();
+            Registration();
             Application_Start();
+            GlobalConfiguration.Configure(this.Configure);
+        }
+
+        protected virtual void Registration()
+        {
         }
 
         protected virtual void Configure(HttpConfiguration config)
@@ -384,6 +389,14 @@ namespace EastFive.Api
                     (httpApp, request, paramInfo, success) =>
                     {
                         Controllers.GeneralFailureResponse dele = (why) => request.CreateResponse(System.Net.HttpStatusCode.InternalServerError).AddReason(why);
+                        return success((object)dele);
+                    }
+                },
+                {
+                    typeof(Controllers.BadRequestResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.BadRequestResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.BadRequest).AddReason("Bad request.");
                         return success((object)dele);
                     }
                 },

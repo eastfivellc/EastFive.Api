@@ -28,13 +28,20 @@ namespace EastFive.Api.Modules
         {
         }
 
-        protected override async Task<HttpResponseMessage> SendAsync(HttpApplication httpApp, 
+        protected override Task<HttpResponseMessage> SendAsync(HttpApplication httpApp, 
             HttpRequestMessage request, CancellationToken cancellationToken, 
+            Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> continuation)
+        {
+            return DirectSendAsync(httpApp, request, cancellationToken, continuation);
+        }
+
+        public static async Task<HttpResponseMessage> DirectSendAsync(HttpApplication httpApp,
+            HttpRequestMessage request, CancellationToken cancellationToken,
             Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> continuation)
         {
             string filePath = request.RequestUri.AbsolutePath;
             var path = filePath.Split(new char[] { '/' }).Where(pathPart => !pathPart.IsNullOrWhiteSpace()).ToArray();
-            var routeName =  (path.Length >= 2 ? path[1] : "").ToLower();
+            var routeName = (path.Length >= 2 ? path[1] : "").ToLower();
 
             return await httpApp.GetControllerMethods(routeName,
                 async (possibleHttpMethods) =>
@@ -80,7 +87,7 @@ namespace EastFive.Api.Modules
 
         delegate TResult ParseContentDelegate<TResult>(Type type, Func<object, TResult> onParsed, Func<string, TResult> onFailure);
 
-        private async Task<HttpResponseMessage> CreateResponseAsync(HttpApplication httpApp, HttpRequestMessage request, string controllerName, MethodInfo[] methods)
+        private static async Task<HttpResponseMessage> CreateResponseAsync(HttpApplication httpApp, HttpRequestMessage request, string controllerName, MethodInfo[] methods)
         {
             var allParamInvokators =
                 // Query parameters from URI
@@ -318,7 +325,7 @@ namespace EastFive.Api.Modules
             return response;
         }
 
-        private TResult HasExtraParameters<TResult>(MethodInfo method, 
+        private static TResult HasExtraParameters<TResult>(MethodInfo method, 
                 IEnumerable<ParameterInfo> parameters, IEnumerable<string> queryKeys,
             Func<TResult> noExtraParameters,
             Func<string[], TResult> onExtraParams)
@@ -347,7 +354,7 @@ namespace EastFive.Api.Modules
                 noExtraParameters);
         }
 
-        private Task<HttpResponseMessage> InvokeValidatedMethod(HttpApplication httpApp, HttpRequestMessage request, MethodInfo method, 
+        private static Task<HttpResponseMessage> InvokeValidatedMethod(HttpApplication httpApp, HttpRequestMessage request, MethodInfo method, 
             KeyValuePair<ParameterInfo, object>[] queryParameters,
             Func<ParameterInfo[], Task<HttpResponseMessage>> onMissingParameters)
         {

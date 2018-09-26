@@ -241,6 +241,11 @@ namespace EastFive.Api.Controllers
             instigators.Add(type, instigator);
         }
 
+        public static void SetInstigator(Type type, Func<ApiController, Func<object, Task<HttpResponseMessage>>, Task<HttpResponseMessage>> instigator)
+        {
+            instigators[type] = instigator;
+        }
+
         private static ApiValidations.ValidationAttribute ParseWebIdGuid(object v, ApiController controller)
         {
             if (v.IsDefaultOrNull())
