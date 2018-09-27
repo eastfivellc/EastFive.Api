@@ -35,17 +35,17 @@ namespace EastFive.Api
             this.initialization = InitializeAsync();
         }
 
-        protected virtual void Application_Start()
-        {
-            LocateControllers();
-        }
-
-        public void ApplicationStart()
+        protected void Application_Start()
         {
             System.Web.Mvc.AreaRegistration.RegisterAllAreas();
-            Registration();
-            Application_Start();
+            ApplicationStart();
             GlobalConfiguration.Configure(this.Configure);
+            Registration();
+        }
+
+        public virtual void ApplicationStart()
+        {
+            LocateControllers();
         }
 
         protected virtual void Registration()
@@ -54,6 +54,14 @@ namespace EastFive.Api
 
         protected virtual void Configure(HttpConfiguration config)
         {
+            config.MapHttpAttributeRoutes();
+
+            config.Routes.MapHttpRoute(
+                name: "DefaultApi",
+                routeTemplate: "api/{controller}/{id}",
+                defaults: new { id = RouteParameter.Optional }
+            );
+
             config.MessageHandlers.Add(new Modules.ControllerHandler(config));
             config.MessageHandlers.Add(new Modules.MonitoringHandler(config));
         }
