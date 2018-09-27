@@ -350,6 +350,31 @@ namespace EastFive.Api
 
         #region Instigators
 
+        public delegate Task<HttpResponseMessage> InstigatorDelegateGeneric(
+                Type type, HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
+            Func<object, Task<HttpResponseMessage>> onSuccess);
+
+        public Dictionary<Type, InstigatorDelegateGeneric> instigatorsGeneric =
+            new Dictionary<Type, InstigatorDelegateGeneric>()
+            {
+                {
+                    typeof(Controllers.ReferencedDocumentDoesNotExistsResponse<>),
+                    (type, httpApp, request, paramInfo, success) =>
+                    {
+                        var refDocMethodInfo = typeof(HttpApplication).GetMethod("RefDocDoesNotExist", BindingFlags.Public | BindingFlags.Static);
+                        var dele = Delegate.CreateDelegate(type, request, refDocMethodInfo);
+                        return success((object)dele);
+                    }
+                }
+            };
+
+        public static HttpResponseMessage RefDocDoesNotExist(HttpRequestMessage request)
+        {
+            return request
+                .CreateResponse(System.Net.HttpStatusCode.BadRequest)
+                .AddReason("The query parameter did not reference an existing document.");
+        }
+
         public delegate Task<HttpResponseMessage> InstigatorDelegate(
                 HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess);
@@ -588,6 +613,17 @@ namespace EastFive.Api
             instigators.Add(type, instigator);
         }
 
+        public void SetInstigator(Type type, InstigatorDelegate instigator)
+        {
+            instigators[type] = instigator;
+        }
+
+        public void AddGenericInstigator(Type type, InstigatorDelegateGeneric instigator)
+        {
+            instigatorsGeneric.Add(type, instigator);
+        }
+        
+
         #endregion
 
         #region Conversions
@@ -605,7 +641,7 @@ namespace EastFive.Api
 
             return (parameters);
         }
-
+        
         public virtual async Task<KeyValuePair<string, Func<Type, object>>[]> ParseContentValuesAsync(HttpContent content)
         {
             if (content.IsDefaultOrNull())

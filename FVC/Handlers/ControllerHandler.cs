@@ -373,6 +373,17 @@ namespace EastFive.Api.Modules
                         if (methodParameter.ParameterType.IsInstanceOfType(httpApp))
                             return await next(httpApp);
 
+                        if (methodParameter.ParameterType.IsGenericType)
+                        {
+                            var possibleGenericInstigator = httpApp.instigatorsGeneric
+                                .Where(instigatorKvp => instigatorKvp.Key.GUID == methodParameter.ParameterType.GUID)
+                                .ToArray();
+                            if (possibleGenericInstigator.Any())
+                                return await possibleGenericInstigator.First().Value(methodParameter.ParameterType,
+                                    httpApp, request, methodParameter,
+                                (v) => next(v));
+                        }
+
                         return request.CreateResponse(System.Net.HttpStatusCode.InternalServerError)
                             .AddReason($"Could not instigate type: {methodParameter.ParameterType.FullName}. Please add an instigator for that type.");
                     },
