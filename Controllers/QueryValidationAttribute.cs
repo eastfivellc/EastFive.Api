@@ -76,10 +76,18 @@ namespace EastFive.Api
             return method.GetCustomAttribute<HttpBodyAttribute, Task<TResult>>(
                 bodyAttr =>
                 {
-                    if (bodyAttr.Type.IsDefaultOrNull())
-                        return onInvalid($"Cannot determine property type for parameter: {method.DeclaringType.FullName}.{method.Name}({parameterRequiringValidation.ParameterType.FullName} {parameterRequiringValidation.Name}).").ToTask();
+                    var type = bodyAttr.Type;
+                    if (type.IsDefaultOrNull())
+                    {
+                        type = method.DeclaringType.GetCustomAttribute<FunctionViewControllerAttribute, Type>(
+                            fvcAttr => fvcAttr.Resource,
+                            () => type);
+
+                        if (type.IsDefaultOrNull())
+                            return onInvalid($"Cannot determine property type for method: {method.DeclaringType.FullName}.{method.Name}().").ToTask();
+                    }
                     var name = this.Name.IsNullOrWhiteSpace() ? parameterRequiringValidation.Name : this.Name;
-                    return bodyAttr.Type.GetProperties()
+                    return type.GetProperties()
                         .First(
                             async (prop, next) =>
                             {
@@ -99,8 +107,8 @@ namespace EastFive.Api
                             () =>
                             {
                                 return onInvalid("Inform server developer:" +
-                                    $"HttpBodyAttribute on `{method.DeclaringType.FullName}.{method.Name}` resolves to type `{bodyAttr.Type.FullName}` " + 
-                                    $"and specifies parameter `{name}` which is not a member of {bodyAttr.Type.FullName}").ToTask();
+                                    $"HttpBodyAttribute on `{method.DeclaringType.FullName}.{method.Name}` resolves to type `{type.FullName}` " + 
+                                    $"and specifies parameter `{name}` which is not a member of {type.FullName}").ToTask();
                             });
                 },
                 () =>

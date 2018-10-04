@@ -42,4 +42,6 @@ namespace EastFive.Api.Controllers
     public delegate HttpResponseMessage ReferencedDocumentDoesNotExistsResponse<TResource>();
     public delegate HttpResponseMessage UnauthorizedResponse();
 
+    public delegate HttpResponseMessage NotImplementedResponse();
+
 }
