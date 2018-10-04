@@ -233,12 +233,16 @@ namespace EastFive.Api.Modules
                                         {
                                             var validator = parameterRequiringValidation.GetCustomAttribute<QueryValidationAttribute>();
                                             var lookupName = validator.Name.IsNullOrWhiteSpace() ?
-                                                parameterRequiringValidation.Name.ToLower()
+                                                parameterRequiringValidation.Name
                                                 :
-                                                validator.Name.ToLower();
+                                                validator.Name;
 
+                                            // Handle capitalization changes
+                                            if (!queryParams.ContainsKey(lookupName))
+                                                lookupName = lookupName.ToLower();
+                                            
                                             // Handle default params
-                                            if(!queryParams.ContainsKey(lookupName))
+                                            if (!queryParams.ContainsKey(lookupName))
                                                 lookupName = parameterRequiringValidation.GetCustomAttribute<QueryDefaultParameterAttribute, string>(
                                                     defaultAttr => defaultKeyPlaceholder,
                                                     () => lookupName);
