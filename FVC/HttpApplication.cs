@@ -769,6 +769,12 @@ namespace EastFive.Api
                 var byteArrayValue = readBytes();
                 return (object)byteArrayValue;
             }
+            if (type.IsAssignableFrom(typeof(WebId)))
+            {
+                var guidStringValue = readString();
+                var guidValue = Guid.Parse(guidStringValue);
+                return (object)new WebId() { UUID = guidValue };
+            }
             return type.IsValueType ? Activator.CreateInstance(type) : null;
         }
 
