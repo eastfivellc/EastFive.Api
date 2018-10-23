@@ -657,6 +657,12 @@ namespace EastFive.Api
 
             return (parameters);
         }
+
+        public class MemoryStreamForFile : MemoryStream
+        {
+            public MemoryStreamForFile(byte[] buffer) : base(buffer) { }
+            public string FileName { get; set; }
+        }
         
         public virtual async Task<KeyValuePair<string, Func<Type, object>>[]> ParseContentValuesAsync(HttpContent content)
         {
@@ -709,13 +715,16 @@ namespace EastFive.Api
                             async file =>
                             {
                                 var key = file.Headers.ContentDisposition.Name.Trim(new char[] { '"' });
+                                var fileNameMaybe = file.Headers.ContentDisposition.FileName;
+                                if (null != fileNameMaybe)
+                                    fileNameMaybe = fileNameMaybe.Trim(new char[] { '"' });
                                 var contents = await file.ReadAsByteArrayAsync();
                                 if (file.IsDefaultOrNull())
                                     return key.PairWithValue<string, Func<Type, object>>(
                                         type => type.IsValueType ? Activator.CreateInstance(type) : null);
 
                                 return key.PairWithValue<string, Func<Type, object>>(
-                                    type => ContentToTypeAsync(type, () => System.Text.Encoding.UTF8.GetString(contents), () => contents, () => new MemoryStream(contents)));
+                                    type => ContentToTypeAsync(type, () => System.Text.Encoding.UTF8.GetString(contents), () => contents, () => new MemoryStreamForFile(contents) { FileName = fileNameMaybe }));
                             })
                         .WhenAllAsync();
             }
@@ -767,6 +776,12 @@ namespace EastFive.Api
             {
                 var byteArrayValue = readBytes();
                 return (object)byteArrayValue;
+            }
+            if (type.IsAssignableFrom(typeof(WebId)))
+            {
+                var guidStringValue = readString();
+                var guidValue = Guid.Parse(guidStringValue);
+                return (object)new WebId() { UUID = guidValue };
             }
             return type.IsValueType ? Activator.CreateInstance(type) : null;
         }
