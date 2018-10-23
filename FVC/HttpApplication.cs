@@ -589,9 +589,17 @@ namespace EastFive.Api
                                         response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/html");
                                         return response;
                                     }
+                                }
+                                catch(RazorEngine.Templating.TemplateCompilationException ex)
+                                {
+                                    var body = ex.CompilerErrors.Select(error => error.ErrorText).Join(";\n\n");
+
+                                    var response = request.CreateResponse(HttpStatusCode.InternalServerError, body)
+                                        .AddReason($"Error loading template:[{ex.Message}] `{ex.SourceCode}`");
+                                    return response;
                                 } catch(Exception ex)
                                 {
-                                    var response = request.CreateResponse(HttpStatusCode.InternalServerError).AddReason($"Could not load template {viewPath}");
+                                    var response = request.CreateResponse(HttpStatusCode.InternalServerError).AddReason($"Could not load template {HttpRuntime.AppDomainAppPath}Views\\{viewPath} due to:[{ex.GetType().FullName}] `{ex.Message}`");
                                     return response;
                                 }
                             };

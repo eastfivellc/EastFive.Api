@@ -398,8 +398,19 @@ namespace EastFive.Api.Modules
                                 return (await (Task<HttpResponseMessage>)response);
                             if (typeof(Task<Task<HttpResponseMessage>>).IsAssignableFrom(method.ReturnType))
                                 return (await await (Task<Task<HttpResponseMessage>>)response);
-
-                        } catch(Exception ex)
+                        }
+                        catch (TargetInvocationException ex)
+                        {
+                            var paramList = methodParameters.Select(p => p.GetType().FullName).Join(",");
+                            var body = ex.InnerException.IsDefaultOrNull() ?
+                                ex.StackTrace
+                                :
+                                $"[{ex.InnerException.GetType().FullName}]{ex.InnerException.Message}:\n{ex.InnerException.StackTrace}";
+                            return request
+                                .CreateResponse(HttpStatusCode.InternalServerError, body)
+                                .AddReason($"Could not invoke {method.DeclaringType.FullName}.{method.Name}({paramList})");
+                        }
+                        catch (Exception ex)
                         {
                             // TODO: Only do this in a development environment
                             return request.CreateResponse(HttpStatusCode.InternalServerError, ex.StackTrace).AddReason(ex.Message);
