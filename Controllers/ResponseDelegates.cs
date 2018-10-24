@@ -25,6 +25,7 @@ namespace EastFive.Api.Controllers
     public delegate HttpResponseMessage NotFoundResponse();
     public delegate HttpResponseMessage AlreadyExistsResponse();
     public delegate HttpResponseMessage AlreadyExistsReferencedResponse(Guid value);
+    public delegate HttpResponseMessage ForbiddenResponse();
     public delegate HttpResponseMessage GeneralConflictResponse(string value);
     
     public delegate HttpResponseMessage GeneralFailureResponse(string value);
