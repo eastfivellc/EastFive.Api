@@ -801,6 +801,12 @@ namespace EastFive.Api
                 if (Guid.TryParse(guidStringValue, out Guid guidValue))
                     return onParsed(guidValue);
             }
+            if (type.IsAssignableFrom(typeof(DateTime)))
+            {
+                var dateStringValue = content;
+                if (DateTime.TryParse(dateStringValue, out DateTime dateValue))
+                    return onParsed(dateValue);
+            }
             if (type.IsAssignableFrom(typeof(bool)))
             {
                 var boolStringValue = content;
