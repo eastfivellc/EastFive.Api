@@ -24,7 +24,6 @@ namespace EastFive.Api
 {
     public class HttpApplication : System.Web.HttpApplication
     {
-
         private Task initialization;
         private ManualResetEvent initializationLock;
 
@@ -266,7 +265,7 @@ namespace EastFive.Api
                 var types = assembly
                     .GetTypes();
                 var functionViewControllerAttributesAndTypes = types
-                    .Where(type => type.IsClass && type.ContainsCustomAttribute<FunctionViewControllerAttribute>())
+                    .Where(type => type.ContainsCustomAttribute<FunctionViewControllerAttribute>())
                     .Select(
                         (type) =>
                         {
@@ -357,7 +356,7 @@ namespace EastFive.Api
         #endregion
 
         #region Instigators
-
+        
         public delegate Task<HttpResponseMessage> InstigatorDelegateGeneric(
                 Type type, HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess);
@@ -387,7 +386,7 @@ namespace EastFive.Api
                 HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess);
 
-        public Dictionary<Type, InstigatorDelegate> instigators =
+        protected Dictionary<Type, InstigatorDelegate> instigators =
             new Dictionary<Type, InstigatorDelegate>()
             {
                 {
@@ -784,6 +783,33 @@ namespace EastFive.Api
                 return (object)new WebId() { UUID = guidValue };
             }
             return type.IsValueType ? Activator.CreateInstance(type) : null;
+        }
+
+        internal Task<HttpResponseMessage> Instigate(HttpRequestMessage request, ParameterInfo methodParameter,
+            Func<object, Task<HttpResponseMessage>> onInstigated)
+        {
+            
+            if (this.instigators.ContainsKey(methodParameter.ParameterType))
+                return this.instigators[methodParameter.ParameterType](this, request, methodParameter,
+                    (v) => onInstigated(v));
+
+            if (methodParameter.ParameterType.IsGenericType)
+            {
+                var possibleGenericInstigator = this.instigatorsGeneric
+                    .Where(instigatorKvp => instigatorKvp.Key.GUID == methodParameter.ParameterType.GUID)
+                    .ToArray();
+                if (possibleGenericInstigator.Any())
+                    return possibleGenericInstigator.First().Value(methodParameter.ParameterType,
+                        this, request, methodParameter,
+                    (v) => onInstigated(v));
+            }
+            
+            if (methodParameter.ParameterType.IsInstanceOfType(this))
+                return onInstigated(this);
+
+            return request.CreateResponse(HttpStatusCode.InternalServerError)
+                .AddReason($"Could not instigate type: {methodParameter.ParameterType.FullName}. Please add an instigator for that type.")
+                .AsTask();
         }
 
         public virtual TResult StringContentToType<TResult>(Type type, string content,
