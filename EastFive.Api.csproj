@@ -149,6 +149,7 @@
     <Compile Include="FVC\HttpApplication.cs" />
     <Compile Include="FVC\Handlers\ApplicationHandler.cs" />
     <Compile Include="FVC\Handlers\MonitoringHandler.cs" />
+    <Compile Include="FVC\IProvideApiValue.cs" />
     <Compile Include="HttpActionResult.cs" />
     <Compile Include="InjectableAssemblyResolver.cs" />
     <Compile Include="FVC\Handlers\ControllerHandler.cs" />

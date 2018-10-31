@@ -65,7 +65,7 @@ namespace EastFive.Api.Modules
         {
             public string index;
             public string key;
-            public ParseContentDelegate<object[]> fetchValue;
+            public Func<Type, Func<object, object>, Func<string, object>, object> fetchValue;
         }
 
         private static KeyValuePair<TKey, TValue> KvpCreate<TKey, TValue>(TKey key, TValue value)
@@ -89,212 +89,264 @@ namespace EastFive.Api.Modules
 
         private static async Task<HttpResponseMessage> CreateResponseAsync(HttpApplication httpApp, HttpRequestMessage request, string controllerName, MethodInfo[] methods)
         {
-            var allParamInvokators =
-                // Query parameters from URI
-                request.RequestUri.ParseQuery()
-                .Select(kvp => kvp.Key.ToLower().PairWithValue<string, ParseContentDelegate<object[]>>(
-                    (type, onParsed, onFailure) => httpApp.StringContentToType(type, kvp.Value, v => onParsed(v), (why) => onFailure(why))))
+            #region setup query parameter casting
 
-                // File name from URI
-                .If(true,
-                    queryParamsFromUri => request.RequestUri.AbsoluteUri.MatchRegexInvoke($".*/(?i){controllerName}(?-i)/(?<defaultQueryParam>[a-zA-Z0-9-]+)",
-                        defaultQueryParam => queryParamsFromUri
-                                .Append(defaultKeyPlaceholder.PairWithValue<string, ParseContentDelegate<object[]>>(
-                                    (type, onParsed, onFailure) => httpApp.StringContentToType(type,
-                                        defaultQueryParam, v => onParsed(v),
-                                        (why) => onFailure(why)))),
-                        updates => updates.Any()? updates.First() : queryParamsFromUri))
-                
-                // Body parameters
-                .Concat((await httpApp.ParseContentValuesAsync(request.Content))
-                    .Select(
-                        parser =>
-                        {
-                            ParseContentDelegate<object[]> callback = (type, onParsed, onFailure) =>
+            var queryParameters = request.RequestUri.ParseQuery()
+                .Select(kvp => kvp.Key.ToLower().PairWithValue(kvp.Value))
+                .ToDictionary();
+            var queryParameterCollections = GetCollectionParameters(httpApp, queryParameters).ToDictionary();
+            CastDelegate<SelectParameterResult> queryCastDelegate =
+                (query, type, onParsed, onFailure) =>
+                {
+                    var queryKey = query.ToLower();
+                    if (!queryParameters.ContainsKey(queryKey))
+                    {
+                        if(!queryParameterCollections.ContainsKey(queryKey))
+                            return onFailure($"Missing query parameter `{queryKey}`").AsTask();
+                        return queryParameterCollections[queryKey](
+                                type,
+                                vs => onParsed(vs),
+                                why => onFailure(why))
+                            .AsTask();
+                    }
+                    var queryValue = queryParameters[queryKey];
+                    return httpApp
+                        .StringContentToType(type, queryValue,
+                            v => onParsed(v),
+                            (why) => onFailure(why))
+                        .AsTask();
+                };
+
+            #endregion
+
+            #region Get file name from URI (optional part between the controller name and the query)
+
+            CastDelegate<SelectParameterResult> fileNameCastDelegate =
+                (query, type, onParsed, onFailure) =>
+                {
+                    return request.RequestUri.AbsoluteUri
+                        .MatchRegexInvoke(
+                            $".*/(?i){controllerName}(?-i)/(?<defaultQueryParam>[a-zA-Z0-9-]+)",
+                            defaultQueryParam => defaultQueryParam,
+                            (string[] urlFileNames) =>
                             {
-                                return onParsed(parser.Value(type));
-                            };
-                            return parser.Key.PairWithValue(callback);
-                        }))
-                
-                // Convert parameters into Collections if necessary
-                .SelectPartition(
-                    (param, plain, dictionary) => param.Key.MatchRegexInvoke(
+                                if (urlFileNames.Any())
+                                    return onFailure("No URI filename value provided.");
+                                return httpApp.StringContentToType(type,
+                                        urlFileNames.First(),
+                                    v => onParsed(v),
+                                    (why) => onFailure(why));
+                            })
+                        .AsTask();
+                };
+
+            #endregion
+
+            return await httpApp.ParseContentValuesAsync<SelectParameterResult, HttpResponseMessage>(request.Content,
+                async (bodyParser, bodyValues) =>
+                {
+                    CastDelegate<SelectParameterResult> bodyCastDelegate =
+                        (queryKey, type, onParsed, onFailure) =>
+                        {
+                            return bodyParser(queryKey, type,
+                                value => onParsed(value),
+                                (why) => onFailure(why));
+                        };
+                    return await GetResponseAsync(methods,
+                        queryCastDelegate,
+                        bodyCastDelegate,
+                        fileNameCastDelegate,
+                        httpApp, request,
+                        (method, paramResults,
+                            onNoExtraParameters,
+                            onExtraParameters) => HasExtraParameters(method,
+                                queryParameters.SelectKeys(),
+                                bodyValues,
+                                paramResults,
+                                onNoExtraParameters,
+                                onExtraParameters));
+                });
+            
+        }
+
+        private static IEnumerable<KeyValuePair<string, ParseContentDelegate<SelectParameterResult>>> GetCollectionParameters(HttpApplication httpApp, IEnumerable<KeyValuePair<string, string>> queryParameters)
+        {
+            // Convert parameters into Collections if necessary
+            return queryParameters
+                .SelectOptional<KeyValuePair<string, string>, MultipartParameter>(
+                    (param, select, skip) => param.Key.MatchRegexInvoke(
                         @"(?<key>[a-zA-Z0-9]+)\[(?<value>[a-zA-Z0-9]+)\]",
                         (string key, string value) => new KeyValuePair<string, string>(key, value),
                         (kvps) =>
                         {
                             if (!kvps.Any())
-                                return plain(param);
+                                return skip();
 
                             var kvp = kvps.First();
                             var multipartParam = new MultipartParameter
                             {
                                 index = kvp.Key,
                                 key = kvp.Value,
-                                fetchValue = param.Value,
+                                fetchValue = (type, onSuccess, onFailure) =>
+                                    httpApp
+                                        .StringContentToType(type, param.Value,
+                                            v => onSuccess(v),
+                                            why => onFailure(why))
+                                        .AsTask(),
                             };
-                            return dictionary(multipartParam);
-                        }),
-                    (KeyValuePair<string, ParseContentDelegate<object[]>> [] plains, MultipartParameter[] collectionParameters) =>
-                    {
-                        var options = collectionParameters
-                            .GroupBy(collectionParameter => collectionParameter.index)
-                            .Select(
-                                collectionParameterGrp =>
-                                    collectionParameterGrp.Key.ToLower().PairWithValue<string, ParseContentDelegate<object[]>>(
-                                        (collectionType, onParsed, onFailure) =>
+                            return select(multipartParam);
+                        }))
+                .GroupBy(collectionParameter => collectionParameter.index)
+                .Select(
+                    collectionParameterGrp =>
+                        collectionParameterGrp.Key.ToLower()
+                            .PairWithValue<string, ParseContentDelegate<SelectParameterResult>>(
+                                (collectionType, onParsed, onFailure) =>
+                                {
+                                    if (collectionType.IsGenericType)
+                                    {
+                                        var genericArgs = collectionType.GenericTypeArguments;
+                                        if (genericArgs.Length == 1)
                                         {
-                                            if(collectionType.IsGenericType)
-                                            {
-                                                var genericArgs = collectionType.GenericTypeArguments;
-                                                if (genericArgs.Length == 1)
-                                                {
-                                                    // It's an array
-                                                    var typeToCast = genericArgs.First();
-                                                    return collectionParameterGrp
-                                                        .FlatMap(
-                                                            (collectionParameter, next, skip) => collectionParameter.fetchValue(typeToCast, v => next(v), (why) => skip()),
-                                                            (IEnumerable<object> lookup) => lookup.ToArray());
-                                                }
-                                                if (genericArgs.Length == 2)
-                                                {
-                                                    // It's an dictionary
-                                                    var typeToCast = genericArgs[1];
-                                                    var kvpCreateMethod = typeof(ControllerHandler).GetMethod("KvpCreate", BindingFlags.Static | BindingFlags.NonPublic);
-                                                    var correctGenericKvpCreate = kvpCreateMethod.MakeGenericMethod(genericArgs);
-                                                    var lookup = collectionParameterGrp
-                                                        .FlatMap(
-                                                            (collectionParameter, next, skip) =>
-                                                                collectionParameter.fetchValue(typeToCast,
-                                                                    v => next(correctGenericKvpCreate.Invoke(null, new object[] { collectionParameter.key, v } )),
-                                                                    (why) => skip()),
-                                                            (IEnumerable<object> lookupInner) => lookupInner.ToArray());
-
-                                                    var castMethod = typeof(ControllerHandler).GetMethod("CastToKvp", BindingFlags.Static | BindingFlags.NonPublic);
-                                                    var correctKvpsCast = castMethod.MakeGenericMethod(genericArgs);
-                                                    var kvpsOfCorrectTypes = correctKvpsCast.Invoke(null, lookup.AsArray());
-
-                                                    var dictCreateMethod = typeof(ControllerHandler).GetMethod("DictionaryCreate", BindingFlags.Static | BindingFlags.NonPublic);
-                                                    var correctGenericDictCreate = dictCreateMethod.MakeGenericMethod(genericArgs);
-                                                    var dictionaryOfCorrectTypes = correctGenericDictCreate.Invoke(null, kvpsOfCorrectTypes.AsArray());
-                                                    return onParsed(dictionaryOfCorrectTypes);
-                                                }
-                                                return onFailure($"Cannot parse collection of type {collectionType.FullName}");
-                                            }
-                                            if (typeof(Enumerable).IsAssignableFrom(collectionType))
-                                            {
-                                                // It's an array
-                                                var typeToCast = typeof(object);
-                                                return collectionParameterGrp
-                                                    .FlatMap(
-                                                        (collectionParameter, next, skip) => collectionParameter.fetchValue(typeToCast, v => next(v), (why) => skip()),
-                                                        (IEnumerable<object> lookup) => onParsed(lookup.ToArray()));
-                                            }
-                                            if (typeof(System.Collections.DictionaryBase).IsAssignableFrom(collectionType))
-                                            {
-                                                // It's an dictionary
-                                                var typeToCast = typeof(object);
-                                                return collectionParameterGrp
-                                                    .FlatMap(
-                                                        (collectionParameter, next, skip) => collectionParameter.fetchValue(typeToCast, 
-                                                            v => next(collectionParameter.key.PairWithValue(v)),
+                                            // It's an array
+                                            var typeToCast = genericArgs.First();
+                                            var lookup = collectionParameterGrp
+                                                .SelectOptional<MultipartParameter, object>(
+                                                    (collectionParameter, next, skip) => (EastFive.Linq.EnumerableExtensions.ISelected<object>)collectionParameter.fetchValue(typeToCast,
+                                                        v => next(v),
+                                                        (why) => skip()))
+                                                .ToArray();
+                                            return onParsed(lookup);
+                                        }
+                                        if (genericArgs.Length == 2)
+                                        {
+                                            // It's an dictionary
+                                            var typeToCast = genericArgs[1];
+                                            var kvpCreateMethod = typeof(ControllerHandler).GetMethod("KvpCreate", BindingFlags.Static | BindingFlags.NonPublic);
+                                            var correctGenericKvpCreate = kvpCreateMethod.MakeGenericMethod(genericArgs);
+                                            var lookup = collectionParameterGrp
+                                                .FlatMap(
+                                                    (collectionParameter, next, skip) =>
+                                                        (object[])collectionParameter.fetchValue(typeToCast,
+                                                            v => next(correctGenericKvpCreate.Invoke(null, new object[] { collectionParameter.key, v })),
                                                             (why) => skip()),
-                                                        (IEnumerable<KeyValuePair<string, object>> lookups) => onParsed(lookups.ToDictionary()));
-                                            }
-                                            return onFailure($"Cannot parse collection of type {collectionType.FullName}");
-                                        }));
+                                                    (IEnumerable<object> lookupInner) => lookupInner.ToArray());
 
-                        return plains.Concat(options).ToArray();
-                    });
+                                            var castMethod = typeof(ControllerHandler).GetMethod("CastToKvp", BindingFlags.Static | BindingFlags.NonPublic);
+                                            var correctKvpsCast = castMethod.MakeGenericMethod(genericArgs);
+                                            var kvpsOfCorrectTypes = correctKvpsCast.Invoke(null, lookup.AsArray());
 
+                                            var dictCreateMethod = typeof(ControllerHandler).GetMethod("DictionaryCreate", BindingFlags.Static | BindingFlags.NonPublic);
+                                            var correctGenericDictCreate = dictCreateMethod.MakeGenericMethod(genericArgs);
+                                            var dictionaryOfCorrectTypes = correctGenericDictCreate.Invoke(null, kvpsOfCorrectTypes.AsArray());
+                                            return onParsed(dictionaryOfCorrectTypes);
+                                        }
+                                        return onFailure($"Cannot parse collection of type {collectionType.FullName}");
+                                    }
+                                    if (typeof(Enumerable).IsAssignableFrom(collectionType))
+                                    {
+                                        // It's an array
+                                        var typeToCast = typeof(object);
+                                        var values = collectionParameterGrp
+                                            .FlatMap(
+                                                (collectionParameter, next, skip) => (IEnumerable<object>)collectionParameter.fetchValue(typeToCast, v => next(v), (why) => skip()),
+                                                (IEnumerable<object> lookup) => lookup);
+                                        return onParsed(values);
+                                    }
+                                    if (typeof(System.Collections.DictionaryBase).IsAssignableFrom(collectionType))
+                                    {
+                                        // It's an dictionary
+                                        var typeToCast = typeof(object);
+                                        var dictionary = collectionParameterGrp
+                                            .FlatMap(
+                                                (collectionParameter, next, skip) => (Dictionary<string, object>)collectionParameter.fetchValue(typeToCast,
+                                                    v => next(collectionParameter.key.PairWithValue(v)),
+                                                    (why) => skip()),
+                                                (IEnumerable<KeyValuePair<string, object>> lookups) => lookups.ToDictionary());
+                                        return onParsed(dictionary);
+                                    }
+                                    return onFailure($"Cannot parse collection of type {collectionType.FullName}");
+                                }));
+        }
 
-            var duplicates = allParamInvokators.SelectKeys().Duplicates((s1, s2) => s1 == s2);
-            if (duplicates.Any())
-                return request.CreateResponse(HttpStatusCode.BadRequest).AddReason($"Conflicting query and body parameters for: [{duplicates.Join(" and ")}]");
-            var queryParams = allParamInvokators.ToDictionary();
+        private struct SelectParameterResult
+        {
+            public bool valid;
+            public object value;
+            public string failure;
+            public ParameterInfo parameterInfo;
+            internal bool fromQuery;
+            internal bool fromBody;
+            internal string key;
+        }
 
+        private static async Task<HttpResponseMessage> GetResponseAsync(MethodInfo[] methods,
+            CastDelegate<SelectParameterResult> fetchQueryParam,
+            CastDelegate<SelectParameterResult> fetchBodyParam,
+            CastDelegate<SelectParameterResult> fetchNameParam,
+            HttpApplication httpApp, HttpRequestMessage request,
+            Func<
+                MethodInfo, SelectParameterResult[],
+                Func<Task<HttpResponseMessage>>,
+                Func<string [], Task<HttpResponseMessage>>,
+                Task<HttpResponseMessage>> hasExtraParameters)
+        {
             var response = await methods
                 .SelectPartition(
-                    (method, removeParams, addParams) =>
+                    async (method, removeParams, addParams) =>
                     {
-                        return method
+                        var parametersCastResults = await method
                             .GetParameters()
-                            .SelectPartitionOptimized(
-                                (param, validated, unvalidated) =>
-                                    param.ContainsCustomAttribute<QueryValidationAttribute>() ?
-                                        validated(param)
-                                        :
-                                        unvalidated(param),
-                                (ParameterInfo[] parametersRequiringValidation, ParameterInfo[] parametersNotRequiringValidation) =>
+                            .Where(param => param.ContainsCustomAttribute<QueryValidationAttribute>())
+                            .Select(
+                                (param) =>
                                 {
-                                    return parametersRequiringValidation.SelectPartition(
-                                        async (parameterRequiringValidation, validValue, didNotValidate) =>
+                                    var castValue = param.GetCustomAttribute<QueryValidationAttribute, IProvideApiValue>(
+                                        (queryValidationAttribute) => queryValidationAttribute,
+                                        () => throw new Exception("WHere check failed"));
+                                    return castValue.TryCastAsync<SelectParameterResult>(httpApp, request, method, param,
+                                            fetchQueryParam,
+                                            fetchBodyParam,
+                                            fetchNameParam,
+                                        (value) =>
                                         {
-                                            var validator = parameterRequiringValidation.GetCustomAttribute<QueryValidationAttribute>();
-                                            var lookupName = validator.Name.IsNullOrWhiteSpace() ?
-                                                parameterRequiringValidation.Name
-                                                :
-                                                validator.Name;
-
-                                            // Handle capitalization changes
-                                            if (!queryParams.ContainsKey(lookupName))
-                                                lookupName = lookupName.ToLower();
-                                            
-                                            // Handle default params
-                                            if (!queryParams.ContainsKey(lookupName))
-                                                lookupName = parameterRequiringValidation.GetCustomAttribute<QueryDefaultParameterAttribute, string>(
-                                                    defaultAttr => defaultKeyPlaceholder,
-                                                    () => lookupName);
-
-                                            if (!queryParams.ContainsKey(lookupName))
-                                                return await await validator.OnEmptyValueAsync(httpApp, request, parameterRequiringValidation,
-                                                    v => validValue(parameterRequiringValidation.PairWithValue(v)),
-                                                    () => didNotValidate(parameterRequiringValidation.PairWithValue("Value not provided")));
-
-                                            return await await validator.TryCastAsync(httpApp, request, method, parameterRequiringValidation,
-                                                async (type, success, failure) =>
-                                                {
-                                                    // Hack here
-                                                    var strArray = queryParams[lookupName](type,
-                                                        (value) => value.AsArray(),
-                                                        (why) => new object[] { "", why });
-                                                    if (strArray.Length == 1)
-                                                        return success(strArray[0]);
-                                                    return failure((string)strArray[1]);
-                                                },
-                                                v => validValue(parameterRequiringValidation.PairWithValue(v)),
-                                                (why) => didNotValidate(parameterRequiringValidation.PairWithValue(why)));
+                                            return new SelectParameterResult
+                                            {
+                                                valid = true,
+                                                value = value,
+                                                parameterInfo = param,
+                                            };
                                         },
-                                        async (KeyValuePair<ParameterInfo, object>[] parametersRequiringValidationWithValues, KeyValuePair<ParameterInfo, string>[] parametersRequiringValidationThatDidNotValidate) =>
+                                        (why) =>
                                         {
-                                            if (parametersRequiringValidationThatDidNotValidate.Any())
-                                                return await addParams(parametersRequiringValidationThatDidNotValidate);
-
-                                            var parametersNotRequiringValidationWithValues = parametersNotRequiringValidation
-                                                .Where(unvalidatedParam => queryParams.ContainsKey(unvalidatedParam.Name.ToLower()))
-                                                .Select(
-                                                    (unvalidatedParam) =>
-                                                    {
-                                                        var queryParamValue = queryParams[unvalidatedParam.Name.ToLower()](unvalidatedParam.ParameterType,
-                                                            v => v.AsArray(),
-                                                            why => unvalidatedParam.ParameterType.GetDefault().AsArray()).First();
-                                                        return unvalidatedParam.PairWithValue(queryParamValue);
-                                                    });
-
-                                            var parametersWithValues = parametersNotRequiringValidationWithValues
-                                                .Concat(parametersRequiringValidationWithValues)
-                                                .ToArray();
-
-                                            return await HasExtraParameters(method,
-                                                    parametersRequiringValidation.Concat(parametersNotRequiringValidation),
-                                                    queryParams.SelectKeys(),
-                                                () => InvokeValidatedMethod(httpApp, request, method, parametersWithValues,
-                                                    (missingParams) => addParams(missingParams.Select(param => param.PairWithValue("Missing")).ToArray())),
-                                                (extraParams) => removeParams(extraParams));
-                                            
+                                            return new SelectParameterResult
+                                            {
+                                                valid = false,
+                                                failure = why,
+                                                parameterInfo = param,
+                                            };
                                         });
-                                });
+                                })
+                            .WhenAllAsync();
+
+                        var parametersRequiringValidationThatDidNotValidate = parametersCastResults.Where(pcr => !pcr.valid);
+                        if (parametersRequiringValidationThatDidNotValidate.Any())
+                            return await addParams(
+                                parametersRequiringValidationThatDidNotValidate
+                                    .Select(prv => prv.parameterInfo.PairWithValue(prv.failure))
+                                    .ToArray());
+
+                        return await hasExtraParameters(method, parametersCastResults,
+                            () =>
+                            {
+                                var parametersWithValues = parametersCastResults
+                                    .Select(parametersCastResult =>
+                                        parametersCastResult.parameterInfo.PairWithValue(parametersCastResult.value))
+                                    .ToArray();
+                                return InvokeValidatedMethod(httpApp, request, method, parametersWithValues,
+                                    (missingParams) => addParams(missingParams.Select(param => param.PairWithValue("Missing")).ToArray()));
+                            },
+                            (extraParams) => removeParams(extraParams));
                     },
                     (string[][] removeParams, KeyValuePair<ParameterInfo, string>[][] addParams) =>
                     {
@@ -318,15 +370,181 @@ namespace EastFive.Api.Modules
                             .ToArray();
 
                         var content =
-                            (addParamsNamed.Any()    ? $"Please correct the value for [{addParamsNamed.Select(uvs => uvs.Select(uv => $"{uv.Key} ({uv.Value})").Join(",")).Join(" or ")}]." : "")
+                            (addParamsNamed.Any() ? $"Please correct the value for [{addParamsNamed.Select(uvs => uvs.Select(uv => $"{uv.Key} ({uv.Value})").Join(",")).Join(" or ")}]." : "")
                             +
-                            (removeParams.Any() ? $"Remove query parameters [{  removeParams.Select(uvs => uvs.Select(uv => uv)                           .Join(",")).Join(" or ")}]." : "");
+                            (removeParams.Any() ? $"Remove query parameters [{  removeParams.Select(uvs => uvs.Select(uv => uv).Join(",")).Join(" or ")}]." : "");
                         return request
                             .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
                             .AddReason(content)
                             .ToTask();
                     });
             return response;
+        }
+
+        //private static async Task<HttpResponseMessage> GetResponseAsync2(MethodInfo [] methods,
+        //    IDictionary<string, ParseContentDelegate<object[]>> queryParams,
+        //    HttpApplication httpApp, HttpRequestMessage request)
+        //{
+        //    var response = await methods
+        //        .SelectPartition(
+        //            (method, removeParams, addParams) =>
+        //            {
+        //                return method
+        //                    .GetParameters()
+        //                    .SelectPartitionOptimized(
+        //                        (param, validated, unvalidated) =>
+        //                            param.ContainsCustomAttribute<QueryValidationAttribute>() ?
+        //                                validated(param)
+        //                                :
+        //                                unvalidated(param),
+        //                        (ParameterInfo[] parametersRequiringValidation, ParameterInfo[] parametersNotRequiringValidation) =>
+        //                        {
+        //                            return parametersRequiringValidation.SelectPartition(
+        //                                async (parameterRequiringValidation, validValue, didNotValidate) =>
+        //                                {
+        //                                    var validator = parameterRequiringValidation.GetCustomAttribute<QueryValidationAttribute>();
+        //                                    var lookupName = validator.Name.IsNullOrWhiteSpace() ?
+        //                                        parameterRequiringValidation.Name
+        //                                        :
+        //                                        validator.Name;
+
+        //                                    // Handle capitalization changes
+        //                                    if (!queryParams.ContainsKey(lookupName))
+        //                                        lookupName = lookupName.ToLower();
+
+        //                                    // Handle default params
+        //                                    if (!queryParams.ContainsKey(lookupName))
+        //                                        lookupName = parameterRequiringValidation.GetCustomAttribute<QueryDefaultParameterAttribute, string>(
+        //                                            defaultAttr => defaultKeyPlaceholder,
+        //                                            () => lookupName);
+
+        //                                    if (!queryParams.ContainsKey(lookupName))
+        //                                        return await await validator.OnEmptyValueAsync(httpApp, request, parameterRequiringValidation,
+        //                                            v => validValue(parameterRequiringValidation.PairWithValue(v)),
+        //                                            () => didNotValidate(parameterRequiringValidation.PairWithValue("Value not provided")));
+
+        //                                    QueryValidationAttribute.CastDelegate fetchParam =
+        //                                        async (query, type, success, failure) =>
+        //                                        {
+        //                                            // Hack here
+        //                                            var strArray = queryParams[lookupName](type,
+        //                                                (value) => value.AsArray(),
+        //                                                (why) => new object[] { "", why });
+        //                                            if (strArray.Length == 1)
+        //                                                return success(strArray[0]);
+        //                                            return failure((string)strArray[1]);
+        //                                        };
+
+        //                                    return await await validator.TryCastAsync(httpApp, request, method, parameterRequiringValidation,
+        //                                            fetchParam,
+        //                                            fetchParam,
+        //                                            fetchParam,
+        //                                        v => validValue(parameterRequiringValidation.PairWithValue(v)),
+        //                                        (why) => didNotValidate(parameterRequiringValidation.PairWithValue(why)));
+        //                                },
+        //                                async (KeyValuePair<ParameterInfo, object>[] parametersRequiringValidationWithValues, KeyValuePair<ParameterInfo, string>[] parametersRequiringValidationThatDidNotValidate) =>
+        //                                {
+        //                                    if (parametersRequiringValidationThatDidNotValidate.Any())
+        //                                        return await addParams(parametersRequiringValidationThatDidNotValidate);
+
+        //                                    var parametersNotRequiringValidationWithValues = parametersNotRequiringValidation
+        //                                        .Where(unvalidatedParam => queryParams.ContainsKey(unvalidatedParam.Name.ToLower()))
+        //                                        .Select(
+        //                                            (unvalidatedParam) =>
+        //                                            {
+        //                                                var queryParamValue = queryParams[unvalidatedParam.Name.ToLower()](unvalidatedParam.ParameterType,
+        //                                                    v => v.AsArray(),
+        //                                                    why => unvalidatedParam.ParameterType.GetDefault().AsArray()).First();
+        //                                                return unvalidatedParam.PairWithValue(queryParamValue);
+        //                                            });
+
+        //                                    var parametersWithValues = parametersNotRequiringValidationWithValues
+        //                                        .Concat(parametersRequiringValidationWithValues)
+        //                                        .ToArray();
+
+        //                                    return await HasExtraParameters(method,
+        //                                            parametersRequiringValidation.Concat(parametersNotRequiringValidation),
+        //                                            queryParams.SelectKeys(),
+        //                                        () => InvokeValidatedMethod(httpApp, request, method, parametersWithValues,
+        //                                            (missingParams) => addParams(missingParams.Select(param => param.PairWithValue("Missing")).ToArray())),
+        //                                        (extraParams) => removeParams(extraParams));
+
+        //                                });
+        //                        });
+        //            },
+        //            (string[][] removeParams, KeyValuePair<ParameterInfo, string>[][] addParams) =>
+        //            {
+        //                var addParamsNamed = addParams
+        //                    .Select(
+        //                        addParamKvps =>
+        //                        {
+        //                            return addParamKvps
+        //                                .Select(
+        //                                    addParamKvp =>
+        //                                    {
+        //                                        var validator = addParamKvp.Key.GetCustomAttribute<QueryValidationAttribute>();
+        //                                        var lookupName = validator.Name.IsNullOrWhiteSpace() ?
+        //                                            addParamKvp.Key.Name.ToLower()
+        //                                            :
+        //                                            validator.Name.ToLower();
+        //                                        return lookupName.PairWithValue(addParamKvp.Value);
+        //                                    })
+        //                                .ToArray();
+        //                        })
+        //                    .ToArray();
+
+        //                var content =
+        //                    (addParamsNamed.Any() ? $"Please correct the value for [{addParamsNamed.Select(uvs => uvs.Select(uv => $"{uv.Key} ({uv.Value})").Join(",")).Join(" or ")}]." : "")
+        //                    +
+        //                    (removeParams.Any() ? $"Remove query parameters [{  removeParams.Select(uvs => uvs.Select(uv => uv).Join(",")).Join(" or ")}]." : "");
+        //                return request
+        //                    .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
+        //                    .AddReason(content)
+        //                    .ToTask();
+        //            });
+        //    return response;
+        //}
+
+        private static TResult HasExtraParameters<TResult>(MethodInfo method,
+                IEnumerable<string> queryKeys, IEnumerable<string> bodyKeys,
+                IEnumerable<SelectParameterResult> matchedParameters,
+            Func<TResult> noExtraParameters,
+            Func<string[], TResult> onExtraParams)
+        {
+            return method.GetCustomAttribute<HttpVerbAttribute, TResult>(
+                verbAttr =>
+                {
+                    if (!verbAttr.MatchAllParameters)
+                        return noExtraParameters();
+
+
+                    if (verbAttr.MatchAllQueryParameters)
+                    {
+                        var matchParamQueryLookup = matchedParameters
+                            .Where(param => param.fromQuery)
+                            .ToLookup(param => param.key);
+                        var extraQueryKeys = queryKeys
+                            .Where(queryKey => matchParamQueryLookup.Contains(queryKey))
+                            .ToArray();
+                        if (extraQueryKeys.Any())
+                            return onExtraParams(extraQueryKeys);
+                    }
+
+                    if (verbAttr.MatchAllBodyParameters)
+                    {
+                        var matchBodyLookup = matchedParameters
+                            .Where(param => param.fromBody)
+                            .ToLookup(param => param.key);
+                        var extraQueryKeys = bodyKeys
+                            .Where(queryKey => matchBodyLookup.Contains(queryKey))
+                            .ToArray();
+                        if (extraQueryKeys.Any())
+                            return onExtraParams(extraQueryKeys);
+                    }
+                    
+                    return noExtraParameters();
+                },
+                () => throw new ArgumentException("method", $"Method {method.DeclaringType.FullName}..{method.Name}(...) does not have an HttpVerbAttribute."));
         }
 
         private static TResult HasExtraParameters<TResult>(MethodInfo method, 
@@ -370,26 +588,8 @@ namespace EastFive.Api.Modules
                         if (queryParameterOptions.ContainsKey(methodParameter.Name))
                             return await next(queryParameterOptions[methodParameter.Name]);
 
-                        if (httpApp.instigators.ContainsKey(methodParameter.ParameterType))
-                            return await httpApp.instigators[methodParameter.ParameterType](httpApp, request, methodParameter, 
-                                (v) => next(v));
-
-                        if (methodParameter.ParameterType.IsInstanceOfType(httpApp))
-                            return await next(httpApp);
-
-                        if (methodParameter.ParameterType.IsGenericType)
-                        {
-                            var possibleGenericInstigator = httpApp.instigatorsGeneric
-                                .Where(instigatorKvp => instigatorKvp.Key.GUID == methodParameter.ParameterType.GUID)
-                                .ToArray();
-                            if (possibleGenericInstigator.Any())
-                                return await possibleGenericInstigator.First().Value(methodParameter.ParameterType,
-                                    httpApp, request, methodParameter,
-                                (v) => next(v));
-                        }
-
-                        return request.CreateResponse(System.Net.HttpStatusCode.InternalServerError)
-                            .AddReason($"Could not instigate type: {methodParameter.ParameterType.FullName}. Please add an instigator for that type.");
+                        return await httpApp.Instigate(request, methodParameter,
+                            v => next(v));
                     },
                     async (object[] methodParameters) =>
                     {

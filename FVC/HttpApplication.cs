@@ -19,12 +19,13 @@ using System.IO;
 using BlackBarLabs;
 using System.Threading;
 using System.Web.Http;
+using EastFive.Web;
+using EastFive.Linq.Async;
 
 namespace EastFive.Api
 {
     public class HttpApplication : System.Web.HttpApplication
     {
-
         private Task initialization;
         private ManualResetEvent initializationLock;
 
@@ -266,7 +267,7 @@ namespace EastFive.Api
                 var types = assembly
                     .GetTypes();
                 var functionViewControllerAttributesAndTypes = types
-                    .Where(type => type.IsClass && type.ContainsCustomAttribute<FunctionViewControllerAttribute>())
+                    .Where(type => type.ContainsCustomAttribute<FunctionViewControllerAttribute>())
                     .Select(
                         (type) =>
                         {
@@ -357,7 +358,7 @@ namespace EastFive.Api
         #endregion
 
         #region Instigators
-
+        
         public delegate Task<HttpResponseMessage> InstigatorDelegateGeneric(
                 Type type, HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess);
@@ -387,7 +388,7 @@ namespace EastFive.Api
                 HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess);
 
-        public Dictionary<Type, InstigatorDelegate> instigators =
+        protected Dictionary<Type, InstigatorDelegate> instigators =
             new Dictionary<Type, InstigatorDelegate>()
             {
                 {
@@ -663,45 +664,73 @@ namespace EastFive.Api
             public MemoryStreamForFile(byte[] buffer) : base(buffer) { }
             public string FileName { get; set; }
         }
-        
-        public virtual async Task<KeyValuePair<string, Func<Type, object>>[]> ParseContentValuesAsync(HttpContent content)
-        {
-            if (content.IsDefaultOrNull())
-                return (new KeyValuePair<string, Func<Type, object>>[] { });
 
-            if (
-                (!content.Headers.IsDefaultOrNull()) &&
-                (!content.Headers.ContentType.IsDefaultOrNull()) &&
-                String.Compare("application/json", content.Headers.ContentType.MediaType, true) == 0)
+        public delegate Task<TResult> ParseContentDelegate<TResult>(string key, Type type,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onFailure);
+
+        public virtual async Task<TResult> ParseContentValuesAsync<TParseResult, TResult>(HttpContent content,
+            Func<ParseContentDelegate<TParseResult>, string [], Task<TResult>> onDoTheThing)
+        {
+            Task<TResult> InvalidContent(string errorMessage)
+            {
+                ParseContentDelegate<TParseResult> parser =
+                    (key, type, onFound, onFailure) =>
+                        onFailure(errorMessage).AsTask();
+                return onDoTheThing(parser, new string[] { });
+            }
+
+            if (content.IsDefaultOrNull())
+                return await InvalidContent("Body content was not provided.");
+
+            if (content.IsJson())
             {
                 var contentString = await content.ReadAsStringAsync();
                 try
                 {
                     var contentJObject = Newtonsoft.Json.Linq.JObject.Parse(contentString);
-                    return contentJObject
-                        .Properties()
-                        .Select(
-                            jProperty =>
+                    ParseContentDelegate<TParseResult> parser =
+                        async (key, type, onFound, onFailure) =>
+                        {
+                            if (key.IsNullOrWhiteSpace() || key == ".")
                             {
-                                var key = jProperty.Name;
-                                return key.PairWithValue<string, Func<Type, object>>(
-                                    (type) =>
-                                    {
-                                        try
-                                        {
-                                            return jProperty.First.ToObject(type);
-                                            // return Newtonsoft.Json.JsonConvert.DeserializeObject(value, type).ToTask();
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            return ((object)ex);
-                                        }
-                                    });
-                            })
+                                try
+                                {
+                                    var rootObject = Newtonsoft.Json.JsonConvert.DeserializeObject(contentString, type);
+                                    return onFound(rootObject);
+                                }
+                                catch (Exception ex)
+                                {
+                                    return onFailure(ex.Message);
+                                }
+                            }
+
+                            if (!contentJObject.TryGetValue(key, out Newtonsoft.Json.Linq.JToken valueToken))
+                                return await onFailure($"Key[{key}] was not found in JSON").AsTask();
+                            try
+                            {
+                                var value = valueToken.ToObject(type);
+                                return onFound(value);
+                            } catch(Exception ex)
+                            {
+                                return onFailure(ex.Message);
+                            }
+                        };
+                    var keys = contentJObject
+                        .Properties()
+                        .Select(jProperty => jProperty.Name)
                         .ToArray();
+                    return await onDoTheThing(parser, keys);
                 }
                 catch (Exception ex)
                 {
+                    ParseContentDelegate<TParseResult> parser =
+                        async (key, type, onFound, onFailure) =>
+                        {
+                            return onFailure(ex.Message);
+                        };
+                    var keys = new string[] { };
+                    return await onDoTheThing(parser, keys);
                 }
             }
 
@@ -709,8 +738,7 @@ namespace EastFive.Api
             {
                 var streamProvider = new MultipartMemoryStreamProvider();
                 await content.ReadAsMultipartAsync(streamProvider);
-
-                return await streamProvider.Contents
+                var contentsLookup = await streamProvider.Contents
                         .Select(
                             async file =>
                             {
@@ -726,21 +754,32 @@ namespace EastFive.Api
                                 return key.PairWithValue<string, Func<Type, object>>(
                                     type => ContentToTypeAsync(type, () => System.Text.Encoding.UTF8.GetString(contents), () => contents, () => new MemoryStreamForFile(contents) { FileName = fileNameMaybe }));
                             })
-                        .WhenAllAsync();
+                        .WhenAllAsync()
+                        .ToDictionaryAsync();
+                ParseContentDelegate<TParseResult> parser =
+                        async (key, type, onFound, onFailure) =>
+                        {
+                            if (contentsLookup.ContainsKey(key))
+                                return onFound(contentsLookup[key](type));
+                            return onFailure("Key not found");
+                        };
+                return await onDoTheThing(parser, contentsLookup.SelectKeys().ToArray());
             }
 
             if (content.IsFormData())
             {
-                var optionalFormData = await this.ParseOptionalFormDataAsync(content);
-                return (
-                    optionalFormData
-                        .Select(
-                            formDataCallbackKvp => formDataCallbackKvp.Key.PairWithValue<string, Func<Type, object>>(
-                                (type) => formDataCallbackKvp.Value(type)))
-                        .ToArray());
+                var optionalFormData = (await this.ParseOptionalFormDataAsync(content)).ToDictionary();
+                ParseContentDelegate<TParseResult> parser =
+                    async (key, type, onFound, onFailure) =>
+                    {
+                        if (optionalFormData.ContainsKey(key))
+                            return onFound(optionalFormData[key](type));
+                        return onFailure("Key not found");
+                    };
+                return await onDoTheThing(parser, optionalFormData.SelectKeys().ToArray());
             }
 
-            return (new KeyValuePair<string, Func<Type, object>>[] { });
+            return await InvalidContent($"Could not parse content of type {content.Headers.ContentType.MediaType}");
         }
 
         private static object ContentToTypeAsync(Type type, Func<string> readString, Func<byte[]> readBytes, Func<Stream> readStream)
@@ -784,6 +823,33 @@ namespace EastFive.Api
                 return (object)new WebId() { UUID = guidValue };
             }
             return type.IsValueType ? Activator.CreateInstance(type) : null;
+        }
+
+        internal Task<HttpResponseMessage> Instigate(HttpRequestMessage request, ParameterInfo methodParameter,
+            Func<object, Task<HttpResponseMessage>> onInstigated)
+        {
+            
+            if (this.instigators.ContainsKey(methodParameter.ParameterType))
+                return this.instigators[methodParameter.ParameterType](this, request, methodParameter,
+                    (v) => onInstigated(v));
+
+            if (methodParameter.ParameterType.IsGenericType)
+            {
+                var possibleGenericInstigator = this.instigatorsGeneric
+                    .Where(instigatorKvp => instigatorKvp.Key.GUID == methodParameter.ParameterType.GUID)
+                    .ToArray();
+                if (possibleGenericInstigator.Any())
+                    return possibleGenericInstigator.First().Value(methodParameter.ParameterType,
+                        this, request, methodParameter,
+                    (v) => onInstigated(v));
+            }
+            
+            if (methodParameter.ParameterType.IsInstanceOfType(this))
+                return onInstigated(this);
+
+            return request.CreateResponse(HttpStatusCode.InternalServerError)
+                .AddReason($"Could not instigate type: {methodParameter.ParameterType.FullName}. Please add an instigator for that type.")
+                .AsTask();
         }
 
         public virtual TResult StringContentToType<TResult>(Type type, string content,

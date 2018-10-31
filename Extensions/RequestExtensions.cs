@@ -16,6 +16,7 @@ using System.Configuration;
 using EastFive.Api;
 using EastFive.Linq;
 using EastFive.Extensions;
+using EastFive.Web;
 
 namespace BlackBarLabs.Api
 {
@@ -178,7 +179,7 @@ namespace BlackBarLabs.Api
             var result = authorizationHeader.HasValue(
                 value =>
                 {
-                    return EastFive.Web.Configuration.Settings.GetString(AppSettings.SiteAdminAuthorization,
+                    return EastFive.Web.Configuration.Settings.GetString(EastFive.Api.AppSettings.SiteAdminAuthorization,
                         siteAdminAuthorization =>
                         {
                             if (!string.IsNullOrEmpty(siteAdminAuthorization) && siteAdminAuthorization == value.ToString())
