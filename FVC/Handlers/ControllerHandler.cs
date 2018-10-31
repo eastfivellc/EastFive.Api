@@ -142,45 +142,31 @@ namespace EastFive.Api.Modules
 
             #endregion
 
-            var bodyValuesKvps = await httpApp
-                .ParseContentValuesAsync(request.Content);
-            var bodyValues = bodyValuesKvps
-                .ToDictionary();
-            //var bodyWithCollections = bodyValues.Concat(GetCollectionParameters(bodyValues));
-            CastDelegate<SelectParameterResult> bodyCastDelegate =
-                (queryKey, type, onParsed, onFailure) =>
+            return await httpApp.ParseContentValuesAsync<SelectParameterResult, HttpResponseMessage>(request.Content,
+                async (bodyParser, bodyValues) =>
                 {
-                    if (!bodyValues.ContainsKey(queryKey))
-                        return onFailure($"Missing query parameter `{queryKey}`").AsTask();
-                    var queryValue = bodyValues[queryKey];
-                    return onParsed(queryValue(type))
-                        .AsTask();
-                };
+                    CastDelegate<SelectParameterResult> bodyCastDelegate =
+                        (queryKey, type, onParsed, onFailure) =>
+                        {
+                            return bodyParser(queryKey, type,
+                                value => onParsed(value),
+                                (why) => onFailure(why));
+                        };
+                    return await GetResponseAsync(methods,
+                        queryCastDelegate,
+                        bodyCastDelegate,
+                        fileNameCastDelegate,
+                        httpApp, request,
+                        (method, paramResults,
+                            onNoExtraParameters,
+                            onExtraParameters) => HasExtraParameters(method,
+                                queryParameters.SelectKeys(),
+                                bodyValues,
+                                paramResults,
+                                onNoExtraParameters,
+                                onExtraParameters));
+                });
             
-            //var allParamInvokators = queryParameters
-            //    .Concat(bodyParameters)
-            //    .Concat(collectionParameters)
-            //    .If(!fileNameParameterMaybe.IsDefaultOrNull(),
-            //        set => set.Append(defaultKeyPlaceholder.PairWithValue(fileNameParameterMaybe)));
-            
-            ////var duplicates = allParamInvokators.SelectKeys().Duplicates((s1, s2) => s1 == s2);
-            ////if (duplicates.Any())
-            ////    return request.CreateResponse(HttpStatusCode.BadRequest).AddReason($"Conflicting query and body parameters for: [{duplicates.Join(" and ")}]");
-            //var queryParams = allParamInvokators.ToDictionary();
-
-            return await GetResponseAsync(methods,
-                queryCastDelegate,
-                bodyCastDelegate,
-                fileNameCastDelegate,
-                httpApp, request,
-                (method, paramResults,
-                    onNoExtraParameters,
-                    onExtraParameters) => HasExtraParameters(method,
-                        queryParameters.SelectKeys(),
-                        bodyValues.SelectKeys(),
-                        paramResults,
-                        onNoExtraParameters,
-                        onExtraParameters));
         }
 
         private static IEnumerable<KeyValuePair<string, ParseContentDelegate<SelectParameterResult>>> GetCollectionParameters(HttpApplication httpApp, IEnumerable<KeyValuePair<string, string>> queryParameters)
