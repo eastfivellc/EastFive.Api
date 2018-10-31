@@ -303,7 +303,7 @@ namespace EastFive.Api.Modules
                                 {
                                     var castValue = param.GetCustomAttribute<QueryValidationAttribute, IProvideApiValue>(
                                         (queryValidationAttribute) => queryValidationAttribute,
-                                        () => throw new Exception("WHere check failed"));
+                                        () => throw new Exception("Where check failed"));
                                     return castValue.TryCastAsync<SelectParameterResult>(httpApp, request, method, param,
                                             fetchQueryParam,
                                             fetchBodyParam,

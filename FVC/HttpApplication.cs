@@ -534,6 +534,14 @@ namespace EastFive.Api
                     }
                 },
                 {
+                    typeof(Controllers.ForbiddenResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.ForbiddenResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.Forbidden);
+                        return success((object)dele);
+                    }
+                },
+                {
                     typeof(Controllers.AcceptedResponse),
                     (httpApp, request, paramInfo, success) =>
                     {
