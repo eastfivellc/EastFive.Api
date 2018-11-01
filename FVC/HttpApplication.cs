@@ -648,24 +648,243 @@ namespace EastFive.Api
             instigatorsGeneric.Add(type, instigator);
         }
         
+        internal Task<HttpResponseMessage> Instigate(HttpRequestMessage request, ParameterInfo methodParameter,
+            Func<object, Task<HttpResponseMessage>> onInstigated)
+        {
+
+            if (this.instigators.ContainsKey(methodParameter.ParameterType))
+                return this.instigators[methodParameter.ParameterType](this, request, methodParameter,
+                    (v) => onInstigated(v));
+
+            if (methodParameter.ParameterType.IsGenericType)
+            {
+                var possibleGenericInstigator = this.instigatorsGeneric
+                    .Where(instigatorKvp => instigatorKvp.Key.GUID == methodParameter.ParameterType.GUID)
+                    .ToArray();
+                if (possibleGenericInstigator.Any())
+                    return possibleGenericInstigator.First().Value(methodParameter.ParameterType,
+                        this, request, methodParameter,
+                    (v) => onInstigated(v));
+            }
+
+            if (methodParameter.ParameterType.IsInstanceOfType(this))
+                return onInstigated(this);
+
+            return request.CreateResponse(HttpStatusCode.InternalServerError)
+                .AddReason($"Could not instigate type: {methodParameter.ParameterType.FullName}. Please add an instigator for that type.")
+                .AsTask();
+        }
+
+        #endregion
+
+        #region Bindings
+
+        public delegate object BindingDelegate(HttpApplication httpApp, string content,
+            Func<object, object> onParsed,
+            Func<string, object> notConvertable);
+
+        protected Dictionary<Type, BindingDelegate> bindings =
+            new Dictionary<Type, BindingDelegate>()
+            {
+                {
+                    typeof(string),
+                    (httpApp, content, onParsed, onNotConvertable) =>
+                    {
+                        var stringValue = content;
+                        return onParsed((object)stringValue);
+                    }
+                },
+                {
+                    typeof(Guid),
+                    (httpApp, content, onParsed, onNotConvertable) =>
+                    {
+                        var guidStringValue = content;
+                        if (Guid.TryParse(guidStringValue, out Guid guidValue))
+                            return onParsed(guidValue);
+                        return onNotConvertable($"Failed to convert {content} to `{typeof(Guid).FullName}`.");
+                    }
+                },
+                {
+                    typeof(DateTime),
+                    (httpApp, dateStringValue, onParsed, onNotConvertable) =>
+                    {
+                        if (DateTime.TryParse(dateStringValue, out DateTime dateValue))
+                            return onParsed(dateValue);
+                        return onNotConvertable($"Failed to convert {dateStringValue} to `{typeof(DateTime).FullName}`.");
+                    }
+                },
+                {
+                    typeof(bool),
+                    (httpApp, boolStringValue, onParsed, onNotConvertable) =>
+                    {
+                        if (bool.TryParse(boolStringValue, out bool boolValue))
+                            return onParsed(boolValue);
+
+                        if ("t" == boolStringValue)
+                            return onParsed(true);
+
+                        if ("f" == boolStringValue)
+                            return onParsed(false);
+
+                        return onNotConvertable($"Failed to convert {boolStringValue} to `{typeof(bool).FullName}`.");
+                    }
+                },
+                {
+                    typeof(Type),
+                    (httpApp, content, onParsed, onNotConvertable) =>
+                    {
+                        return onParsed(httpApp.GetResourceType(content));
+                        // TODO: CHeck for type object or some method of failure and: return onNotConvertable($"`{content}` is not a web ID of none. Please use format `none` to specify no web ID provided.");
+                    }
+                },
+                {
+                    typeof(Stream),
+                    (httpApp, content, onParsed, onNotConvertable) =>
+                    {
+                        var byteArrayBase64 = content;
+                        try
+                        {
+                            var byteArrayValue = Convert.FromBase64String(byteArrayBase64);
+                            return onParsed(new MemoryStream(byteArrayValue));
+                        } catch(Exception ex)
+                        {
+                            return onNotConvertable($"Failed to convert {content} to `{typeof(Stream).FullName}` as base64 string:{ex.Message}.");
+                        }
+                    }
+                },
+                {
+                    typeof(byte[]),
+                    (httpApp, content, onParsed, onNotConvertable) =>
+                    {
+                        var byteArrayBase64 = content;
+                        try
+                        {
+                            var byteArrayValue = Convert.FromBase64String(byteArrayBase64);
+                            return onParsed(byteArrayValue);
+                        } catch(Exception ex)
+                        {
+                            return onNotConvertable($"Failed to convert {content} to `{typeof(byte[]).FullName}` as base64 string:{ex.Message}.");
+                        }
+                    }
+                },
+                {
+                    typeof(Controllers.WebIdAny),
+                    (httpApp, content, onParsed, onNotConvertable) =>
+                    {
+                        if (String.Compare(content.ToLower(), "any") == 0)
+                            return onParsed(new Controllers.WebIdAny());
+                        return onNotConvertable($"Failed to convert {content} to `{typeof(Controllers.WebIdAny).FullName}`.");
+                    }
+                },
+                {
+                    typeof(Controllers.WebIdNone),
+                    (httpApp, content, onParsed, onNotConvertable) =>
+                    {
+                        if (String.Compare(content.ToLower(), "none") == 0)
+                            return onParsed(new Controllers.WebIdNone());
+                        return onNotConvertable($"`{content}` is not a web ID of none. Please use format `none` to specify no web ID provided.");
+                    }
+                },
+                {
+                    typeof(Controllers.WebIdNot),
+                    (httpApp, content, onParsed, onNotConvertable) =>
+                    {
+                        return content.ToUpper().MatchRegexInvoke("NOT\\((?<notString>[a-zA-Z]+)\\)",
+                            (string notString) => notString,
+                            (string[] notStrings) =>
+                            {
+                                if (!notStrings.Any())
+                                    return onNotConvertable($"`{content}` is not parsable as an exlusion list. Please use format `NOT(ABC123-....-EDF1)`");
+                                var notString = notStrings.First();
+                                if (!Guid.TryParse(notString, out Guid notUUID))
+                                    return onNotConvertable($"`{notString}` is not a UUID. Please use format `NOT(ABC123-....-EDF1)`");
+                                return onParsed(
+                                    new Controllers.WebIdNot()
+                                    {
+                                        notUUID = notUUID,
+                                    });
+                            });
+                    }
+                },
+                {
+                    typeof(Controllers.DateTimeEmpty),
+                    (httpApp, content, onParsed, onNotConvertable) =>
+                    {
+                        if (String.Compare(content.ToLower(), "false") == 0)
+                            return onParsed(new Controllers.DateTimeEmpty());
+                        return onNotConvertable($"Failed to convert {content} to `{typeof(Controllers.DateTimeEmpty).FullName}`.");
+                    }
+                },
+            };
+
+        public delegate object BindingGenericDelegate(Type type, HttpApplication httpApp, string content,
+            Func<object, object> onParsed,
+            Func<string, object> notConvertable);
+
+        protected Dictionary<Type, BindingGenericDelegate> bindingsGeneric =
+            new Dictionary<Type, BindingGenericDelegate>()
+            {
+                {
+                    typeof(IRef<>),
+                    (type, httpApp, content, onBound, onFailedToBind) =>
+                    {
+                        var referredType = type.GenericTypeArguments.First();
+                        var refType = referredType.IsClass?
+                            typeof(EastFive.RefObj<>).MakeGenericType(referredType)
+                            :
+                            typeof(EastFive.Ref<>).MakeGenericType(referredType);
+                        var refInstance = Activator.CreateInstance(refType, 
+                            new object [] { referredType.GetDefault().AsTask() });
+                        return refInstance;
+                    }
+                }
+            };
+
+        internal TResult Bind<TResult>(Type type, string content,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onDidNotBind)
+        {
+            if (this.bindings.ContainsKey(type))
+                return (TResult)this.bindings[type](this, content,
+                    (v) => onParsed(v),
+                    (why) => onDidNotBind(why));
+
+            if (type.IsGenericType)
+            {
+                var possibleGenericInstigator = this.bindingsGeneric
+                    .Where(instigatorKvp => instigatorKvp.Key.GUID == type.GUID)
+                    .ToArray();
+                if (possibleGenericInstigator.Any())
+                    return (TResult)possibleGenericInstigator.First().Value(type,
+                            this, content,
+                        (v) => onParsed(v),
+                        (why) => onDidNotBind(why));
+            }
+            
+            return onDidNotBind($"No binding for type `{type.FullName}` active in server.");
+        }
+
+        public void AddOrUpdateBinding(Type type, BindingDelegate binding)
+        {
+            if (bindings.ContainsKey(type))
+                bindings[type] = binding;
+            else
+                bindings.Add(type, binding);
+        }
+
+        public void AddOrUpdateGenericBinding(Type type, BindingGenericDelegate binding)
+        {
+            if (this.bindingsGeneric.ContainsKey(type))
+                this.bindingsGeneric[type] = binding;
+            else
+                this.bindingsGeneric.Add(type, binding);
+        }
 
         #endregion
 
         #region Conversions
 
-        public async Task<KeyValuePair<string, Func<Type, object>>[]> ParseOptionalFormDataAsync(HttpContent content)
-        {
-            var formData = await content.ReadAsFormDataAsync();
 
-            var parameters = formData.AllKeys
-                .Select(key => key.PairWithValue<string, Func<Type, object>>(
-                    (type) => StringContentToType(type, formData[key],
-                        v => v,
-                        why => { throw new Exception(why); })))
-                .ToArray();
-
-            return (parameters);
-        }
 
         public class MemoryStreamForFile : MemoryStream
         {
@@ -678,14 +897,14 @@ namespace EastFive.Api
             Func<string, TResult> onFailure);
 
         public virtual async Task<TResult> ParseContentValuesAsync<TParseResult, TResult>(HttpContent content,
-            Func<ParseContentDelegate<TParseResult>, string [], Task<TResult>> onDoTheThing)
+            Func<ParseContentDelegate<TParseResult>, string [], Task<TResult>> onParsedContentValues)
         {
             Task<TResult> InvalidContent(string errorMessage)
             {
                 ParseContentDelegate<TParseResult> parser =
                     (key, type, onFound, onFailure) =>
                         onFailure(errorMessage).AsTask();
-                return onDoTheThing(parser, new string[] { });
+                return onParsedContentValues(parser, new string[] { });
             }
 
             if (content.IsDefaultOrNull())
@@ -728,7 +947,7 @@ namespace EastFive.Api
                         .Properties()
                         .Select(jProperty => jProperty.Name)
                         .ToArray();
-                    return await onDoTheThing(parser, keys);
+                    return await onParsedContentValues(parser, keys);
                 }
                 catch (Exception ex)
                 {
@@ -738,7 +957,7 @@ namespace EastFive.Api
                             return onFailure(ex.Message);
                         };
                     var keys = new string[] { };
-                    return await onDoTheThing(parser, keys);
+                    return await onParsedContentValues(parser, keys);
                 }
             }
 
@@ -771,7 +990,7 @@ namespace EastFive.Api
                                 return onFound(contentsLookup[key](type));
                             return onFailure("Key not found");
                         };
-                return await onDoTheThing(parser, contentsLookup.SelectKeys().ToArray());
+                return await onParsedContentValues(parser, contentsLookup.SelectKeys().ToArray());
             }
 
             if (content.IsFormData())
@@ -784,10 +1003,24 @@ namespace EastFive.Api
                             return onFound(optionalFormData[key](type));
                         return onFailure("Key not found");
                     };
-                return await onDoTheThing(parser, optionalFormData.SelectKeys().ToArray());
+                return await onParsedContentValues(parser, optionalFormData.SelectKeys().ToArray());
             }
 
             return await InvalidContent($"Could not parse content of type {content.Headers.ContentType.MediaType}");
+        }
+
+        private async Task<KeyValuePair<string, Func<Type, object>>[]> ParseOptionalFormDataAsync(HttpContent content)
+        {
+            var formData = await content.ReadAsFormDataAsync();
+
+            var parameters = formData.AllKeys
+                .Select(key => key.PairWithValue<string, Func<Type, object>>(
+                    (type) => Bind(type, formData[key],
+                        v => v,
+                        why => { throw new Exception(why); })))
+                .ToArray();
+
+            return (parameters);
         }
 
         private static object ContentToTypeAsync(Type type, Func<string> readString, Func<byte[]> readBytes, Func<Stream> readStream)
@@ -831,33 +1064,6 @@ namespace EastFive.Api
                 return (object)new WebId() { UUID = guidValue };
             }
             return type.IsValueType ? Activator.CreateInstance(type) : null;
-        }
-
-        internal Task<HttpResponseMessage> Instigate(HttpRequestMessage request, ParameterInfo methodParameter,
-            Func<object, Task<HttpResponseMessage>> onInstigated)
-        {
-            
-            if (this.instigators.ContainsKey(methodParameter.ParameterType))
-                return this.instigators[methodParameter.ParameterType](this, request, methodParameter,
-                    (v) => onInstigated(v));
-
-            if (methodParameter.ParameterType.IsGenericType)
-            {
-                var possibleGenericInstigator = this.instigatorsGeneric
-                    .Where(instigatorKvp => instigatorKvp.Key.GUID == methodParameter.ParameterType.GUID)
-                    .ToArray();
-                if (possibleGenericInstigator.Any())
-                    return possibleGenericInstigator.First().Value(methodParameter.ParameterType,
-                        this, request, methodParameter,
-                    (v) => onInstigated(v));
-            }
-            
-            if (methodParameter.ParameterType.IsInstanceOfType(this))
-                return onInstigated(this);
-
-            return request.CreateResponse(HttpStatusCode.InternalServerError)
-                .AddReason($"Could not instigate type: {methodParameter.ParameterType.FullName}. Please add an instigator for that type.")
-                .AsTask();
         }
 
         public virtual TResult StringContentToType<TResult>(Type type, string content,

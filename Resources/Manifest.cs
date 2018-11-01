@@ -72,7 +72,7 @@ namespace EastFive.Api.Resources
                     :
                     validator.Name.ToLower();
                 this.Required = !(paramInfo.ContainsCustomAttribute<PropertyOptionalAttribute>() ||
-                    paramInfo.ContainsCustomAttribute<OptionalAttribute>());
+                    paramInfo.ContainsCustomAttribute<OptionalQueryParameterAttribute>());
                 this.Default = paramInfo.ContainsCustomAttribute<QueryDefaultParameterAttribute>();
                 this.Type = GetTypeName(paramInfo.ParameterType);
             }

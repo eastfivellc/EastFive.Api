@@ -63,67 +63,76 @@ namespace EastFive.Api
                 },
                 (whyQuery) => onInvalid($"Could not create value in query, body, or file."));
         }
-
-        //public delegate Task<object> CastDelegate(string query, Type type, 
-        //    Func<object, object> onCasted,
-        //    Func<string, object> onFailedToCast);
-
-        //public virtual Task<TResult> TryCastAsync<TResult>(HttpApplication httpApp, HttpRequestMessage request,
-        //        MethodInfo method, ParameterInfo parameterRequiringValidation, 
-        //        CastDelegate fetchQueryParam,
-        //        CastDelegate fetchBodyParam,
-        //        CastDelegate fetchDefaultParam,
-        //    Func<object, TResult> onCasted,
-        //    Func<string, TResult> onInvalid)
-        //{
-        //    var paramName = ParamName(parameterRequiringValidation);
-        //    return TryCastAsync(httpApp,
-        //            request, method, parameterRequiringValidation, paramName,
-        //            fetchQueryParam, fetchBodyParam, fetchDefaultParam,
-        //        v => onCasted(v),
-        //        why => onInvalid(why));
-        //}
-
-        //protected virtual async Task<TResult> TryCastAsync<TResult>(HttpApplication httpApp, HttpRequestMessage request,
-        //        MethodInfo method, ParameterInfo parameterRequiringValidation, string query,
-        //        CastDelegate fetchQueryParam,
-        //        CastDelegate fetchBodyParam,
-        //        CastDelegate fetchDefaultParam,
-        //    Func<object, TResult> onCasted,
-        //    Func<string, TResult> onInvalid)
-        //{
-        //    var obj = await fetchQueryParam(query,
-        //            parameterRequiringValidation.ParameterType,
-        //        v => onCasted(v),
-        //        why => onInvalid(why));
-        //    return (TResult)obj;
-        //}
-
-        //public virtual Task<TResult> OnEmptyValueAsync<TResult>(HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterRequiringValidation,
-        //    Func<object, TResult> onValid,
-        //    Func<TResult> onInvalid)
-        //{
-        //    return onInvalid().ToTask();
-        //}
+        
     }
 
     public class RequiredAttribute : QueryValidationAttribute
     {
     }
 
-    public class RequiredAndAvailableInPathAttribute : QueryValidationAttribute
+    public class QueryParameterAttribute : QueryValidationAttribute
     {
+        public bool CheckFileName { get; set; }
+
+        protected string GetQueryParameterName(ParameterInfo parameterRequiringValidation)
+        {
+            if (this.Name.IsNullOrWhiteSpace())
+                return parameterRequiringValidation.Name.ToLower();
+            return this.Name.ToLower();
+        }
+
+        public override async Task<TResult> TryCastAsync<TResult>(HttpApplication httpApp, 
+                HttpRequestMessage request, MethodInfo method, 
+                ParameterInfo parameterRequiringValidation,
+                CastDelegate<TResult> fetchQueryParam,
+                CastDelegate<TResult> fetchBodyParam, 
+                CastDelegate<TResult> fetchDefaultParam,
+            Func<object, TResult> onCasted,
+            Func<string, TResult> onInvalid)
+        {
+            bool found = false;
+            var queryName = GetQueryParameterName(parameterRequiringValidation);
+            var queryResult = await fetchQueryParam(queryName, parameterRequiringValidation.ParameterType,
+                (v) =>
+                {
+                    found = true;
+                    return onCasted(v);
+                },
+                (whyQuery) => default(TResult));
+            if (found)
+                return queryResult;
+
+            if(!CheckFileName)
+                return onInvalid($"Query parameter `${queryName}` was not specified in the request query.");
+
+            return await fetchDefaultParam(queryName, parameterRequiringValidation.ParameterType,
+                (v) =>
+                {
+                    found = true;
+                    return onCasted(v);
+                },
+                (whyQuery) => onInvalid($"Query parameter `${queryName}` was not specified in the request query or filename."));
+        }
     }
 
-    public class OptionalAttribute : QueryValidationAttribute
+    public class OptionalQueryParameterAttribute : QueryParameterAttribute
     {
-        //public override Task<TResult> OnEmptyValueAsync<TResult>(HttpApplication httpApp,
-        //        HttpRequestMessage request, ParameterInfo parameterRequiringValidation,
-        //    Func<object, TResult> onValid,
-        //    Func<TResult> onInvalid)
-        //{
-        //    return onValid(parameterRequiringValidation.ParameterType.GetDefault()).ToTask();
-        //}
+        public override Task<TResult> TryCastAsync<TResult>(HttpApplication httpApp, 
+                HttpRequestMessage request, MethodInfo method,
+                ParameterInfo parameterRequiringValidation, 
+                CastDelegate<TResult> fetchQueryParam, 
+                CastDelegate<TResult> fetchBodyParam, 
+                CastDelegate<TResult> fetchDefaultParam, 
+            Func<object, TResult> onCasted, 
+            Func<string, TResult> onInvalid)
+        {
+            return base.TryCastAsync(httpApp, request, method, parameterRequiringValidation, fetchQueryParam, fetchBodyParam, fetchDefaultParam,
+                onCasted,
+                (why) =>
+                {
+                    return onCasted(parameterRequiringValidation.ParameterType.GetDefault());
+                });
+        }
     }
 
     public class ResourceAttribute : QueryValidationAttribute
@@ -140,14 +149,6 @@ namespace EastFive.Api
                 onCasted,
                 onInvalid);
         }
-
-        //public override Task<TResult> OnEmptyValueAsync<TResult>(HttpApplication httpApp,
-        //        HttpRequestMessage request, ParameterInfo parameterRequiringValidation,
-        //    Func<object, TResult> onValid,
-        //    Func<TResult> onInvalid)
-        //{
-        //    return onValid(parameterRequiringValidation.ParameterType.GetDefault()).ToTask();
-        //}
     }
 
 
