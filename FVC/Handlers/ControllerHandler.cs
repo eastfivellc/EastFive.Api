@@ -35,6 +35,15 @@ namespace EastFive.Api.Modules
             return DirectSendAsync(httpApp, request, cancellationToken, continuation);
         }
 
+        /// <summary>
+        /// This method is available if an external system or test needs to invoke the routing.
+        /// SendAsync serves as the MVC.API Binding to this method.
+        /// </summary>
+        /// <param name="httpApp"></param>
+        /// <param name="request"></param>
+        /// <param name="cancellationToken"></param>
+        /// <param name="continuation"></param>
+        /// <returns></returns>
         public static async Task<HttpResponseMessage> DirectSendAsync(HttpApplication httpApp,
             HttpRequestMessage request, CancellationToken cancellationToken,
             Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> continuation)
