@@ -176,8 +176,8 @@
     <Compile Include="Workers\Extensions.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="$(SolutionDir)\BlackBarLabs.Core\EastFive.Core.csproj">
-      <Project>{73088f1b-3aca-476b-aa45-b7d6660f1c73}</Project>
+    <ProjectReference Include="..\BlackBarLabs.Core\EastFive.Core.csproj">
+      <Project>{aec927ef-6aae-4533-bbf6-539643684002}</Project>
       <Name>EastFive.Core</Name>
     </ProjectReference>
     <ProjectReference Include="..\BlackBarLabs.Persistence.Azure\BlackBarLabs.Persistence.Azure.csproj">
@@ -192,7 +192,11 @@
       <Project>{5bb52391-2704-44c0-bc8a-dbbe31498814}</Project>
       <Name>BlackBarLabs.Web</Name>
     </ProjectReference>
-    <ProjectReference Include="$(SolutionDir)\EastFive.Sheets\EastFive.Sheets.csproj">
+    <ProjectReference Include="..\EastFive.Sheets\EastFive.Sheets.csproj">
+      <Project>{a6a53d1c-fc21-4385-afd7-f5748cc5135b}</Project>
+      <Name>EastFive.Sheets</Name>
+    </ProjectReference>
+    <ProjectReference Include="C:\Dev\E5\affirmMaster\\EastFive.Sheets\EastFive.Sheets.csproj">
       <Project>{a6a53d1c-fc21-4385-afd7-f5748cc5135b}</Project>
       <Name>EastFive.Sheets</Name>
     </ProjectReference>
