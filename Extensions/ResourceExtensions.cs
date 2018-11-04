@@ -400,7 +400,6 @@ namespace BlackBarLabs.Api
                 controllerType.Name.TrimEnd("Controller",
                     (trimmedName) => trimmedName, (originalName) => originalName);
             var location = url.Link(routeName, new { Controller = controllerName, Action = action, id = id });
-            location = location + "/" + id;
             return new Uri(location);
         }
 
