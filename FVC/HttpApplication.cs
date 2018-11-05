@@ -380,7 +380,7 @@ namespace EastFive.Api
                     (type, httpApp, request, paramInfo, success) =>
                     {
                         var scope = new GenericInstigatorScoping(type, httpApp, request, paramInfo);
-                        var multipartResponseMethodInfoGeneric = typeof(GenericInstigatorScoping).GetMethod("MultipartResponseAsync", BindingFlags.Public | BindingFlags.Static);
+                        var multipartResponseMethodInfoGeneric = typeof(GenericInstigatorScoping).GetMethod("MultipartResponseAsync", BindingFlags.Public | BindingFlags.Instance);
                         var multipartResponseMethodInfoBound = multipartResponseMethodInfoGeneric.MakeGenericMethod(type.GenericTypeArguments);
                         var dele = Delegate.CreateDelegate(type, scope, multipartResponseMethodInfoBound);
                         return success((object)dele);
