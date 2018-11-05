@@ -34,7 +34,19 @@ namespace EastFive.Api.Controllers
     {
 
     }
-    
+
+    public struct DateTimeQuery
+    {
+        public DateTime start;
+        public DateTime end;
+
+        public DateTimeQuery(DateTime start, DateTime end)
+        {
+            this.start = start;
+            this.end = end;
+        }
+    }
+
     public struct WebIdAny
     {
 

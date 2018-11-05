@@ -68,7 +68,7 @@ namespace EastFive.Api.Controllers
         }
 
         [ValidationAny]
-        public static bool ParamDatetimeAny(this DateTimeQuery sourceValue)
+        public static bool ParamDatetimeAny(this BlackBarLabs.Api.Resources.DateTimeQuery sourceValue)
         {
 
             return sourceValue.ParseInternal(
@@ -80,7 +80,7 @@ namespace EastFive.Api.Controllers
         }
 
         [ValidationUnspecified]
-        public static bool ParamDatetimeEmpty(this DateTimeQuery sourceValue)
+        public static bool ParamDatetimeEmpty(this BlackBarLabs.Api.Resources.DateTimeQuery sourceValue)
         {
             return sourceValue.ParseInternal(
                 (v1, v2) => { throw new Exception("ParamDatetimeEmpty for DateTimeQuery matched range."); },

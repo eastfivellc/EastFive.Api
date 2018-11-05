@@ -39,7 +39,7 @@ namespace EastFive.Api.Controllers
                     }
                 },
                 {
-                    typeof(DateTimeQuery),
+                    typeof(BlackBarLabs.Api.Resources.DateTimeQuery),
                     new Dictionary<Type, ParseInputDelegate>()
                     {
                         { typeof(bool), ParseDateTimeBool },
@@ -272,7 +272,7 @@ namespace EastFive.Api.Controllers
 
         private static ApiValidations.ValidationAttribute ParseDateTimeBool(object v, ApiController controller)
         {
-            var dateTimeQuery = (DateTimeQuery)v;
+            var dateTimeQuery = (BlackBarLabs.Api.Resources.DateTimeQuery)v;
             return dateTimeQuery.ParseInternal<ApiValidations.ValidationAttribute>(
                     (v1, v2) => new ApiValidations.ValidationRangeAttribute(),
                     (vDateTime) => new ApiValidations.ValidationValueAttribute(),

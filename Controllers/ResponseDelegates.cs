@@ -1,4 +1,5 @@
-﻿using System;
+﻿using EastFive.Linq.Async;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -17,6 +18,7 @@ namespace EastFive.Api.Controllers
     public delegate HttpResponseMessage RedirectResponse(Uri redirectLocation, string reason);
     public delegate Task<HttpResponseMessage> MultipartResponseAsync(IEnumerable<HttpResponseMessage> responses);
     public delegate Task<HttpResponseMessage> MultipartAcceptArrayResponseAsync(IEnumerable<object> responses);
+    public delegate Task<HttpResponseMessage> MultipartResponseAsync<TResource>(IEnumerableAsync<TResource> responses);
 
     public delegate HttpResponseMessage ViewFileResponse(string viewPath, object content);
     public delegate HttpResponseMessage ViewStringResponse(string view, object content);

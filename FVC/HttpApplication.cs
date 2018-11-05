@@ -374,6 +374,17 @@ namespace EastFive.Api
                         var dele = Delegate.CreateDelegate(type, request, refDocMethodInfo);
                         return success((object)dele);
                     }
+                },
+                {
+                    typeof(Controllers.MultipartResponseAsync<>),
+                    (type, httpApp, request, paramInfo, success) =>
+                    {
+                        var scope = new GenericInstigatorScoping(type, httpApp, request, paramInfo);
+                        var multipartResponseMethodInfoGeneric = typeof(GenericInstigatorScoping).GetMethod("MultipartResponseAsync", BindingFlags.Public | BindingFlags.Static);
+                        var multipartResponseMethodInfoBound = multipartResponseMethodInfoGeneric.MakeGenericMethod(type.GenericTypeArguments);
+                        var dele = Delegate.CreateDelegate(type, scope, multipartResponseMethodInfoBound);
+                        return success((object)dele);
+                    }
                 }
             };
 
@@ -382,6 +393,38 @@ namespace EastFive.Api
             return request
                 .CreateResponse(System.Net.HttpStatusCode.BadRequest)
                 .AddReason("The query parameter did not reference an existing document.");
+        }
+
+        private class GenericInstigatorScoping
+        {
+            private Type type;
+            private HttpApplication httpApp;
+            private HttpRequestMessage request;
+            private ParameterInfo paramInfo;
+
+            public GenericInstigatorScoping(Type type, HttpApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo)
+            {
+                this.type = type;
+                this.httpApp = httpApp;
+                this.request = request;
+                this.paramInfo = paramInfo;
+            }
+
+            public async Task<HttpResponseMessage> MultipartResponseAsync<T>(IEnumerableAsync<T> objectsAsync)
+            {
+                if (request.Headers.Accept.Contains(accept => accept.MediaType.ToLower().Contains("xlsx")))
+                {
+                    var objects = await objectsAsync.ToArrayAsync();
+                    return await request.CreateMultisheetXlsxResponse(
+                        new Dictionary<string, string>(),
+                        objects.Cast<ResourceBase>()).ToTask();
+                }
+
+                var responses = await objectsAsync
+                    .Select(obj => request.CreateResponse(System.Net.HttpStatusCode.OK, obj))
+                    .Async();
+                return await request.CreateMultipartResponseAsync(responses);
+            }
         }
 
         public delegate Task<HttpResponseMessage> InstigatorDelegate(
@@ -813,6 +856,15 @@ namespace EastFive.Api
                         if (String.Compare(content.ToLower(), "false") == 0)
                             return onParsed(new Controllers.DateTimeEmpty());
                         return onNotConvertable($"Failed to convert {content} to `{typeof(Controllers.DateTimeEmpty).FullName}`.");
+                    }
+                },
+                {
+                    typeof(Controllers.DateTimeQuery),
+                    (httpApp, content, onParsed, onNotConvertable) =>
+                    {
+                        if(DateTime.TryParse(content, out DateTime startEnd))
+                            return onParsed(new Controllers.DateTimeQuery(startEnd, startEnd));
+                        return onNotConvertable($"Failed to convert {content} to `{typeof(Controllers.DateTimeQuery).FullName}`.");
                     }
                 },
             };
