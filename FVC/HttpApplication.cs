@@ -690,7 +690,12 @@ namespace EastFive.Api
         {
             instigatorsGeneric.Add(type, instigator);
         }
-        
+
+        public void SetInstigatorGeneric(Type type, InstigatorDelegateGeneric instigator)
+        {
+            instigatorsGeneric[type] = instigator;
+        }
+
         internal Task<HttpResponseMessage> Instigate(HttpRequestMessage request, ParameterInfo methodParameter,
             Func<object, Task<HttpResponseMessage>> onInstigated)
         {
