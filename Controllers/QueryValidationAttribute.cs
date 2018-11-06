@@ -102,7 +102,7 @@ namespace EastFive.Api
                 return queryResult;
 
             if (!CheckFileName)
-                return SelectParameterResult.Failure($"Query parameter `${queryName}` was not specified in the request query.", queryName, parameterRequiringValidation);
+                return SelectParameterResult.Failure($"Query parameter `{queryName}` was not specified in the request query.", queryName, parameterRequiringValidation);
 
             return await fetchDefaultParam(queryName, parameterRequiringValidation.ParameterType,
                 (v) =>
@@ -110,7 +110,7 @@ namespace EastFive.Api
                     found = true;
                     return new SelectParameterResult(v, queryName, parameterRequiringValidation);
                 },
-                (whyQuery) => SelectParameterResult.Failure($"Query parameter `${queryName}` was not specified in the request query or filename.", queryName, parameterRequiringValidation));
+                (whyQuery) => SelectParameterResult.Failure($"Query parameter `{queryName}` was not specified in the request query or filename.", queryName, parameterRequiringValidation));
         }
     }
 
