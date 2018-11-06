@@ -280,17 +280,6 @@ namespace EastFive.Api.Modules
 
         #endregion
 
-        private struct SelectParameterResult
-        {
-            public bool valid;
-            public object value;
-            public string failure;
-            public ParameterInfo parameterInfo;
-            internal bool fromQuery;
-            internal bool fromBody;
-            internal string key;
-        }
-
         private static async Task<HttpResponseMessage> GetResponseAsync(MethodInfo[] methods,
             CastDelegate<SelectParameterResult> fetchQueryParam,
             CastDelegate<SelectParameterResult> fetchBodyParam,
@@ -315,28 +304,10 @@ namespace EastFive.Api.Modules
                                     var castValue = param.GetCustomAttribute<QueryValidationAttribute, IProvideApiValue>(
                                         (queryValidationAttribute) => queryValidationAttribute,
                                         () => throw new Exception("Where check failed"));
-                                    return castValue.TryCastAsync<SelectParameterResult>(httpApp, request, method, param,
+                                    return castValue.TryCastAsync(httpApp, request, method, param,
                                             fetchQueryParam,
                                             fetchBodyParam,
-                                            fetchNameParam,
-                                        (value) =>
-                                        {
-                                            return new SelectParameterResult
-                                            {
-                                                valid = true,
-                                                value = value,
-                                                parameterInfo = param,
-                                            };
-                                        },
-                                        (why) =>
-                                        {
-                                            return new SelectParameterResult
-                                            {
-                                                valid = false,
-                                                failure = why,
-                                                parameterInfo = param,
-                                            };
-                                        });
+                                            fetchNameParam);
                                 })
                             .WhenAllAsync();
 
@@ -411,7 +382,7 @@ namespace EastFive.Api.Modules
                             .Where(param => param.fromQuery)
                             .ToLookup(param => param.key);
                         var extraQueryKeys = queryKeys
-                            .Where(queryKey => matchParamQueryLookup.Contains(queryKey))
+                            .Where(queryKey => !matchParamQueryLookup.Contains(queryKey))
                             .ToArray();
                         if (extraQueryKeys.Any())
                             return onExtraParams(extraQueryKeys);
@@ -423,7 +394,7 @@ namespace EastFive.Api.Modules
                             .Where(param => param.fromBody)
                             .ToLookup(param => param.key);
                         var extraQueryKeys = bodyKeys
-                            .Where(queryKey => matchBodyLookup.Contains(queryKey))
+                            .Where(queryKey => !matchBodyLookup.Contains(queryKey))
                             .ToArray();
                         if (extraQueryKeys.Any())
                             return onExtraParams(extraQueryKeys);

@@ -25,22 +25,23 @@ namespace EastFive.Api
     {
         public string Name { get; set; }
         
-        public virtual async Task<TResult> TryCastAsync<TResult>(HttpApplication httpApp,
+        public virtual async Task<SelectParameterResult> TryCastAsync(HttpApplication httpApp,
                 HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
-                Api.CastDelegate<TResult> fetchQueryParam,
-                Api.CastDelegate<TResult> fetchBodyParam,
-                Api.CastDelegate<TResult> fetchDefaultParam,
-            Func<object, TResult> onCasted,
-            Func<string, TResult> onInvalid)
+                Api.CastDelegate<SelectParameterResult> fetchQueryParam,
+                Api.CastDelegate<SelectParameterResult> fetchBodyParam,
+                Api.CastDelegate<SelectParameterResult> fetchDefaultParam)
         {
             var found = false;
             var queryResult = await fetchQueryParam(this.Name, parameterRequiringValidation.ParameterType,
                 (v) =>
                 {
                     found = true;
-                    return onCasted(v);
+                    return new SelectParameterResult
+                    {
+
+                    };
                 },
-                (whyQuery) => default(TResult));
+                (whyQuery) => SelectParameterResult.Failure(whyQuery, this.Name, parameterRequiringValidation));
             if (found)
                 return queryResult;
             
@@ -48,9 +49,9 @@ namespace EastFive.Api
                 (v) =>
                 {
                     found = true;
-                    return onCasted(v);
+                    return new SelectParameterResult(v, this.Name, parameterRequiringValidation);
                 },
-                (whyQuery) => default(TResult));
+                (whyQuery) => SelectParameterResult.Failure(whyQuery, this.Name, parameterRequiringValidation));
             if (found)
                 return bodyResult;
 
@@ -59,9 +60,9 @@ namespace EastFive.Api
                 (v) =>
                 {
                     found = true;
-                    return onCasted(v);
+                    return new SelectParameterResult(v, this.Name, parameterRequiringValidation);
                 },
-                (whyQuery) => onInvalid($"Could not create value in query, body, or file."));
+                (whyQuery) => SelectParameterResult.Failure($"Could not create value in query, body, or file.", this.Name, parameterRequiringValidation));
         }
         
     }
@@ -81,91 +82,85 @@ namespace EastFive.Api
             return this.Name.ToLower();
         }
 
-        public override async Task<TResult> TryCastAsync<TResult>(HttpApplication httpApp, 
+        public override async Task<SelectParameterResult> TryCastAsync(HttpApplication httpApp, 
                 HttpRequestMessage request, MethodInfo method, 
                 ParameterInfo parameterRequiringValidation,
-                CastDelegate<TResult> fetchQueryParam,
-                CastDelegate<TResult> fetchBodyParam, 
-                CastDelegate<TResult> fetchDefaultParam,
-            Func<object, TResult> onCasted,
-            Func<string, TResult> onInvalid)
-        {
+                CastDelegate<SelectParameterResult> fetchQueryParam,
+                CastDelegate<SelectParameterResult> fetchBodyParam, 
+                CastDelegate<SelectParameterResult> fetchDefaultParam)
+        { 
             bool found = false;
             var queryName = GetQueryParameterName(parameterRequiringValidation);
             var queryResult = await fetchQueryParam(queryName, parameterRequiringValidation.ParameterType,
                 (v) =>
                 {
                     found = true;
-                    return onCasted(v);
+                    return new SelectParameterResult(v, queryName, parameterRequiringValidation);
                 },
-                (whyQuery) => default(TResult));
+                (whyQuery) => new SelectParameterResult());
             if (found)
                 return queryResult;
 
-            if(!CheckFileName)
-                return onInvalid($"Query parameter `${queryName}` was not specified in the request query.");
+            if (!CheckFileName)
+                return SelectParameterResult.Failure($"Query parameter `${queryName}` was not specified in the request query.", queryName, parameterRequiringValidation);
 
             return await fetchDefaultParam(queryName, parameterRequiringValidation.ParameterType,
                 (v) =>
                 {
                     found = true;
-                    return onCasted(v);
+                    return new SelectParameterResult(v, queryName, parameterRequiringValidation);
                 },
-                (whyQuery) => onInvalid($"Query parameter `${queryName}` was not specified in the request query or filename."));
+                (whyQuery) => SelectParameterResult.Failure($"Query parameter `${queryName}` was not specified in the request query or filename.", queryName, parameterRequiringValidation));
         }
     }
 
     public class OptionalQueryParameterAttribute : QueryParameterAttribute
     {
-        public override Task<TResult> TryCastAsync<TResult>(HttpApplication httpApp, 
+        public async override Task<SelectParameterResult> TryCastAsync(HttpApplication httpApp, 
                 HttpRequestMessage request, MethodInfo method,
                 ParameterInfo parameterRequiringValidation, 
-                CastDelegate<TResult> fetchQueryParam, 
-                CastDelegate<TResult> fetchBodyParam, 
-                CastDelegate<TResult> fetchDefaultParam, 
-            Func<object, TResult> onCasted, 
-            Func<string, TResult> onInvalid)
+                CastDelegate<SelectParameterResult> fetchQueryParam, 
+                CastDelegate<SelectParameterResult> fetchBodyParam, 
+                CastDelegate<SelectParameterResult> fetchDefaultParam)
         {
-            return base.TryCastAsync(httpApp, request, method, parameterRequiringValidation, fetchQueryParam, fetchBodyParam, fetchDefaultParam,
-                onCasted,
-                (why) =>
-                {
-                    return onCasted(parameterRequiringValidation.ParameterType.GetDefault());
-                });
+            var baseValue = await base.TryCastAsync(httpApp, request, method, parameterRequiringValidation, fetchQueryParam, fetchBodyParam, fetchDefaultParam);
+            if (!baseValue.valid)
+            {
+                baseValue.value = parameterRequiringValidation.ParameterType.GetDefault();
+                baseValue.valid = true;
+            }
+            return baseValue;
         }
     }
 
     public class ResourceAttribute : QueryValidationAttribute
     {
-        public override Task<TResult> TryCastAsync<TResult>(HttpApplication httpApp, 
+        public override Task<SelectParameterResult> TryCastAsync(HttpApplication httpApp, 
             HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
-            CastDelegate<TResult> fetchQueryParam, 
-            CastDelegate<TResult> fetchBodyParam,
-            CastDelegate<TResult> fetchDefaultParam,
-            Func<object, TResult> onCasted,
-            Func<string, TResult> onInvalid)
+            CastDelegate<SelectParameterResult> fetchQueryParam, 
+            CastDelegate<SelectParameterResult> fetchBodyParam,
+            CastDelegate<SelectParameterResult> fetchDefaultParam)
         {
             return fetchBodyParam(string.Empty, parameterRequiringValidation.ParameterType,
-                onCasted,
-                onInvalid);
+                (value) => new SelectParameterResult(value, string.Empty, parameterRequiringValidation),
+                (why) => SelectParameterResult.Failure(why, string.Empty, parameterRequiringValidation));
         }
     }
 
 
     public class PropertyAttribute : QueryValidationAttribute
     {
-        public override Task<TResult> TryCastAsync<TResult>(HttpApplication httpApp,
+        public override Task<SelectParameterResult> TryCastAsync(HttpApplication httpApp,
                 HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
-                CastDelegate<TResult> fetchQueryParam,
-                CastDelegate<TResult> fetchBodyParam,
-                CastDelegate<TResult> fetchDefaultParam,
-            Func<object, TResult> onCasted,
-            Func<string, TResult> onInvalid)
+                CastDelegate<SelectParameterResult> fetchQueryParam,
+                CastDelegate<SelectParameterResult> fetchBodyParam,
+                CastDelegate<SelectParameterResult> fetchDefaultParam)
         {
-            return method.GetCustomAttribute<HttpBodyAttribute, Task<TResult>>(
+            return method.GetCustomAttribute<HttpBodyAttribute, Task<SelectParameterResult>>(
                 bodyAttr =>
                 {
                     var type = bodyAttr.Type;
+                    var name = this.Name.IsNullOrWhiteSpace() ? parameterRequiringValidation.Name : this.Name;
                     if (type.IsDefaultOrNull())
                     {
                         type = method.DeclaringType.GetCustomAttribute<FunctionViewControllerAttribute, Type>(
@@ -173,9 +168,8 @@ namespace EastFive.Api
                             () => type);
 
                         if (type.IsDefaultOrNull())
-                            return onInvalid($"Cannot determine property type for method: {method.DeclaringType.FullName}.{method.Name}().").ToTask();
+                            return SelectParameterResult.Failure($"Cannot determine property type for method: {method.DeclaringType.FullName}.{method.Name}().", name, parameterRequiringValidation).ToTask();
                     }
-                    var name = this.Name.IsNullOrWhiteSpace() ? parameterRequiringValidation.Name : this.Name;
                     return type
                         .GetProperties()
                         .Concat<MemberInfo>(type.GetFields())
@@ -190,22 +184,22 @@ namespace EastFive.Api
                                     return await next();
                                 var obj = await fetchBodyParam(propertyName, prop.GetPropertyOrFieldType(),
                                     v => Convert(httpApp, parameterRequiringValidation.ParameterType, v,
-                                        (vCasted) => onCasted(vCasted),
-                                        (why) => onInvalid($"Property {name}:{why}")),
-                                    why => onInvalid(why));
-                                return (TResult)obj;
+                                        (vCasted) => new SelectParameterResult(vCasted, name, parameterRequiringValidation),
+                                        (why) => SelectParameterResult.Failure($"Property {name}:{why}", name, parameterRequiringValidation)),
+                                    why => SelectParameterResult.Failure(why, name, parameterRequiringValidation));
+                                return obj;
                             },
                             () =>
                             {
-                                return onInvalid("Inform server developer:" +
+                                return SelectParameterResult.Failure("Inform server developer:" +
                                     $"HttpBodyAttribute on `{method.DeclaringType.FullName}.{method.Name}` resolves to type `{type.FullName}` " + 
-                                    $"and specifies parameter `{name}` which is not a member of {type.FullName}").ToTask();
+                                    $"and specifies parameter `{name}` which is not a member of {type.FullName}", name, parameterRequiringValidation).ToTask();
                             });
                 },
                 () =>
                 {
                     // TODO: Check the FunctionViewController for a type
-                    return onInvalid($"{method.DeclaringType.FullName}.{method.Name}'s does not contain a type specifier.").AsTask();
+                    return SelectParameterResult.Failure($"{method.DeclaringType.FullName}.{method.Name}'s does not contain a type specifier.", this.Name, parameterRequiringValidation).AsTask();
                 });
         }
 
@@ -344,44 +338,52 @@ namespace EastFive.Api
 
     public class PropertyOptionalAttribute : PropertyAttribute
     {
-        public override Task<TResult> TryCastAsync<TResult>(
+        public async override Task<SelectParameterResult> TryCastAsync(
                 HttpApplication httpApp, HttpRequestMessage request, MethodInfo method,
                 ParameterInfo parameterRequiringValidation,
-                CastDelegate<TResult> fetchQueryParam, CastDelegate<TResult> fetchBodyParam, CastDelegate<TResult> fetchDefaultParam, 
-            Func<object, TResult> onValid, 
-            Func<string, TResult> onInvalid)
+                CastDelegate<SelectParameterResult> fetchQueryParam, 
+                CastDelegate<SelectParameterResult> fetchBodyParam, 
+                CastDelegate<SelectParameterResult> fetchDefaultParam)
         {
-            return base.TryCastAsync(httpApp, request, method, parameterRequiringValidation,
-                fetchQueryParam, fetchBodyParam, fetchDefaultParam,
-                onValid,
-                (discardWhy) =>
-                {
-                    if (parameterRequiringValidation.ParameterType == typeof(Guid?))
-                        return onValid(default(Guid?));
-                    if (parameterRequiringValidation.ParameterType == typeof(DateTime?))
-                        return onValid(default(DateTime?));
-                    if (parameterRequiringValidation.ParameterType == typeof(string))
-                        return onValid(default(string));
-                    if (parameterRequiringValidation.ParameterType.IsArray)
-                        return onValid(null);
+            var baseValue = await base.TryCastAsync(httpApp, request, method, parameterRequiringValidation, fetchQueryParam, fetchBodyParam, fetchDefaultParam);
+            if (!baseValue.valid)
+            {
+                baseValue.value = parameterRequiringValidation.ParameterType.GetDefault();
+                baseValue.valid = true;
+            }
+            return baseValue;
 
-                    return parameterRequiringValidation.ParameterType.IsNullable(
-                            underlyingType =>
-                            {
-                                return onValid(parameterRequiringValidation.ParameterType.GetDefault());
-                            },
-                            () =>
-                            {
-                                // enum and interfaces cannot be actived
-                                if (parameterRequiringValidation.ParameterType.IsEnum)
-                                    return onValid(parameterRequiringValidation.ParameterType.GetDefault());
-                                if (parameterRequiringValidation.ParameterType.IsInterface)
-                                    return onValid(parameterRequiringValidation.ParameterType.GetDefault());
+            //return base.TryCastAsync(httpApp, request, method, parameterRequiringValidation,
+            //    fetchQueryParam, fetchBodyParam, fetchDefaultParam,
+            //    onValid,
+            //    (discardWhy) =>
+            //    {
+            //        if (parameterRequiringValidation.ParameterType == typeof(Guid?))
+            //            return onValid(default(Guid?), null);
+            //        if (parameterRequiringValidation.ParameterType == typeof(DateTime?))
+            //            return onValid(default(DateTime?), null);
+            //        if (parameterRequiringValidation.ParameterType == typeof(string))
+            //            return onValid(default(string), null);
+            //        if (parameterRequiringValidation.ParameterType.IsArray)
+            //            return onValid(null, null);
 
-                                var instance = Activator.CreateInstance(parameterRequiringValidation.ParameterType);
-                                return onValid(instance);
-                            });
-                });
+            //        return parameterRequiringValidation.ParameterType.IsNullable(
+            //                underlyingType =>
+            //                {
+            //                    return onValid(parameterRequiringValidation.ParameterType.GetDefault(), null);
+            //                },
+            //                () =>
+            //                {
+            //                    // enum and interfaces cannot be actived
+            //                    if (parameterRequiringValidation.ParameterType.IsEnum)
+            //                        return onValid(parameterRequiringValidation.ParameterType.GetDefault(), null);
+            //                    if (parameterRequiringValidation.ParameterType.IsInterface)
+            //                        return onValid(parameterRequiringValidation.ParameterType.GetDefault(), null);
+
+            //                    var instance = Activator.CreateInstance(parameterRequiringValidation.ParameterType);
+            //                    return onValid(instance, null);
+            //                });
+            //    });
             
         }
     }
