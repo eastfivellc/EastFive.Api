@@ -1063,7 +1063,14 @@ namespace EastFive.Api
                 return await onParsedContentValues(parser, optionalFormData.SelectKeys().ToArray());
             }
 
-            return await InvalidContent($"Could not parse content of type {content.Headers.ContentType.MediaType}");
+            var mediaType = content.Headers.IsDefaultOrNull() ?
+                string.Empty
+                :
+                content.Headers.ContentType.IsDefaultOrNull() ?
+                    string.Empty
+                    :
+                    content.Headers.ContentType.MediaType;
+            return await InvalidContent($"Could not parse content of type {mediaType}");
         }
 
         private async Task<KeyValuePair<string, Func<Type, object>>[]> ParseOptionalFormDataAsync(HttpContent content)
