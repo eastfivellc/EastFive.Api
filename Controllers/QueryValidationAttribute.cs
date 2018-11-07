@@ -67,10 +67,6 @@ namespace EastFive.Api
         
     }
 
-    public class RequiredAttribute : QueryValidationAttribute
-    {
-    }
-
     public class QueryParameterAttribute : QueryValidationAttribute
     {
         public bool CheckFileName { get; set; }
