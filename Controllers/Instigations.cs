@@ -13,6 +13,11 @@ namespace EastFive.Api.Controllers
         public System.Security.Claims.Claim[] claims;
     }
 
+    public struct ApiSecurity
+    {
+
+    }
+
     public struct ContentBytes
     {
         public byte [] content;

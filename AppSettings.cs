@@ -32,5 +32,11 @@ namespace EastFive.Api
         public const string ActorIdClaimType = "EastFive.Api.Security.AccountIdClaimType";
         
         public const string SiteAdminAuthorization = "EastFive.Api.Security.SiteAdminAuthorization";
+
+        [ConfigKey("A secret key value that must be provided to access an endpoint with the ApiSecurity attribute set.",
+            DeploymentOverrides.Optional,
+            DeploymentSecurityConcern = true,
+            Location = "This value is created from secure rand entropy")]
+        public const string ApiKey = "EastFive.Api.ApiSecurityKey";
     }
 }

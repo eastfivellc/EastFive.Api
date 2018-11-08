@@ -445,6 +445,18 @@ namespace EastFive.Api
                             }))
                 },
                 {
+                    typeof(Controllers.ApiSecurity),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        return EastFive.Web.Configuration.Settings.GetString(AppSettings.ApiKey,
+                            (authorizedApiKey) => request.Headers.Authorization.Parameter == authorizedApiKey?
+                                success(new Controllers.ApiSecurity())
+                                :
+                                request.CreateResponse(HttpStatusCode.Unauthorized).ToTask(),
+                            (why) => request.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).ToTask());
+                    }
+                },
+                {
                     typeof(System.Web.Http.Routing.UrlHelper),
                     (httpApp, request, paramInfo, success) => success(
                         new System.Web.Http.Routing.UrlHelper(request))
