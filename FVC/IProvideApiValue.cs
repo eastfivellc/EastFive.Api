@@ -29,6 +29,20 @@ namespace EastFive.Api
             };
         }
 
+        public static SelectParameterResult Body(object v, string key, ParameterInfo parameterInfo)
+        {
+            return new SelectParameterResult
+            {
+                valid = true,
+                value = v,
+                failure = string.Empty,
+                parameterInfo = parameterInfo,
+                fromQuery = false,
+                fromBody = true,
+                key = key,
+            };
+        }
+
         public SelectParameterResult(ParameterInfo parameterInfo, string why, string key)
         {
             valid = false;

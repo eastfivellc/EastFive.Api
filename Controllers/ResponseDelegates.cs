@@ -39,7 +39,7 @@ namespace EastFive.Api.Controllers
     public delegate HttpResponseMessage ReferencedDocumentNotFoundResponse();
 
     /// <summary>
-    /// The when creating a document referenced in the create does not exits.
+    /// When creating or updating a resource, a referenced to a different resource was not found.
     /// </summary>
     /// <returns></returns>
     public delegate HttpResponseMessage ReferencedDocumentDoesNotExistsResponse<TResource>();

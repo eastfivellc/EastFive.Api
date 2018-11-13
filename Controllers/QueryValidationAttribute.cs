@@ -180,7 +180,7 @@ namespace EastFive.Api
                                     return await next();
                                 var obj = await fetchBodyParam(propertyName, prop.GetPropertyOrFieldType(),
                                     v => Convert(httpApp, parameterRequiringValidation.ParameterType, v,
-                                        (vCasted) => new SelectParameterResult(vCasted, name, parameterRequiringValidation),
+                                        (vCasted) => SelectParameterResult.Body(vCasted, name, parameterRequiringValidation),
                                         (why) => SelectParameterResult.Failure($"Property {name}:{why}", name, parameterRequiringValidation)),
                                     why => SelectParameterResult.Failure(why, name, parameterRequiringValidation));
                                 return obj;
