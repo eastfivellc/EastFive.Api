@@ -288,7 +288,12 @@ namespace EastFive.Api
 
                 if(typeof(Type).GUID == type.GUID)
                 {
-                    return onCasted(httpApp.GetResourceType(valueString));
+                    return httpApp.GetResourceType(valueString,
+                            (typeInstance) => onCasted(typeInstance),
+                            () => valueString.GetClrType(
+                                typeInstance => onCasted(typeInstance),
+                                () => onInvalid(
+                                    $"`{valueString}` is not a recognizable resource type or CLR type.")));
                 }
             }
 

@@ -21,6 +21,7 @@ using System.Threading;
 using System.Web.Http;
 using EastFive.Web;
 using EastFive.Linq.Async;
+using Newtonsoft.Json;
 
 namespace EastFive.Api
 {
@@ -93,16 +94,18 @@ namespace EastFive.Api
 
         #region Url Handlers
 
-        public Type GetResourceType(string resourceType)
+        public TResult GetResourceType<TResult>(string resourceType,
+            Func<Type, TResult> onConverted,
+            Func<TResult> onMatchingResourceNotFound)
         {
             return contentTypeLookup.First(
                 (kvp, next) =>
                 {
                     if (!kvp.Value.Contains(resourceType))
                         return next();
-                    return kvp.Key;
+                    return onConverted(kvp.Key);
                 },
-                () => typeof(object));
+                () => onMatchingResourceNotFound());
         }
         
         public string GetResourceMime(Type type)
@@ -777,14 +780,21 @@ namespace EastFive.Api
                     typeof(bool),
                     (httpApp, boolStringValue, onParsed, onNotConvertable) =>
                     {
-                        if (bool.TryParse(boolStringValue, out bool boolValue))
-                            return onParsed(boolValue);
+                        if ("t" == boolStringValue.ToLower())
+                            return onParsed(true);
 
-                        if ("t" == boolStringValue)
+                        if ("on" == boolStringValue.ToLower()) // used in check boxes
                             return onParsed(true);
 
                         if ("f" == boolStringValue)
                             return onParsed(false);
+
+                        if ("off" == boolStringValue.ToLower()) // used in some check boxes
+                            return onParsed(false);
+
+                        // TryParse may convert "on" to false TODO: Test theory
+                        if (bool.TryParse(boolStringValue, out bool boolValue))
+                            return onParsed(boolValue);
 
                         return onNotConvertable($"Failed to convert {boolStringValue} to `{typeof(bool).FullName}`.");
                     }
@@ -793,8 +803,12 @@ namespace EastFive.Api
                     typeof(Type),
                     (httpApp, content, onParsed, onNotConvertable) =>
                     {
-                        return onParsed(httpApp.GetResourceType(content));
-                        // TODO: CHeck for type object or some method of failure and: return onNotConvertable($"`{content}` is not a web ID of none. Please use format `none` to specify no web ID provided.");
+                        return httpApp.GetResourceType(content,
+                            (typeInstance) => onParsed(typeInstance),
+                            () => content.GetClrType(
+                                typeInstance => onParsed(typeInstance),
+                                () => onNotConvertable(
+                                    $"`{content}` is not a recognizable resource type or CLR type.")));
                     }
                 },
                 {
@@ -825,6 +839,15 @@ namespace EastFive.Api
                         {
                             return onNotConvertable($"Failed to convert {content} to `{typeof(byte[]).FullName}` as base64 string:{ex.Message}.");
                         }
+                    }
+                },
+                {
+                    typeof(WebId),
+                    (httpApp, content, onParsed, onNotConvertable) =>
+                    {
+                        if(!Guid.TryParse(content, out Guid guidValue))
+                            return onNotConvertable($"Could not convert `{content}` to GUID");
+                        return (object) new WebId() { UUID = guidValue };
                     }
                 },
                 {
@@ -909,6 +932,22 @@ namespace EastFive.Api
                 }
             };
 
+        internal bool CanBind(Type type)
+        {
+            if (this.bindings.ContainsKey(type))
+                return true;
+
+            if (type.IsGenericType)
+            {
+                var possibleGenericInstigator = this.bindingsGeneric
+                    .Where(instigatorKvp => instigatorKvp.Key.GUID == type.GUID)
+                    .ToArray();
+                return possibleGenericInstigator.Any();
+            }
+
+            return false;
+        }
+
         internal TResult Bind<TResult>(Type type, string content,
             Func<object, TResult> onParsed,
             Func<string, TResult> onDidNotBind)
@@ -965,6 +1004,58 @@ namespace EastFive.Api
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure);
 
+        private class BindConvert : Newtonsoft.Json.JsonConverter
+        {
+            HttpApplication application;
+
+            public BindConvert(HttpApplication httpApplication)
+            {
+                this.application = httpApplication;
+            }
+
+            public override bool CanConvert(Type objectType)
+            {
+                return this.application.CanBind(objectType);
+            }
+
+            public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+            {
+                if (reader.TokenType == JsonToken.Boolean)
+                {
+                    var valueBool = (bool)reader.Value;
+                    var value = valueBool.ToString();
+                    return this.application.Bind(objectType, value,
+                        v => v,
+                        (why) =>
+                        {
+                            return existingValue;
+                        });
+                }
+                if (reader.TokenType == JsonToken.String)
+                {
+
+                    var value = (string)reader.Value;
+                    return this.application.Bind(objectType, value,
+                        v => v,
+                        (why) =>
+                        {
+                            return existingValue;
+                        });
+                }
+                if (reader.TokenType == JsonToken.Null)
+                {
+                    return existingValue;
+                }
+                
+                throw new Exception($"BindConvert does not handle token type: {reader.TokenType}");
+            }
+
+            public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+            {
+                throw new NotImplementedException("BindConvert cannot write values.");
+            }
+        }
+
         public virtual async Task<TResult> ParseContentValuesAsync<TParseResult, TResult>(HttpContent content,
             Func<ParseContentDelegate<TParseResult>, string [], Task<TResult>> onParsedContentValues)
         {
@@ -992,7 +1083,8 @@ namespace EastFive.Api
                             {
                                 try
                                 {
-                                    var rootObject = Newtonsoft.Json.JsonConvert.DeserializeObject(contentString, type);
+                                    var rootObject = Newtonsoft.Json.JsonConvert.DeserializeObject(
+                                        contentString, type, new BindConvert(this));
                                     return onFound(rootObject);
                                 }
                                 catch (Exception ex)
@@ -1007,6 +1099,19 @@ namespace EastFive.Api
                             {
                                 var value = valueToken.ToObject(type);
                                 return onFound(value);
+                            } catch (Newtonsoft.Json.JsonSerializationException)
+                            {
+                                try
+                                {
+                                    var value = ContentToTypeAsync(type,
+                                        () => valueToken.ToObject<string>(),
+                                        () => valueToken.ToObject<byte[]>(),
+                                        () => valueToken.ToObject<Stream>());
+                                    return onFound(value);
+                                } catch (Exception ex)
+                                {
+                                    return onFailure(ex.Message);
+                                }
                             } catch(Exception ex)
                             {
                                 return onFailure(ex.Message);
@@ -1099,30 +1204,11 @@ namespace EastFive.Api
             return (parameters);
         }
 
-        private static object ContentToTypeAsync(Type type, Func<string> readString, Func<byte[]> readBytes, Func<Stream> readStream)
+        private object ContentToTypeAsync(Type type, 
+            Func<string> readString, 
+            Func<byte[]> readBytes,
+            Func<Stream> readStream)
         {
-            if (type.IsAssignableFrom(typeof(string)))
-            {
-                var stringValue = readString();
-                return (object)stringValue;
-            }
-            if (type.IsAssignableFrom(typeof(Guid)))
-            {
-                var guidStringValue = readString();
-                var guidValue = Guid.Parse(guidStringValue);
-                return (object)guidValue;
-            }
-            if (type.IsAssignableFrom(typeof(bool)))
-            {
-                var boolStringValue = readString();
-                if (bool.TryParse(boolStringValue, out bool boolValue))
-                    return (object)boolValue;
-                if (boolStringValue.ToLower() == "t")
-                    return true;
-                if (boolStringValue.ToLower() == "on") // used in check boxes
-                    return true;
-                return false;
-            }
             if (type.IsAssignableFrom(typeof(Stream)))
             {
                 var streamValue = readStream();
@@ -1133,13 +1219,10 @@ namespace EastFive.Api
                 var byteArrayValue = readBytes();
                 return (object)byteArrayValue;
             }
-            if (type.IsAssignableFrom(typeof(WebId)))
-            {
-                var guidStringValue = readString();
-                var guidValue = Guid.Parse(guidStringValue);
-                return (object)new WebId() { UUID = guidValue };
-            }
-            return type.IsValueType ? Activator.CreateInstance(type) : null;
+            var stringValue = readString();
+            return this.Bind(type, stringValue,
+                (value) => value,
+                why => type.GetDefault());
         }
 
         public virtual TResult StringContentToType<TResult>(Type type, string content,
@@ -1178,8 +1261,12 @@ namespace EastFive.Api
             }
             if (type.IsAssignableFrom(typeof(Type)))
             {
-                return onParsed(this.GetResourceType(content));
-                return notConvertable($"`{content}` is not a web ID of none. Please use format `none` to specify no web ID provided.");
+                return this.GetResourceType(content,
+                    (typeInstance) => onParsed(typeInstance),
+                    () => content.GetClrType(
+                        typeInstance => onParsed(typeInstance),
+                        () => notConvertable(
+                            $"`{content}` is not a recognizable resource type or CLR type.")));
             }
             if (type.IsAssignableFrom(typeof(Stream)))
             {

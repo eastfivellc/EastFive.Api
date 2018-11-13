@@ -169,9 +169,9 @@
       <Project>{17a2e027-c32a-41db-9b46-5222d55c0e26}</Project>
       <Name>BlackBarLabs.Security</Name>
     </ProjectReference>
-    <ProjectReference Include="..\BlackBarLabs.Web\BlackBarLabs.Web.csproj">
+    <ProjectReference Include="..\BlackBarLabs.Web\EastFive.Web.csproj">
       <Project>{5bb52391-2704-44c0-bc8a-dbbe31498814}</Project>
-      <Name>BlackBarLabs.Web</Name>
+      <Name>EastFive.Web</Name>
     </ProjectReference>
     <ProjectReference Include="..\EastFive.Sheets\EastFive.Sheets.csproj">
       <Project>{a6a53d1c-fc21-4385-afd7-f5748cc5135b}</Project>
