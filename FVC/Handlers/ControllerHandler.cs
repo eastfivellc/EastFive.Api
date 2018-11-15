@@ -18,6 +18,7 @@ using System.Net;
 using BlackBarLabs.Api;
 using BlackBarLabs;
 using System.Threading;
+using System.IO;
 
 namespace EastFive.Api.Modules
 {
@@ -72,6 +73,41 @@ namespace EastFive.Api.Modules
 
         delegate TResult ParseContentDelegate<TResult>(Type type, Func<object, TResult> onParsed, Func<string, TResult> onFailure);
 
+        private class QueryParamTokenParser : IParseToken
+        {
+            private string value;
+
+            public QueryParamTokenParser(string value)
+            {
+                this.value = value;
+            }
+
+            public IParseToken[] ReadArray()
+            {
+                throw new NotImplementedException();
+            }
+
+            public byte[] ReadBytes()
+            {
+                throw new NotImplementedException();
+            }
+
+            public IDictionary<string, IParseToken> ReadDictionary()
+            {
+                throw new NotImplementedException();
+            }
+
+            public Stream ReadStream()
+            {
+                throw new NotImplementedException();
+            }
+
+            public string ReadString()
+            {
+                return value;
+            }
+        }
+
         private static async Task<HttpResponseMessage> CreateResponseAsync(HttpApplication httpApp, HttpRequestMessage request, string controllerName, MethodInfo[] methods)
         {
             #region setup query parameter casting
@@ -94,7 +130,7 @@ namespace EastFive.Api.Modules
                                 why => onFailure(why))
                             .AsTask();
                     }
-                    var queryValue = queryParameters[queryKey];
+                    var queryValue = new QueryParamTokenParser(queryParameters[queryKey]);
                     return httpApp
                         .Bind(type, queryValue,
                             v => onParsed(v),
@@ -118,7 +154,7 @@ namespace EastFive.Api.Modules
                                 if (!urlFileNames.Any())
                                     return onFailure("No URI filename value provided.");
                                 return httpApp.Bind(type,
-                                        urlFileNames.First(),
+                                        new QueryParamTokenParser(urlFileNames.First()),
                                     v => onParsed(v),
                                     (why) => onFailure(why));
                             })
@@ -198,7 +234,7 @@ namespace EastFive.Api.Modules
                                 key = kvp.Value,
                                 fetchValue = (type, onSuccess, onFailure) =>
                                     httpApp
-                                        .StringContentToType(type, param.Value,
+                                        .Bind(type, new QueryParamTokenParser(param.Value),
                                             v => onSuccess(v),
                                             why => onFailure(why))
                                         .AsTask(),

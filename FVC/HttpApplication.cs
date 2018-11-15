@@ -22,9 +22,23 @@ using System.Web.Http;
 using EastFive.Web;
 using EastFive.Linq.Async;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace EastFive.Api
 {
+    public interface IParseToken
+    {
+        string ReadString();
+
+        byte[] ReadBytes();
+
+        Stream ReadStream();
+
+        IParseToken[] ReadArray();
+
+        IDictionary<string, IParseToken> ReadDictionary();
+    }
+
     public class HttpApplication : System.Web.HttpApplication
     {
         private Task initialization;
@@ -742,7 +756,7 @@ namespace EastFive.Api
 
         #region Bindings
 
-        public delegate object BindingDelegate(HttpApplication httpApp, string content,
+        public delegate object BindingDelegate(HttpApplication httpApp, IParseToken content,
             Func<object, object> onParsed,
             Func<string, object> notConvertable);
 
@@ -753,7 +767,7 @@ namespace EastFive.Api
                     typeof(string),
                     (httpApp, content, onParsed, onNotConvertable) =>
                     {
-                        var stringValue = content;
+                        var stringValue = content.ReadString();
                         return onParsed((object)stringValue);
                     }
                 },
@@ -761,16 +775,32 @@ namespace EastFive.Api
                     typeof(Guid),
                     (httpApp, content, onParsed, onNotConvertable) =>
                     {
-                        var guidStringValue = content;
+                        var guidStringValue = content.ReadString();
                         if (Guid.TryParse(guidStringValue, out Guid guidValue))
                             return onParsed(guidValue);
                         return onNotConvertable($"Failed to convert {content} to `{typeof(Guid).FullName}`.");
                     }
                 },
                 {
-                    typeof(DateTime),
-                    (httpApp, dateStringValue, onParsed, onNotConvertable) =>
+                    typeof(Guid[]),
+                    (httpApp, content, onParsed, onNotConvertable) =>
                     {
+                        var tokens = content.ReadArray();
+                        var guids = tokens
+                            .Select(
+                                token => httpApp.Bind(typeof(Guid), token,
+                                    guid => guid,
+                                    (why) => default(Guid)))
+                            .Cast<Guid>()
+                            .ToArray();
+                        return onParsed(guids);
+                    }
+                },
+                {
+                    typeof(DateTime),
+                    (httpApp, token, onParsed, onNotConvertable) =>
+                    {
+                        var dateStringValue = token.ReadString();
                         if (DateTime.TryParse(dateStringValue, out DateTime dateValue))
                             return onParsed(dateValue);
                         return onNotConvertable($"Failed to convert {dateStringValue} to `{typeof(DateTime).FullName}`.");
@@ -778,8 +808,9 @@ namespace EastFive.Api
                 },
                 {
                     typeof(bool),
-                    (httpApp, boolStringValue, onParsed, onNotConvertable) =>
+                    (httpApp, token, onParsed, onNotConvertable) =>
                     {
+                        var boolStringValue = token.ReadString();
                         if ("t" == boolStringValue.ToLower())
                             return onParsed(true);
 
@@ -803,9 +834,9 @@ namespace EastFive.Api
                     typeof(Type),
                     (httpApp, content, onParsed, onNotConvertable) =>
                     {
-                        return httpApp.GetResourceType(content,
+                        return httpApp.GetResourceType(content.ReadString(),
                             (typeInstance) => onParsed(typeInstance),
-                            () => content.GetClrType(
+                            () => content.ReadString().GetClrType(
                                 typeInstance => onParsed(typeInstance),
                                 () => onNotConvertable(
                                     $"`{content}` is not a recognizable resource type or CLR type.")));
@@ -815,14 +846,15 @@ namespace EastFive.Api
                     typeof(Stream),
                     (httpApp, content, onParsed, onNotConvertable) =>
                     {
-                        var byteArrayBase64 = content;
                         try
                         {
+                            var byteArrayBase64 = content.ReadString();
                             var byteArrayValue = Convert.FromBase64String(byteArrayBase64);
                             return onParsed(new MemoryStream(byteArrayValue));
                         } catch(Exception ex)
                         {
-                            return onNotConvertable($"Failed to convert {content} to `{typeof(Stream).FullName}` as base64 string:{ex.Message}.");
+                            return content.ReadStream();
+                            //return onNotConvertable($"Failed to convert {content} to `{typeof(Stream).FullName}` as base64 string:{ex.Message}.");
                         }
                     }
                 },
@@ -830,14 +862,15 @@ namespace EastFive.Api
                     typeof(byte[]),
                     (httpApp, content, onParsed, onNotConvertable) =>
                     {
-                        var byteArrayBase64 = content;
                         try
                         {
+                            var byteArrayBase64 = content.ReadString();
                             var byteArrayValue = Convert.FromBase64String(byteArrayBase64);
                             return onParsed(byteArrayValue);
                         } catch(Exception ex)
                         {
-                            return onNotConvertable($"Failed to convert {content} to `{typeof(byte[]).FullName}` as base64 string:{ex.Message}.");
+                            return content.ReadBytes();
+                            //return onNotConvertable($"Failed to convert {content} to `{typeof(byte[]).FullName}` as base64 string:{ex.Message}.");
                         }
                     }
                 },
@@ -845,7 +878,7 @@ namespace EastFive.Api
                     typeof(WebId),
                     (httpApp, content, onParsed, onNotConvertable) =>
                     {
-                        if(!Guid.TryParse(content, out Guid guidValue))
+                        if(!Guid.TryParse(content.ReadString(), out Guid guidValue))
                             return onNotConvertable($"Could not convert `{content}` to GUID");
                         return (object) new WebId() { UUID = guidValue };
                     }
@@ -854,7 +887,7 @@ namespace EastFive.Api
                     typeof(Controllers.WebIdAny),
                     (httpApp, content, onParsed, onNotConvertable) =>
                     {
-                        if (String.Compare(content.ToLower(), "any") == 0)
+                        if (String.Compare(content.ReadString().ToLower(), "any") == 0)
                             return onParsed(new Controllers.WebIdAny());
                         return onNotConvertable($"Failed to convert {content} to `{typeof(Controllers.WebIdAny).FullName}`.");
                     }
@@ -863,7 +896,7 @@ namespace EastFive.Api
                     typeof(Controllers.WebIdNone),
                     (httpApp, content, onParsed, onNotConvertable) =>
                     {
-                        if (String.Compare(content.ToLower(), "none") == 0)
+                        if (String.Compare(content.ReadString().ToLower(), "none") == 0)
                             return onParsed(new Controllers.WebIdNone());
                         return onNotConvertable($"`{content}` is not a web ID of none. Please use format `none` to specify no web ID provided.");
                     }
@@ -872,12 +905,12 @@ namespace EastFive.Api
                     typeof(Controllers.WebIdNot),
                     (httpApp, content, onParsed, onNotConvertable) =>
                     {
-                        return content.ToUpper().MatchRegexInvoke("NOT\\((?<notString>[a-zA-Z]+)\\)",
+                        return content.ReadString().ToUpper().MatchRegexInvoke("NOT\\((?<notString>[a-zA-Z]+)\\)",
                             (string notString) => notString,
                             (string[] notStrings) =>
                             {
                                 if (!notStrings.Any())
-                                    return onNotConvertable($"`{content}` is not parsable as an exlusion list. Please use format `NOT(ABC123-....-EDF1)`");
+                                    return onNotConvertable($"`{content.ReadString()}` is not parsable as an exlusion list. Please use format `NOT(ABC123-....-EDF1)`");
                                 var notString = notStrings.First();
                                 if (!Guid.TryParse(notString, out Guid notUUID))
                                     return onNotConvertable($"`{notString}` is not a UUID. Please use format `NOT(ABC123-....-EDF1)`");
@@ -893,7 +926,7 @@ namespace EastFive.Api
                     typeof(Controllers.DateTimeEmpty),
                     (httpApp, content, onParsed, onNotConvertable) =>
                     {
-                        if (String.Compare(content.ToLower(), "false") == 0)
+                        if (String.Compare(content.ReadString().ToLower(), "false") == 0)
                             return onParsed(new Controllers.DateTimeEmpty());
                         return onNotConvertable($"Failed to convert {content} to `{typeof(Controllers.DateTimeEmpty).FullName}`.");
                     }
@@ -902,14 +935,21 @@ namespace EastFive.Api
                     typeof(Controllers.DateTimeQuery),
                     (httpApp, content, onParsed, onNotConvertable) =>
                     {
-                        if(DateTime.TryParse(content, out DateTime startEnd))
+                        if(DateTime.TryParse(content.ReadString(), out DateTime startEnd))
                             return onParsed(new Controllers.DateTimeQuery(startEnd, startEnd));
                         return onNotConvertable($"Failed to convert {content} to `{typeof(Controllers.DateTimeQuery).FullName}`.");
                     }
                 },
+                {
+                    typeof(object),
+                    (httpApp, content, onParsed, onNotConvertable) =>
+                    {
+                        return onParsed(content.ReadString());
+                    }
+                }
             };
 
-        public delegate object BindingGenericDelegate(Type type, HttpApplication httpApp, string content,
+        public delegate object BindingGenericDelegate(Type type, HttpApplication httpApp, IParseToken content,
             Func<object, object> onParsed,
             Func<string, object> notConvertable);
 
@@ -925,9 +965,42 @@ namespace EastFive.Api
                             typeof(EastFive.RefObj<>).MakeGenericType(referredType)
                             :
                             typeof(EastFive.Ref<>).MakeGenericType(referredType);
-                        var refInstance = Activator.CreateInstance(refType, 
+                        var refInstance = Activator.CreateInstance(refType,
                             new object [] { referredType.GetDefault().AsTask() });
                         return refInstance;
+                    }
+                },
+                {
+                    typeof(IDictionary<,>),
+                    (type, httpApp, content, onBound, onFailedToBind) =>
+                    {
+                        var keyType = type.GenericTypeArguments[0];
+                        var valueType = type.GenericTypeArguments[1];
+                        var refType = typeof(Dictionary<,>).MakeGenericType(type.GenericTypeArguments);
+                        var refInstance = Activator.CreateInstance(refType);
+                        var addMethod = refType.GetMethod("Add");
+                        //Dictionary<string, int> dict;
+                        //dict.Add()
+                        foreach(var kvpToken in content.ReadDictionary())
+                        {
+                            var keyToken = new FormDataTokenParser(kvpToken.Key);
+                            var valueToken = kvpToken.Value;
+                            var result = httpApp.Bind(keyType, keyToken,
+                                keyValue =>
+                                {
+                                    return httpApp.Bind(valueType, valueToken,
+                                        valueValue =>
+                                        {
+                                            addMethod.Invoke(refInstance,
+                                                new object [] { keyValue, valueValue });
+                                            return string.Empty;
+                                        },
+                                        (why) => why);
+                                },
+                                (why) => why);
+                        }
+
+                        return onBound(refInstance);
                     }
                 }
             };
@@ -940,15 +1013,22 @@ namespace EastFive.Api
             if (type.IsGenericType)
             {
                 var possibleGenericInstigator = this.bindingsGeneric
-                    .Where(instigatorKvp => instigatorKvp.Key.GUID == type.GUID)
-                    .ToArray();
+                    .Where(
+                        instigatorKvp =>
+                        {
+                            if (instigatorKvp.Key.GUID == type.GUID)
+                                return true;
+                            if (type.IsAssignableFrom(instigatorKvp.Key))
+                                return true;
+                            return false;
+                        });
                 return possibleGenericInstigator.Any();
             }
 
             return false;
         }
 
-        internal TResult Bind<TResult>(Type type, string content,
+        public TResult Bind<TResult>(Type type, IParseToken content,
             Func<object, TResult> onParsed,
             Func<string, TResult> onDidNotBind)
         {
@@ -960,13 +1040,28 @@ namespace EastFive.Api
             if (type.IsGenericType)
             {
                 var possibleGenericInstigator = this.bindingsGeneric
-                    .Where(instigatorKvp => instigatorKvp.Key.GUID == type.GUID)
-                    .ToArray();
+                    .Where(
+                        instigatorKvp =>
+                        {
+                            if (instigatorKvp.Key.GUID == type.GUID)
+                                return true;
+                            if (type.IsAssignableFrom(instigatorKvp.Key))
+                                return true;
+                            return false;
+                        });
                 if (possibleGenericInstigator.Any())
-                    return (TResult)possibleGenericInstigator.First().Value(type,
+                {
+                    var resultBound = possibleGenericInstigator.First().Value(type,
                             this, content,
-                        (v) => onParsed(v),
+                        (v) =>
+                        {
+                            var result = onParsed(v);
+                            return result;
+                        },
                         (why) => onDidNotBind(why));
+                    var castResult = (TResult)resultBound;
+                    return castResult;
+                }
             }
             
             return onDidNotBind($"No binding for type `{type.FullName}` active in server.");
@@ -1004,9 +1099,73 @@ namespace EastFive.Api
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure);
 
+        
+
         private class BindConvert : Newtonsoft.Json.JsonConverter
         {
             HttpApplication application;
+
+            private class JsonReaderTokenParser : IParseToken
+            {
+                private JsonReader reader;
+                private HttpApplication application;
+
+                public JsonReaderTokenParser(JsonReader reader, HttpApplication application)
+                {
+                    this.reader = reader;
+                    this.application = application;
+                }
+
+                public string ReadString()
+                {
+                    if (reader.TokenType == JsonToken.Boolean)
+                    {
+                        var valueBool = (bool)reader.Value;
+                        var value = valueBool.ToString();
+                        return value;
+                    }
+                    if (reader.TokenType == JsonToken.String)
+                    {
+
+                        var value = (string)reader.Value;
+                        return value;
+                    }
+                    if (reader.TokenType == JsonToken.Null)
+                    {
+                        return string.Empty;
+                    }
+                    if (reader.TokenType == JsonToken.StartArray)
+                    {
+                        return string.Empty;
+                    }
+                    throw new Exception($"BindConvert does not handle token type: {reader.TokenType}");
+                }
+
+                public IParseToken[] ReadArray()
+                {
+                    var token = JToken.Load(reader);
+                    var tokenParser = new JsonTokenParser(token);
+                    return tokenParser.ReadArray();
+                }
+
+                public IDictionary<string, IParseToken> ReadDictionary()
+                {
+                    var token = JToken.Load(reader);
+                    var tokenParser = new JsonTokenParser(token);
+                    return tokenParser.ReadDictionary();
+                }
+
+                public byte[] ReadBytes()
+                {
+                    throw new NotImplementedException();
+                }
+
+                public Stream ReadStream()
+                {
+                    throw new NotImplementedException();
+                }
+
+            }
 
             public BindConvert(HttpApplication httpApplication)
             {
@@ -1015,44 +1174,184 @@ namespace EastFive.Api
 
             public override bool CanConvert(Type objectType)
             {
+                if (objectType.IsSubClassOfGeneric(typeof(IRefs<>)))
+                    return true;
                 return this.application.CanBind(objectType);
             }
 
             public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
             {
-                if (reader.TokenType == JsonToken.Boolean)
-                {
-                    var valueBool = (bool)reader.Value;
-                    var value = valueBool.ToString();
-                    return this.application.Bind(objectType, value,
+                return this.application.Bind(objectType, new JsonReaderTokenParser(reader, this.application),
                         v => v,
-                        (why) =>
-                        {
-                            return existingValue;
-                        });
-                }
-                if (reader.TokenType == JsonToken.String)
-                {
-
-                    var value = (string)reader.Value;
-                    return this.application.Bind(objectType, value,
-                        v => v,
-                        (why) =>
-                        {
-                            return existingValue;
-                        });
-                }
-                if (reader.TokenType == JsonToken.Null)
-                {
-                    return existingValue;
-                }
-                
-                throw new Exception($"BindConvert does not handle token type: {reader.TokenType}");
+                        (why) => existingValue);
             }
 
             public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
             {
                 throw new NotImplementedException("BindConvert cannot write values.");
+            }
+        }
+
+        private class MultipartContentTokenParser : IParseToken
+        {
+            private byte[] contents;
+            private string fileNameMaybe;
+
+            public MultipartContentTokenParser(byte[] contents, string fileNameMaybe)
+            {
+                this.contents = contents;
+                this.fileNameMaybe = fileNameMaybe;
+            }
+
+            public IParseToken[] ReadArray()
+            {
+                throw new NotImplementedException();
+            }
+
+            public byte[] ReadBytes()
+            {
+                return contents;
+            }
+
+            public IDictionary<string, IParseToken> ReadDictionary()
+            {
+                throw new NotImplementedException();
+            }
+
+            public Stream ReadStream()
+            {
+                return new MemoryStreamForFile(contents)
+                { FileName = fileNameMaybe };
+            }
+
+            public string ReadString()
+            {
+                return System.Text.Encoding.UTF8.GetString(contents);
+            }
+        }
+
+        private class JsonTokenParser : IParseToken
+        {
+            private JToken valueToken;
+
+            public JsonTokenParser(JToken valueToken)
+            {
+                this.valueToken = valueToken;
+            }
+
+            public byte[] ReadBytes()
+            {
+                return valueToken.ToObject<byte[]>();
+            }
+
+            public Stream ReadStream()
+            {
+                return valueToken.ToObject<Stream>();
+            }
+
+            public string ReadString()
+            {
+                return valueToken.ToObject<string>();
+            }
+
+            public IParseToken[] ReadArray()
+            {
+                if(valueToken.Type == JTokenType.Array)
+                    return (valueToken as JArray)
+                        .Select(
+                            token => new JsonTokenParser(token))
+                        .ToArray();
+                if(valueToken.Type == JTokenType.Null)
+                    return new IParseToken[] { };
+                if (valueToken.Type == JTokenType.Undefined)
+                    return new IParseToken[] { };
+
+                if (valueToken.Type == JTokenType.Object)
+                    return valueToken
+                        .Children()
+                        .Select(childToken => new JsonTokenParser(childToken))
+                        .ToArray();
+
+                if (valueToken.Type == JTokenType.Property)
+                {
+                    var property = (valueToken as JProperty);
+                    return new JsonTokenParser(property.Value).AsArray();
+                }
+
+                return valueToken
+                    .Children()
+                    .Select(child => new JsonTokenParser(child))
+                    .ToArray();
+            }
+
+            public IDictionary<string, IParseToken> ReadDictionary()
+            {
+                KeyValuePair<string, IParseToken> ParseToken(JToken token)
+                {
+                    if (token.Type == JTokenType.Property)
+                    {
+                        var propertyToken = (token as JProperty);
+                        return new JsonTokenParser(propertyToken.Value)
+                            .PairWithKey<string, IParseToken>(propertyToken.Name);
+                    }
+                    return (new JsonTokenParser(token))
+                        .PairWithKey<string, IParseToken>(token.ToString());
+                }
+
+                if (valueToken.Type == JTokenType.Array)
+                    return (valueToken as JArray)
+                        .Select(ParseToken)
+                        .ToDictionary();
+                if (valueToken.Type == JTokenType.Null)
+                    return new Dictionary<string, IParseToken>();
+                if (valueToken.Type == JTokenType.Undefined)
+                    return new Dictionary<string, IParseToken>();
+
+                if (valueToken.Type == JTokenType.Object)
+                    return valueToken
+                        .Children()
+                        .Select(ParseToken)
+                        .ToDictionary();
+
+                return valueToken
+                        .Children()
+                        .Select(ParseToken)
+                        .ToDictionary();
+            }
+        }
+
+        private class FormDataTokenParser : IParseToken
+        {
+            private string valueForKey;
+
+            public FormDataTokenParser(string valueForKey)
+            {
+                this.valueForKey = valueForKey;
+            }
+
+            public IParseToken[] ReadArray()
+            {
+                throw new NotImplementedException();
+            }
+
+            public byte[] ReadBytes()
+            {
+                throw new NotImplementedException();
+            }
+
+            public IDictionary<string, IParseToken> ReadDictionary()
+            {
+                throw new NotImplementedException();
+            }
+
+            public Stream ReadStream()
+            {
+                throw new NotImplementedException();
+            }
+
+            public string ReadString()
+            {
+                return this.valueForKey;
             }
         }
 
@@ -1095,23 +1394,24 @@ namespace EastFive.Api
 
                             if (!contentJObject.TryGetValue(key, out Newtonsoft.Json.Linq.JToken valueToken))
                                 return await onFailure($"Key[{key}] was not found in JSON").AsTask();
+
                             try
                             {
-                                var value = valueToken.ToObject(type);
-                                return onFound(value);
-                            } catch (Newtonsoft.Json.JsonSerializationException)
-                            {
-                                try
-                                {
-                                    var value = ContentToTypeAsync(type,
-                                        () => valueToken.ToObject<string>(),
-                                        () => valueToken.ToObject<byte[]>(),
-                                        () => valueToken.ToObject<Stream>());
-                                    return onFound(value);
-                                } catch (Exception ex)
-                                {
-                                    return onFailure(ex.Message);
-                                }
+                                return ContentToTypeAsync(type,
+                                        new JsonTokenParser(valueToken),
+                                    obj => onFound(obj),
+                                    (why) =>
+                                    {
+                                        try
+                                        {
+                                            var value = valueToken.ToObject(type);
+                                            return onFound(value);
+                                        }
+                                        catch (Newtonsoft.Json.JsonSerializationException)
+                                        {
+                                            throw;
+                                        }
+                                    });
                             } catch(Exception ex)
                             {
                                 return onFailure(ex.Message);
@@ -1140,28 +1440,30 @@ namespace EastFive.Api
                 var streamProvider = new MultipartMemoryStreamProvider();
                 await content.ReadAsMultipartAsync(streamProvider);
                 var contentsLookup = await streamProvider.Contents
-                        .Select(
-                            async file =>
-                            {
-                                var key = file.Headers.ContentDisposition.Name.Trim(new char[] { '"' });
-                                var fileNameMaybe = file.Headers.ContentDisposition.FileName;
-                                if (null != fileNameMaybe)
-                                    fileNameMaybe = fileNameMaybe.Trim(new char[] { '"' });
-                                var contents = await file.ReadAsByteArrayAsync();
-                                if (file.IsDefaultOrNull())
-                                    return key.PairWithValue<string, Func<Type, object>>(
-                                        type => type.IsValueType ? Activator.CreateInstance(type) : null);
+                    .SelectAsyncOptional<HttpContent, KeyValuePair<string, IParseToken>>(
+                        async (file, select, skip) =>
+                        {
+                            if (file.IsDefaultOrNull())
+                                return skip();
 
-                                return key.PairWithValue<string, Func<Type, object>>(
-                                    type => ContentToTypeAsync(type, () => System.Text.Encoding.UTF8.GetString(contents), () => contents, () => new MemoryStreamForFile(contents) { FileName = fileNameMaybe }));
-                            })
-                        .WhenAllAsync()
-                        .ToDictionaryAsync();
+                            var key = file.Headers.ContentDisposition.Name.Trim(new char[] { '"' });
+                            var fileNameMaybe = file.Headers.ContentDisposition.FileName;
+                            if (null != fileNameMaybe)
+                                fileNameMaybe = fileNameMaybe.Trim(new char[] { '"' });
+                            var contents = await file.ReadAsByteArrayAsync();
+
+                            var kvp = key.PairWithValue<string, IParseToken>(
+                                    new MultipartContentTokenParser(contents, fileNameMaybe));
+                            return select(kvp);
+                        })
+                    .ToDictionaryAsync();
                 ParseContentDelegate<TParseResult> parser =
                         async (key, type, onFound, onFailure) =>
                         {
                             if (contentsLookup.ContainsKey(key))
-                                return onFound(contentsLookup[key](type));
+                                return ContentToTypeAsync(type, contentsLookup[key],
+                                    onFound,
+                                    onFailure);
                             return onFailure("Key not found");
                         };
                 return await onParsedContentValues(parser, contentsLookup.SelectKeys().ToArray());
@@ -1173,9 +1475,11 @@ namespace EastFive.Api
                 ParseContentDelegate<TParseResult> parser =
                     async (key, type, onFound, onFailure) =>
                     {
-                        if (optionalFormData.ContainsKey(key))
-                            return onFound(optionalFormData[key](type));
-                        return onFailure("Key not found");
+                        if (!optionalFormData.ContainsKey(key))
+                            return onFailure("Key not found");
+                        return this.Bind(type, optionalFormData[key],
+                            (value) => onFound(value),
+                            (why) => onFailure(why));
                     };
                 return await onParsedContentValues(parser, optionalFormData.SelectKeys().ToArray());
             }
@@ -1190,134 +1494,38 @@ namespace EastFive.Api
             return await InvalidContent($"Could not parse content of type {mediaType}");
         }
 
-        private async Task<KeyValuePair<string, Func<Type, object>>[]> ParseOptionalFormDataAsync(HttpContent content)
+        private async Task<KeyValuePair<string, IParseToken>[]> ParseOptionalFormDataAsync(HttpContent content)
         {
             var formData = await content.ReadAsFormDataAsync();
 
             var parameters = formData.AllKeys
-                .Select(key => key.PairWithValue<string, Func<Type, object>>(
-                    (type) => Bind(type, formData[key],
-                        v => v,
-                        why => { throw new Exception(why); })))
+                .Select(key => key.PairWithValue<string, IParseToken>(
+                    new FormDataTokenParser(formData[key])))
                 .ToArray();
 
             return (parameters);
         }
 
-        private object ContentToTypeAsync(Type type, 
-            Func<string> readString, 
-            Func<byte[]> readBytes,
-            Func<Stream> readStream)
-        {
-            if (type.IsAssignableFrom(typeof(Stream)))
-            {
-                var streamValue = readStream();
-                return (object)streamValue;
-            }
-            if (type.IsAssignableFrom(typeof(byte[])))
-            {
-                var byteArrayValue = readBytes();
-                return (object)byteArrayValue;
-            }
-            var stringValue = readString();
-            return this.Bind(type, stringValue,
-                (value) => value,
-                why => type.GetDefault());
-        }
-
-        public virtual TResult StringContentToType<TResult>(Type type, string content,
+        private TResult ContentToTypeAsync<TResult>(Type type, 
+            IParseToken tokenReader,
             Func<object, TResult> onParsed,
-            Func<string, TResult> notConvertable)
+            Func<string, TResult> onFailure)
         {
-            if (type.IsAssignableFrom(typeof(string)))
-            {
-                var stringValue = content;
-                return onParsed((object)stringValue);
-            }
-            if (type.IsAssignableFrom(typeof(Guid)))
-            {
-                var guidStringValue = content;
-                if (Guid.TryParse(guidStringValue, out Guid guidValue))
-                    return onParsed(guidValue);
-            }
-            if (type.IsAssignableFrom(typeof(DateTime)))
-            {
-                var dateStringValue = content;
-                if (DateTime.TryParse(dateStringValue, out DateTime dateValue))
-                    return onParsed(dateValue);
-            }
-            if (type.IsAssignableFrom(typeof(bool)))
-            {
-                var boolStringValue = content;
-                if (bool.TryParse(boolStringValue, out bool boolValue))
-                    return onParsed(boolValue);
-
-                if ("t" == boolStringValue)
-                    return onParsed(true);
-                if ("f" == boolStringValue)
-                    return onParsed(false);
-
-                return onParsed(false);
-            }
-            if (type.IsAssignableFrom(typeof(Type)))
-            {
-                return this.GetResourceType(content,
-                    (typeInstance) => onParsed(typeInstance),
-                    () => content.GetClrType(
-                        typeInstance => onParsed(typeInstance),
-                        () => notConvertable(
-                            $"`{content}` is not a recognizable resource type or CLR type.")));
-            }
             if (type.IsAssignableFrom(typeof(Stream)))
             {
-                var byteArrayBase64 = content;
-                var byteArrayValue = Convert.FromBase64String(byteArrayBase64);
-                return onParsed(new MemoryStream(byteArrayValue));
+                var streamValue = tokenReader.ReadStream();
+                return onParsed((object)streamValue);
             }
             if (type.IsAssignableFrom(typeof(byte[])))
             {
-                var byteArrayBase64 = content;
-                var byteArrayValue = Convert.FromBase64String(byteArrayBase64);
-                return (onParsed(byteArrayValue));
+                var byteArrayValue = tokenReader.ReadBytes();
+                return onParsed((object)byteArrayValue);
             }
-            if (type.IsAssignableFrom(typeof(Controllers.WebIdAny)))
-            {
-                if (String.Compare(content.ToLower(), "any") == 0)
-                    return onParsed(new Controllers.WebIdAny());
-            }
-            if (type.IsAssignableFrom(typeof(Controllers.WebIdNone)))
-            {
-                if (String.Compare(content.ToLower(), "none") == 0)
-                    return onParsed(new Controllers.WebIdNone());
-                return notConvertable($"`{content}` is not a web ID of none. Please use format `none` to specify no web ID provided.");
-            }
-            if (type.IsAssignableFrom(typeof(Controllers.WebIdNot)))
-            {
-                return content.ToUpper().MatchRegexInvoke("NOT\\((?<notString>[a-zA-Z]+)\\)",
-                    (string notString) => notString,
-                    (string[] notStrings) =>
-                    {
-                        if (!notStrings.Any())
-                            return notConvertable($"`{content}` is not parsable as an exlusion list. Please use format `NOT(ABC123-....-EDF1)`");
-                        var notString = notStrings.First();
-                        if (!Guid.TryParse(notString, out Guid notUUID))
-                            return notConvertable($"`{notString}` is not a UUID. Please use format `NOT(ABC123-....-EDF1)`");
-                        return onParsed(
-                            new Controllers.WebIdNot()
-                            {
-                                notUUID = notUUID,
-                            });
-                    });
-            }
-            if (type.IsAssignableFrom(typeof(Controllers.DateTimeEmpty)))
-            {
-                if (String.Compare(content.ToLower(), "false") == 0)
-                    return onParsed(new Controllers.DateTimeEmpty());
-            }
-
-            return notConvertable($"Cannot convert `{content}` to type {type.FullName}");
+            return (TResult)this.Bind(type, tokenReader,
+                (value) => onParsed(value),
+                why => onFailure(why));
         }
-
+        
         #endregion
     }
 }
