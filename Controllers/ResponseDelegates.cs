@@ -31,7 +31,7 @@ namespace EastFive.Api.Controllers
     public delegate HttpResponseMessage GeneralConflictResponse(string value);
     
     public delegate HttpResponseMessage GeneralFailureResponse(string value);
-
+    
     /// <summary>
     /// When performing a query, the document being queried by does not exist.
     /// </summary>
@@ -47,4 +47,5 @@ namespace EastFive.Api.Controllers
 
     public delegate HttpResponseMessage NotImplementedResponse();
 
+    public delegate Task<HttpResponseMessage> BackgroundResponseAsync(Func<Action<double>, Task<HttpResponseMessage>> callback);
 }

@@ -97,6 +97,11 @@ namespace EastFive.Api.Modules
                 throw new NotImplementedException();
             }
 
+            public T ReadObject<T>()
+            {
+                throw new NotImplementedException();
+            }
+
             public Stream ReadStream()
             {
                 throw new NotImplementedException();
