@@ -36,7 +36,9 @@ namespace EastFive.Api.Controllers
     /// When performing a query, the document being queried by does not exist.
     /// </summary>
     /// <returns></returns>
+    [Obsolete("Please specify the type using the generic version ReferencedDocumentNotFoundResponse<TResource>.")]
     public delegate HttpResponseMessage ReferencedDocumentNotFoundResponse();
+    public delegate HttpResponseMessage ReferencedDocumentNotFoundResponse<TResource>();
 
     /// <summary>
     /// When creating or updating a resource, a referenced to a different resource was not found.
