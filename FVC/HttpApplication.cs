@@ -37,6 +37,7 @@ namespace EastFive.Api
         IParseToken[] ReadArray();
 
         IDictionary<string, IParseToken> ReadDictionary();
+        T ReadObject<T>();
     }
 
     public class HttpApplication : System.Web.HttpApplication
@@ -466,10 +467,20 @@ namespace EastFive.Api
                     (httpApp, request, paramInfo, success) =>
                     {
                         return EastFive.Web.Configuration.Settings.GetString(AppSettings.ApiKey,
-                            (authorizedApiKey) => request.Headers.Authorization.Parameter == authorizedApiKey?
-                                success(new Controllers.ApiSecurity())
-                                :
-                                request.CreateResponse(HttpStatusCode.Unauthorized).ToTask(),
+                            (authorizedApiKey) =>
+                            {
+                                if(request.Headers.IsDefaultOrNull())
+                                    return request.CreateResponse(HttpStatusCode.Unauthorized).ToTask();
+                                if(request.Headers.Authorization.IsDefaultOrNull())
+                                    return request.CreateResponse(HttpStatusCode.Unauthorized).ToTask();
+
+                                if(request.Headers.Authorization.Parameter == authorizedApiKey)
+                                    return success(new Controllers.ApiSecurity());
+                                if(request.Headers.Authorization.Scheme == authorizedApiKey)
+                                    return success(new Controllers.ApiSecurity());
+
+                                return request.CreateResponse(HttpStatusCode.Unauthorized).ToTask();
+                            },
                             (why) => request.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).ToTask());
                     }
                 },
@@ -583,6 +594,27 @@ namespace EastFive.Api
                                 }
                                 var responses = objects.Select(obj => request.CreateResponse(System.Net.HttpStatusCode.OK, obj));
                                 return request.CreateMultipartResponseAsync(responses);
+                            };
+                        return success((object)dele);
+                    }
+                },
+                {
+                    typeof(Controllers.BackgroundResponseAsync),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.BackgroundResponseAsync dele =
+                            async (callback) =>
+                            {
+                                if(request.Headers.Accept.Contains(mediaType => mediaType.MediaType.ToLower().Contains("background")))
+                                {
+                                    var urlHelper = request.GetUrlHelper();
+                                    var processId = Controllers.BackgroundProgressController.CreateProcess(callback, 1.0);
+                                    var response = request.CreateResponse(HttpStatusCode.Accepted);
+                                    response.Headers.Add("Access-Control-Expose-Headers", "x-backgroundprocess");
+                                    response.Headers.Add("x-backgroundprocess", urlHelper.GetLocation<Controllers.BackgroundProgressController>(processId).AbsoluteUri);
+                                    return response;
+                                }
+                                return await callback(v => { }); // TODO: Not this
                             };
                         return success((object)dele);
                     }
@@ -878,9 +910,17 @@ namespace EastFive.Api
                     typeof(WebId),
                     (httpApp, content, onParsed, onNotConvertable) =>
                     {
-                        if(!Guid.TryParse(content.ReadString(), out Guid guidValue))
-                            return onNotConvertable($"Could not convert `{content}` to GUID");
-                        return (object) new WebId() { UUID = guidValue };
+                        try
+                        {
+                            if(!Guid.TryParse(content.ReadString(), out Guid guidValue))
+                                return onNotConvertable($"Could not convert `{content}` to GUID");
+                            var webIdObj = (object) new WebId() { UUID = guidValue };
+                            return onParsed(webIdObj);
+                        } catch (Exception ex)
+                        {
+                            var result = content.ReadObject<WebId>();
+                            return onParsed(result);
+                        }
                     }
                 },
                 {
@@ -1085,6 +1125,157 @@ namespace EastFive.Api
 
         #endregion
 
+        #region Instantiations
+        
+        public delegate Task<object> InstantiationDelegate(HttpApplication httpApp);
+
+        protected Dictionary<Type, InstantiationDelegate> instantiations =
+            new Dictionary<Type, InstantiationDelegate>()
+            {
+                {
+                    typeof(string),
+                    (httpApp) =>
+                    {
+                        return string.Empty.AsTask<object>();
+                    }
+                },
+            };
+
+        public delegate Task<object> InstantiationGenericDelegate(Type type, HttpApplication httpApp);
+
+        protected Dictionary<Type, InstantiationGenericDelegate> instantiationsGeneric =
+            new Dictionary<Type, InstantiationGenericDelegate>()
+            {
+                {
+                    typeof(IRef<>),
+                    (type, httpApp) =>
+                    {
+                        var referredType = type.GenericTypeArguments.First();
+                        var refType = referredType.IsClass?
+                            typeof(EastFive.RefObj<>).MakeGenericType(referredType)
+                            :
+                            typeof(EastFive.Ref<>).MakeGenericType(referredType);
+                        var refInstance = Activator.CreateInstance(refType,
+                            new object [] { referredType.GetDefault().AsTask() });
+                        return refInstance.AsTask();
+                    }
+                },
+            };
+
+        internal bool CanInstantiate(Type type)
+        {
+            if (this.instantiations.ContainsKey(type))
+                return true;
+
+            if (type.IsGenericType)
+            {
+                var possibleGenericInstantiator = this.instantiationsGeneric
+                    .Where(
+                        instigatorKvp =>
+                        {
+                            if (instigatorKvp.Key.GUID == type.GUID)
+                                return true;
+                            if (type.IsAssignableFrom(instigatorKvp.Key))
+                                return true;
+                            return false;
+                        });
+                return possibleGenericInstantiator.Any();
+            }
+
+            return false;
+        }
+
+        public async Task<TResult> InstantiateAsync<TResult>(Type type, IParseToken content,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onDidNotBind)
+        {
+            if (this.instantiations.ContainsKey(type))
+            {
+                var instance = await this.instantiations[type](this);
+                return (TResult)instance;
+            }
+
+            if (type.IsGenericType)
+            {
+                var possibleGenericInstantiator = this.instantiationsGeneric
+                    .Where(
+                        instigatorKvp =>
+                        {
+                            if (instigatorKvp.Key.GUID == type.GUID)
+                                return true;
+                            if (type.IsAssignableFrom(instigatorKvp.Key))
+                                return true;
+                            return false;
+                        });
+                if (possibleGenericInstantiator.Any())
+                {
+                    var resultBound = await possibleGenericInstantiator.First().Value(type, this);
+                    var castResult = (TResult)resultBound;
+                    return castResult;
+                }
+            }
+
+            return onDidNotBind($"No binding for type `{type.FullName}` active in server.");
+        }
+
+        public IEnumerableAsync<T> InstantiateAll<T>()
+        {
+            var type = typeof(T);
+            return this.instantiations
+                .Where(
+                    instigatorKvp =>
+                    {
+                        if (instigatorKvp.Key.GUID == type.GUID)
+                            return true;
+                        if (type.IsAssignableFrom(instigatorKvp.Key))
+                            return true;
+                        return false;
+                    })
+                .Select(
+                    async instantiator =>
+                    {
+                        var resultBound = await instantiator.Value(this);
+                        return (T)resultBound;
+                    })
+                .Concat(
+                    this.instantiationsGeneric
+                    .Where(
+                        instigatorKvp =>
+                        {
+                            if (instigatorKvp.Key.GUID == type.GUID)
+                                return true;
+                            if (type.IsAssignableFrom(instigatorKvp.Key))
+                                return true;
+                            return false;
+                        })
+                    .Select(
+                        async instantiator =>
+                        {
+                            var resultBound = await instantiator.Value(type, this);
+                            return (T)resultBound;
+                        }))
+                .AsyncEnumerable();
+            
+        }
+
+        public void AddOrUpdateInstantiation(Type type, InstantiationDelegate instantiation)
+        {
+            if (instantiations.ContainsKey(type))
+                instantiations[type] = instantiation;
+            else
+                instantiations.Add(type, instantiation);
+        }
+
+        public void AddOrUpdateGenericInstantiation(Type type, InstantiationGenericDelegate instantiation)
+        {
+            if (this.bindingsGeneric.ContainsKey(type))
+                this.instantiationsGeneric[type] = instantiation;
+            else
+                this.instantiationsGeneric.Add(type, instantiation);
+        }
+
+        #endregion
+
         #region Conversions
 
 
@@ -1141,6 +1332,12 @@ namespace EastFive.Api
                     throw new Exception($"BindConvert does not handle token type: {reader.TokenType}");
                 }
 
+                public T ReadObject<T>()
+                {
+                    var token = JToken.Load(reader);
+                    return token.Value<T>();
+                }
+
                 public IParseToken[] ReadArray()
                 {
                     var token = JToken.Load(reader);
@@ -1164,7 +1361,6 @@ namespace EastFive.Api
                 {
                     throw new NotImplementedException();
                 }
-
             }
 
             public BindConvert(HttpApplication httpApplication)
@@ -1218,6 +1414,11 @@ namespace EastFive.Api
                 throw new NotImplementedException();
             }
 
+            public T ReadObject<T>()
+            {
+                throw new NotImplementedException();
+            }
+
             public Stream ReadStream()
             {
                 return new MemoryStreamForFile(contents)
@@ -1252,6 +1453,18 @@ namespace EastFive.Api
             public string ReadString()
             {
                 return valueToken.ToObject<string>();
+            }
+            
+            public T ReadObject<T>()
+            {
+                if(valueToken is JObject)
+                {
+                    var jObj = valueToken as Newtonsoft.Json.Linq.JObject;
+                    var jsonText = jObj.ToString();
+                    var value = JsonConvert.DeserializeObject<T>(jsonText);
+                    return value;
+                }
+                return valueToken.Value<T>();
             }
 
             public IParseToken[] ReadArray()
@@ -1344,6 +1557,11 @@ namespace EastFive.Api
                 throw new NotImplementedException();
             }
 
+            public T ReadObject<T>()
+            {
+                throw new NotImplementedException();
+            }
+
             public Stream ReadStream()
             {
                 throw new NotImplementedException();
@@ -1372,67 +1590,69 @@ namespace EastFive.Api
             if (content.IsJson())
             {
                 var contentString = await content.ReadAsStringAsync();
+                JObject contentJObject;
                 try
                 {
-                    var contentJObject = Newtonsoft.Json.Linq.JObject.Parse(contentString);
-                    ParseContentDelegate<TParseResult> parser =
-                        async (key, type, onFound, onFailure) =>
-                        {
-                            if (key.IsNullOrWhiteSpace() || key == ".")
-                            {
-                                try
-                                {
-                                    var rootObject = Newtonsoft.Json.JsonConvert.DeserializeObject(
-                                        contentString, type, new BindConvert(this));
-                                    return onFound(rootObject);
-                                }
-                                catch (Exception ex)
-                                {
-                                    return onFailure(ex.Message);
-                                }
-                            }
-
-                            if (!contentJObject.TryGetValue(key, out Newtonsoft.Json.Linq.JToken valueToken))
-                                return await onFailure($"Key[{key}] was not found in JSON").AsTask();
-
-                            try
-                            {
-                                return ContentToTypeAsync(type,
-                                        new JsonTokenParser(valueToken),
-                                    obj => onFound(obj),
-                                    (why) =>
-                                    {
-                                        try
-                                        {
-                                            var value = valueToken.ToObject(type);
-                                            return onFound(value);
-                                        }
-                                        catch (Newtonsoft.Json.JsonSerializationException)
-                                        {
-                                            throw;
-                                        }
-                                    });
-                            } catch(Exception ex)
-                            {
-                                return onFailure(ex.Message);
-                            }
-                        };
-                    var keys = contentJObject
-                        .Properties()
-                        .Select(jProperty => jProperty.Name)
-                        .ToArray();
-                    return await onParsedContentValues(parser, keys);
+                    contentJObject = Newtonsoft.Json.Linq.JObject.Parse(contentString);
                 }
                 catch (Exception ex)
                 {
-                    ParseContentDelegate<TParseResult> parser =
+                    ParseContentDelegate<TParseResult> exceptionParser =
                         async (key, type, onFound, onFailure) =>
                         {
                             return onFailure(ex.Message);
                         };
-                    var keys = new string[] { };
-                    return await onParsedContentValues(parser, keys);
+                    var exceptionKeys = new string[] { };
+                    return await onParsedContentValues(exceptionParser, exceptionKeys);
                 }
+                ParseContentDelegate<TParseResult> parser =
+                    async (key, type, onFound, onFailure) =>
+                    {
+                        if (key.IsNullOrWhiteSpace() || key == ".")
+                        {
+                            try
+                            {
+                                var rootObject = Newtonsoft.Json.JsonConvert.DeserializeObject(
+                                    contentString, type, new BindConvert(this));
+                                return onFound(rootObject);
+                            }
+                            catch (Exception ex)
+                            {
+                                return onFailure(ex.Message);
+                            }
+                        }
+
+                        if (!contentJObject.TryGetValue(key, out Newtonsoft.Json.Linq.JToken valueToken))
+                            return await onFailure($"Key[{key}] was not found in JSON").AsTask();
+
+                        try
+                        {
+                            return ContentToTypeAsync(type,
+                                    new JsonTokenParser(valueToken),
+                                obj => onFound(obj),
+                                (why) =>
+                                {
+                                    try
+                                    {
+                                        var value = valueToken.ToObject(type);
+                                        return onFound(value);
+                                    }
+                                    catch (Newtonsoft.Json.JsonSerializationException)
+                                    {
+                                        throw;
+                                    }
+                                });
+                        }
+                        catch (Exception ex)
+                        {
+                            return onFailure(ex.Message);
+                        }
+                    };
+                var keys = contentJObject
+                        .Properties()
+                        .Select(jProperty => jProperty.Name)
+                        .ToArray();
+                return await onParsedContentValues(parser, keys);
             }
 
             if (content.IsMimeMultipartContent())
