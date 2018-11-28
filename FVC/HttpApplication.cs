@@ -755,11 +755,11 @@ namespace EastFive.Api
                     (httpApp, request, paramInfo, success) =>
                     {
                         EastFive.Api.Controllers.ViewRenderer dele =
-                            (viewPath, content) =>
+                            (filePath, content) =>
                             {
                                 try
                                 {
-                                    using(var filestream = System.IO.File.OpenText($"{HttpRuntime.AppDomainAppPath}Views\\{viewPath}"))
+                                    using(var filestream = System.IO.File.OpenText(filePath))
                                     {
                                         var viewContent = filestream.ReadToEnd();
                                         var parsedView =  RazorEngine.Razor.Parse(viewContent, content);
@@ -772,7 +772,7 @@ namespace EastFive.Api
                                     return body;
                                 } catch(Exception ex)
                                 {
-                                    return $"Could not load template {HttpRuntime.AppDomainAppPath}Views\\{viewPath} due to:[{ex.GetType().FullName}] `{ex.Message}`";
+                                    return $"Could not load template {filePath} due to:[{ex.GetType().FullName}] `{ex.Message}`";
                                 }
                             };
                         return success((object)dele);
@@ -1176,10 +1176,15 @@ namespace EastFive.Api
             new Dictionary<Type, InstantiationDelegate>()
             {
                 {
-                    typeof(string),
+                    typeof(EastFive.Api.Controllers.ViewPathResolver),
                     (httpApp) =>
                     {
-                        return string.Empty.AsTask<object>();
+                        EastFive.Api.Controllers.ViewPathResolver dele =
+                            (viewPath) =>
+                            {
+                                return $"{HttpRuntime.AppDomainAppPath}Views\\{viewPath}";
+                            };
+                        return dele.AsTask<object>();
                     }
                 },
             };
