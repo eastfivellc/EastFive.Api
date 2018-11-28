@@ -14,6 +14,7 @@ namespace EastFive.Api.Controllers
     public delegate HttpResponseMessage NoContentResponse();
     public delegate HttpResponseMessage NotModifiedResponse();
     public delegate HttpResponseMessage AcceptedResponse();
+    public delegate HttpResponseMessage AcceptedBodyResponse(object content, string contentType = default(string));
     public delegate HttpResponseMessage CreatedBodyResponse(object content, string contentType = default(string));
     public delegate HttpResponseMessage RedirectResponse(Uri redirectLocation, string reason);
     public delegate Task<HttpResponseMessage> MultipartResponseAsync(IEnumerable<HttpResponseMessage> responses);
