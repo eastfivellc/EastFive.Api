@@ -1240,7 +1240,8 @@ namespace EastFive.Api
             if (this.instantiations.ContainsKey(type))
             {
                 var instance = await this.instantiations[type](this);
-                return (TResult)instance;
+                var castedVal = onParsed(instance);
+                return castedVal;
             }
 
             if (type.IsGenericType)
