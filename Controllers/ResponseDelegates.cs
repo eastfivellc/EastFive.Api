@@ -23,7 +23,8 @@ namespace EastFive.Api.Controllers
 
     public delegate HttpResponseMessage ViewFileResponse(string viewPath, object content);
     public delegate HttpResponseMessage ViewStringResponse(string view, object content);
-    
+    public delegate string ViewRenderer(string view, object content);
+
     public delegate HttpResponseMessage BadRequestResponse();
     public delegate HttpResponseMessage NotFoundResponse();
     public delegate HttpResponseMessage AlreadyExistsResponse();

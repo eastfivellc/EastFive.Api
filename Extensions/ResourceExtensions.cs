@@ -284,7 +284,6 @@ namespace BlackBarLabs.Api
             T1 queryParam1,
             Expression<Func<T1, Task<HttpResponseMessage>>> queryMethodExpression,
             string routeName = "DefaultApi")
-            where T1 : struct
         {
             return ParseMethod(queryParam1, queryMethodExpression,
                 (controllerName, queryParams) => new Uri(url.Link(routeName, queryParams)));
@@ -294,7 +293,6 @@ namespace BlackBarLabs.Api
             T1 queryParam1, T2 queryParam2,
             Expression<Func<T1, T2, Task<HttpResponseMessage>>> queryMethodExpression,
             string routeName = "DefaultApi")
-            where T1 : struct
         {
             return ParseMethod(new object[] { queryParam1, queryParam2 }, queryMethodExpression.Body as MethodCallExpression,
                 (controllerName, queryParams) => new Uri(url.Link(routeName, queryParams)));

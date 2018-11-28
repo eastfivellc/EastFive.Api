@@ -750,6 +750,34 @@ namespace EastFive.Api
                         return success((object)dele);
                     }
                 },
+                {
+                    typeof(EastFive.Api.Controllers.ViewRenderer),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        EastFive.Api.Controllers.ViewRenderer dele =
+                            (viewPath, content) =>
+                            {
+                                try
+                                {
+                                    using(var filestream = System.IO.File.OpenText($"{HttpRuntime.AppDomainAppPath}Views\\{viewPath}"))
+                                    {
+                                        var viewContent = filestream.ReadToEnd();
+                                        var parsedView =  RazorEngine.Razor.Parse(viewContent, content);
+                                        return parsedView;
+                                    }
+                                }
+                                catch(RazorEngine.Templating.TemplateCompilationException ex)
+                                {
+                                    var body = ex.CompilerErrors.Select(error => error.ErrorText).Join(";\n\n");
+                                    return body;
+                                } catch(Exception ex)
+                                {
+                                    return $"Could not load template {HttpRuntime.AppDomainAppPath}Views\\{viewPath} due to:[{ex.GetType().FullName}] `{ex.Message}`";
+                                }
+                            };
+                        return success((object)dele);
+                    }
+                },
             };
 
         public void AddInstigator(Type type, InstigatorDelegate instigator)
@@ -1200,7 +1228,7 @@ namespace EastFive.Api
             return false;
         }
 
-        public async Task<TResult> InstantiateAsync<TResult>(Type type, IParseToken content,
+        public async Task<TResult> InstantiateAsync<TResult>(Type type,
             Func<object, TResult> onParsed,
             Func<string, TResult> onDidNotBind)
         {
