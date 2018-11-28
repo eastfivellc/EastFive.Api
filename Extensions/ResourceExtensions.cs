@@ -289,6 +289,7 @@ namespace BlackBarLabs.Api
                 (controllerName, queryParams) => new Uri(url.Link(routeName, queryParams)));
         }
 
+        [Obsolete("TODO: Migrate test url constructors.")]
         public static Uri GetLocation<T1, T2>(this UrlHelper url,
             T1 queryParam1, T2 queryParam2,
             Expression<Func<T1, T2, Task<HttpResponseMessage>>> queryMethodExpression,

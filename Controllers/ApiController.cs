@@ -16,6 +16,7 @@ using System.Web.Http;
 
 namespace EastFive.Api.Controllers
 {
+    [Obsolete]
     public class ApiController : System.Web.Http.ApiController
     {
         public delegate ApiValidations.ValidationAttribute ParseInputDelegate(object v, ApiController controller);

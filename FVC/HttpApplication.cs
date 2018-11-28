@@ -564,6 +564,19 @@ namespace EastFive.Api
                     }
                 },
                 {
+                    typeof(Controllers.HtmlResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.HtmlResponse dele = (html) =>
+                        {
+                            var response = request.CreateResponse(System.Net.HttpStatusCode.OK, html);
+                            response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/html");
+                            return response;
+                        };
+                        return success((object)dele);
+                    }
+                },
+                {
                     typeof(Controllers.MultipartResponseAsync),
                     (httpApp, request, paramInfo, success) =>
                     {
@@ -1054,6 +1067,21 @@ namespace EastFive.Api
                     }
                 },
                 {
+                    typeof(Nullable<>),
+                    (type, httpApp, content, onBound, onFailedToBind) =>
+                    {
+                        var nullableType = type.GenericTypeArguments.First();
+                        var refInstance = httpApp.Bind(nullableType, content,
+                            (v) =>
+                            {
+                                var nonNullable = v.AsNullable();
+                                return nonNullable;
+                            },
+                            (why) => type.GetDefault());
+                        return refInstance;
+                    }
+                },
+                {
                     typeof(IDictionary<,>),
                     (type, httpApp, content, onBound, onFailedToBind) =>
                     {
@@ -1142,7 +1170,7 @@ namespace EastFive.Api
                             return result;
                         },
                         (why) => onDidNotBind(why));
-                    var castResult = (TResult)resultBound;
+                    var castResult = onParsed(resultBound);
                     return castResult;
                 }
             }
