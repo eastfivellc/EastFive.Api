@@ -685,6 +685,21 @@ namespace EastFive.Api
                     }
                 },
                 {
+                    typeof(Controllers.AcceptedBodyResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.AcceptedBodyResponse dele =
+                            (obj, contentType) =>
+                            {
+                                var response = request.CreateResponse(System.Net.HttpStatusCode.Accepted, obj);
+                                if(!contentType.IsNullOrWhiteSpace())
+                                    response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+                                return response;
+                            };
+                        return success((object)dele);
+                    }
+                },
+                {
                     typeof(EastFive.Api.Controllers.ViewFileResponse),
                     (httpApp, request, paramInfo, success) =>
                     {

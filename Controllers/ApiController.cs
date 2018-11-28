@@ -234,6 +234,21 @@ namespace EastFive.Api.Controllers
                         return success((object)dele);
                     }
                 },
+                {
+                    typeof(AcceptedBodyResponse),
+                    (controller, success) =>
+                    {
+                        AcceptedBodyResponse dele =
+                            (obj, contentType) =>
+                            {
+                                var response = controller.Request.CreateResponse(System.Net.HttpStatusCode.Accepted, obj);
+                                if(!contentType.IsNullOrWhiteSpace())
+                                    response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+                                return response;
+                            };
+                        return success((object)dele);
+                    }
+                },
             };
 
         public static void AddInstigator(Type type, Func<ApiController, Func<object, Task<HttpResponseMessage>>, Task<HttpResponseMessage>> instigator)
