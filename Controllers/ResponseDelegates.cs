@@ -32,12 +32,14 @@ namespace EastFive.Api.Controllers
     public delegate HttpResponseMessage GeneralConflictResponse(string value);
     
     public delegate HttpResponseMessage GeneralFailureResponse(string value);
-
+    
     /// <summary>
     /// When performing a query, the document being queried by does not exist.
     /// </summary>
     /// <returns></returns>
+    [Obsolete("Please specify the type using the generic version ReferencedDocumentNotFoundResponse<TResource>.")]
     public delegate HttpResponseMessage ReferencedDocumentNotFoundResponse();
+    public delegate HttpResponseMessage ReferencedDocumentNotFoundResponse<TResource>();
 
     /// <summary>
     /// When creating or updating a resource, a referenced to a different resource was not found.
@@ -48,4 +50,5 @@ namespace EastFive.Api.Controllers
 
     public delegate HttpResponseMessage NotImplementedResponse();
 
+    public delegate Task<HttpResponseMessage> BackgroundResponseAsync(Func<Action<double>, Task<HttpResponseMessage>> callback);
 }

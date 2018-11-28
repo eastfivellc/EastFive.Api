@@ -1,5 +1,6 @@
 ﻿using EastFive.Api;
 using EastFive.Extensions;
+using Newtonsoft.Json;
 using System;
 using System.Linq;
 using System.Runtime.Serialization;
@@ -26,6 +27,7 @@ namespace BlackBarLabs.Api.Resources
         /// The key is not guarenteed to be globally unique but on modern distributed systems it is often a GUID.
         /// </summary>
         [DataMember(Name = "key")]
+        [JsonProperty(PropertyName = "key")]
         public string Key { get; set; }
 
         /// <summary>
@@ -33,6 +35,7 @@ namespace BlackBarLabs.Api.Resources
         /// information about what type of object this is or where it is located.
         /// </summary>
         [DataMember(Name = "uuid")]
+        [JsonProperty(PropertyName = "uuid")]
         public Guid UUID { get; set; }
 
         /// <summary>
@@ -40,6 +43,7 @@ namespace BlackBarLabs.Api.Resources
         /// object is being identified but does not include information about where it is located.
         /// </summary>
         [DataMember(Name = "urn")]
+        [JsonProperty(PropertyName = "urn")]
         public Uri URN { get; set; }
 
         /// <summary>
@@ -47,6 +51,7 @@ namespace BlackBarLabs.Api.Resources
         /// can be accessed / updated.
         /// </summary>
         [DataMember(Name = "source")]
+        [JsonProperty(PropertyName = "source")]
         public Uri Source { get; set; }
         
         public static implicit operator WebId(Guid value)
