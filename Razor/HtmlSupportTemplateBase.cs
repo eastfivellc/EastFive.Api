@@ -35,7 +35,7 @@ namespace EastFive.Api.Razor
                     return new RazorEngine.Text.RawString(contentUrl.AbsolutePath);
 
                 var baseUri = new Uri(baseUrl);
-                if (Uri.TryCreate(baseUri, htmlText, out Uri contentUrlFromBase))
+                if (Uri.TryCreate(baseUri, htmlText.TrimStart(new char[] { '~' }), out Uri contentUrlFromBase))
                     return new RazorEngine.Text.RawString(contentUrlFromBase.AbsolutePath);
 
                 return new RazorEngine.Text.RawString(htmlText);
