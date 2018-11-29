@@ -32,7 +32,7 @@ namespace EastFive.Api.Razor
                 string content = File.ReadAllText(path);
                 return new LoadedTemplateSource(content, path);
             }
-            string failureContent = $"<html><body>Could not file view with template:{key.Name}</body></html>";
+            string failureContent = $"<html><body>Could not file view with template:{key.Name}  SystemPath:{systemPath}</body></html>";
             return new LoadedTemplateSource(failureContent, template);
         }
 
