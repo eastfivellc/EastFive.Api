@@ -868,8 +868,7 @@ namespace EastFive.Api
             public ITemplateSource Resolve(ITemplateKey key)
             {
                 string template = key.Name;
-                var baseTemplatePath = $"{HttpRuntime.AppDomainAppPath}Views\\{template}";
-                string path = Path.Combine(baseTemplatePath, string.Format("{0}{1}", template, ".html.cshtml"));
+                var path = $"{HttpRuntime.AppDomainAppPath}Views\\{template}";
                 string content = File.ReadAllText(path);
                 return new LoadedTemplateSource(content, path);
             }
