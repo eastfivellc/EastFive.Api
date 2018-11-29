@@ -23,6 +23,7 @@ using EastFive.Web;
 using EastFive.Linq.Async;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using RazorEngine.Templating;
 
 namespace EastFive.Api
 {
@@ -824,12 +825,15 @@ namespace EastFive.Api
                             {
                                 try
                                 {
-                                    using(var filestream = System.IO.File.OpenText(filePath))
-                                    {
-                                        var viewContent = filestream.ReadToEnd();
-                                        var parsedView =  RazorEngine.Razor.Parse(viewContent, content);
-                                        return parsedView;
-                                    }
+                                    
+                                    var parsedView =  RazorEngine.Engine.Razor.RunCompile(filePath, null, content);
+                                    return parsedView;
+                                    //using(var filestream = System.IO.File.OpenText(filePath))
+                                    //{
+                                    //    var viewContent = filestream.ReadToEnd();
+                                    //    var parsedView =  RazorEngine.Razor.Parse(viewContent, content);
+                                    //    return parsedView;
+                                    //}
                                 }
                                 catch(RazorEngine.Templating.TemplateCompilationException ex)
                                 {
@@ -844,6 +848,110 @@ namespace EastFive.Api
                     }
                 },
             };
+
+        #region Razor junk
+
+        public class MyTemplateManager : ITemplateManager
+        {
+            private readonly string baseTemplatePath;
+            public MyTemplateManager(string basePath)
+            {
+                baseTemplatePath = basePath;
+            }
+
+            public ITemplateSource Resolve(ITemplateKey key)
+            {
+                string template = key.Name;
+                string path = Path.Combine(baseTemplatePath, string.Format("{0}{1}", template, ".html.cshtml"));
+                string content = File.ReadAllText(path);
+                return new LoadedTemplateSource(content, path);
+            }
+
+            public ITemplateKey GetKey(string name, ResolveType resolveType, ITemplateKey context)
+            {
+                return new NameOnlyTemplateKey(name, resolveType, context);
+            }
+
+            public void AddDynamic(ITemplateKey key, ITemplateSource source)
+            {
+                throw new NotImplementedException("dynamic templates are not supported!");
+            }
+        }
+
+        public class HtmlSupportTemplateBase<T> : RazorEngine.Templating.TemplateBase<T>
+        {
+            public HtmlSupportTemplateBase()
+            {
+                Html = new RazorHtmlHelper();
+                HttpUtility = new HttpUtilityHelper();
+                Url = new RazorUrlHelper();
+            }
+
+            public RazorHtmlHelper Html { get; set; }
+            public HttpUtilityHelper HttpUtility { get; set; }
+            public RazorUrlHelper Url { get; set; }
+        }
+
+        public class RazorUrlHelper
+        {
+            public RazorEngine.Text.IEncodedString Content(string htmlText)
+            {
+                return new RazorEngine.Text.RawString(htmlText);
+            }
+
+            public string Encode(string value)
+            {
+                return System.Net.WebUtility.HtmlEncode(value);
+            }
+
+            public string Encode(object value)
+            {
+                return "do whatever";
+            }
+        }
+
+        public class HttpUtilityHelper
+        {
+            public RazorEngine.Text.IEncodedString HtmlDecode(string htmlText)
+            {
+                return new RazorEngine.Text.RawString(htmlText);
+            }
+            
+            public string Encode(string value)
+            {
+                return System.Net.WebUtility.HtmlEncode(value);
+            }
+
+            public string Encode(object value)
+            {
+                return "do whatever";
+            }
+        }
+
+        public class RazorHtmlHelper
+        {
+            /// <summary>
+            /// Instructs razor to render a string without applying html encoding.
+            /// </summary>
+            /// <param name="htmlString"></param>
+            /// <returns></returns>
+            public RazorEngine.Text.IEncodedString Raw(RazorEngine.Text.IEncodedString htmlString)
+            {
+                return new RazorEngine.Text.RawString(htmlString.ToEncodedString());
+            }
+
+            public string Encode(string value)
+            {
+                return System.Net.WebUtility.HtmlEncode(value);
+            }
+
+            public string Encode(object value)
+            {
+                return "do whatever";
+            }
+        }
+
+        #endregion
 
         public void AddInstigator(Type type, InstigatorDelegate instigator)
         {
