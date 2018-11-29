@@ -16,11 +16,24 @@ namespace EastFive.Api.Razor
 
         public ITemplateSource Resolve(ITemplateKey key)
         {
-            string template = key.Name;
+            string template = key.Name.TrimStart(new char[] { '\\', '~', '/' });
             var systemPath = System.Web.HttpRuntime.AppDomainAppPath;
-            var path = $"{systemPath}Views\\{template}";
-            string content = File.ReadAllText(path);
-            return new LoadedTemplateSource(content, path);
+            var viewsFile = new FileInfo($"{systemPath}Views\\{template}");
+            if (viewsFile.Exists)
+            {
+                var path = viewsFile.FullName;
+                string content = File.ReadAllText(path);
+                return new LoadedTemplateSource(content, path);
+            }
+            var rootFile = new FileInfo($"{systemPath}\\{template}");
+            if (rootFile.Exists)
+            {
+                var path = rootFile.FullName;
+                string content = File.ReadAllText(path);
+                return new LoadedTemplateSource(content, path);
+            }
+            string failureContent = $"<html><body>Could not file view with template:{key.Name}</body></html>";
+            return new LoadedTemplateSource(failureContent, template);
         }
 
         public ITemplateKey GetKey(string name, ResolveType resolveType, ITemplateKey context)
