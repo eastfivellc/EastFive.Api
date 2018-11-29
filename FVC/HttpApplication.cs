@@ -630,8 +630,7 @@ namespace EastFive.Api
                     {
                         Controllers.HtmlResponse dele = (html) =>
                         {
-                            var response = request.CreateResponse(System.Net.HttpStatusCode.OK, html);
-                            response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/html");
+                            var response = request.CreateHtmlResponse(html);
                             return response;
                         };
                         return success((object)dele);
