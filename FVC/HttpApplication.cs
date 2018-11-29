@@ -196,19 +196,7 @@ namespace EastFive.Api
         public delegate Uri ControllerHandlerDelegate(
                 HttpApplication httpApp, UrlHelper urlHelper, ParameterInfo parameterInfo,
             Func<Type, string, Uri> onSuccess);
-
-        public void AddController(Type type, ControllerHandlerDelegate instigator)
-        {
-            var typeName = type.GetCustomAttribute<EastFive.Api.HttpResourceAttribute,string>(
-                attr => attr.ResourceName.IsNullOrWhiteSpace()?
-                    type.FullName
-                    :
-                    attr.ResourceName,
-                () => type.FullName);
-            urlHandlersByType.Add(type, instigator);
-            urlHandlersByTypeName.Add(typeName, instigator);
-        }
-
+        
         public KeyValuePair<string, KeyValuePair<HttpMethod, MethodInfo[]>[]>[] GetLookups()
         {
             return lookup.Select(kvp => kvp.Key.PairWithValue(kvp.Value.ToArray())).ToArray();
@@ -234,10 +222,74 @@ namespace EastFive.Api
             {
             };
 
+        #region Casts
+        
+        public object CastResourceProperty(object value, Type propertyType)
+        {
+            return this.CastResourceProperty(value, propertyType,
+                (v) => v,
+                () => throw new Exception());
+        }
+
+        public TResult CastResourceProperty<TResult>(object value, Type propertyType,
+            Func<object, TResult> onCasted,
+            Func<TResult> onNotMapped = default(Func<TResult>))
+        {
+            var valueType = value.GetType();
+            if (propertyType.IsAssignableFrom(valueType))
+                return onCasted(value);
+
+            if (propertyType.IsAssignableFrom(typeof(BlackBarLabs.Api.Resources.WebId)))
+            {
+                if (value is Guid)
+                {
+                    var guidValue = (Guid)value;
+                    var webIdValue = (BlackBarLabs.Api.Resources.WebId)guidValue;
+                    return onCasted(webIdValue);
+                }
+            }
+
+            if (propertyType.IsAssignableFrom(typeof(string)))
+            {
+                if (value is Guid)
+                {
+                    var guidValue = (Guid)value;
+                    var stringValue = guidValue.ToString();
+                    return onCasted(stringValue);
+                }
+                if (value is BlackBarLabs.Api.Resources.WebId)
+                {
+                    var webIdValue = value as BlackBarLabs.Api.Resources.WebId;
+                    var guidValue = webIdValue.ToGuid().Value;
+                    var stringValue = guidValue.ToString();
+                    return onCasted(stringValue);
+                }
+                if (value is bool)
+                {
+                    var boolValue = (bool)value;
+                    var stringValue = boolValue.ToString();
+                    return onCasted(stringValue);
+                }
+                if (value is DateTime)
+                {
+                    var dateValue = (DateTime)value;
+                    var stringValue = dateValue.ToString();
+                    return onCasted(stringValue);
+                }
+            }
+
+            if (onNotMapped.IsDefaultOrNull())
+                throw new Exception($"Cannot create {propertyType.FullName} from {value.GetType().FullName}");
+            return onNotMapped();
+        }
+
+
         #endregion
-        
+
+        #endregion
+
         #region Load Controllers
-        
+
         private static IDictionary<string, IDictionary<HttpMethod, MethodInfo[]>> lookup;
         private static IDictionary<Type, string> contentTypeLookup;
         private static IDictionary<string, Type> resourceNameControllerLookup;

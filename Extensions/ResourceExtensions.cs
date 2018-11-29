@@ -15,6 +15,93 @@ using System.Reflection;
 using System.Linq.Expressions;
 using System.Net.Http;
 using EastFive.Collections.Generic;
+using EastFive.Linq.Expressions;
+using Newtonsoft.Json;
+
+namespace EastFive.Api
+{
+    public static class ResourceExtensions
+    {
+        public static void AssignQueryValue<T>(this T param, T value)
+        {
+
+        }
+
+        public static Uri GetLocation<TResource>(this UrlHelper url,
+            Expression<Action<TResource>> param1,
+            EastFive.Api.HttpApplication application,
+            string routeName = "DefaultApi")
+        {
+            return url.GetLocation(
+                new Expression<Action<TResource>>[] { param1 },
+                application,
+                routeName);
+        }
+
+        public static Uri GetLocation<TResource>(this UrlHelper url,
+            Expression<Action<TResource>> param1,
+            Expression<Action<TResource>> param2,
+            EastFive.Api.HttpApplication application,
+            string routeName = "DefaultApi")
+        {
+            return url.GetLocation(
+                new Expression<Action<TResource>>[] { param1, param2 },
+                application,
+                routeName);
+        }
+
+        public static Uri GetLocation<TResource>(this UrlHelper url,
+            Expression<Action<TResource>>[] parameters,
+            EastFive.Api.HttpApplication application,
+            string routeName = "DefaultApi")
+        {
+            var baseUrl = url.GetLocation(typeof(TResource), routeName);
+            var queryParams = parameters
+                .Select(param => param.GetAssignment(
+                    (propInfo, value) =>
+                    propInfo.GetCustomAttribute<JsonPropertyAttribute, string>(
+                        jsonAttr => jsonAttr.PropertyName,
+                        () => propInfo.Name)
+                        .PairWithValue((string)application.CastResourceProperty(value, typeof(String)))))
+                        .ToDictionary();
+
+            var queryUrl = baseUrl.SetQuery(queryParams);
+            return queryUrl;
+        }
+        
+        public static Uri GetLocation(this UrlHelper url, Type controllerType,
+            string routeName = "DefaultApi")
+        {
+            var controllerName =
+                controllerType.Name.TrimEnd("Controller",
+                    (trimmedName) => trimmedName, (originalName) => originalName);
+            var location = url.Link(routeName, new { Controller = controllerName });
+            return new Uri(location);
+        }
+
+        public static Uri GetLocation<TController>(this UrlHelper url,
+            string routeName = "DefaultApi")
+        {
+            if (String.IsNullOrWhiteSpace(routeName))
+            {
+                var routePrefixes = typeof(TController)
+                            .GetCustomAttributes<System.Web.Http.RoutePrefixAttribute>()
+                            .Select(routePrefix => routePrefix.Prefix)
+                            .ToArray();
+                if (routePrefixes.Any())
+                    routeName = routePrefixes[0];
+                else
+                    routeName = "DefaultApi";
+            }
+
+            var controllerName =
+                typeof(TController).Name.TrimEnd("Controller",
+                    (trimmedName) => trimmedName, (originalName) => originalName);
+            var location = url.Link(routeName, new { Controller = controllerName });
+            return new Uri(location);
+        }
+    }
+}
 
 namespace BlackBarLabs.Api
 {
@@ -279,58 +366,7 @@ namespace BlackBarLabs.Api
             }
             return urn;
         }
-
-        public static Uri GetLocation<T1>(this UrlHelper url,
-            T1 queryParam1,
-            Expression<Func<T1, Task<HttpResponseMessage>>> queryMethodExpression,
-            string routeName = "DefaultApi")
-        {
-            return ParseMethod(queryParam1, queryMethodExpression,
-                (controllerName, queryParams) => new Uri(url.Link(routeName, queryParams)));
-        }
-
-        [Obsolete("TODO: Migrate test url constructors.")]
-        public static Uri GetLocation<T1, T2>(this UrlHelper url,
-            T1 queryParam1, T2 queryParam2,
-            Expression<Func<T1, T2, Task<HttpResponseMessage>>> queryMethodExpression,
-            string routeName = "DefaultApi")
-        {
-            return ParseMethod(new object[] { queryParam1, queryParam2 }, queryMethodExpression.Body as MethodCallExpression,
-                (controllerName, queryParams) => new Uri(url.Link(routeName, queryParams)));
-        }
-
-        public static Uri GetLocation(this UrlHelper url, Type controllerType,
-            string routeName = "DefaultApi")
-        {
-            var controllerName =
-                controllerType.Name.TrimEnd("Controller",
-                    (trimmedName) => trimmedName, (originalName) => originalName);
-            var location = url.Link(routeName, new { Controller = controllerName });
-            return new Uri(location);
-        }
-
-        public static Uri GetLocation<TController>(this UrlHelper url,
-            string routeName = "DefaultApi")
-        {
-            if (String.IsNullOrWhiteSpace(routeName))
-            {
-                var routePrefixes = typeof(TController)
-                            .GetCustomAttributes<System.Web.Http.RoutePrefixAttribute>()
-                            .Select(routePrefix => routePrefix.Prefix)
-                            .ToArray();
-                if (routePrefixes.Any())
-                    routeName = routePrefixes[0];
-                else
-                    routeName = "DefaultApi";
-            }
-
-            var controllerName =
-                typeof(TController).Name.TrimEnd("Controller",
-                    (trimmedName) => trimmedName, (originalName) => originalName);
-            var location = url.Link(routeName, new { Controller = controllerName });
-            return new Uri(location);
-        }
-
+        
         public static Uri GetLocation<TController>(this UrlHelper url,
             Guid? idMaybe,
             string routeName = default(string))
