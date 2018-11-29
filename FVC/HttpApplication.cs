@@ -637,6 +637,18 @@ namespace EastFive.Api
                     }
                 },
                 {
+                    typeof(Controllers.XlsxResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.XlsxResponse dele = (xlsxData, filename) =>
+                        {
+                            var response = request.CreateXlsxResponse(xlsxData, filename);
+                            return response;
+                        };
+                        return success((object)dele);
+                    }
+                },
+                {
                     typeof(Controllers.MultipartResponseAsync),
                     (httpApp, request, paramInfo, success) =>
                     {
