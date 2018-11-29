@@ -777,31 +777,21 @@ namespace EastFive.Api
                     (httpApp, request, paramInfo, success) =>
                     {
                         EastFive.Api.Controllers.ViewFileResponse dele =
-                            (viewPath, content) =>
+                            (filePath, content) =>
                             {
                                 try
                                 {
-                                    using(var filestream = System.IO.File.OpenText($"{HttpRuntime.AppDomainAppPath}Views\\{viewPath}"))
-                                    {
-                                        var viewContent = filestream.ReadToEnd();
-                                        var response = request.CreateResponse(HttpStatusCode.OK);
-                                        var parsedView =  RazorEngine.Razor.Parse(viewContent, content);
-                                        response.Content = new StringContent(parsedView);
-                                        response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/html");
-                                        return response;
-                                    }
+                                    var parsedView =  RazorEngine.Engine.Razor.RunCompile(filePath, null, content);
+                                    return request.CreateHtmlResponse(parsedView);
                                 }
                                 catch(RazorEngine.Templating.TemplateCompilationException ex)
                                 {
                                     var body = ex.CompilerErrors.Select(error => error.ErrorText).Join(";\n\n");
-
-                                    var response = request.CreateResponse(HttpStatusCode.InternalServerError, body)
-                                        .AddReason($"Error loading template:[{ex.Message}] `{ex.SourceCode}`");
-                                    return response;
+                                    return request.CreateHtmlResponse(body);
                                 } catch(Exception ex)
                                 {
-                                    var response = request.CreateResponse(HttpStatusCode.InternalServerError).AddReason($"Could not load template {HttpRuntime.AppDomainAppPath}Views\\{viewPath} due to:[{ex.GetType().FullName}] `{ex.Message}`");
-                                    return response;
+                                    var body = $"Could not load template {filePath} due to:[{ex.GetType().FullName}] `{ex.Message}`";
+                                    return request.CreateHtmlResponse(body);
                                 }
                             };
                         return success((object)dele);
@@ -832,15 +822,8 @@ namespace EastFive.Api
                             {
                                 try
                                 {
-                                    
                                     var parsedView =  RazorEngine.Engine.Razor.RunCompile(filePath, null, content);
                                     return parsedView;
-                                    //using(var filestream = System.IO.File.OpenText(filePath))
-                                    //{
-                                    //    var viewContent = filestream.ReadToEnd();
-                                    //    var parsedView =  RazorEngine.Razor.Parse(viewContent, content);
-                                    //    return parsedView;
-                                    //}
                                 }
                                 catch(RazorEngine.Templating.TemplateCompilationException ex)
                                 {

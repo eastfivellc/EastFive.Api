@@ -38,5 +38,12 @@ namespace EastFive.Api
             DeploymentSecurityConcern = true,
             Location = "This value is created from secure rand entropy")]
         public const string ApiKey = "EastFive.Api.ApiSecurityKey";
+
+
+        [ConfigKey("URL of the server.",
+            DeploymentOverrides.Optional,
+            DeploymentSecurityConcern = false,
+            Location = "This is the server's server location, i.e. `http://example.com/mysite/`")]
+        public const string SiteUrl = "EastFive.Api.SiteUrl";
     }
 }

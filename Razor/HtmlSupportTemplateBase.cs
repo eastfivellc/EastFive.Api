@@ -21,8 +21,23 @@ namespace EastFive.Api.Razor
         
         public class RazorUrlHelper
         {
+            private string baseUrl;
+            public RazorUrlHelper()
+            {
+                baseUrl = EastFive.Web.Configuration.Settings.GetString(EastFive.Api.AppSettings.SiteUrl,
+                    (url) => url,
+                    (why) => "https://example.com/");
+            }
+
             public RazorEngine.Text.IEncodedString Content(string htmlText)
             {
+                if (Uri.TryCreate(htmlText, UriKind.Absolute, out Uri contentUrl))
+                    return new RazorEngine.Text.RawString(contentUrl.AbsolutePath);
+
+                var baseUri = new Uri(baseUrl);
+                if (Uri.TryCreate(baseUri, htmlText, out Uri contentUrlFromBase))
+                    return new RazorEngine.Text.RawString(contentUrlFromBase.AbsolutePath);
+
                 return new RazorEngine.Text.RawString(htmlText);
             }
 
