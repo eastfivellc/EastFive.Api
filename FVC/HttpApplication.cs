@@ -59,6 +59,14 @@ namespace EastFive.Api
             ApplicationStart();
             GlobalConfiguration.Configure(this.Configure);
             Registration();
+
+            var templateManager = new MyTemplateManager();
+            var config = new RazorEngine.Configuration.TemplateServiceConfiguration
+            {
+                TemplateManager = templateManager,
+                BaseTemplateType = typeof(HttpApplication.HtmlSupportTemplateBase<>)
+            };
+            RazorEngine.Engine.Razor = RazorEngine.Templating.RazorEngineService.Create(config);
         }
 
         public virtual void ApplicationStart()
@@ -853,15 +861,14 @@ namespace EastFive.Api
 
         public class MyTemplateManager : ITemplateManager
         {
-            private readonly string baseTemplatePath;
-            public MyTemplateManager(string basePath)
+            public MyTemplateManager()
             {
-                baseTemplatePath = basePath;
             }
 
             public ITemplateSource Resolve(ITemplateKey key)
             {
                 string template = key.Name;
+                var baseTemplatePath = $"{HttpRuntime.AppDomainAppPath}Views\\{template}";
                 string path = Path.Combine(baseTemplatePath, string.Format("{0}{1}", template, ".html.cshtml"));
                 string content = File.ReadAllText(path);
                 return new LoadedTemplateSource(content, path);
