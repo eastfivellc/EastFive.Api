@@ -530,7 +530,11 @@ namespace EastFive.Api
                         return EastFive.Web.Configuration.Settings.GetString(AppSettings.ApiKey,
                             (authorizedApiKey) =>
                             {
-                                if(request.Headers.IsDefaultOrNull())
+                                var queryParams = request.RequestUri.ParseQueryString();
+                                if (queryParams["ApiKeySecurity"] == authorizedApiKey)
+                                    return success(new Controllers.ApiSecurity());
+
+                                if (request.Headers.IsDefaultOrNull())
                                     return request.CreateResponse(HttpStatusCode.Unauthorized).ToTask();
                                 if(request.Headers.Authorization.IsDefaultOrNull())
                                     return request.CreateResponse(HttpStatusCode.Unauthorized).ToTask();
@@ -1470,7 +1474,10 @@ namespace EastFive.Api
                 public T ReadObject<T>()
                 {
                     var token = JToken.Load(reader);
-                    return token.Value<T>();
+                    if (token is JValue)
+                        return token.Value<T>();
+
+                    return token.ToObject<T>();
                 }
 
                 public IParseToken[] ReadArray()
