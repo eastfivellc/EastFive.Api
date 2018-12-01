@@ -437,7 +437,9 @@ namespace EastFive.Api
         #endregion
 
         #region Instigators
-        
+
+        #region Instigators - GENERIC
+
         public delegate Task<HttpResponseMessage> InstigatorDelegateGeneric(
                 Type type, HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess);
@@ -505,6 +507,8 @@ namespace EastFive.Api
                 return await request.CreateMultipartResponseAsync(responses);
             }
         }
+
+        #endregion
 
         public delegate Task<HttpResponseMessage> InstigatorDelegate(
                 HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
