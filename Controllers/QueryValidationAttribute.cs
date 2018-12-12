@@ -164,7 +164,8 @@ namespace EastFive.Api
                             () => type);
 
                         if (type.IsDefaultOrNull())
-                            return SelectParameterResult.Failure($"Cannot determine property type for method: {method.DeclaringType.FullName}.{method.Name}().", name, parameterRequiringValidation).ToTask();
+                            type = method.DeclaringType;
+                            // return SelectParameterResult.Failure($"Cannot determine property type for method: {.FullName}.{method.Name}().", name, parameterRequiringValidation).ToTask();
                     }
                     return type
                         .GetProperties()

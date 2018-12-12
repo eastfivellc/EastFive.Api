@@ -579,6 +579,14 @@ namespace EastFive.Api
                     }
                 },
                 {
+                    typeof(Controllers.ServiceUnavailableResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.ServiceUnavailableResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.ServiceUnavailable);
+                        return success((object)dele);
+                    }
+                },
+                {
                     typeof(Controllers.BadRequestResponse),
                     (httpApp, request, paramInfo, success) =>
                     {
@@ -751,6 +759,14 @@ namespace EastFive.Api
                     (httpApp, request, paramInfo, success) =>
                     {
                         Controllers.NotModifiedResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.NotModified);
+                        return success((object)dele);
+                    }
+                },
+                {
+                    typeof(Controllers.NotImplementedResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.NotImplementedResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.NotImplemented);
                         return success((object)dele);
                     }
                 },
