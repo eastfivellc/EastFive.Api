@@ -25,7 +25,7 @@ namespace EastFive.Api
             }
         }
 
-        private bool matchAllBodyParameters = true;
+        private bool matchAllBodyParameters = false;
         public bool MatchAllBodyParameters
         {
             get

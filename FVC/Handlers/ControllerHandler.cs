@@ -19,6 +19,7 @@ using BlackBarLabs.Api;
 using BlackBarLabs;
 using System.Threading;
 using System.IO;
+using EastFive.Linq.Async;
 
 namespace EastFive.Api.Modules
 {
@@ -175,7 +176,11 @@ namespace EastFive.Api.Modules
                         (queryKey, type, onParsed, onFailure) =>
                         {
                             return bodyParser(queryKey, type,
-                                value => onParsed(value),
+                                value =>
+                                {
+                                    var parsedResult = onParsed(value);
+                                    return parsedResult;
+                                },
                                 (why) => onFailure(why));
                         };
                     return await GetResponseAsync(methods,
@@ -183,14 +188,8 @@ namespace EastFive.Api.Modules
                         bodyCastDelegate,
                         fileNameCastDelegate,
                         httpApp, request,
-                        (method, paramResults,
-                            onNoExtraParameters,
-                            onExtraParameters) => HasExtraParameters(method,
-                                queryParameters.SelectKeys(),
-                                bodyValues,
-                                paramResults,
-                                onNoExtraParameters,
-                                onExtraParameters));
+                        queryParameters.SelectKeys(),
+                        bodyValues);
                 });
             
         }
@@ -321,20 +320,82 @@ namespace EastFive.Api.Modules
 
         #endregion
 
+        private struct MethodCast
+        {
+            public bool valid;
+            public string[] extraBodyParams;
+            public string[] extraQueryParams;
+            public SelectParameterResult[] failedValidations;
+            public MethodInfo method;
+            internal KeyValuePair<ParameterInfo, object>[] parametersWithValues;
+
+            public string ErrorMessage
+            {
+                get
+                {
+                    var failedValidationErrorMessages = failedValidations
+                        .Select(
+                            paramResult =>
+                            {
+                                var validator = paramResult.parameterInfo.GetCustomAttribute<QueryValidationAttribute>();
+                                var lookupName = validator.Name.IsNullOrWhiteSpace() ?
+                                    paramResult.parameterInfo.Name.ToLower()
+                                    :
+                                    validator.Name.ToLower();
+                                var location = paramResult.fromQuery ?
+                                    "Query"
+                                    :
+                                    paramResult.fromBody ?
+                                        "BODY"
+                                        :
+                                        string.Empty;
+                                return $"{lookupName}({location}):{paramResult.failure}";
+                            })
+                        .ToArray();
+                    
+                    var contentFailedValidations = failedValidationErrorMessages.Any() ?
+                        $"Please correct the values for [{failedValidationErrorMessages.Join(",")}]"
+                        :
+                        "";
+
+                    var extraParamMessages = extraQueryParams
+                        .NullToEmpty()
+                        .Select(extraQueryParam => $"{extraQueryParam}(QUERY)")
+                        .Concat(
+                            extraBodyParams
+                                .NullToEmpty()
+                                .Select(extraBodyParam => $"{extraBodyParam}(BODY)"));
+                    var contentExtraParams = extraParamMessages.Any() ?
+                        $"emove parameters [{extraParamMessages.Join(",")}]."
+                        :
+                        "";
+
+                    if(contentFailedValidations.IsNullOrWhiteSpace())
+                    {
+                        if (contentExtraParams.IsNullOrWhiteSpace())
+                            return "Query validation failure";
+
+                        return $"R{contentExtraParams}";
+                    }
+
+                    if (contentExtraParams.IsNullOrWhiteSpace())
+                        return contentFailedValidations;
+
+                    return $"{contentFailedValidations} and r{contentExtraParams}";
+                }
+            }
+        }
+
         private static async Task<HttpResponseMessage> GetResponseAsync(MethodInfo[] methods,
             CastDelegate<SelectParameterResult> fetchQueryParam,
             CastDelegate<SelectParameterResult> fetchBodyParam,
             CastDelegate<SelectParameterResult> fetchNameParam,
             HttpApplication httpApp, HttpRequestMessage request,
-            Func<
-                MethodInfo, SelectParameterResult[],
-                Func<Task<HttpResponseMessage>>,
-                Func<string [], Task<HttpResponseMessage>>,
-                Task<HttpResponseMessage>> hasExtraParameters)
+            IEnumerable<string> queryKeys, IEnumerable<string> bodyKeys)
         {
-            var response = await methods
-                .SelectPartition(
-                    async (method, removeParams, addParams) =>
+            var methodsForConsideration = methods
+                .Select(
+                    async (method) =>
                     {
                         var parametersCastResults = await method
                             .GetParameters()
@@ -352,56 +413,82 @@ namespace EastFive.Api.Modules
                                 })
                             .WhenAllAsync();
 
-                        var parametersRequiringValidationThatDidNotValidate = parametersCastResults.Where(pcr => !pcr.valid);
-                        if (parametersRequiringValidationThatDidNotValidate.Any())
-                            return await addParams(
-                                parametersRequiringValidationThatDidNotValidate
-                                    .Select(prv => prv.parameterInfo.PairWithValue(prv.failure))
-                                    .ToArray());
-
-                        return await hasExtraParameters(method, parametersCastResults,
+                        var failedValidations = parametersCastResults
+                            .Where(pcr => !pcr.valid)
+                            .ToArray();
+                        return HasExtraParameters(method,
+                                queryKeys,
+                                bodyKeys,
+                                parametersCastResults,
                             () =>
                             {
+                                if (failedValidations.Any())
+                                {
+                                    return new MethodCast
+                                    {
+                                        valid = false,
+                                        failedValidations = failedValidations,
+                                        method = method,
+                                    };
+                                }
                                 var parametersWithValues = parametersCastResults
                                     .Select(parametersCastResult =>
                                         parametersCastResult.parameterInfo.PairWithValue(parametersCastResult.value))
                                     .ToArray();
-                                return InvokeValidatedMethod(httpApp, request, method, parametersWithValues,
-                                    (missingParams) => addParams(missingParams.Select(param => param.PairWithValue("Missing")).ToArray()));
-                            },
-                            (extraParams) => removeParams(extraParams));
-                    },
-                    (string[][] removeParams, KeyValuePair<ParameterInfo, string>[][] addParams) =>
-                    {
-                        var addParamsNamed = addParams
-                            .Select(
-                                addParamKvps =>
+                                return new MethodCast
                                 {
-                                    return addParamKvps
-                                        .Select(
-                                            addParamKvp =>
-                                            {
-                                                var validator = addParamKvp.Key.GetCustomAttribute<QueryValidationAttribute>();
-                                                var lookupName = validator.Name.IsNullOrWhiteSpace() ?
-                                                    addParamKvp.Key.Name.ToLower()
-                                                    :
-                                                    validator.Name.ToLower();
-                                                return lookupName.PairWithValue(addParamKvp.Value);
-                                            })
-                                        .ToArray();
-                                })
-                            .ToArray();
-
-                        var content =
-                            (addParamsNamed.Any() ? $"Please correct the value for [{addParamsNamed.Select(uvs => uvs.Select(uv => $"{uv.Key} ({uv.Value})").Join(",")).Join(" or ")}]." : "")
-                            +
-                            (removeParams.Any() ? $"Remove query parameters [{  removeParams.Select(uvs => uvs.Select(uv => uv).Join(",")).Join(" or ")}]." : "");
-                        return request
-                            .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
-                            .AddReason(content)
-                            .ToTask();
+                                    valid = false,
+                                    method = method,
+                                    parametersWithValues = parametersWithValues,
+                                };
+                            },
+                            (extraParams) =>
+                            {
+                                return new MethodCast
+                                {
+                                    valid = true,
+                                    failedValidations = failedValidations,
+                                    method = method,
+                                    extraBodyParams = extraParams,
+                                };
+                            });
+                    })
+                .AsyncEnumerable();
+            return await await methodsForConsideration
+                .Where(methodCast => !methodCast.parametersWithValues.IsDefaultOrNull())
+                .FirstAsync(
+                    (methodCast) =>
+                    {
+                        return InvokeValidatedMethod(httpApp, request, methodCast.method, methodCast.parametersWithValues,
+                            (failedParameters) =>
+                            {
+                                methodCast.failedValidations = failedParameters;
+                                var methodCasts = methodsForConsideration
+                                    .Where(mc => mc.parametersWithValues.IsDefaultOrNull())
+                                    .Append(methodCast);
+                                return Issues(methodCasts);
+                            });
+                    },
+                    () =>
+                    {
+                        return Issues(methodsForConsideration);
                     });
-            return response;
+
+            async Task<HttpResponseMessage> Issues(IEnumerableAsync<MethodCast> methodsCasts)
+            {
+                var reasonStrings = await methodsCasts
+                    .Select(
+                        methodCast =>
+                        {
+                            var errorMessage = methodCast.ErrorMessage;
+                            return errorMessage;
+                        })
+                    .ToArrayAsync();
+                var content = reasonStrings.Join(";");
+                return request
+                    .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
+                    .AddReason(content);
+            }
         }
 
         private static TResult HasExtraParameters<TResult>(MethodInfo method,
@@ -415,8 +502,7 @@ namespace EastFive.Api.Modules
                 {
                     if (!verbAttr.MatchAllParameters)
                         return noExtraParameters();
-
-
+                    
                     if (verbAttr.MatchAllQueryParameters)
                     {
                         var matchParamQueryLookup = matchedParameters
@@ -448,7 +534,7 @@ namespace EastFive.Api.Modules
 
         private static Task<HttpResponseMessage> InvokeValidatedMethod(HttpApplication httpApp, HttpRequestMessage request, MethodInfo method, 
             KeyValuePair<ParameterInfo, object>[] queryParameters,
-            Func<ParameterInfo[], Task<HttpResponseMessage>> onMissingParameters)
+            Func<SelectParameterResult[], Task<HttpResponseMessage>> onMissingParameters)
         {
             var queryParameterOptions = queryParameters.ToDictionary(kvp => kvp.Key.Name, kvp => kvp.Value);
             return method.GetParameters()

@@ -137,6 +137,17 @@ namespace EastFive.Api
             CastDelegate<SelectParameterResult> fetchBodyParam,
             CastDelegate<SelectParameterResult> fetchDefaultParam)
         {
+            // TODO: Use more sophisticated method for determining POST resource type (since this can be modified in attributes
+            if (method.DeclaringType != parameterRequiringValidation.ParameterType)
+                return (new SelectParameterResult
+                {
+                    fromBody = true,
+                    key = "",
+                    fromQuery = false,
+                    parameterInfo = parameterRequiringValidation,
+                    valid = false,
+                    failure = $"Inform server developer!!! `{method.DeclaringType.FullName}..{method.Name}: {this.GetType().Name}` attributes a parameter of type `{parameterRequiringValidation.ParameterType.FullName}` on a resource of type `{method.DeclaringType.FullName}`.",
+                }).AsTask();
             return fetchBodyParam(string.Empty, parameterRequiringValidation.ParameterType,
                 (value) => new SelectParameterResult(value, string.Empty, parameterRequiringValidation),
                 (why) => SelectParameterResult.Failure(why, string.Empty, parameterRequiringValidation));
@@ -173,16 +184,19 @@ namespace EastFive.Api
                         .First(
                             async (prop, next) =>
                             {
-                                var propertyName = prop.GetCustomAttribute<Newtonsoft.Json.JsonPropertyAttribute, string>(
+                                var memberName = prop.GetCustomAttribute<Newtonsoft.Json.JsonPropertyAttribute, string>(
                                     attr => attr.PropertyName,
                                     () => prop.Name);
 
-                                if (propertyName != name)
+                                if (memberName != name)
                                     return await next();
-                                var obj = await fetchBodyParam(propertyName, prop.GetPropertyOrFieldType(),
-                                    v => Convert(httpApp, parameterRequiringValidation.ParameterType, v,
-                                        (vCasted) => SelectParameterResult.Body(vCasted, name, parameterRequiringValidation),
-                                        (why) => SelectParameterResult.Failure($"Property {name}:{why}", name, parameterRequiringValidation)),
+                                var memberType = prop.GetPropertyOrFieldType();
+                                var obj = await fetchBodyParam(memberName, memberType,
+                                    //v => Convert(httpApp, parameterRequiringValidation.ParameterType, v,
+                                    //    (vCasted) => SelectParameterResult.Body(vCasted, name, parameterRequiringValidation),
+                                    //    (why) => SelectParameterResult.Failure($"Property {name}:{why}", name, parameterRequiringValidation)),
+                                    vCasted => SelectParameterResult.Body(vCasted, name, parameterRequiringValidation),
+
                                     why => SelectParameterResult.Failure(why, name, parameterRequiringValidation));
                                 return obj;
                             },

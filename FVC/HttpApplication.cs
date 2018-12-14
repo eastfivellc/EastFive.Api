@@ -1244,7 +1244,8 @@ namespace EastFive.Api
                         });
                 if (possibleGenericInstigator.Any())
                 {
-                    var resultBound = possibleGenericInstigator.First().Value(type,
+                    var genericInstigator = possibleGenericInstigator.First().Value;
+                    var resultBound = genericInstigator(type,
                             this, content,
                         (v) =>
                         {
@@ -1252,7 +1253,7 @@ namespace EastFive.Api
                             return result;
                         },
                         (why) => onDidNotBind(why));
-                    var castResult = onParsed(resultBound);
+                    var castResult = (TResult)resultBound;
                     return castResult;
                 }
             }
@@ -1394,7 +1395,7 @@ namespace EastFive.Api
                     async instantiator =>
                     {
                         var resultBound = await instantiator.Value(this);
-                        return (T)resultBound;
+                        return resultBound;
                     })
                 .Concat(
                     this.instantiationsGeneric
@@ -1411,10 +1412,15 @@ namespace EastFive.Api
                         async instantiator =>
                         {
                             var resultBound = await instantiator.Value(type, this);
-                            return (T)resultBound;
+                            return resultBound;
                         }))
-                .AsyncEnumerable();
-            
+                .AsyncEnumerable()
+                .Where(v => v is T)
+                .Select(
+                    instantiationResult =>
+                    {
+                        return (T)instantiationResult;
+                    });
         }
 
         public void AddOrUpdateInstantiation(Type type, InstantiationDelegate instantiation)
@@ -1789,8 +1795,8 @@ namespace EastFive.Api
 
                         try
                         {
-                            return ContentToTypeAsync(type,
-                                    new JsonTokenParser(valueToken),
+                            var tokenParser = new JsonTokenParser(valueToken);
+                            return ContentToTypeAsync(type, tokenParser,
                                 obj => onFound(obj),
                                 (why) =>
                                 {
@@ -1903,8 +1909,11 @@ namespace EastFive.Api
                 var byteArrayValue = tokenReader.ReadBytes();
                 return onParsed((object)byteArrayValue);
             }
-            return (TResult)this.Bind(type, tokenReader,
-                (value) => onParsed(value),
+            return this.Bind(type, tokenReader,
+                (value) =>
+                {
+                    return onParsed(value);
+                },
                 why => onFailure(why));
         }
         

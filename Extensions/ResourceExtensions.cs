@@ -27,6 +27,11 @@ namespace EastFive.Api
 
         }
 
+        public static void AssignNameQueryParameterValue<T>(this string param, T value)
+        {
+
+        }
+
         public static Uri GetLocation<TResource>(this UrlHelper url,
             Expression<Action<TResource>> param1,
             EastFive.Api.HttpApplication application,
