@@ -35,9 +35,10 @@ namespace EastFive.Api.Controllers
     public delegate HttpResponseMessage AlreadyExistsReferencedResponse(Guid value);
     public delegate HttpResponseMessage ForbiddenResponse();
     public delegate HttpResponseMessage GeneralConflictResponse(string value);
-    
+
     public delegate HttpResponseMessage GeneralFailureResponse(string value);
-    
+    public delegate HttpResponseMessage ServiceUnavailableResponse();
+
     /// <summary>
     /// When performing a query, the document being queried by does not exist.
     /// </summary>
