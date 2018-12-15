@@ -62,18 +62,41 @@ namespace EastFive.Api
         {
             var baseUrl = url.GetLocation(typeof(TResource), routeName);
             var queryParams = parameters
-                .Select(param => param.GetAssignment(
-                    (propInfo, value) =>
-                    propInfo.GetCustomAttribute<JsonPropertyAttribute, string>(
-                        jsonAttr => jsonAttr.PropertyName,
-                        () => propInfo.Name)
+                .Select(param => param.GetUrlAssignment(
+                    (queryParamName, value) => queryParamName
                         .PairWithValue((string)application.CastResourceProperty(value, typeof(String)))))
-                        .ToDictionary();
+                .ToDictionary();
 
             var queryUrl = baseUrl.SetQuery(queryParams);
             return queryUrl;
         }
         
+        public static TResult GetUrlAssignment<TObject, TResult>(this Expression<Action<TObject>> expression,
+            Func<string, object, TResult> onAssignmentResolved,
+            Func<string, TResult> onFailure = default(Func<string, TResult>))
+        {
+            var body = expression.Body;
+            var methodCall = body as MethodCallExpression;
+
+            var valueBeingAssigned = methodCall.Arguments[0];
+            if (valueBeingAssigned is MemberExpression)
+            {
+                var memberInfo = (valueBeingAssigned as MemberExpression).Member;
+                var valueResolved = methodCall.Arguments[1].Resolve();
+
+                var memberName = memberInfo.GetCustomAttribute<JsonPropertyAttribute, string>(
+                    jsonAttr => jsonAttr.PropertyName,
+                    () => memberInfo.Name);
+                return onAssignmentResolved(memberName, valueResolved);
+            }
+
+            {
+                var valueBeingAssignedName = methodCall.Arguments[0].Resolve();
+                var valueResolved = methodCall.Arguments[1].Resolve();
+                return onAssignmentResolved(valueBeingAssignedName as string, valueResolved);
+            }
+        }
+
         public static Uri GetLocation(this UrlHelper url, Type controllerType,
             string routeName = "DefaultApi")
         {

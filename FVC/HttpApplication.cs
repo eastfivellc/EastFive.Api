@@ -258,12 +258,34 @@ namespace EastFive.Api
                 }
             }
 
+            if (typeof(IReferenceable).IsAssignableFrom(propertyType))
+            {
+                if (value is IReferenceable)
+                {
+                    var refValue = value as IReferenceable;
+                    var guidIdValue = refValue.id;
+                    return onCasted(guidIdValue);
+                }
+                if (value is Guid)
+                {
+                    var guidIdValue = (Guid)value;
+                    return onCasted(guidIdValue);
+                }
+            }
+
             if (propertyType.IsAssignableFrom(typeof(string)))
             {
                 if (value is Guid)
                 {
                     var guidValue = (Guid)value;
                     var stringValue = guidValue.ToString();
+                    return onCasted(stringValue);
+                }
+                if (value is IReferenceable)
+                {
+                    var refValue = value as IReferenceable;
+                    var guidIdValue = refValue.id;
+                    var stringValue = guidIdValue.ToString();
                     return onCasted(stringValue);
                 }
                 if (value is BlackBarLabs.Api.Resources.WebId)
@@ -457,6 +479,15 @@ namespace EastFive.Api
                     }
                 },
                 {
+                    typeof(Controllers.ReferencedDocumentNotFoundResponse<>),
+                    (type, httpApp, request, paramInfo, success) =>
+                    {
+                        var refDocMethodInfo = typeof(HttpApplication).GetMethod("ReferencedDocumentNotFound", BindingFlags.Public | BindingFlags.Static);
+                        var dele = Delegate.CreateDelegate(type, request, refDocMethodInfo);
+                        return success((object)dele);
+                    }
+                },
+                {
                     typeof(Controllers.MultipartResponseAsync<>),
                     (type, httpApp, request, paramInfo, success) =>
                     {
@@ -474,6 +505,13 @@ namespace EastFive.Api
             return request
                 .CreateResponse(System.Net.HttpStatusCode.BadRequest)
                 .AddReason("The query parameter did not reference an existing document.");
+        }
+
+        public static HttpResponseMessage ReferencedDocumentNotFound(HttpRequestMessage request)
+        {
+            return request
+                .CreateResponse(System.Net.HttpStatusCode.NotFound)
+                .AddReason("The document referrenced by the parameter was not found.");
         }
 
         private class GenericInstigatorScoping
