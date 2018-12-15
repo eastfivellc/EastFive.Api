@@ -1198,7 +1198,7 @@ namespace EastFive.Api
                                 return nonNullable;
                             },
                             (why) => type.GetDefault());
-                        return refInstance;
+                        return onBound(refInstance);
                     }
                 },
                 {
@@ -1290,7 +1290,10 @@ namespace EastFive.Api
                             var result = onParsed(v);
                             return result;
                         },
-                        (why) => onDidNotBind(why));
+                        (why) =>
+                        {
+                            return onDidNotBind(why);
+                        });
                     var castResult = (TResult)resultBound;
                     return castResult;
                 }
