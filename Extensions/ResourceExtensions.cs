@@ -62,8 +62,8 @@ namespace EastFive.Api
                     propInfo.GetCustomAttribute<JsonPropertyAttribute, string>(
                         jsonAttr => jsonAttr.PropertyName,
                         () => propInfo.Name)
-                        .PairWithValue((string)application.CastResourceProperty(value, typeof(String)))))
-                        .ToDictionary();
+                .PairWithValue((string)application.CastResourceProperty(value, typeof(String)))))
+                .ToDictionary();
 
             var queryUrl = baseUrl.SetQuery(queryParams);
             return queryUrl;
