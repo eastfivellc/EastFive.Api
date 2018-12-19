@@ -625,6 +625,17 @@ namespace EastFive.Api
                     }
                 },
                 {
+                    typeof(Controllers.ConfigurationFailureResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.ConfigurationFailureResponse dele = 
+                            (configurationValue, message) => request
+                                .CreateResponse(System.Net.HttpStatusCode.ServiceUnavailable)
+                                .AddReason($"`{configurationValue}` not specifiedin config:{message}");
+                        return success((object)dele);
+                    }
+                },
+                {
                     typeof(Controllers.BadRequestResponse),
                     (httpApp, request, paramInfo, success) =>
                     {

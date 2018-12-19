@@ -38,6 +38,7 @@ namespace EastFive.Api.Controllers
 
     public delegate HttpResponseMessage GeneralFailureResponse(string value);
     public delegate HttpResponseMessage ServiceUnavailableResponse();
+    public delegate HttpResponseMessage ConfigurationFailureResponse(string configurationValue, string message);
 
     /// <summary>
     /// When performing a query, the document being queried by does not exist.
