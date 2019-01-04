@@ -997,7 +997,7 @@ namespace EastFive.Api
                         var guidStringValue = content.ReadString();
                         if (Guid.TryParse(guidStringValue, out Guid guidValue))
                             return onParsed(guidValue);
-                        return onNotConvertable($"Failed to convert {content} to `{typeof(Guid).FullName}`.");
+                        return onNotConvertable($"Failed to convert {guidStringValue} to `{typeof(Guid).FullName}`.");
                     }
                 },
                 {
@@ -1194,7 +1194,45 @@ namespace EastFive.Api
                             typeof(EastFive.Ref<>).MakeGenericType(referredType);
                         var refInstance = Activator.CreateInstance(refType,
                             new object [] { referredType.GetDefault().AsTask() });
-                        return refInstance;
+                        return onBound(refInstance);
+                    }
+                },
+                {
+                    typeof(IRefOptional<>),
+                    (type, httpApp, content, onBound, onFailedToBind) =>
+                    {
+                        var referredType = type.GenericTypeArguments.First();
+                        if(referredType.IsClass)
+                        {
+                            var refObjType = typeof(IRefObj<>).MakeGenericType(referredType);
+                            var refObjOptionalType = typeof(RefObjOptional<>).MakeGenericType(referredType);
+                            var refObjInstance = httpApp.Bind(refObjType, content,
+                                (v) =>
+                                {
+                                    var refInst = Activator.CreateInstance(refObjOptionalType, new object [] { v });
+                                    return refInst;
+                                },
+                                (why) =>
+                                {
+                                    var refInst = Activator.CreateInstance(refObjOptionalType, new object [] { });
+                                    return refInst;
+                                });
+                            return onBound(refObjInstance);
+                        }
+                        var refType = typeof(IRef<>).MakeGenericType(referredType);
+                        var refOptionalType = typeof(RefOptional<>).MakeGenericType(referredType);
+                        var refInstance = httpApp.Bind(refType, content,
+                            (v) =>
+                            {
+                                var refInst = Activator.CreateInstance(refOptionalType, new object [] { v });
+                                return refInst;
+                            },
+                            (why) =>
+                            {
+                                var refInst = Activator.CreateInstance(refOptionalType, new object [] { });
+                                return refInst;
+                            });
+                        return onBound(refInstance);
                     }
                 },
                 {
