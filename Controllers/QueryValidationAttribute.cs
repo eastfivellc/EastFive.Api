@@ -210,7 +210,11 @@ namespace EastFive.Api
                 () =>
                 {
                     // TODO: Check the FunctionViewController for a type
-                    return SelectParameterResult.Failure($"{method.DeclaringType.FullName}.{method.Name}'s does not contain a type specifier.", this.Name, parameterRequiringValidation).AsTask();
+                    return SelectParameterResult.Failure(
+                        $"Server configuration issue:{method.DeclaringType.FullName}..{method.Name}({parameterRequiringValidation.ParameterType.FullName} {parameterRequiringValidation.Name}) specifies a PropertyAttribute." +
+                        " However, the method does not have an HttpBodyAttribute (HttpPost, HttpPut, etc)." +
+                        $" Please either change PropertyAttribute -> QueryParameterAttribute or change Http(Get?) to Http(Post, etc).",
+                        this.Name, parameterRequiringValidation).AsTask();
                 });
         }
 

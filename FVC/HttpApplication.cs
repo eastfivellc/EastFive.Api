@@ -273,6 +273,21 @@ namespace EastFive.Api
                 }
             }
 
+            if (typeof(IReferenceableOptional).IsAssignableFrom(propertyType))
+            {
+                if (value is IReferenceableOptional)
+                {
+                    var refValue = value as IReferenceableOptional;
+                    var guidIdMaybeValue = refValue.id;
+                    return onCasted(guidIdMaybeValue);
+                }
+                if (value is Guid?)
+                {
+                    var guidIdMaybeValue = (Guid?)value;
+                    return onCasted(guidIdMaybeValue);
+                }
+            }
+
             if (propertyType.IsAssignableFrom(typeof(string)))
             {
                 if (value is Guid)
@@ -286,6 +301,16 @@ namespace EastFive.Api
                     var refValue = value as IReferenceable;
                     var guidIdValue = refValue.id;
                     var stringValue = guidIdValue.ToString();
+                    return onCasted(stringValue);
+                }
+                if (value is IReferenceableOptional)
+                {
+                    var refValue = value as IReferenceableOptional;
+                    var guidIdMaybeValue = refValue.id;
+                    if (!guidIdMaybeValue.HasValue)
+                        return onCasted("null");
+
+                    var stringValue = guidIdMaybeValue.Value.ToString();
                     return onCasted(stringValue);
                 }
                 if (value is BlackBarLabs.Api.Resources.WebId)
@@ -997,7 +1022,7 @@ namespace EastFive.Api
                         var guidStringValue = content.ReadString();
                         if (Guid.TryParse(guidStringValue, out Guid guidValue))
                             return onParsed(guidValue);
-                        return onNotConvertable($"Failed to convert {guidStringValue} to `{typeof(Guid).FullName}`.");
+                        return onNotConvertable($"Failed to convert `{guidStringValue}` to type `{typeof(Guid).FullName}`.");
                     }
                 },
                 {
