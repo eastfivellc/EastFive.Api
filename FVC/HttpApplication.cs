@@ -24,11 +24,13 @@ using EastFive.Linq.Async;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using RazorEngine.Templating;
+using EastFive.Reflection;
 
 namespace EastFive.Api
 {
     public interface IParseToken
     {
+        bool IsString { get; }
         string ReadString();
 
         byte[] ReadBytes();
@@ -41,6 +43,49 @@ namespace EastFive.Api
         T ReadObject<T>();
     }
 
+    public struct ParseToken : IParseToken
+    {
+        private string value;
+
+        public ParseToken(string value)
+        {
+            this.value = value;
+        }
+
+        public bool IsString => true;
+
+        public IParseToken[] ReadArray()
+        {
+            throw new NotImplementedException();
+        }
+
+        public byte[] ReadBytes()
+        {
+            return System.Text.Encoding.UTF8.GetBytes(value);
+        }
+
+        public IDictionary<string, IParseToken> ReadDictionary()
+        {
+            throw new NotImplementedException();
+        }
+
+        public T ReadObject<T>()
+        {
+            throw new NotImplementedException();
+        }
+
+        public Stream ReadStream()
+        {
+            var bytes = System.Text.Encoding.UTF8.GetBytes(value);
+            return new MemoryStream(bytes);
+        }
+
+        public string ReadString()
+        {
+            return this.value;
+        }
+    }
+
     public class HttpApplication : System.Web.HttpApplication
     {
         private Task initialization;
@@ -51,6 +96,14 @@ namespace EastFive.Api
         {
             initializationLock = new ManualResetEvent(false);
             this.initialization = InitializeAsync();
+        }
+
+        public virtual string Namespace
+        {
+            get
+            {
+                return "";
+            }
         }
 
         protected void Application_Start()
@@ -215,9 +268,10 @@ namespace EastFive.Api
             Func<IDictionary<HttpMethod, MethodInfo[]>, TResult> onMethodsIdentified, 
             Func<TResult> onKeyNotFound)
         {
-            if (!lookup.ContainsKey(routeName))
+            var routeNameLower = routeName.ToLower();
+            if (!lookup.ContainsKey(routeNameLower))
                 return onKeyNotFound();
-            var possibleHttpMethods = lookup[routeName];
+            var possibleHttpMethods = lookup[routeNameLower];
             return onMethodsIdentified(possibleHttpMethods);
         }
 
@@ -384,6 +438,7 @@ namespace EastFive.Api
                 { typeof(EastFive.Api.HttpPutAttribute), HttpMethod.Put },
                 { typeof(EastFive.Api.HttpPatchAttribute), new HttpMethod("Patch") },
                 { typeof(EastFive.Api.HttpOptionsAttribute), HttpMethod.Options },
+                { typeof(EastFive.Api.HttpActionAttribute), new HttpMethod("actions") },
             };
 
         private void AddControllersFromAssembly(System.Reflection.Assembly assembly)
@@ -407,6 +462,12 @@ namespace EastFive.Api
                         .Select(
                             attrType =>
                             {
+                                var actionMethods = attrType.Value
+                                    .GetMethods(BindingFlags.Public | BindingFlags.Static)
+                                    .Where(method => method.ContainsCustomAttribute<HttpActionAttribute>())
+                                    .GroupBy(method => method.GetCustomAttribute<HttpActionAttribute>().Method)
+                                    .Select(methodGrp => (new HttpMethod(methodGrp.Key)).PairWithValue(methodGrp.ToArray()));
+
                                 IDictionary<HttpMethod, MethodInfo[]> methods = methodLookup
                                         .Select(
                                             methodKvp => methodKvp.Value.PairWithValue(
@@ -414,7 +475,9 @@ namespace EastFive.Api
                                                     .GetMethods(BindingFlags.Public | BindingFlags.Static)
                                                     .Where(method => method.ContainsCustomAttribute(methodKvp.Key))
                                             .ToArray()))
+                                        .Concat(actionMethods)
                                         .ToDictionary();
+                                
                                 return attrType.Key.Route
                                     .IfThen(attrType.Key.Route.IsNullOrWhiteSpace(),
                                         (route) => attrType.Value.Name)
@@ -565,7 +628,20 @@ namespace EastFive.Api
                 }
 
                 var responses = await objectsAsync
-                    .Select(obj => request.CreateResponse(System.Net.HttpStatusCode.OK, obj))
+                    .Select(
+                        obj =>
+                        {
+                            var objType = obj.GetType();
+                            if (!objType.ContainsAttributeInterface<IProvideSerialization>())
+                            {
+                                var response = request.CreateResponse(System.Net.HttpStatusCode.OK, obj);
+                                return response;
+                            }
+
+                            var serializationProvider = objType.GetAttributesInterface<IProvideSerialization>().Single();
+                            var customResponse = serializationProvider.Serialize(httpApp, request, paramInfo, obj);
+                            return customResponse;
+                        })
                     .Async();
                 return await request.CreateMultipartResponseAsync(responses);
             }
@@ -614,6 +690,22 @@ namespace EastFive.Api
                                 return request.CreateResponse(HttpStatusCode.Unauthorized).ToTask();
                             },
                             (why) => request.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).ToTask());
+                    }
+                },
+                {
+                    typeof(Controllers.SessionToken),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        return request.GetSessionIdClaimsAsync(
+                            (sessionId, claims) =>
+                            {
+                                var x = new Controllers.SessionToken
+                                {
+                                    sessionId = sessionId,
+                                    claims = claims,
+                                };
+                                return success(x);
+                            });
                     }
                 },
                 {
@@ -704,13 +796,22 @@ namespace EastFive.Api
                     typeof(Controllers.ContentResponse),
                     (httpApp, request, paramInfo, success) =>
                     {
-                        Controllers.ContentResponse dele = (obj, contentType) =>
-                        {
-                            var response = request.CreateResponse(System.Net.HttpStatusCode.OK, obj);
-                            if(!contentType.IsNullOrWhiteSpace())
-                                response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
-                            return response;
-                        };
+                        Controllers.ContentResponse dele = 
+                            (obj, contentType) =>
+                            {
+                                var objType = obj.GetType();
+                                if(!objType.ContainsAttributeInterface<IProvideSerialization>())
+                                {
+                                    var response = request.CreateResponse(System.Net.HttpStatusCode.OK, obj);
+                                    if(!contentType.IsNullOrWhiteSpace())
+                                        response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+                                    return response;
+                                }
+
+                                var serializationProvider = objType.GetAttributesInterface<IProvideSerialization>().Single();
+                                var customResponse = serializationProvider.Serialize(httpApp, request, paramInfo, obj);
+                                return customResponse;
+                            };
                         return success((object)dele);
                     }
                 },
@@ -1019,10 +1120,19 @@ namespace EastFive.Api
                     typeof(Guid),
                     (httpApp, content, onParsed, onNotConvertable) =>
                     {
-                        var guidStringValue = content.ReadString();
-                        if (Guid.TryParse(guidStringValue, out Guid guidValue))
-                            return onParsed(guidValue);
-                        return onNotConvertable($"Failed to convert `{guidStringValue}` to type `{typeof(Guid).FullName}`.");
+                        if(content.IsString)
+                        {
+                            var guidStringValue = content.ReadString();
+                            if (Guid.TryParse(guidStringValue, out Guid stringGuidValue))
+                                return onParsed(stringGuidValue);
+                            return onNotConvertable($"Failed to convert `{guidStringValue}` to type `{typeof(Guid).FullName}`.");
+                        }
+                        var webId = content.ReadObject<WebId>();
+                        var guidValueMaybe = webId.ToGuid();
+                        if(!guidValueMaybe.HasValue)
+                            return onNotConvertable("Null WebId cannot be converted to a Guid.");
+                        var webIdGuidValue = guidValueMaybe.Value;
+                        return onParsed(webIdGuidValue);
                     }
                 },
                 {
@@ -1157,12 +1267,13 @@ namespace EastFive.Api
                     typeof(Controllers.WebIdNot),
                     (httpApp, content, onParsed, onNotConvertable) =>
                     {
-                        return content.ReadString().ToUpper().MatchRegexInvoke("NOT\\((?<notString>[a-zA-Z]+)\\)",
+                        var contentStr = content.ReadString();
+                        return contentStr.ToUpper().MatchRegexInvoke("NOT\\((?<notString>[a-zA-Z]+)\\)",
                             (string notString) => notString,
                             (string[] notStrings) =>
                             {
                                 if (!notStrings.Any())
-                                    return onNotConvertable($"`{content.ReadString()}` is not parsable as an exlusion list. Please use format `NOT(ABC123-....-EDF1)`");
+                                    return onNotConvertable($"`{contentStr}` is not parsable as an exlusion list. Please use format `NOT(ABC123-....-EDF1)`");
                                 var notString = notStrings.First();
                                 if (!Guid.TryParse(notString, out Guid notUUID))
                                     return onNotConvertable($"`{notString}` is not a UUID. Please use format `NOT(ABC123-....-EDF1)`");
@@ -1217,8 +1328,14 @@ namespace EastFive.Api
                             typeof(EastFive.RefObj<>).MakeGenericType(referredType)
                             :
                             typeof(EastFive.Ref<>).MakeGenericType(referredType);
+                        
+                        var defaultObj = referredType.GetDefault();
+                        var asTaskMethodGeneric = typeof(Extensions.ObjectExtensions).GetMethod("AsTask", BindingFlags.Static | BindingFlags.Public);
+                        var askTaskMethod = asTaskMethodGeneric.MakeGenericMethod(new [] { referredType });
+                        var defaultObjTask = askTaskMethod.Invoke(null, new object [] {defaultObj });
+
                         var refInstance = Activator.CreateInstance(refType,
-                            new object [] { referredType.GetDefault().AsTask() });
+                            new object [] { defaultObjTask });
                         return onBound(refInstance);
                     }
                 },
@@ -1246,18 +1363,39 @@ namespace EastFive.Api
                         }
                         var refType = typeof(IRef<>).MakeGenericType(referredType);
                         var refOptionalType = typeof(RefOptional<>).MakeGenericType(referredType);
-                        var refInstance = httpApp.Bind(refType, content,
-                            (v) =>
-                            {
-                                var refInst = Activator.CreateInstance(refOptionalType, new object [] { v });
-                                return refInst;
-                            },
-                            (why) =>
+
+                        Func<object> emptyOptional =
+                            () =>
                             {
                                 var refInst = Activator.CreateInstance(refOptionalType, new object [] { });
-                                return refInst;
-                            });
-                        return onBound(refInstance);
+                                return onBound(refInst);
+                            };
+
+                        object ParseContent(IParseToken parseToken)
+                        {
+                            return httpApp.Bind(refType, parseToken,
+                                (v) =>
+                                {
+                                    var refInst = Activator.CreateInstance(refOptionalType, new object [] { v });
+                                    return onBound(refInst);
+                                },
+                                (why) => emptyOptional());
+                        }
+
+                        // Check for null/empty
+                        if(!content.IsString)
+                            return ParseContent(content);
+
+                        var stringValue = content.ReadString();
+                        if (stringValue.IsNullOrWhiteSpace())
+                            return emptyOptional();
+                        if (stringValue.ToLower() == "empty")
+                            return emptyOptional();
+                        if (stringValue.ToLower() == "null")
+                            return emptyOptional();
+
+                        var stringContent = new ParseToken(stringValue);
+                        return ParseContent(stringContent);
                     }
                 },
                 {
@@ -1558,8 +1696,6 @@ namespace EastFive.Api
 
         #region Conversions
 
-
-
         public class MemoryStreamForFile : MemoryStream
         {
             public MemoryStreamForFile(byte[] buffer) : base(buffer) { }
@@ -1570,7 +1706,178 @@ namespace EastFive.Api
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure);
 
-        
+        public JsonConverter GetExtrudeConverter(HttpRequestMessage request, UrlHelper urlHelper)
+        {
+            var useWebIds = request.Headers.Accept.Contains(
+                header =>
+                {
+                    if (header.MediaType.ToLower() != "application/json")
+                        return false;
+                    var requestWebId = header.Parameters.Contains(
+                        nhv =>
+                        {
+                            if (nhv.Name.ToLower() != "id")
+                                return false;
+                            if (nhv.Value.ToLower() == "webid")
+                                return true;
+                            return false;
+                        });
+                    return requestWebId;
+                });
+            return new ExtrudeConvert(this, urlHelper, useWebIds);
+        }
+
+        private class ExtrudeConvert : Newtonsoft.Json.JsonConverter
+        {
+            HttpApplication application;
+            UrlHelper urlHelper;
+            bool useWebIds;
+
+            public ExtrudeConvert(HttpApplication httpApplication, UrlHelper urlHelper, bool useWebIds)
+            {
+                this.application = httpApplication;
+                this.urlHelper = urlHelper;
+                this.useWebIds = useWebIds;
+            }
+
+            public override bool CanConvert(Type objectType)
+            {
+                if (objectType.IsSubClassOfGeneric(typeof(IRef<>)))
+                    return true;
+                if (objectType.IsSubClassOfGeneric(typeof(IRefs<>)))
+                    return true;
+                if (objectType.IsSubClassOfGeneric(typeof(IRefOptional<>)))
+                    return true;
+                if (objectType.IsSubClassOfGeneric(typeof(IDictionary<,>)))
+                {
+                    if (objectType.GetGenericArguments().Any(arg => CanConvert(arg)))
+                        return true;
+                }
+                if (objectType.IsSubclassOf(typeof(Type)))
+                    return true;
+                return false;
+            }
+
+            public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+            {
+                throw new NotImplementedException("Extruder does not read values");
+            }
+
+            public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+            {
+                void WriteId(Guid? idMaybe)
+                {
+                    if (!idMaybe.HasValue)
+                    {
+                        writer.WriteValue((string)null);
+                        return;
+                    }
+
+                    var id = idMaybe.Value;
+                    if (!useWebIds)
+                    {
+                        writer.WriteValue(id);
+                        return;
+                    }
+
+                    // The webID could be created and then serialized, etc. 
+                    // or.... it can just be writen inline here.
+
+                    writer.WriteStartObject();
+                    var key = id.ToString();
+                    writer.WritePropertyName("key");
+                    writer.WriteValue(key);
+
+                    var uuid = id;
+                    writer.WritePropertyName("uuid");
+                    writer.WriteValue(uuid);
+
+                    var valueType = value.GetType();
+                    if(!valueType.IsGenericType)
+                    {
+                        writer.WriteEndObject();
+                        return;
+                    }
+
+                    // TODO: Handle dictionary, etc
+                    var refType = valueType.GetGenericArguments().First();
+                    var webId = urlHelper.GetWebId(refType, id);
+
+                    var contentType = $"x-application/x-{refType.Name.ToLower()}";
+                    if (refType.ContainsCustomAttribute<FunctionViewControllerAttribute>(true))
+                    {
+                        var fvcAttrContentType = refType.GetCustomAttribute<FunctionViewControllerAttribute>().ContentType;
+                        if (fvcAttrContentType.HasBlackSpace())
+                            contentType = fvcAttrContentType;
+                    }
+                    var applicationNamespace = application.Namespace;
+                    var urnString = $"urn:{contentType}:{applicationNamespace}:{key}";
+                    writer.WritePropertyName("urn");
+                    writer.WriteValue(urnString);
+
+                    var source = urlHelper.GetLocationWithId(refType, id);
+                    writer.WritePropertyName("source");
+                    writer.WriteValue(source.AbsoluteUri);
+                    writer.WriteEndObject();
+
+                    return;
+
+                }
+                if (value is IReferenceable)
+                {
+                    var id = (value as IReferenceable).id;
+                    WriteId(id);
+                    //writer.WriteValue(id);
+                    return;
+                }
+                if (value is IReferences)
+                {
+                    writer.WriteStartArray();
+                    Guid[] ids = (value as IReferences).ids
+                        .Select(
+                            id =>
+                            {
+                                WriteId(id);
+                                //writer.WriteValue(id);
+                                return id;
+                            })
+                        .ToArray();
+                    writer.WriteEndArray();
+                    return;
+                }
+                if (value is IReferenceableOptional)
+                {
+                    var id = (value as IReferenceableOptional).id;
+                    WriteId(id);
+                    //writer.WriteValue(id);
+                    return;
+                }
+                if (value.GetType().IsSubClassOfGeneric(typeof(IDictionary<,>)))
+                {
+                    writer.WriteStartObject();
+                    foreach (var kvpObj in value.DictionaryKeyValuePairs())
+                    {
+                        var keyValue = kvpObj.Key;
+                        var propertyName = (keyValue is IReferenceable) ?
+                            (keyValue as IReferenceable).id.ToString("N")
+                            :
+                            keyValue.ToString();
+                        writer.WritePropertyName(propertyName);
+
+                        var valueValue = kvpObj.Value;
+                        writer.WriteValue(valueValue);
+                    }
+                    writer.WriteEndObject();
+                    return;
+                }
+                if (value is Type)
+                {
+                    var stringType = (value as Type).GetClrString();
+                    writer.WriteValue(stringType);
+                    return;
+                }
+            }
+        }
 
         private class BindConvert : Newtonsoft.Json.JsonConverter
         {
@@ -1585,6 +1892,21 @@ namespace EastFive.Api
                 {
                     this.reader = reader;
                     this.application = application;
+                }
+
+
+                public bool IsString
+                {
+                    get
+                    {
+                        if (reader.TokenType == JsonToken.String)
+                            return true;
+                        //if (reader.TokenType == JsonToken.Boolean)
+                        //    return true;
+                        //if (reader.TokenType == JsonToken.Null)
+                        //    return true;
+                        return false;
+                    }
                 }
 
                 public string ReadString()
@@ -1655,6 +1977,8 @@ namespace EastFive.Api
             {
                 if (objectType.IsSubClassOfGeneric(typeof(IRefs<>)))
                     return true;
+                if (objectType.IsSubClassOfGeneric(typeof(IRefOptional<>)))
+                    return true;
                 return this.application.CanBind(objectType);
             }
 
@@ -1708,6 +2032,7 @@ namespace EastFive.Api
                 { FileName = fileNameMaybe };
             }
 
+            public bool IsString => true;
             public string ReadString()
             {
                 return System.Text.Encoding.UTF8.GetString(contents);
@@ -1731,6 +2056,14 @@ namespace EastFive.Api
             public Stream ReadStream()
             {
                 return valueToken.ToObject<Stream>();
+            }
+
+            public bool IsString
+            {
+                get
+                {
+                    return valueToken.Type == JTokenType.String;
+                }
             }
 
             public string ReadString()
@@ -1850,6 +2183,8 @@ namespace EastFive.Api
                 throw new NotImplementedException();
             }
 
+            public bool IsString => true;
+            
             public string ReadString()
             {
                 return this.valueForKey;
@@ -2031,7 +2366,30 @@ namespace EastFive.Api
                 },
                 why => onFailure(why));
         }
-        
+
+        internal bool CanExtrude(Type type)
+        {
+            if (this.bindings.ContainsKey(type))
+                return true;
+
+            if (type.IsGenericType)
+            {
+                var possibleGenericInstigator = this.bindingsGeneric
+                    .Where(
+                        instigatorKvp =>
+                        {
+                            if (instigatorKvp.Key.GUID == type.GUID)
+                                return true;
+                            if (type.IsAssignableFrom(instigatorKvp.Key))
+                                return true;
+                            return false;
+                        });
+                return possibleGenericInstigator.Any();
+            }
+
+            return false;
+        }
+
         #endregion
     }
 }

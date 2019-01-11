@@ -74,6 +74,17 @@ namespace EastFive.Api
     }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Method)]
+    public class HttpActionAttribute : HttpVerbAttribute
+    {
+        public HttpActionAttribute(string method)
+        {
+            this.Method = method;
+        }
+
+        public string Method { get; set; }
+    }
+
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Method)]
     public class HttpPutAttribute : HttpBodyAttribute
     {
 

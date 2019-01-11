@@ -276,6 +276,13 @@ namespace BlackBarLabs.Api
             var controllerName =
                 controllerType.Name.TrimEnd("Controller",
                     (trimmedName) => trimmedName, (originalName) => originalName);
+            if (controllerType.ContainsCustomAttribute<FunctionViewControllerAttribute>())
+            {
+                var fvcAttr = controllerType.GetCustomAttribute<FunctionViewControllerAttribute>();
+                if (fvcAttr.Route.HasBlackSpace())
+                    controllerName = fvcAttr.Route;
+            }
+
             var location = url.Link(routeName, new { Controller = controllerName });
 
             return new Resources.WebId
@@ -381,6 +388,13 @@ namespace BlackBarLabs.Api
                 controllerType.Name.TrimEnd("Controller",
                     (trimmedName) => trimmedName, (originalName) => originalName);
 
+            if (controllerType.ContainsCustomAttribute<FunctionViewControllerAttribute>())
+            {
+                var fvcAttr = controllerType.GetCustomAttribute<FunctionViewControllerAttribute>();
+                if (fvcAttr.Route.HasBlackSpace())
+                    controllerName = fvcAttr.Route;
+            }
+
             var urn = new Uri("urn:" + urnNamespace + ":" + controllerName);
             var resourceAttributeTypes = controllerType.GetCustomAttributes<Api.ResourceTypeAttribute>();
             if (resourceAttributeTypes.Length > 0)
@@ -469,9 +483,17 @@ namespace BlackBarLabs.Api
         public static Uri GetLocationWithId(this UrlHelper url, Type controllerType, Guid id,
             string routeName = "DefaultApi")
         {
-            var controllerName =
+            var controllerName = 
                 controllerType.Name.TrimEnd("Controller",
                     (trimmedName) => trimmedName, (originalName) => originalName);
+
+            if (controllerType.ContainsCustomAttribute<FunctionViewControllerAttribute>())
+            {
+                var fvcAttr = controllerType.GetCustomAttribute<FunctionViewControllerAttribute>();
+                if (fvcAttr.Route.HasBlackSpace())
+                    controllerName = fvcAttr.Route;
+            }
+
             var location = url.Link(routeName, new { Controller = controllerName });
             location = location + "/" + id;
             return new Uri(location);

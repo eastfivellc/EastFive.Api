@@ -163,11 +163,15 @@ namespace EastFive.Api
                 CastDelegate<SelectParameterResult> fetchBodyParam,
                 CastDelegate<SelectParameterResult> fetchDefaultParam)
         {
+            var name = this.Name.IsNullOrWhiteSpace() ? parameterRequiringValidation.Name : this.Name;
+            return fetchBodyParam(name, parameterRequiringValidation.ParameterType,
+                vCasted => SelectParameterResult.Body(vCasted, name, parameterRequiringValidation),
+                why => SelectParameterResult.Failure(why, name, parameterRequiringValidation));
+
             return method.GetCustomAttribute<HttpBodyAttribute, Task<SelectParameterResult>>(
                 bodyAttr =>
                 {
                     var type = bodyAttr.Type;
-                    var name = this.Name.IsNullOrWhiteSpace() ? parameterRequiringValidation.Name : this.Name;
                     if (type.IsDefaultOrNull())
                     {
                         type = method.DeclaringType.GetCustomAttribute<FunctionViewControllerAttribute, Type>(
@@ -178,6 +182,7 @@ namespace EastFive.Api
                             type = method.DeclaringType;
                             // return SelectParameterResult.Failure($"Cannot determine property type for method: {.FullName}.{method.Name}().", name, parameterRequiringValidation).ToTask();
                     }
+
                     return type
                         .GetProperties()
                         .Concat<MemberInfo>(type.GetFields())
@@ -191,7 +196,7 @@ namespace EastFive.Api
                                 if (memberName != name)
                                     return await next();
                                 var memberType = prop.GetPropertyOrFieldType();
-                                var obj = await fetchBodyParam(memberName, memberType,
+                                var obj = await fetchBodyParam(memberName, parameterRequiringValidation.ParameterType,  //memberType,
                                     //v => Convert(httpApp, parameterRequiringValidation.ParameterType, v,
                                     //    (vCasted) => SelectParameterResult.Body(vCasted, name, parameterRequiringValidation),
                                     //    (why) => SelectParameterResult.Failure($"Property {name}:{why}", name, parameterRequiringValidation)),
@@ -366,11 +371,21 @@ namespace EastFive.Api
                 CastDelegate<SelectParameterResult> fetchDefaultParam)
         {
             var baseValue = await base.TryCastAsync(httpApp, request, method, parameterRequiringValidation, fetchQueryParam, fetchBodyParam, fetchDefaultParam);
-            if (!baseValue.valid)
+            if (baseValue.valid)
+                return baseValue;
+
+            var parameterType = parameterRequiringValidation.ParameterType;
+            if (parameterType.IsSubClassOfGeneric(typeof(IRefOptional<>)))
             {
-                baseValue.value = parameterRequiringValidation.ParameterType.GetDefault();
+                var refType = parameterType.GenericTypeArguments.First();
+                var parameterTypeGeneric = typeof(RefOptional<>).MakeGenericType(new Type[] { refType });
+                baseValue.value = Activator.CreateInstance(parameterTypeGeneric, new object[] { });
                 baseValue.valid = true;
+                return baseValue;
             }
+
+            baseValue.value = parameterType.GetDefault();
+            baseValue.valid = true;
             return baseValue;
 
             //return base.TryCastAsync(httpApp, request, method, parameterRequiringValidation,
@@ -404,7 +419,7 @@ namespace EastFive.Api
             //                    return onValid(instance, null);
             //                });
             //    });
-            
+
         }
     }
 }

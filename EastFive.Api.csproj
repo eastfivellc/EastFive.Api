@@ -151,6 +151,7 @@
     <Compile Include="Extensions\UriExtensions.cs" />
     <Compile Include="Extensions\WebUrnExtensions.cs" />
     <Compile Include="Extensions\ValidationExtensions.cs" />
+    <Compile Include="FVC\FunctionViewController4Attribute.cs" />
     <Compile Include="FVC\HttpResourceAttribute.cs" />
     <Compile Include="FVC\FunctionViewControllerAttribute.cs" />
     <Compile Include="Controllers\QueryValidationAttribute.cs" />
@@ -158,6 +159,7 @@
     <Compile Include="FVC\Handlers\ApplicationHandler.cs" />
     <Compile Include="FVC\Handlers\MonitoringHandler.cs" />
     <Compile Include="FVC\IProvideApiValue.cs" />
+    <Compile Include="FVC\IProviderSerialization.cs" />
     <Compile Include="HttpActionResult.cs" />
     <Compile Include="InjectableAssemblyResolver.cs" />
     <Compile Include="FVC\Handlers\ControllerHandler.cs" />

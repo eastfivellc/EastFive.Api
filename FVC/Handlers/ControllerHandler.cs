@@ -51,12 +51,33 @@ namespace EastFive.Api.Modules
             Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> continuation)
         {
             string filePath = request.RequestUri.AbsolutePath;
-            var path = filePath.Split(new char[] { '/' }).Where(pathPart => !pathPart.IsNullOrWhiteSpace()).ToArray();
-            var routeName = (path.Length >= 2 ? path[1] : "").ToLower();
+            var path = filePath
+                .Split(new char[] { '/' })
+                .Where(pathPart => !pathPart.IsNullOrWhiteSpace())
+                .ToArray();
+
+            if (path.Length < 2)
+                return await continuation(request, cancellationToken);
+            var routeName = path[1].ToLower();
 
             return await httpApp.GetControllerMethods(routeName,
                 async (possibleHttpMethods) =>
                 {
+                    if (path.Length > 2)
+                    {
+                        var actionMethod = path[2];
+                        var matchingActionKeys = possibleHttpMethods
+                            .SelectKeys()
+                            .Where(key => String.Compare(key.Method, actionMethod, true) == 0);
+                        
+                        if (matchingActionKeys.Any())
+                        {
+                            var actionHttpMethod = matchingActionKeys.First();
+                            var matchingActionMethods = possibleHttpMethods[actionHttpMethod];
+                            return await CreateResponseAsync(httpApp, request, routeName, matchingActionMethods);
+                        }
+                    }
+
                     var matchingKey = possibleHttpMethods
                         .SelectKeys()
                         .Where(key => String.Compare(key.Method, request.Method.Method, true) == 0);
@@ -65,7 +86,8 @@ namespace EastFive.Api.Modules
                         return request.CreateResponse(HttpStatusCode.NotImplemented);
 
                     var httpMethod = matchingKey.First();
-                    return await CreateResponseAsync(httpApp, request, routeName, possibleHttpMethods[httpMethod]);
+                    var matchingMethods = possibleHttpMethods[httpMethod];
+                    return await CreateResponseAsync(httpApp, request, routeName, matchingMethods);
                 },
                 () => continuation(request, cancellationToken));
         }
@@ -108,6 +130,7 @@ namespace EastFive.Api.Modules
                 throw new NotImplementedException();
             }
 
+            public bool IsString => true;
             public string ReadString()
             {
                 return value;
@@ -136,7 +159,8 @@ namespace EastFive.Api.Modules
                                 why => onFailure(why))
                             .AsTask();
                     }
-                    var queryValue = new QueryParamTokenParser(queryParameters[queryKey]);
+                    var queryValueString = queryParameters[queryKey];
+                    var queryValue = new QueryParamTokenParser(queryValueString);
                     return httpApp
                         .Bind(type, queryValue,
                             v => onParsed(v),
@@ -484,6 +508,12 @@ namespace EastFive.Api.Modules
                             return errorMessage;
                         })
                     .ToArrayAsync();
+                if (!reasonStrings.Any())
+                {
+                    return request
+                        .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
+                        .AddReason("No methods that implement Action");
+                }
                 var content = reasonStrings.Join(";");
                 return request
                     .CreateResponse(System.Net.HttpStatusCode.NotImplemented)

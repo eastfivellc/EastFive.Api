@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http.Headers;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -11,6 +12,12 @@ namespace EastFive.Api.Controllers
     {
         public Guid performingAsActorId;
         public System.Security.Claims.Claim[] claims;
+    }
+
+    public struct SessionToken
+    {
+        public Guid sessionId;
+        public Claim[] claims;
     }
 
     public struct ApiSecurity
