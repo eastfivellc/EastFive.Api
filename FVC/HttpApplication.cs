@@ -643,6 +643,19 @@ namespace EastFive.Api
                             return customResponse;
                         })
                     .Async();
+
+                if (request.Headers.Accept.Contains(accept => !accept.MediaType.ToLower().Contains("multipart")))
+                {
+                    var jsonStrings = await responses
+                        .Select(v => v.Content.ReadAsStringAsync())
+                        .AsyncEnumerable()
+                        .ToArrayAsync();
+                    var jsonArrayContent = $"[{jsonStrings.Join(",")}]";
+                    var response = request.CreateResponse(HttpStatusCode.OK);
+                    response.Content = new StringContent(jsonArrayContent, Encoding.UTF8, "application/json");
+                    return response;
+                }
+
                 return await request.CreateMultipartResponseAsync(responses);
             }
         }
@@ -2208,6 +2221,7 @@ namespace EastFive.Api
             if (content.IsJson())
             {
                 var contentString = await content.ReadAsStringAsync();
+                var bindConvert = new BindConvert(this);
                 JObject contentJObject;
                 try
                 {
@@ -2231,7 +2245,7 @@ namespace EastFive.Api
                             try
                             {
                                 var rootObject = Newtonsoft.Json.JsonConvert.DeserializeObject(
-                                    contentString, type, new BindConvert(this));
+                                    contentString, type, bindConvert);
                                 return onFound(rootObject);
                             }
                             catch (Exception ex)
@@ -2250,9 +2264,13 @@ namespace EastFive.Api
                                 obj => onFound(obj),
                                 (why) =>
                                 {
+                                    if (valueToken.Type != JTokenType.Object)
+                                        return onFailure(why);
                                     try
                                     {
-                                        var value = valueToken.ToObject(type);
+                                        var value = Newtonsoft.Json.JsonConvert.DeserializeObject(
+                                            valueToken.ToString(), type, bindConvert);
+                                        // var value = valueToken.ToObject(type);
                                         return onFound(value);
                                     }
                                     catch (Newtonsoft.Json.JsonSerializationException)

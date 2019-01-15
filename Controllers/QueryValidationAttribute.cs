@@ -384,6 +384,27 @@ namespace EastFive.Api
                 return baseValue;
             }
 
+            if (parameterType.IsSubClassOfGeneric(typeof(IRefs<>)))
+            {
+                var refType = parameterType.GenericTypeArguments.First();
+                var parameterTypeGeneric = typeof(Refs<>).MakeGenericType(new Type[] { refType });
+                var refIds = new Guid[] { };
+                var refIdsLookupType = typeof(Func<,>).MakeGenericType(new Type[] { typeof(Guid), refType });
+                var refIdsLookup = refIdsLookupType.GetDefault();
+                baseValue.value = Activator.CreateInstance(
+                    parameterTypeGeneric, new object[] { refIds, refIdsLookup });
+                baseValue.valid = true;
+                return baseValue;
+            }
+
+            if (parameterType.IsSubClassOfGeneric(typeof(IDictionary<,>)))
+            {
+                var parameterTypeGeneric = typeof(Dictionary<,>).MakeGenericType(parameterType.GenericTypeArguments);
+                baseValue.value = Activator.CreateInstance(parameterTypeGeneric);
+                baseValue.valid = true;
+                return baseValue;
+            }
+
             baseValue.value = parameterType.GetDefault();
             baseValue.valid = true;
             return baseValue;
