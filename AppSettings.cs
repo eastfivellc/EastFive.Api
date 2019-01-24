@@ -45,5 +45,13 @@ namespace EastFive.Api
             DeploymentSecurityConcern = false,
             Location = "This is the server's server location, i.e. `http://example.com/mysite/`")]
         public const string SiteUrl = "EastFive.Api.SiteUrl";
+
+        [ConfigKey("Secret GUID that can be used to make any session a admin session.",
+            DeploymentOverrides.Mandatory,
+            DeploymentSecurityConcern = true,
+            Location = "Should be dervied from secure random numbers into a GUID.")]
+        public const string AuthorizationIdSuperAdmin = "EastFive.Api.AuthorizationIdSuperAdmin";
+
+        
     }
 }

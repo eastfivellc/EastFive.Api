@@ -554,9 +554,78 @@ namespace EastFive.Api
                 Type type, HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess);
 
+
+        public class InstigatorGenericWrapper1<T1>
+        {
+            public HttpApplication httpApp;
+            public HttpRequestMessage request;
+            public ParameterInfo paramInfo;
+
+            public InstigatorGenericWrapper1(HttpApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo)
+            {
+                this.httpApp = httpApp;
+                this.request = request;
+                this.paramInfo = paramInfo;
+            }
+
+            HttpResponseMessage ContentTypeResponse(object content, string contentTypeString = default(string))
+            {
+                var contentType = typeof(T1);
+                if (!contentType.ContainsAttributeInterface<IProvideSerialization>())
+                {
+                    var response = request.CreateResponse(System.Net.HttpStatusCode.OK, content);
+                    if (!contentTypeString.IsNullOrWhiteSpace())
+                        response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentTypeString);
+                    return response;
+                }
+
+                var responseNoContent = request.CreateResponse(System.Net.HttpStatusCode.OK, content);
+                var serializationProvider = contentType.GetAttributesInterface<IProvideSerialization>().Single();
+                var customResponse = serializationProvider.Serialize(responseNoContent, httpApp, request, paramInfo, content);
+                return customResponse;
+            }
+
+            HttpResponseMessage CreatedBodyResponse(object content, string contentTypeString = default(string))
+            {
+                var contentType = typeof(T1);
+                if (!contentType.ContainsAttributeInterface<IProvideSerialization>())
+                {
+                    var response = request.CreateResponse(System.Net.HttpStatusCode.Created, content);
+                    if (!contentTypeString.IsNullOrWhiteSpace())
+                        response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentTypeString);
+                    return response;
+                }
+
+                var responseNoContent = request.CreateResponse(System.Net.HttpStatusCode.Created, content);
+                var serializationProvider = contentType.GetAttributesInterface<IProvideSerialization>().Single();
+                var customResponse = serializationProvider.Serialize(responseNoContent, httpApp, request, paramInfo, content);
+                return customResponse;
+            }
+        }
+
         public Dictionary<Type, InstigatorDelegateGeneric> instigatorsGeneric =
             new Dictionary<Type, InstigatorDelegateGeneric>()
             {
+                {
+                    typeof(Controllers.ContentTypeResponse<>),
+                    (type, httpApp, request, paramInfo, success) =>
+                    {
+                        var wrapperConcreteType = typeof(InstigatorGenericWrapper1<>).MakeGenericType(type.GenericTypeArguments);
+                        var wrapperInstance = Activator.CreateInstance(wrapperConcreteType, new object [] { httpApp, request, paramInfo });
+                        var dele = Delegate.CreateDelegate(type, wrapperInstance, "ContentTypeResponse", false);
+                        return success((object)dele);
+                    }
+                },
+                {
+                    typeof(Controllers.CreatedBodyResponse<>),
+                    (type, httpApp, request, paramInfo, success) =>
+                    {
+                        var wrapperConcreteType = typeof(InstigatorGenericWrapper1<>).MakeGenericType(type.GenericTypeArguments);
+                        var wrapperInstance = Activator.CreateInstance(wrapperConcreteType, new object [] { httpApp, request, paramInfo });
+                        var dele = Delegate.CreateDelegate(type, wrapperInstance, "CreatedBodyResponse", false);
+                        return success((object)dele);
+                    }
+                },
                 {
                     typeof(Controllers.ReferencedDocumentDoesNotExistsResponse<>),
                     (type, httpApp, request, paramInfo, success) =>
@@ -587,6 +656,14 @@ namespace EastFive.Api
                     }
                 }
             };
+
+
+        public static HttpResponseMessage CreatedBodyResponse(HttpRequestMessage request)
+        {
+            return request
+                .CreateResponse(System.Net.HttpStatusCode.BadRequest)
+                .AddReason("The query parameter did not reference an existing document.");
+        }
 
         public static HttpResponseMessage RefDocDoesNotExist(HttpRequestMessage request)
         {
@@ -638,8 +715,9 @@ namespace EastFive.Api
                                 return response;
                             }
 
+                            var responseNoContent = request.CreateResponse(System.Net.HttpStatusCode.OK, obj);
                             var serializationProvider = objType.GetAttributesInterface<IProvideSerialization>().Single();
-                            var customResponse = serializationProvider.Serialize(httpApp, request, paramInfo, obj);
+                            var customResponse = serializationProvider.Serialize(responseNoContent, httpApp, request, paramInfo, obj);
                             return customResponse;
                         })
                     .Async();
@@ -821,8 +899,9 @@ namespace EastFive.Api
                                     return response;
                                 }
 
+                                var responseNoContent = request.CreateResponse(System.Net.HttpStatusCode.OK, obj);
                                 var serializationProvider = objType.GetAttributesInterface<IProvideSerialization>().Single();
-                                var customResponse = serializationProvider.Serialize(httpApp, request, paramInfo, obj);
+                                var customResponse = serializationProvider.Serialize(responseNoContent, httpApp, request, paramInfo, obj);
                                 return customResponse;
                             };
                         return success((object)dele);
@@ -909,6 +988,36 @@ namespace EastFive.Api
                     }
                 },
                 {
+                    typeof(Controllers.ExecuteBackgroundResponseAsync),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.ExecuteBackgroundResponseAsync dele =
+                            async (executionContext) =>
+                            {
+                                if(request.Headers.Accept.Contains(mediaType => mediaType.MediaType.ToLower().Contains("background")))
+                                {
+                                    var urlHelper = request.GetUrlHelper();
+                                    var processId = Controllers.BackgroundProgressController.CreateProcess(
+                                        async updateCallback =>
+                                        {
+                                            var completion = await executionContext.InvokeAsync(
+                                                v =>
+                                                {
+                                                    updateCallback(v);
+                                                });
+                                            return completion;
+                                        }, 1.0);
+                                    var response = request.CreateResponse(HttpStatusCode.Accepted);
+                                    response.Headers.Add("Access-Control-Expose-Headers", "x-backgroundprocess");
+                                    response.Headers.Add("x-backgroundprocess", urlHelper.GetLocation<Controllers.BackgroundProgressController>(processId).AbsoluteUri);
+                                    return response;
+                                }
+                                return await executionContext.InvokeAsync(v => { });
+                            };
+                        return success((object)dele);
+                    }
+                },
+                {
                     typeof(Controllers.ReferencedDocumentNotFoundResponse),
                     (httpApp, request, paramInfo, success) =>
                     {
@@ -963,21 +1072,6 @@ namespace EastFive.Api
                     (httpApp, request, paramInfo, success) =>
                     {
                         Controllers.CreatedResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.Created);
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.CreatedBodyResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.CreatedBodyResponse dele =
-                            (obj, contentType) =>
-                            {
-                                var response = request.CreateResponse(System.Net.HttpStatusCode.OK, obj);
-                                if(!contentType.IsNullOrWhiteSpace())
-                                    response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
-                                return response;
-                            };
                         return success((object)dele);
                     }
                 },
@@ -1068,7 +1162,7 @@ namespace EastFive.Api
             instigators.Add(type, instigator);
         }
 
-        public void SetInstigator(Type type, InstigatorDelegate instigator)
+        public void SetInstigator(Type type, InstigatorDelegate instigator, bool clear = false)
         {
             instigators[type] = instigator;
         }
@@ -1078,7 +1172,7 @@ namespace EastFive.Api
             instigatorsGeneric.Add(type, instigator);
         }
 
-        public void SetInstigatorGeneric(Type type, InstigatorDelegateGeneric instigator)
+        public void SetInstigatorGeneric(Type type, InstigatorDelegateGeneric instigator, bool clear = false)
         {
             instigatorsGeneric[type] = instigator;
         }
@@ -2221,6 +2315,16 @@ namespace EastFive.Api
             if (content.IsJson())
             {
                 var contentString = await content.ReadAsStringAsync();
+                var exceptionKeys = new string[] { };
+                if (!contentString.HasBlackSpace())
+                {
+                    ParseContentDelegate<TParseResult> exceptionParser =
+                        async (key, type, onFound, onFailure) =>
+                        {
+                            return onFailure($"[{key}] was not provided (JSON body content was empty).");
+                        };
+                    return await onParsedContentValues(exceptionParser, exceptionKeys);
+                }
                 var bindConvert = new BindConvert(this);
                 JObject contentJObject;
                 try
@@ -2234,7 +2338,6 @@ namespace EastFive.Api
                         {
                             return onFailure(ex.Message);
                         };
-                    var exceptionKeys = new string[] { };
                     return await onParsedContentValues(exceptionParser, exceptionKeys);
                 }
                 ParseContentDelegate<TParseResult> parser =

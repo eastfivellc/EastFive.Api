@@ -9,16 +9,23 @@ using System.Threading.Tasks;
 
 namespace EastFive.Api.Controllers
 {
+    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.OK)]
+    public delegate HttpResponseMessage ContentTypeResponse<TResource>(object content, string contentType = default(string));
     public delegate HttpResponseMessage ContentResponse(object content, string contentType = default(string));
     public delegate HttpResponseMessage HtmlResponse(string content);
     public delegate HttpResponseMessage XlsxResponse(byte [] content, string name);
-    
+
+    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Created)]
     public delegate HttpResponseMessage CreatedResponse();
+
+    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.NoContent)]
     public delegate HttpResponseMessage NoContentResponse();
     public delegate HttpResponseMessage NotModifiedResponse();
     public delegate HttpResponseMessage AcceptedResponse();
     public delegate HttpResponseMessage AcceptedBodyResponse(object content, string contentType = default(string));
-    public delegate HttpResponseMessage CreatedBodyResponse(object content, string contentType = default(string));
+
+    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Created)]
+    public delegate HttpResponseMessage CreatedBodyResponse<TResource>(object content, string contentType = default(string));
     public delegate HttpResponseMessage RedirectResponse(Uri redirectLocation, string reason);
     public delegate Task<HttpResponseMessage> MultipartResponseAsync(IEnumerable<HttpResponseMessage> responses);
     public delegate Task<HttpResponseMessage> MultipartAcceptArrayResponseAsync(IEnumerable<object> responses);
@@ -57,5 +64,14 @@ namespace EastFive.Api.Controllers
 
     public delegate HttpResponseMessage NotImplementedResponse();
 
+    public interface IExecuteAsync
+    {
+        Task<HttpResponseMessage> InvokeAsync(Action<double> updateCallback);
+    }
+
+    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Accepted)]
+    public delegate Task<HttpResponseMessage> ExecuteBackgroundResponseAsync(IExecuteAsync executeAsync);
+
+    [Obsolete("Use ExecuteBackgroundResponseAsync instead.")]
     public delegate Task<HttpResponseMessage> BackgroundResponseAsync(Func<Action<double>, Task<HttpResponseMessage>> callback);
 }

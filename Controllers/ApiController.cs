@@ -221,21 +221,6 @@ namespace EastFive.Api.Controllers
                     }
                 },
                 {
-                    typeof(CreatedBodyResponse),
-                    (controller, success) =>
-                    {
-                        CreatedBodyResponse dele =
-                            (obj, contentType) =>
-                            {
-                                var response = controller.Request.CreateResponse(System.Net.HttpStatusCode.OK, obj);
-                                if(!contentType.IsNullOrWhiteSpace())
-                                    response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
-                                return response;
-                            };
-                        return success((object)dele);
-                    }
-                },
-                {
                     typeof(AcceptedBodyResponse),
                     (controller, success) =>
                     {
