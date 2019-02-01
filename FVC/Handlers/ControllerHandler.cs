@@ -125,6 +125,11 @@ namespace EastFive.Api.Modules
                 throw new NotImplementedException();
             }
 
+            public object ReadObject()
+            {
+                throw new NotImplementedException();
+            }
+
             public Stream ReadStream()
             {
                 throw new NotImplementedException();

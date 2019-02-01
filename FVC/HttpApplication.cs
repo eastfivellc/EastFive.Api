@@ -41,6 +41,7 @@ namespace EastFive.Api
 
         IDictionary<string, IParseToken> ReadDictionary();
         T ReadObject<T>();
+        object ReadObject();
     }
 
     public struct ParseToken : IParseToken
@@ -70,6 +71,11 @@ namespace EastFive.Api
         }
 
         public T ReadObject<T>()
+        {
+            throw new NotImplementedException();
+        }
+
+        public object ReadObject()
         {
             throw new NotImplementedException();
         }
@@ -722,7 +728,20 @@ namespace EastFive.Api
                         })
                     .Async();
 
-                if (request.Headers.Accept.Contains(accept => !accept.MediaType.ToLower().Contains("multipart")))
+                bool IsMultipart()
+                {
+                    var acceptHeader = request.Headers.Accept;
+                    if (acceptHeader.IsDefaultOrNull())
+                        return false;
+                    if (request.Headers.Accept.Count == 0)
+                    {
+                        var hasMultipart = acceptHeader.ToString().ToLower().Contains("multipart");
+                        return hasMultipart;
+                    }
+                    return false;
+                }
+
+                if (!IsMultipart())
                 {
                     var jsonStrings = await responses
                         .Select(v => v.Content.ReadAsStringAsync())
@@ -1414,7 +1433,8 @@ namespace EastFive.Api
                     typeof(object),
                     (httpApp, content, onParsed, onNotConvertable) =>
                     {
-                        return onParsed(content.ReadString());
+                        var objValue = content.ReadObject();
+                        return onParsed(objValue);
                     }
                 }
             };
@@ -2045,9 +2065,41 @@ namespace EastFive.Api
                 {
                     var token = JToken.Load(reader);
                     if (token is JValue)
+                    {
                         return token.Value<T>();
+                    }
 
                     return token.ToObject<T>();
+                }
+
+
+                public object ReadObject()
+                {
+                    var token = JToken.Load(reader);
+                    if (token is JValue)
+                    {
+                        if (token.Type == JTokenType.Boolean)
+                            return token.Value<bool>();
+                        if (token.Type == JTokenType.Bytes)
+                            return token.Value<byte[]>();
+                        if (token.Type == JTokenType.Date)
+                            return token.Value<DateTime>();
+                        if (token.Type == JTokenType.Float)
+                            return token.Value<float>();
+                        if (token.Type == JTokenType.Guid)
+                            return token.Value<Guid>();
+                        if (token.Type == JTokenType.Integer)
+                            return token.Value<int>();
+                        if (token.Type == JTokenType.None)
+                            return null;
+                        if (token.Type == JTokenType.Null)
+                            return null;
+                        if (token.Type == JTokenType.String)
+                            return token.Value<string>();
+                        if (token.Type == JTokenType.Uri)
+                            return token.Value<Uri>();
+                    }
+                    return token.ToObject<object>();
                 }
 
                 public IParseToken[] ReadArray()
@@ -2132,6 +2184,10 @@ namespace EastFive.Api
             {
                 throw new NotImplementedException();
             }
+            public object ReadObject()
+            {
+                throw new NotImplementedException();
+            }
 
             public Stream ReadStream()
             {
@@ -2188,6 +2244,35 @@ namespace EastFive.Api
                     return value;
                 }
                 return valueToken.Value<T>();
+            }
+
+            public object ReadObject()
+            {
+                var token = valueToken;
+                if (token is JValue)
+                {
+                    if (token.Type == JTokenType.Boolean)
+                        return token.Value<bool>();
+                    if (token.Type == JTokenType.Bytes)
+                        return token.Value<byte[]>();
+                    if (token.Type == JTokenType.Date)
+                        return token.Value<DateTime>();
+                    if (token.Type == JTokenType.Float)
+                        return token.Value<float>();
+                    if (token.Type == JTokenType.Guid)
+                        return token.Value<Guid>();
+                    if (token.Type == JTokenType.Integer)
+                        return token.Value<int>();
+                    if (token.Type == JTokenType.None)
+                        return null;
+                    if (token.Type == JTokenType.Null)
+                        return null;
+                    if (token.Type == JTokenType.String)
+                        return token.Value<string>();
+                    if (token.Type == JTokenType.Uri)
+                        return token.Value<Uri>();
+                }
+                return token.ToObject<object>();
             }
 
             public IParseToken[] ReadArray()
@@ -2284,6 +2369,10 @@ namespace EastFive.Api
             {
                 throw new NotImplementedException();
             }
+            public object ReadObject()
+            {
+                throw new NotImplementedException();
+            }
 
             public Stream ReadStream()
             {
@@ -2367,19 +2456,21 @@ namespace EastFive.Api
                                 obj => onFound(obj),
                                 (why) =>
                                 {
-                                    if (valueToken.Type != JTokenType.Object)
-                                        return onFailure(why);
-                                    try
+                                    if (valueToken.Type == JTokenType.Object || valueToken.Type == JTokenType.Array)
                                     {
-                                        var value = Newtonsoft.Json.JsonConvert.DeserializeObject(
-                                            valueToken.ToString(), type, bindConvert);
-                                        // var value = valueToken.ToObject(type);
-                                        return onFound(value);
+                                        try
+                                        {
+                                            var value = Newtonsoft.Json.JsonConvert.DeserializeObject(
+                                                valueToken.ToString(), type, bindConvert);
+                                            // var value = valueToken.ToObject(type);
+                                            return onFound(value);
+                                        }
+                                        catch (Newtonsoft.Json.JsonSerializationException)
+                                        {
+                                            throw;
+                                        }
                                     }
-                                    catch (Newtonsoft.Json.JsonSerializationException)
-                                    {
-                                        throw;
-                                    }
+                                    return onFailure(why);
                                 });
                         }
                         catch (Exception ex)
