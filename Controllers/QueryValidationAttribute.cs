@@ -129,6 +129,79 @@ namespace EastFive.Api
         }
     }
 
+    public class HeaderAttribute : QueryValidationAttribute
+    {
+        public string Content { get; set; }
+
+        public override async Task<SelectParameterResult> TryCastAsync(HttpApplication httpApp,
+            HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
+            CastDelegate<SelectParameterResult> fetchQueryParam,
+            CastDelegate<SelectParameterResult> fetchBodyParam,
+            CastDelegate<SelectParameterResult> fetchDefaultParam)
+        {
+            var bindType = parameterRequiringValidation.ParameterType;
+            if(typeof(System.Net.Http.Headers.MediaTypeHeaderValue) == bindType)
+            {
+                if(Content.IsNullOrWhiteSpace())
+                    return new SelectParameterResult
+                    {
+                        valid = true,
+                        fromBody = false,
+                        fromQuery = false,
+                        key = Content,
+                        parameterInfo = parameterRequiringValidation,
+                        value = request.Content.Headers.ContentType.MediaType,
+                    };
+                return await fetchBodyParam(this.Content, typeof(HttpContent),
+                    (parts) =>
+                    {
+                        //if(!parts.ContainsKey(this.Content))
+                        //    return new SelectParameterResult
+                        //    {
+                        //        valid = false,
+                        //        fromBody = true,
+                        //        key = "",
+                        //        fromQuery = false,
+                        //        parameterInfo = parameterRequiringValidation,
+                        //        failure = $"Contents did not contain `{this.Content}`.",
+                        //    };
+                        //var content = parts[this.Content];
+                        var content = parts as HttpContent;
+                        return new SelectParameterResult
+                        {
+                            valid = true,
+                            fromBody = false,
+                            fromQuery = false,
+                            key = Content,
+                            parameterInfo = parameterRequiringValidation,
+                            value = content.Headers.ContentType,
+                        };
+                    },
+                    (why) =>
+                    {
+                        return new SelectParameterResult
+                        {
+                            fromBody = true,
+                            key = "",
+                            fromQuery = false,
+                            parameterInfo = parameterRequiringValidation,
+                            valid = false,
+                            failure = why, // $"Cannot extract MediaTypeHeaderValue from non-multipart request.",
+                        };
+                    });
+            }
+            return new SelectParameterResult
+            {
+                fromBody = true,
+                key = "",
+                fromQuery = false,
+                parameterInfo = parameterRequiringValidation,
+                valid = false,
+                failure = $"No header binding for type `{bindType.FullName}`.",
+            };
+        }
+    }
+
     public class ResourceAttribute : QueryValidationAttribute
     {
         public override Task<SelectParameterResult> TryCastAsync(HttpApplication httpApp, 
@@ -168,59 +241,6 @@ namespace EastFive.Api
                 vCasted => SelectParameterResult.Body(vCasted, name, parameterRequiringValidation),
                 why => SelectParameterResult.Failure(why, name, parameterRequiringValidation));
 
-            return method.GetCustomAttribute<HttpBodyAttribute, Task<SelectParameterResult>>(
-                bodyAttr =>
-                {
-                    var type = bodyAttr.Type;
-                    if (type.IsDefaultOrNull())
-                    {
-                        type = method.DeclaringType.GetCustomAttribute<FunctionViewControllerAttribute, Type>(
-                            fvcAttr => fvcAttr.Resource,
-                            () => type);
-
-                        if (type.IsDefaultOrNull())
-                            type = method.DeclaringType;
-                            // return SelectParameterResult.Failure($"Cannot determine property type for method: {.FullName}.{method.Name}().", name, parameterRequiringValidation).ToTask();
-                    }
-
-                    return type
-                        .GetProperties()
-                        .Concat<MemberInfo>(type.GetFields())
-                        .First(
-                            async (prop, next) =>
-                            {
-                                var memberName = prop.GetCustomAttribute<Newtonsoft.Json.JsonPropertyAttribute, string>(
-                                    attr => attr.PropertyName,
-                                    () => prop.Name);
-
-                                if (memberName != name)
-                                    return await next();
-                                var memberType = prop.GetPropertyOrFieldType();
-                                var obj = await fetchBodyParam(memberName, parameterRequiringValidation.ParameterType,  //memberType,
-                                    //v => Convert(httpApp, parameterRequiringValidation.ParameterType, v,
-                                    //    (vCasted) => SelectParameterResult.Body(vCasted, name, parameterRequiringValidation),
-                                    //    (why) => SelectParameterResult.Failure($"Property {name}:{why}", name, parameterRequiringValidation)),
-                                    vCasted => SelectParameterResult.Body(vCasted, name, parameterRequiringValidation),
-
-                                    why => SelectParameterResult.Failure(why, name, parameterRequiringValidation));
-                                return obj;
-                            },
-                            () =>
-                            {
-                                return SelectParameterResult.Failure("Inform server developer:" +
-                                    $"HttpBodyAttribute on `{method.DeclaringType.FullName}.{method.Name}` resolves to type `{type.FullName}` " + 
-                                    $"and specifies parameter `{name}` which is not a member of {type.FullName}", name, parameterRequiringValidation).ToTask();
-                            });
-                },
-                () =>
-                {
-                    // TODO: Check the FunctionViewController for a type
-                    return SelectParameterResult.Failure(
-                        $"Server configuration issue:{method.DeclaringType.FullName}..{method.Name}({parameterRequiringValidation.ParameterType.FullName} {parameterRequiringValidation.Name}) specifies a PropertyAttribute." +
-                        " However, the method does not have an HttpBodyAttribute (HttpPost, HttpPut, etc)." +
-                        $" Please either change PropertyAttribute -> QueryParameterAttribute or change Http(Get?) to Http(Post, etc).",
-                        this.Name, parameterRequiringValidation).AsTask();
-                });
         }
 
         public virtual TResult Convert<TResult>(HttpApplication httpApp, Type type, object value,

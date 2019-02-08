@@ -2158,9 +2158,11 @@ namespace EastFive.Api
         {
             private byte[] contents;
             private string fileNameMaybe;
+            private HttpContent file;
 
-            public MultipartContentTokenParser(byte[] contents, string fileNameMaybe)
+            public MultipartContentTokenParser(HttpContent file, byte[] contents, string fileNameMaybe)
             {
+                this.file = file;
                 this.contents = contents;
                 this.fileNameMaybe = fileNameMaybe;
             }
@@ -2182,6 +2184,10 @@ namespace EastFive.Api
 
             public T ReadObject<T>()
             {
+                if(typeof(HttpContent) == typeof(T))
+                {
+                    return (T)((object)this.file);
+                }
                 throw new NotImplementedException();
             }
             public object ReadObject()
@@ -2503,7 +2509,7 @@ namespace EastFive.Api
                             var contents = await file.ReadAsByteArrayAsync();
 
                             var kvp = key.PairWithValue<string, IParseToken>(
-                                    new MultipartContentTokenParser(contents, fileNameMaybe));
+                                    new MultipartContentTokenParser(file, contents, fileNameMaybe));
                             return select(kvp);
                         })
                     .ToDictionaryAsync();
@@ -2570,6 +2576,11 @@ namespace EastFive.Api
             {
                 var byteArrayValue = tokenReader.ReadBytes();
                 return onParsed((object)byteArrayValue);
+            }
+            if (type.IsAssignableFrom(typeof(HttpContent)))
+            {
+                var content = tokenReader.ReadObject<HttpContent>();
+                return onParsed((object)content);
             }
             return this.Bind(type, tokenReader,
                 (value) =>
