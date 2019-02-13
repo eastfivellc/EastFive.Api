@@ -1287,6 +1287,16 @@ namespace EastFive.Api
                     }
                 },
                 {
+                    typeof(int),
+                    (httpApp, token, onParsed, onNotConvertable) =>
+                    {
+                        var intStringValue = token.ReadString();
+                        if (int.TryParse(intStringValue, out int intValue))
+                            return onParsed(intValue);
+                        return onNotConvertable($"Failed to convert {intStringValue} to `{typeof(int).FullName}`.");
+                    }
+                },
+                {
                     typeof(bool),
                     (httpApp, token, onParsed, onNotConvertable) =>
                     {
@@ -2038,16 +2048,21 @@ namespace EastFive.Api
 
                 public string ReadString()
                 {
+                    if (reader.TokenType == JsonToken.String)
+                    {
+                        var value = (string)reader.Value;
+                        return value;
+                    }
                     if (reader.TokenType == JsonToken.Boolean)
                     {
                         var valueBool = (bool)reader.Value;
                         var value = valueBool.ToString();
                         return value;
                     }
-                    if (reader.TokenType == JsonToken.String)
+                    if (reader.TokenType == JsonToken.Integer)
                     {
-
-                        var value = (string)reader.Value;
+                        var valueInt = (long)reader.Value;
+                        var value = valueInt.ToString();
                         return value;
                     }
                     if (reader.TokenType == JsonToken.Null)

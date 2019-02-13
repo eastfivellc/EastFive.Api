@@ -63,8 +63,11 @@ namespace EastFive.Api
             var baseUrl = url.GetLocation(typeof(TResource), routeName);
             var queryParams = parameters
                 .Select(param => param.GetUrlAssignment(
-                    (queryParamName, value) => queryParamName
-                        .PairWithValue((string)application.CastResourceProperty(value, typeof(String)))))
+                    (queryParamName, value) =>
+                    {
+                        return queryParamName
+                            .PairWithValue((string)application.CastResourceProperty(value, typeof(String)));
+                    }))
                 .ToDictionary();
 
             var queryUrl = baseUrl.SetQuery(queryParams);

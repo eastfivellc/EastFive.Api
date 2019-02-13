@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
@@ -155,17 +156,6 @@ namespace EastFive.Api
                 return await fetchBodyParam(this.Content, typeof(HttpContent),
                     (parts) =>
                     {
-                        //if(!parts.ContainsKey(this.Content))
-                        //    return new SelectParameterResult
-                        //    {
-                        //        valid = false,
-                        //        fromBody = true,
-                        //        key = "",
-                        //        fromQuery = false,
-                        //        parameterInfo = parameterRequiringValidation,
-                        //        failure = $"Contents did not contain `{this.Content}`.",
-                        //    };
-                        //var content = parts[this.Content];
                         var content = parts as HttpContent;
                         return new SelectParameterResult
                         {
@@ -181,7 +171,7 @@ namespace EastFive.Api
                     {
                         return new SelectParameterResult
                         {
-                            fromBody = true,
+                            fromBody = false,
                             key = "",
                             fromQuery = false,
                             parameterInfo = parameterRequiringValidation,
@@ -190,9 +180,34 @@ namespace EastFive.Api
                         };
                     });
             }
+            if (bindType.IsSubClassOfGeneric(typeof(HttpHeaderValueCollection<>)))
+            {
+                if (bindType.GenericTypeArguments.First() == typeof(StringWithQualityHeaderValue))
+                {
+                    if (!Content.IsNullOrWhiteSpace())
+                        return new SelectParameterResult
+                        {
+                            fromBody = false,
+                            key = "",
+                            fromQuery = false,
+                            parameterInfo = parameterRequiringValidation,
+                            valid = false,
+                            failure = "AcceptLanguage is not a content header.",
+                        };
+                    return new SelectParameterResult
+                    {
+                        valid = true,
+                        fromBody = false,
+                        fromQuery = false,
+                        key = Content,
+                        parameterInfo = parameterRequiringValidation,
+                        value = request.Headers.AcceptLanguage,
+                    };
+                }
+            }
             return new SelectParameterResult
             {
-                fromBody = true,
+                fromBody = false,
                 key = "",
                 fromQuery = false,
                 parameterInfo = parameterRequiringValidation,
