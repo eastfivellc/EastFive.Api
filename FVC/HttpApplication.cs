@@ -1996,7 +1996,7 @@ namespace EastFive.Api
                     {
                         var keyValue = kvpObj.Key;
                         var propertyName = (keyValue is IReferenceable) ?
-                            (keyValue as IReferenceable).id.ToString("N")
+                            (keyValue as IReferenceable).id.ToString()
                             :
                             keyValue.ToString();
                         writer.WritePropertyName(propertyName);
