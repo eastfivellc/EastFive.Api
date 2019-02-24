@@ -1477,6 +1477,22 @@ namespace EastFive.Api
                     }
                 },
                 {
+                    typeof(IRefObj<>),
+                    (type, httpApp, content, onBound, onFailedToBind) =>
+                    {
+                        var referredType = type.GenericTypeArguments.First();
+                        var refType = typeof(EastFive.RefObj<>).MakeGenericType(referredType);
+                        return httpApp.Bind(typeof(Guid), content,
+                            resourceId =>
+                            {
+                                var refInstance = Activator.CreateInstance(refType,
+                                    new object [] { resourceId });
+                                return onBound(refInstance);
+                            },
+                            onFailedToBind);
+                    }
+                },
+                {
                     typeof(IRefOptional<>),
                     (type, httpApp, content, onBound, onFailedToBind) =>
                     {
@@ -2067,11 +2083,11 @@ namespace EastFive.Api
                     }
                     if (reader.TokenType == JsonToken.Null)
                     {
-                        return string.Empty;
+                        return (string)null;
                     }
                     if (reader.TokenType == JsonToken.StartArray)
                     {
-                        return string.Empty;
+                        return (string)null;
                     }
                     throw new Exception($"BindConvert does not handle token type: {reader.TokenType}");
                 }
