@@ -734,7 +734,7 @@ namespace BlackBarLabs.Api
                         :
                         image.Size.Width);
 
-            var newImage = new Bitmap(newWidth, newHeight);
+            var newImage = new Bitmap(newWidth, newHeight, PixelFormat.Format32bppArgb);
 
             //set the new resolution
             newImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
@@ -743,7 +743,7 @@ namespace BlackBarLabs.Api
             using (var graphics = Graphics.FromImage(newImage))
             {
                 //set some encoding specs
-                graphics.CompositingMode = CompositingMode.SourceCopy;
+                graphics.CompositingMode = CompositingMode.SourceOver;
                 graphics.CompositingQuality = CompositingQuality.HighQuality;
                 graphics.SmoothingMode = SmoothingMode.HighQuality;
                 graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
