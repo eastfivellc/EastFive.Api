@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -10,14 +11,31 @@ namespace EastFive.Api.Razor
 {
     public class RazorTemplateManager : ITemplateManager
     {
+        private IDictionary<string, ITemplateSource> templateCache;
+
         public RazorTemplateManager()
         {
+            templateCache = new Dictionary<string, ITemplateSource>();
         }
 
         public ITemplateSource Resolve(ITemplateKey key)
         {
+            if (templateCache.ContainsKey(key.Name))
+                return templateCache[key.Name];
+
             string template = key.Name.TrimStart(new char[] { '\\', '~', '/' });
-            var systemPath = System.Web.HttpRuntime.AppDomainAppPath;
+
+            //Have to catch the error when using this via Azure Function
+            var systemPath = string.Empty;
+            try
+            {
+                systemPath = System.Web.HttpRuntime.AppDomainAppPath;
+            }
+            catch
+            {
+                systemPath = Environment.CurrentDirectory;
+            }
+
             var viewsFile = new FileInfo($"{systemPath}Views\\{template}");
             if (viewsFile.Exists)
             {
@@ -43,7 +61,9 @@ namespace EastFive.Api.Razor
 
         public void AddDynamic(ITemplateKey key, ITemplateSource source)
         {
-            throw new NotImplementedException("dynamic templates are not supported!");
+            var resolved = Resolve(key);
+            if(!templateCache.ContainsKey(key.Name))
+                templateCache.Add(key.Name, resolved);
         }
         
 
