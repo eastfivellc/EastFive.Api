@@ -62,8 +62,12 @@ namespace EastFive.Api.Razor
         public void AddDynamic(ITemplateKey key, ITemplateSource source)
         {
             var resolved = Resolve(key);
-            if(!templateCache.ContainsKey(key.Name))
-                templateCache.Add(key.Name, resolved);
+
+            lock (templateCache)
+            {
+                if (!templateCache.ContainsKey(key.Name))
+                    templateCache.Add(key.Name, resolved);
+            }
         }
         
 
