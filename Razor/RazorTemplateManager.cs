@@ -12,10 +12,12 @@ namespace EastFive.Api.Razor
     public class RazorTemplateManager : ITemplateManager
     {
         private IDictionary<string, ITemplateSource> templateCache;
+        private string givenRootDirectory;
 
-        public RazorTemplateManager()
+        public RazorTemplateManager(string rootDirectory)
         {
             templateCache = new Dictionary<string, ITemplateSource>();
+            givenRootDirectory = rootDirectory;
         }
 
         public ITemplateSource Resolve(ITemplateKey key)
@@ -43,6 +45,7 @@ namespace EastFive.Api.Razor
                 string content = File.ReadAllText(path);
                 return new LoadedTemplateSource(content, path);
             }
+
             var rootFile = new FileInfo($"{systemPath}\\{template}");
             if (rootFile.Exists)
             {
@@ -50,7 +53,16 @@ namespace EastFive.Api.Razor
                 string content = File.ReadAllText(path);
                 return new LoadedTemplateSource(content, path);
             }
-            string failureContent = $"<html><body>Could not file view with template:{key.Name}  SystemPath:{systemPath}</body></html>";
+
+            var givenRootFile = new FileInfo($"{givenRootDirectory}\\{template}"); 
+            if (givenRootFile.Exists)
+            {
+                var path = givenRootFile.FullName;
+                string content = File.ReadAllText(path);
+                return new LoadedTemplateSource(content, path);
+            }
+
+            string failureContent = $"<html><body>Could not find file view with template:{key.Name}  at:  <p>viewsFile: {viewsFile}</p><p>rootFile: {rootFile}</p><p>givenRootFile: {givenRootFile}</p>  <p>SystemPath:{systemPath}</p><p>givenRootDirectory: {givenRootDirectory}</p></body></html>";
             return new LoadedTemplateSource(failureContent, template);
         }
 

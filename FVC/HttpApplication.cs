@@ -128,9 +128,20 @@ namespace EastFive.Api
             SetupRazorEngine();
         }
 
+        public virtual void ApplicationStart(string rootDirectory)
+        {
+            LocateControllers();
+            SetupRazorEngine(rootDirectory);
+        }
+
         public static void SetupRazorEngine()
         {
-            var templateManager = new Razor.RazorTemplateManager();
+            SetupRazorEngine(string.Empty);
+        }
+
+        public static void SetupRazorEngine(string rootDirectory)
+        {
+            var templateManager = new Razor.RazorTemplateManager(rootDirectory);
             var referenceResolver = new Razor.GenericReferenceResolver();
             var config = new RazorEngine.Configuration.TemplateServiceConfiguration
             {
