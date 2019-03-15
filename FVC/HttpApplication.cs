@@ -23,8 +23,10 @@ using EastFive.Web;
 using EastFive.Linq.Async;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using RazorEngine.Templating;
 using EastFive.Reflection;
+using RazorEngine.Templating;
+using System.Security;
+using System.Security.Permissions;
 
 namespace EastFive.Api
 {
@@ -118,19 +120,37 @@ namespace EastFive.Api
             ApplicationStart();
             GlobalConfiguration.Configure(this.Configure);
             Registration();
-
-            var templateManager = new Razor.RazorTemplateManager();
-            var config = new RazorEngine.Configuration.TemplateServiceConfiguration
-            {
-                TemplateManager = templateManager,
-                BaseTemplateType = typeof(Razor.HtmlSupportTemplateBase<>)
-            };
-            RazorEngine.Engine.Razor = RazorEngine.Templating.RazorEngineService.Create(config);
         }
 
         public virtual void ApplicationStart()
         {
             LocateControllers();
+            SetupRazorEngine();
+        }
+
+        public virtual void ApplicationStart(string rootDirectory)
+        {
+            LocateControllers();
+            SetupRazorEngine(rootDirectory);
+        }
+
+        public static void SetupRazorEngine()
+        {
+            SetupRazorEngine(string.Empty);
+        }
+
+        public static void SetupRazorEngine(string rootDirectory)
+        {
+            var templateManager = new Razor.RazorTemplateManager(rootDirectory);
+            var referenceResolver = new Razor.GenericReferenceResolver();
+            var config = new RazorEngine.Configuration.TemplateServiceConfiguration
+            {
+                TemplateManager = templateManager,
+                ReferenceResolver = referenceResolver,
+                BaseTemplateType = typeof(Razor.HtmlSupportTemplateBase<>),
+                DisableTempFileLocking = true
+            };
+            RazorEngine.Engine.Razor = RazorEngine.Templating.RazorEngineService.Create(config);
         }
 
         protected virtual void Registration()
