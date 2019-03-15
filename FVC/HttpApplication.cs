@@ -1321,6 +1321,16 @@ namespace EastFive.Api
                     }
                 },
                 {
+                    typeof(Uri),
+                    (httpApp, token, onParsed, onNotConvertable) =>
+                    {
+                        var uriStringValue = token.ReadString();
+                        if(Uri.TryCreate(uriStringValue, UriKind.RelativeOrAbsolute, out Uri uriValue))
+                            return onParsed(uriValue);
+                        return onNotConvertable($"Failed to convert {uriStringValue} to `{typeof(Uri).FullName}`.");
+                    }
+                },
+                {
                     typeof(Type),
                     (httpApp, content, onParsed, onNotConvertable) =>
                     {
@@ -1460,36 +1470,52 @@ namespace EastFive.Api
                     typeof(IRef<>),
                     (type, httpApp, content, onBound, onFailedToBind) =>
                     {
-                        var referredType = type.GenericTypeArguments.First();
-                        var refType = referredType.IsClass?
-                            typeof(EastFive.RefObj<>).MakeGenericType(referredType)
-                            :
-                            typeof(EastFive.Ref<>).MakeGenericType(referredType);
-                        
-                        var defaultObj = referredType.GetDefault();
-                        var asTaskMethodGeneric = typeof(Extensions.ObjectExtensions).GetMethod("AsTask", BindingFlags.Static | BindingFlags.Public);
-                        var askTaskMethod = asTaskMethodGeneric.MakeGenericMethod(new [] { referredType });
-                        var defaultObjTask = askTaskMethod.Invoke(null, new object [] {defaultObj });
+                        var resourceType = type.GenericTypeArguments.First();
+                        var instantiatableType = typeof(EastFive.Ref<>).MakeGenericType(resourceType);
 
-                        var refInstance = Activator.CreateInstance(refType,
-                            new object [] { defaultObjTask });
-                        return onBound(refInstance);
+                        return httpApp.Bind(typeof(Guid), content,
+                            (id) =>
+                            {
+                                var instance = Activator.CreateInstance(instantiatableType, new object[] { id });
+                                return onBound(instance);
+                            },
+                            (why) => onFailedToBind(why));
+
+                        //var defaultObj = instantiatableType.GetDefault();
+                        //var asTaskMethodGeneric = typeof(Extensions.ObjectExtensions).GetMethod("AsTask", BindingFlags.Static | BindingFlags.Public);
+                        //var askTaskMethod = asTaskMethodGeneric.MakeGenericMethod(new [] { referredType });
+                        //var defaultObjTask = askTaskMethod.Invoke(null, new object [] {defaultObj });
+
+                        //var refInstance = Activator.CreateInstance(refType,
+                        //    new object [] { defaultObjTask });
+                        //return onBound(refInstance);
                     }
                 },
                 {
                     typeof(IRefObj<>),
                     (type, httpApp, content, onBound, onFailedToBind) =>
                     {
-                        var referredType = type.GenericTypeArguments.First();
-                        var refType = typeof(EastFive.RefObj<>).MakeGenericType(referredType);
+                        var resourceType = type.GenericTypeArguments.First();
+                        var instantiatableType = typeof(EastFive.RefObj<>).MakeGenericType(resourceType);
+
                         return httpApp.Bind(typeof(Guid), content,
-                            resourceId =>
+                            (id) =>
                             {
-                                var refInstance = Activator.CreateInstance(refType,
-                                    new object [] { resourceId });
-                                return onBound(refInstance);
+                                var instance = Activator.CreateInstance(instantiatableType, new object[] { id });
+                                return onBound(instance);
                             },
-                            onFailedToBind);
+                            (why) => onFailedToBind(why));
+
+                        //var referredType = type.GenericTypeArguments.First();
+                        //var refType = typeof(EastFive.RefObj<>).MakeGenericType(referredType);
+                        //return httpApp.Bind(typeof(Guid), content,
+                        //    resourceId =>
+                        //    {
+                        //        var refInstance = Activator.CreateInstance(refType,
+                        //            new object [] { resourceId });
+                        //        return onBound(refInstance);
+                        //    },
+                        //    onFailedToBind);
                     }
                 },
                 {
