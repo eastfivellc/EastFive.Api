@@ -324,6 +324,12 @@ namespace EastFive.Api
             Func<object, TResult> onCasted,
             Func<TResult> onNotMapped = default(Func<TResult>))
         {
+            if(null == value)
+            {
+                var nullDefaultValue = propertyType.GetDefault();
+                return onCasted(value);
+            }
+
             var valueType = value.GetType();
             if (propertyType.IsAssignableFrom(valueType))
                 return onCasted(value);
