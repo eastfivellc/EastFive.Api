@@ -1847,6 +1847,9 @@ namespace EastFive.Api
                             return true;
                         if (type.IsAssignableFrom(instigatorKvp.Key))
                             return true;
+                        if(instigatorKvp.Key.IsInterface)
+                            if (instigatorKvp.Key.IsSubClassOfGeneric(type))
+                                return true;
                         return false;
                     })
                 .Select(
