@@ -38,7 +38,7 @@ namespace EastFive.Api.Razor
                 systemPath = Environment.CurrentDirectory;
             }
 
-            var viewsFile = new FileInfo($"{systemPath}Views\\{template}");
+            var viewsFile = new FileInfo($"{systemPath}\\Views\\{template}");
             if (viewsFile.Exists)
             {
                 var path = viewsFile.FullName;
