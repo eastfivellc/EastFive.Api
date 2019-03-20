@@ -120,19 +120,20 @@ namespace EastFive.Api
             ApplicationStart();
             GlobalConfiguration.Configure(this.Configure);
             Registration();
+            SetupRazorEngine(string.Empty);
         }
 
         public virtual void ApplicationStart()
         {
             LocateControllers();
-            SetupRazorEngine();
+            //SetupRazorEngine();
         }
 
-        public virtual void ApplicationStart(string rootDirectory)
-        {
-            LocateControllers();
-            SetupRazorEngine(rootDirectory);
-        }
+        //public virtual void ApplicationStart(string rootDirectory)
+        //{
+        //    LocateControllers();
+        //    //SetupRazorEngine(rootDirectory);
+        //}
 
         public static void SetupRazorEngine()
         {
@@ -1806,13 +1807,6 @@ namespace EastFive.Api
             Func<object, TResult> onParsed,
             Func<string, TResult> onDidNotBind)
         {
-            if (this.instantiations.ContainsKey(type))
-            {
-                var instance = await this.instantiations[type](this);
-                var castedVal = onParsed(instance);
-                return castedVal;
-            }
-
             if (type.IsGenericType)
             {
                 var possibleGenericInstantiator = this.instantiationsGeneric
@@ -1831,6 +1825,22 @@ namespace EastFive.Api
                     var castResult = (TResult)resultBound;
                     return castResult;
                 }
+            }
+
+            var possibleInstantiators = this.instantiations
+                .Where(
+                    intatiatorKvp =>
+                    {
+                        var instantiatorType = intatiatorKvp.Key;
+                        if (instantiatorType.IsSubClassOfGeneric(type))
+                            return true;
+                        return false;
+                    });
+            if (possibleInstantiators.Any())
+            {
+                var instance = await possibleInstantiators.First().Value(this);
+                var castedVal = onParsed(instance);
+                return castedVal;
             }
 
             return onDidNotBind($"No binding for type `{type.FullName}` active in server.");
