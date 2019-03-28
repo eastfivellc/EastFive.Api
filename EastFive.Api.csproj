@@ -179,6 +179,7 @@
     <Compile Include="HttpActionResult.cs" />
     <Compile Include="InjectableAssemblyResolver.cs" />
     <Compile Include="FVC\Handlers\ControllerHandler.cs" />
+    <Compile Include="Razor\GenericReferenceResolver.cs" />
     <Compile Include="Razor\HtmlSupportTemplateBase.cs" />
     <Compile Include="Razor\RazorTemplateManager.cs" />
     <Compile Include="Resources\Exceptions.cs" />

@@ -23,8 +23,10 @@ using EastFive.Web;
 using EastFive.Linq.Async;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using RazorEngine.Templating;
 using EastFive.Reflection;
+using RazorEngine.Templating;
+using System.Security;
+using System.Security.Permissions;
 
 namespace EastFive.Api
 {
@@ -118,19 +120,38 @@ namespace EastFive.Api
             ApplicationStart();
             GlobalConfiguration.Configure(this.Configure);
             Registration();
-
-            var templateManager = new Razor.RazorTemplateManager();
-            var config = new RazorEngine.Configuration.TemplateServiceConfiguration
-            {
-                TemplateManager = templateManager,
-                BaseTemplateType = typeof(Razor.HtmlSupportTemplateBase<>)
-            };
-            RazorEngine.Engine.Razor = RazorEngine.Templating.RazorEngineService.Create(config);
+            SetupRazorEngine(string.Empty);
         }
 
         public virtual void ApplicationStart()
         {
             LocateControllers();
+            //SetupRazorEngine();
+        }
+
+        //public virtual void ApplicationStart(string rootDirectory)
+        //{
+        //    LocateControllers();
+        //    //SetupRazorEngine(rootDirectory);
+        //}
+
+        public static void SetupRazorEngine()
+        {
+            SetupRazorEngine(string.Empty);
+        }
+
+        public static void SetupRazorEngine(string rootDirectory)
+        {
+            var templateManager = new Razor.RazorTemplateManager(rootDirectory);
+            var referenceResolver = new Razor.GenericReferenceResolver();
+            var config = new RazorEngine.Configuration.TemplateServiceConfiguration
+            {
+                TemplateManager = templateManager,
+                ReferenceResolver = referenceResolver,
+                BaseTemplateType = typeof(Razor.HtmlSupportTemplateBase<>),
+                DisableTempFileLocking = true
+            };
+            RazorEngine.Engine.Razor = RazorEngine.Templating.RazorEngineService.Create(config);
         }
 
         protected virtual void Registration()
@@ -309,6 +330,12 @@ namespace EastFive.Api
             Func<object, TResult> onCasted,
             Func<TResult> onNotMapped = default(Func<TResult>))
         {
+            if(null == value)
+            {
+                var nullDefaultValue = propertyType.GetDefault();
+                return onCasted(value);
+            }
+
             var valueType = value.GetType();
             if (propertyType.IsAssignableFrom(valueType))
                 return onCasted(value);
@@ -1348,7 +1375,11 @@ namespace EastFive.Api
                     (httpApp, token, onParsed, onNotConvertable) =>
                     {
                         var uriStringValue = token.ReadString();
+<<<<<<< HEAD
                         if (Uri.TryCreate(uriStringValue, UriKind.RelativeOrAbsolute, out Uri uriValue))
+=======
+                        if(Uri.TryCreate(uriStringValue, UriKind.RelativeOrAbsolute, out Uri uriValue))
+>>>>>>> 6c57c3a6373f5bb2115b9a1737544b46f6e572c6
                             return onParsed(uriValue);
                         return onNotConvertable($"Failed to convert {uriStringValue} to `{typeof(Uri).FullName}`.");
                     }
@@ -1493,36 +1524,52 @@ namespace EastFive.Api
                     typeof(IRef<>),
                     (type, httpApp, content, onBound, onFailedToBind) =>
                     {
-                        var referredType = type.GenericTypeArguments.First();
-                        var refType = referredType.IsClass?
-                            typeof(EastFive.RefObj<>).MakeGenericType(referredType)
-                            :
-                            typeof(EastFive.Ref<>).MakeGenericType(referredType);
-                        
-                        var defaultObj = referredType.GetDefault();
-                        var asTaskMethodGeneric = typeof(Extensions.ObjectExtensions).GetMethod("AsTask", BindingFlags.Static | BindingFlags.Public);
-                        var askTaskMethod = asTaskMethodGeneric.MakeGenericMethod(new [] { referredType });
-                        var defaultObjTask = askTaskMethod.Invoke(null, new object [] {defaultObj });
+                        var resourceType = type.GenericTypeArguments.First();
+                        var instantiatableType = typeof(EastFive.Ref<>).MakeGenericType(resourceType);
 
-                        var refInstance = Activator.CreateInstance(refType,
-                            new object [] { defaultObjTask });
-                        return onBound(refInstance);
+                        return httpApp.Bind(typeof(Guid), content,
+                            (id) =>
+                            {
+                                var instance = Activator.CreateInstance(instantiatableType, new object[] { id });
+                                return onBound(instance);
+                            },
+                            (why) => onFailedToBind(why));
+
+                        //var defaultObj = instantiatableType.GetDefault();
+                        //var asTaskMethodGeneric = typeof(Extensions.ObjectExtensions).GetMethod("AsTask", BindingFlags.Static | BindingFlags.Public);
+                        //var askTaskMethod = asTaskMethodGeneric.MakeGenericMethod(new [] { referredType });
+                        //var defaultObjTask = askTaskMethod.Invoke(null, new object [] {defaultObj });
+
+                        //var refInstance = Activator.CreateInstance(refType,
+                        //    new object [] { defaultObjTask });
+                        //return onBound(refInstance);
                     }
                 },
                 {
                     typeof(IRefObj<>),
                     (type, httpApp, content, onBound, onFailedToBind) =>
                     {
-                        var referredType = type.GenericTypeArguments.First();
-                        var refType = typeof(EastFive.RefObj<>).MakeGenericType(referredType);
+                        var resourceType = type.GenericTypeArguments.First();
+                        var instantiatableType = typeof(EastFive.RefObj<>).MakeGenericType(resourceType);
+
                         return httpApp.Bind(typeof(Guid), content,
-                            resourceId =>
+                            (id) =>
                             {
-                                var refInstance = Activator.CreateInstance(refType,
-                                    new object [] { resourceId });
-                                return onBound(refInstance);
+                                var instance = Activator.CreateInstance(instantiatableType, new object[] { id });
+                                return onBound(instance);
                             },
-                            onFailedToBind);
+                            (why) => onFailedToBind(why));
+
+                        //var referredType = type.GenericTypeArguments.First();
+                        //var refType = typeof(EastFive.RefObj<>).MakeGenericType(referredType);
+                        //return httpApp.Bind(typeof(Guid), content,
+                        //    resourceId =>
+                        //    {
+                        //        var refInstance = Activator.CreateInstance(refType,
+                        //            new object [] { resourceId });
+                        //        return onBound(refInstance);
+                        //    },
+                        //    onFailedToBind);
                     }
                 },
                 {
@@ -1787,13 +1834,6 @@ namespace EastFive.Api
             Func<object, TResult> onParsed,
             Func<string, TResult> onDidNotBind)
         {
-            if (this.instantiations.ContainsKey(type))
-            {
-                var instance = await this.instantiations[type](this);
-                var castedVal = onParsed(instance);
-                return castedVal;
-            }
-
             if (type.IsGenericType)
             {
                 var possibleGenericInstantiator = this.instantiationsGeneric
@@ -1814,6 +1854,22 @@ namespace EastFive.Api
                 }
             }
 
+            var possibleInstantiators = this.instantiations
+                .Where(
+                    intatiatorKvp =>
+                    {
+                        var instantiatorType = intatiatorKvp.Key;
+                        if (instantiatorType.IsSubClassOfGeneric(type))
+                            return true;
+                        return false;
+                    });
+            if (possibleInstantiators.Any())
+            {
+                var instance = await possibleInstantiators.First().Value(this);
+                var castedVal = onParsed(instance);
+                return castedVal;
+            }
+
             return onDidNotBind($"No binding for type `{type.FullName}` active in server.");
         }
 
@@ -1828,6 +1884,9 @@ namespace EastFive.Api
                             return true;
                         if (type.IsAssignableFrom(instigatorKvp.Key))
                             return true;
+                        if(instigatorKvp.Key.IsInterface)
+                            if (instigatorKvp.Key.IsSubClassOfGeneric(type))
+                                return true;
                         return false;
                     })
                 .Select(
