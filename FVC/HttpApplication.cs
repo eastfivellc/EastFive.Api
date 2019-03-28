@@ -1375,11 +1375,7 @@ namespace EastFive.Api
                     (httpApp, token, onParsed, onNotConvertable) =>
                     {
                         var uriStringValue = token.ReadString();
-<<<<<<< HEAD
                         if (Uri.TryCreate(uriStringValue, UriKind.RelativeOrAbsolute, out Uri uriValue))
-=======
-                        if(Uri.TryCreate(uriStringValue, UriKind.RelativeOrAbsolute, out Uri uriValue))
->>>>>>> 6c57c3a6373f5bb2115b9a1737544b46f6e572c6
                             return onParsed(uriValue);
                         return onNotConvertable($"Failed to convert {uriStringValue} to `{typeof(Uri).FullName}`.");
                     }
