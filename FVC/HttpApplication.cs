@@ -270,6 +270,11 @@ namespace EastFive.Api
             return lookup.Select(kvp => kvp.Key.PairWithValue(kvp.Value.ToArray())).ToArray();
         }
 
+        public Type[] GetResources()
+        {
+            return resources;
+        }
+
         internal TResult GetControllerMethods<TResult>(string routeName,
             Func<IDictionary<HttpMethod, MethodInfo[]>, TResult> onMethodsIdentified, 
             Func<TResult> onKeyNotFound)
@@ -407,6 +412,7 @@ namespace EastFive.Api
         #region Load Controllers
 
         private static IDictionary<string, IDictionary<HttpMethod, MethodInfo[]>> lookup;
+        private static Type[] resources;
         private static IDictionary<Type, string> contentTypeLookup;
         private static IDictionary<string, Type> resourceNameControllerLookup;
         private static IDictionary<Type, Type> resourceTypeControllerLookup;
@@ -462,14 +468,20 @@ namespace EastFive.Api
                             return type.PairWithKey(attr);
                         })
                     .ToArray();
-                
+
+                resources = resources
+                    .NullToEmpty()
+                    .Concat(functionViewControllerAttributesAndTypes.SelectValues())
+                    .Distinct(type => type.GUID)
+                    .ToArray();
+
                 lookup = lookup.Merge(
                     functionViewControllerAttributesAndTypes
                         .Select(
                             attrType =>
                             {
                                 var actionMethods = attrType.Value
-                                    .GetMethods(BindingFlags.Public | BindingFlags.Static)
+                                    .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
                                     .Where(method => method.ContainsCustomAttribute<HttpActionAttribute>())
                                     .GroupBy(method => method.GetCustomAttribute<HttpActionAttribute>().Method)
                                     .Select(methodGrp => (new HttpMethod(methodGrp.Key)).PairWithValue(methodGrp.ToArray()));
@@ -478,7 +490,7 @@ namespace EastFive.Api
                                         .Select(
                                             methodKvp => methodKvp.Value.PairWithValue(
                                                 attrType.Value
-                                                    .GetMethods(BindingFlags.Public | BindingFlags.Static)
+                                                    .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
                                                     .Where(method => method.ContainsCustomAttribute(methodKvp.Key))
                                             .ToArray()))
                                         .Concat(actionMethods)
@@ -1297,6 +1309,17 @@ namespace EastFive.Api
                     }
                 },
                 {
+                    typeof(decimal?),
+                    (httpApp, token, onParsed, onNotConvertable) =>
+                    {
+                        var intStringValue = token.ReadObject<decimal?>();
+                        //if (int.TryParse(intStringValue, out int intValue))
+                        //    return onParsed(intValue);
+                        return onParsed(intStringValue);
+                        //return onNotConvertable($"Failed to convert {intStringValue} to `{typeof(int).FullName}`.");
+                    }
+                },
+                {
                     typeof(bool),
                     (httpApp, token, onParsed, onNotConvertable) =>
                     {
@@ -1318,6 +1341,16 @@ namespace EastFive.Api
                             return onParsed(boolValue);
 
                         return onNotConvertable($"Failed to convert {boolStringValue} to `{typeof(bool).FullName}`.");
+                    }
+                },
+                {
+                    typeof(Uri),
+                    (httpApp, token, onParsed, onNotConvertable) =>
+                    {
+                        var uriStringValue = token.ReadString();
+                        if (Uri.TryCreate(uriStringValue, UriKind.RelativeOrAbsolute, out Uri uriValue))
+                            return onParsed(uriValue);
+                        return onNotConvertable($"Failed to convert {uriStringValue} to `{typeof(Uri).FullName}`.");
                     }
                 },
                 {
@@ -1897,9 +1930,13 @@ namespace EastFive.Api
             {
                 if (objectType.IsSubClassOfGeneric(typeof(IRef<>)))
                     return true;
+                if (objectType.IsSubClassOfGeneric(typeof(IRefObj<>)))
+                    return true;
                 if (objectType.IsSubClassOfGeneric(typeof(IRefs<>)))
                     return true;
                 if (objectType.IsSubClassOfGeneric(typeof(IRefOptional<>)))
+                    return true;
+                if (objectType.IsSubClassOfGeneric(typeof(IRefObjOptional<>)))
                     return true;
                 if (objectType.IsSubClassOfGeneric(typeof(IDictionary<,>)))
                 {

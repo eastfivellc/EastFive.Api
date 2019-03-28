@@ -149,6 +149,7 @@
     <Compile Include="Controllers\ResponseDelegates.cs" />
     <Compile Include="Extensions\ClaimsExtensions.cs" />
     <Compile Include="Extensions\HttpConfigurationExtensions.cs" />
+    <Compile Include="Extensions\HttpHeaderExtensions.cs" />
     <Compile Include="Extensions\QueryExtensions.IntQueries.cs" />
     <Compile Include="Extensions\QueryExtensions.BoolQueries.cs" />
     <Compile Include="Extensions\QueryExtensions.ParseMethods.cs" />
