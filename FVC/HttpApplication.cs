@@ -897,7 +897,7 @@ namespace EastFive.Api
                         Controllers.ConfigurationFailureResponse dele = 
                             (configurationValue, message) => request
                                 .CreateResponse(System.Net.HttpStatusCode.ServiceUnavailable)
-                                .AddReason($"`{configurationValue}` not specifiedin config:{message}");
+                                .AddReason($"`{configurationValue}` not specified in config:{message}");
                         return success((object)dele);
                     }
                 },
@@ -921,7 +921,7 @@ namespace EastFive.Api
                     typeof(Controllers.AlreadyExistsReferencedResponse),
                     (httpApp, request, paramInfo, success) =>
                     {
-                        Controllers.AlreadyExistsReferencedResponse dele = (existingId) => request.CreateResponse(System.Net.HttpStatusCode.Conflict).AddReason("The resource already exists");
+                        Controllers.AlreadyExistsReferencedResponse dele = (existingId) => request.CreateResponse(System.Net.HttpStatusCode.Conflict).AddReason($"There is already a resource with ID = [{existingId}]");
                         return success((object)dele);
                     }
                 },
