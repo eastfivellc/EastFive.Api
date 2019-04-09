@@ -130,6 +130,26 @@ namespace EastFive.Api
         }
     }
 
+    public class UpdateIdAttribute : QueryParameterAttribute
+    {
+        public async override Task<SelectParameterResult> TryCastAsync(HttpApplication httpApp,
+                HttpRequestMessage request, MethodInfo method,
+                ParameterInfo parameterRequiringValidation,
+                CastDelegate<SelectParameterResult> fetchQueryParam,
+                CastDelegate<SelectParameterResult> fetchBodyParam,
+                CastDelegate<SelectParameterResult> fetchDefaultParam)
+        {
+            var baseValue = await base.TryCastAsync(httpApp, request, method, parameterRequiringValidation, fetchQueryParam, fetchBodyParam, fetchDefaultParam);
+            if (baseValue.valid)
+                return baseValue;
+
+            var queryName = GetQueryParameterName(parameterRequiringValidation);
+            return await fetchBodyParam(queryName, parameterRequiringValidation.ParameterType,
+                vCasted => SelectParameterResult.Body(vCasted, queryName, parameterRequiringValidation),
+                why => SelectParameterResult.Failure(why, queryName, parameterRequiringValidation));
+        }
+    }
+
     public class HeaderAttribute : QueryValidationAttribute
     {
         public string Content { get; set; }

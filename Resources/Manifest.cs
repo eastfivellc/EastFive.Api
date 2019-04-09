@@ -1,4 +1,7 @@
-﻿using System;
+﻿using EastFive.Linq;
+using EastFive.Reflection;
+using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -22,11 +25,55 @@ namespace EastFive.Api.Resources
             {
                 this.Name = name;
                 this.Verbs = methods.Select(verb => new Verb(verb.Key, verb.Value)).ToArray();
+                this.Properties = methods
+                    .First(
+                        (methodKvp, next) =>
+                        {
+                            return methodKvp.Value
+                                .First(
+                                    (method, nextInner) =>
+                                    {
+                                        return method.DeclaringType
+                                            .GetPropertyOrFieldMembers()
+                                            .Where(property => property.ContainsCustomAttribute<JsonPropertyAttribute>())
+                                            .Select(member => new Property(member))
+                                            .ToArray();
+                                        //return new Property[] { };
+                                    },
+                                    () => new Property[] { });
+                        },
+                        () => new Property[] { });
             }
 
             public string Name { get; set; }
 
             public Verb[] Verbs { get; set; }
+
+            public Property[] Properties { get; set; }
+        }
+
+        public class Property
+        {
+            public Property(MemberInfo member)
+            {
+                this.Name = member.GetCustomAttribute<JsonPropertyAttribute, string>(
+                    (attr) => attr.PropertyName.HasBlackSpace() ? attr.PropertyName : member.Name,
+                    () => member.Name);
+                this.Description = member.GetCustomAttribute<System.ComponentModel.DescriptionAttribute, string>(
+                    (attr) => attr.Description,
+                    () => string.Empty);
+                this.Options = new KeyValuePair<string, string>[] { };
+                var type = member.GetPropertyOrFieldType();
+                this.Type = Parameter.GetTypeName(type);
+            }
+
+            public string Name { get; set; }
+
+            public string Description { get; set; }
+
+            public KeyValuePair<string, string>[] Options { get; set; }
+
+            public string Type { get; set; }
         }
 
         public class Verb
@@ -77,8 +124,12 @@ namespace EastFive.Api.Resources
                 this.Type = GetTypeName(paramInfo.ParameterType);
             }
 
-            private static string GetTypeName(Type type)
+            public static string GetTypeName(Type type)
             {
+                if (type.IsSubClassOfGeneric(typeof(IRef<>)))
+                    return $"->{GetTypeName(type.GenericTypeArguments.First())}";
+                if (type.IsSubClassOfGeneric(typeof(IRefOptional<>)))
+                    return $"->{GetTypeName(type.GenericTypeArguments.First())}?";
                 if (type.IsArray)
                     return $"{GetTypeName(type.GetElementType())}[]";
                 return type.IsNullable(
@@ -89,7 +140,7 @@ namespace EastFive.Api.Resources
             public string Name { get; set; }
             public bool Required { get; set; }
             public bool Default { get; set; }
-
+            public string Where { get; set; }
             public string Type { get; set; }
         }
 
