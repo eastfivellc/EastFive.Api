@@ -66,6 +66,8 @@ namespace EastFive.Api.Controllers
 
     public interface IExecuteAsync
     {
+        bool ForceBackground { get; }
+
         Task<HttpResponseMessage> InvokeAsync(Action<double> updateCallback);
     }
 
