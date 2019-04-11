@@ -1052,7 +1052,18 @@ namespace EastFive.Api
                         Controllers.ExecuteBackgroundResponseAsync dele =
                             async (executionContext) =>
                             {
-                                if(request.Headers.Accept.Contains(mediaType => mediaType.MediaType.ToLower().Contains("background")))
+                                bool shouldRunInBackground()
+                                {
+                                    if (executionContext.ForceBackground)
+                                        return true;
+
+                                    if(request.Headers.Accept.Contains(mediaType => mediaType.MediaType.ToLower().Contains("background")))
+                                        return true;
+
+                                    return false;
+                                }
+
+                                if(shouldRunInBackground())
                                 {
                                     var urlHelper = request.GetUrlHelper();
                                     var processId = Controllers.BackgroundProgressController.CreateProcess(
