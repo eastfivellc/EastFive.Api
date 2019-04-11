@@ -1293,6 +1293,8 @@ namespace EastFive.Api
                             return onNotConvertable($"Failed to convert `{guidStringValue}` to type `{typeof(Guid).FullName}`.");
                         }
                         var webId = content.ReadObject<WebId>();
+                        if(webId.IsDefaultOrNull())
+                            return onNotConvertable("Null value for GUID.");
                         var guidValueMaybe = webId.ToGuid();
                         if(!guidValueMaybe.HasValue)
                             return onNotConvertable("Null WebId cannot be converted to a Guid.");
