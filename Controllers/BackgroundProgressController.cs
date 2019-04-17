@@ -23,6 +23,8 @@ namespace EastFive.Api.Controllers
         public IntQuery Top { get; set; }
 
         public IntQuery Count { get; set; }
+
+        public BoolQuery Result { get; set; }
     }
 
     public class BackgroundProgress : BlackBarLabs.Api.ResourceBase
@@ -44,7 +46,7 @@ namespace EastFive.Api.Controllers
             internal double? length;
             internal Thread thread;
             internal double progress;
-            internal HttpResponseMessage response;
+            internal Task<HttpResponseMessage> task;
         }
 
         private static ConcurrentDictionary<Guid, Process> processes = new ConcurrentDictionary<Guid, Process>();
@@ -53,6 +55,7 @@ namespace EastFive.Api.Controllers
         {
             return this.ActionResult(() =>query.ParseAsync(this.Request,
                 (q) => GetProgressAsync(q.Id.ParamSingle(), this.Request),
+                (q) => GetResult(q.Id.ParamSingle(), q.Result.ParamValue(), this.Request),
                 (q) => GetByRange(q.Id.ParamSingle(), q.Top.ParamMaybe(), q.Count.ParamValue(), this.Request),
                 (q) => GetByRange(q.Id.ParamSingle(), q.Top.ParamValue(), q.Count.ParamMaybe(), this.Request)));
         }
@@ -80,6 +83,15 @@ namespace EastFive.Api.Controllers
                     Progress = result,
                     Total = process.length.HasValue ? process.length.Value : 0.0,
                 }).ToTask();
+        }
+
+        private async Task<HttpResponseMessage> GetResult(Guid processId, bool result, HttpRequestMessage request)
+        {
+            if (!processes.TryGetValue(processId, out Process process))
+                return request.CreateResponseNotFound(processId);
+
+            var response = await process.task;
+            return response;
         }
 
         private async Task<HttpResponseMessage[]> GetByRange(Guid processId, int top, int? count, HttpRequestMessage request)
@@ -151,29 +163,28 @@ namespace EastFive.Api.Controllers
             {
                 id = processId,
                 responses = default(HttpResponseMessage[]),
-                response = default(HttpResponseMessage),
                 length = estimatedProcessLength,
                 progress = 0.0,
             };
             if (launched != null)
             {
+                process.task = new Task<HttpResponseMessage>(
+                    () =>
+                    {
+                        Action<double> callback = (progress) =>
+                        {
+                            lock (process)
+                            {
+                                process.progress = progress;
+                            }
+                        };
+                        var completeTask = launched(callback);
+                        return completeTask.Result;
+                    });
                 process.thread = new Thread(
                     () =>
                     {
-                        var task = new Task<HttpResponseMessage>(
-                            () =>
-                            {
-                                Action<double> callback = (progress) =>
-                                {
-                                    lock (process)
-                                    {
-                                        process.progress = progress;
-                                    }
-                                };
-                                var completeTask = launched(callback);
-                                return completeTask.Result;
-                            });
-                        task.RunSynchronously();
+                        process.task.RunSynchronously();
                     });
                 process.thread.Start();
             }
