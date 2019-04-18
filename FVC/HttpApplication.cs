@@ -114,7 +114,7 @@ namespace EastFive.Api
             }
         }
 
-        protected void Application_Start()
+        public void Application_Start()
         {
             System.Web.Mvc.AreaRegistration.RegisterAllAreas();
             ApplicationStart();
