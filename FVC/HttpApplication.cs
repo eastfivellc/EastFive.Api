@@ -114,7 +114,7 @@ namespace EastFive.Api
             }
         }
 
-        protected void Application_Start()
+        public void Application_Start()
         {
             System.Web.Mvc.AreaRegistration.RegisterAllAreas();
             ApplicationStart();
@@ -135,7 +135,7 @@ namespace EastFive.Api
         //    //SetupRazorEngine(rootDirectory);
         //}
 
-        public static void SetupRazorEngine()
+        public virtual void SetupRazorEngine()
         {
             SetupRazorEngine(string.Empty);
         }
