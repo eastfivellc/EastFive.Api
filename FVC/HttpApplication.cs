@@ -135,7 +135,7 @@ namespace EastFive.Api
         //    //SetupRazorEngine(rootDirectory);
         //}
 
-        public static void SetupRazorEngine()
+        public virtual void SetupRazorEngine()
         {
             SetupRazorEngine(string.Empty);
         }
