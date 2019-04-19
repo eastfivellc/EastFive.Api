@@ -107,7 +107,11 @@ namespace EastFive.Api.Modules
 
             public IParseToken[] ReadArray()
             {
-                throw new NotImplementedException();
+                return value
+                    .Split(new char[] { ',' })
+                    .Select(
+                        v => new QueryParamTokenParser(v))
+                    .ToArray();
             }
 
             public byte[] ReadBytes()

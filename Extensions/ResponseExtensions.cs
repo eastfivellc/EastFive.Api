@@ -742,6 +742,10 @@ namespace BlackBarLabs.Api
             //start the resizing
             using (var graphics = Graphics.FromImage(newImage))
             {
+                graphics.CompositingMode = CompositingMode.SourceCopy;
+                var brush = System.Drawing.Brushes.White;
+                graphics.FillRectangle(brush, 0, 0, newWidth, newHeight);
+
                 //set some encoding specs
                 graphics.CompositingMode = CompositingMode.SourceOver;
                 graphics.CompositingQuality = CompositingQuality.HighQuality;
