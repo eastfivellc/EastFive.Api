@@ -176,6 +176,8 @@
     <Compile Include="FVC\Handlers\MonitoringHandler.cs" />
     <Compile Include="FVC\IProvideApiValue.cs" />
     <Compile Include="FVC\IProviderSerialization.cs" />
+    <Compile Include="FVC\IInvokeApplication.cs" />
+    <Compile Include="FVC\IInvokeApplicationFactory.cs" />
     <Compile Include="HttpActionResult.cs" />
     <Compile Include="InjectableAssemblyResolver.cs" />
     <Compile Include="FVC\Handlers\ControllerHandler.cs" />
