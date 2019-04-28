@@ -845,16 +845,36 @@ namespace EastFive.Api
                     typeof(Controllers.SessionToken),
                     (httpApp, request, paramInfo, success) =>
                     {
-                        return request.GetSessionIdClaimsAsync(
-                            (sessionId, claims) =>
+                        return EastFive.Web.Configuration.Settings.GetString(AppSettings.ActorIdClaimType,
+                            (accountIdClaimType) =>
                             {
-                                var x = new Controllers.SessionToken
-                                {
-                                    sessionId = sessionId,
-                                    claims = claims,
-                                };
-                                return success(x);
-                            });
+                                return request.GetClaims(
+                                    (claimsEnumerable) =>
+                                    {
+                                        var claims = claimsEnumerable.ToArray();
+                                        return claims.GetAccountIdMaybe(
+                                                request, accountIdClaimType,
+                                            (accountIdMaybe) =>
+                                            {
+                                                var sessionIdClaimType = BlackBarLabs.Security.ClaimIds.Session;
+                                                return claims.GetSessionIdAsync(
+                                                    request, sessionIdClaimType,
+                                                    (sessionId) =>
+                                                    {
+                                                        var token = new Controllers.SessionToken
+                                                        {
+                                                            accountIdMaybe = accountIdMaybe,
+                                                            sessionId = sessionId,
+                                                            claims = claims,
+                                                        };
+                                                        return success(token);
+                                                    });
+                                            });
+                                    },
+                                    () => request.CreateResponse(HttpStatusCode.Unauthorized).AddReason("Authorization header not set.").AsTask(),
+                                    (why) => request.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).AsTask());
+                            },
+                            (why) => request.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).AsTask());
                     }
                 },
                 {

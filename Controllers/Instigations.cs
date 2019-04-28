@@ -18,6 +18,7 @@ namespace EastFive.Api.Controllers
     {
         public Guid sessionId;
         public Claim[] claims;
+        public Guid? accountIdMaybe;
     }
 
     public struct ApiSecurity

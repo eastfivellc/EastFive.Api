@@ -380,6 +380,7 @@ namespace BlackBarLabs.Api
             return GetActorIdClaimsAsync(request, accountIdClaimTypeConfigurationSetting, success);
         }
 
+
         public static Task<HttpResponseMessage> GetActorIdClaimsFromBearerParamAsync(this HttpRequestMessage request,
             Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage>> onSuccess,
             Func<Task<HttpResponseMessage>> onNoBearerParameterFound,
