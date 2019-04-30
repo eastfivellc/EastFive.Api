@@ -139,6 +139,7 @@ namespace EastFive.Api
                 CastDelegate<SelectParameterResult> fetchBodyParam,
                 CastDelegate<SelectParameterResult> fetchDefaultParam)
         {
+            base.CheckFileName = true;
             var baseValue = await base.TryCastAsync(httpApp, request, method, parameterRequiringValidation, fetchQueryParam, fetchBodyParam, fetchDefaultParam);
             if (baseValue.valid)
                 return baseValue;
