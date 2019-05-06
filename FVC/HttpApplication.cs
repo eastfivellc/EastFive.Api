@@ -1563,15 +1563,22 @@ namespace EastFive.Api
                                 return onBound(instance);
                             },
                             (why) => onFailedToBind(why));
+                    }
+                },
+                {
+                    typeof(IRefs<>),
+                    (type, httpApp, content, onBound, onFailedToBind) =>
+                    {
+                        var resourceType = type.GenericTypeArguments.First();
+                        var instantiatableType = typeof(EastFive.Refs<>).MakeGenericType(resourceType);
 
-                        //var defaultObj = instantiatableType.GetDefault();
-                        //var asTaskMethodGeneric = typeof(Extensions.ObjectExtensions).GetMethod("AsTask", BindingFlags.Static | BindingFlags.Public);
-                        //var askTaskMethod = asTaskMethodGeneric.MakeGenericMethod(new [] { referredType });
-                        //var defaultObjTask = askTaskMethod.Invoke(null, new object [] {defaultObj });
-
-                        //var refInstance = Activator.CreateInstance(refType,
-                        //    new object [] { defaultObjTask });
-                        //return onBound(refInstance);
+                        return httpApp.Bind(typeof(Guid[]), content,
+                            (ids) =>
+                            {
+                                var instance = Activator.CreateInstance(instantiatableType, new object[] { ids });
+                                return onBound(instance);
+                            },
+                            (why) => onFailedToBind(why));
                     }
                 },
                 {
@@ -2325,7 +2332,11 @@ namespace EastFive.Api
 
             public IParseToken[] ReadArray()
             {
-                throw new NotImplementedException();
+                return Encoding.UTF8.GetString(contents)
+                    .Split(new char[] { ',' })
+                    .Select(
+                        v => new MultipartContentTokenParser(file, Encoding.UTF8.GetBytes(v), fileNameMaybe))
+                    .ToArray();
             }
 
             public byte[] ReadBytes()
