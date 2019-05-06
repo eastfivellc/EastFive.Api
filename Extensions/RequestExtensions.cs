@@ -17,8 +17,9 @@ using EastFive.Api;
 using EastFive.Linq;
 using EastFive.Extensions;
 using EastFive.Web;
+using BlackBarLabs.Api;
 
-namespace BlackBarLabs.Api
+namespace EastFive.Api
 {
     public static class RequestExtensions
     {
@@ -128,68 +129,6 @@ namespace BlackBarLabs.Api
             var multipartResponse = request.CreateResponse(HttpStatusCode.OK, multipartResponseContent);
             multipartResponse.Content.Headers.ContentType = new MediaTypeHeaderValue("application/x-multipart+json");
             return multipartResponse;
-        }
-
-        [Obsolete("User ParseAsync")]
-        public static IHttpActionResult MergeIds<TResource>(this HttpRequestMessage request, Guid idUrl, TResource resource,
-            Func<TResource, HttpActionDelegate> actionCallback,
-            Func<Guid, WebId> createIdCallback)
-            where TResource : ResourceBase
-        {
-            return resource.Id.GetUUID<IHttpActionResult>(
-                (resourceId) => idUrl.HasValue<IHttpActionResult>(
-                    (resourceIdUrl) =>
-                    {
-                        // Id's are specified in both places, ensure they match
-                        if (resourceId != resourceIdUrl)
-                            return request.CreateResponse(
-                                    HttpStatusCode.BadRequest, "Incorrect URL for resource")
-                                .ToActionResult();
-                        var action = actionCallback(resource);
-                        return action.ToActionResult();
-                    },
-                    () =>
-                    {
-                        // the URL id was not used, but the body has one,
-                        // just do the call standard
-                        HttpActionDelegate action = actionCallback(resource);
-                        return action.ToActionResult();
-                    }),
-                () => idUrl.HasValue<IHttpActionResult>(
-                    (resourceId) =>
-                    {
-                        // Only the URL has an id, 
-                        // construct a resource with ID specified and return it.
-                        var resourceWithId = resource.HasValue(
-                            (value) => value,
-                            () => Activator.CreateInstance<TResource>());
-                        resourceWithId.Id = createIdCallback(resourceId);
-                        HttpActionDelegate action = actionCallback(resource);
-                        return action.ToActionResult();
-                    },
-                    () => request.CreateResponse(
-                            HttpStatusCode.BadRequest, "No resource specified")
-                        .ToActionResult()));
-        }
-
-        public static TResult HasSiteAdminAuthorization<TResult>(this AuthenticationHeaderValue authorizationHeader,
-            Func<TResult> isAuthorized,
-            Func<string, TResult> notAuthorized)
-        {
-            var result = authorizationHeader.HasValue(
-                value =>
-                {
-                    return EastFive.Web.Configuration.Settings.GetString(EastFive.Api.AppSettings.SiteAdminAuthorization,
-                        siteAdminAuthorization =>
-                        {
-                            if (!string.IsNullOrEmpty(siteAdminAuthorization) && siteAdminAuthorization == value.ToString())
-                                return isAuthorized();
-                            return notAuthorized("This account is not authorized to create accounts");
-                        },
-                        (why) => notAuthorized("No site admin authorization has been configured"));
-                },
-                () => notAuthorized("This account is not authorized to create accounts"));
-            return result;
         }
 
         public static TResult GetClaimsFromAuthorizationHeader<TResult>(this AuthenticationHeaderValue header,
@@ -329,7 +268,7 @@ namespace BlackBarLabs.Api
                     var claims = claimsEnumerable.ToArray();
                     //var accountIdClaimType =
                     //    ConfigurationManager.AppSettings[sessionIdClaimTypeConfigurationSetting];
-                    var sessionIdClaimType = Security.ClaimIds.Session;
+                    var sessionIdClaimType = BlackBarLabs.Security.ClaimIds.Session;
                     var result = claims.GetSessionIdAsync(
                         request, sessionIdClaimType,
                         (sessionId) => success(sessionId, claims));
@@ -469,6 +408,26 @@ namespace BlackBarLabs.Api
                             .CreateResponse(HttpStatusCode.Unauthorized)
                             .AddReason(error)
                     }).ToTask());
+        }
+
+        public static bool IsContentOfType(this HttpRequestMessage request, string contentType)
+        {
+            if (request.Content.IsDefaultOrNull())
+                return false;
+
+            if (request.Content.Headers.IsDefaultOrNull())
+                return false;
+
+            if (request.Content.Headers.ContentType.IsDefaultOrNull())
+                return false;
+
+            if (request.Content.Headers.ContentType.MediaType.IsDefaultOrNull())
+                return false;
+
+            if (request.Content.Headers.ContentType.MediaType.ToLower() == contentType.ToLower())
+                return true;
+
+            return false;
         }
     }
 }
