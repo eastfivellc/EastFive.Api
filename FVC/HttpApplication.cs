@@ -106,6 +106,30 @@ namespace EastFive.Api
             this.initialization = InitializeAsync();
         }
 
+        public override void Dispose()
+        {
+            Dispose(true);
+            base.Dispose();
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (initializationLock != null)
+                {
+                    initializationLock.Dispose();
+                    initializationLock = null;
+                }
+                if (initialization != null)
+                {
+                    initialization.Dispose();
+                    initialization = null;
+                }
+            }
+        }
+
         public virtual string Namespace
         {
             get
@@ -128,12 +152,6 @@ namespace EastFive.Api
             LocateControllers();
             //SetupRazorEngine();
         }
-
-        //public virtual void ApplicationStart(string rootDirectory)
-        //{
-        //    LocateControllers();
-        //    //SetupRazorEngine(rootDirectory);
-        //}
 
         public virtual void SetupRazorEngine()
         {
