@@ -43,6 +43,30 @@ namespace EastFive.Api
             this.initialization = InitializeAsync();
         }
 
+        public override void Dispose()
+        {
+            Dispose(true);
+            base.Dispose();
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (initializationLock != null)
+                {
+                    initializationLock.Dispose();
+                    initializationLock = null;
+                }
+                if (initialization != null)
+                {
+                    initialization.Dispose();
+                    initialization = null;
+                }
+            }
+        }
+
         public virtual string Namespace
         {
             get
@@ -65,12 +89,6 @@ namespace EastFive.Api
             LocateControllers();
             //SetupRazorEngine();
         }
-
-        //public virtual void ApplicationStart(string rootDirectory)
-        //{
-        //    LocateControllers();
-        //    //SetupRazorEngine(rootDirectory);
-        //}
 
         public virtual void SetupRazorEngine()
         {
@@ -1511,6 +1529,22 @@ namespace EastFive.Api
                     }
                 },
                 {
+                    typeof(IRefs<>),
+                    (type, httpApp, content, onBound, onFailedToBind) =>
+                    {
+                        var resourceType = type.GenericTypeArguments.First();
+                        var instantiatableType = typeof(EastFive.Refs<>).MakeGenericType(resourceType);
+
+                        return httpApp.Bind(typeof(Guid[]), content,
+                            (ids) =>
+                            {
+                                var instance = Activator.CreateInstance(instantiatableType, new object[] { ids });
+                                return onBound(instance);
+                            },
+                            (why) => onFailedToBind(why));
+                    }
+                },
+                {
                     typeof(IRefObj<>),
                     (type, httpApp, content, onBound, onFailedToBind) =>
                     {
@@ -1892,8 +1926,6 @@ namespace EastFive.Api
         #endregion
 
         #region Conversions
-
-
 
         public virtual async Task<TResult> ParseContentValuesAsync<TParseResult, TResult>(HttpContent content,
             Func<ParseContentDelegate<TParseResult>, string [], Task<TResult>> onParsedContentValues)
