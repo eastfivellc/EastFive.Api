@@ -1529,22 +1529,6 @@ namespace EastFive.Api
                     }
                 },
                 {
-                    typeof(IRefs<>),
-                    (type, httpApp, content, onBound, onFailedToBind) =>
-                    {
-                        var resourceType = type.GenericTypeArguments.First();
-                        var instantiatableType = typeof(EastFive.Refs<>).MakeGenericType(resourceType);
-
-                        return httpApp.Bind(typeof(Guid[]), content,
-                            (ids) =>
-                            {
-                                var instance = Activator.CreateInstance(instantiatableType, new object[] { ids });
-                                return onBound(instance);
-                            },
-                            (why) => onFailedToBind(why));
-                    }
-                },
-                {
                     typeof(IRefObj<>),
                     (type, httpApp, content, onBound, onFailedToBind) =>
                     {

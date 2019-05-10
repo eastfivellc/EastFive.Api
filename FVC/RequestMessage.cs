@@ -13,8 +13,13 @@ using System.Threading.Tasks;
 
 namespace EastFive.Api
 {
-    public class RequestMessage<TResource> : EastFive.Linq.Queryable<TResource, RequestMessage<TResource>.RequestMessageProvideQuery>,
-        IQueryable<TResource>
+    public class RequestMessage<TResource>
+        : 
+            EastFive.Linq.Queryable<
+                TResource, 
+                RequestMessage<TResource>.RequestMessageProvideQuery>,
+            IQueryable<TResource>,
+            IRenderUrls
     {
         public class RequestMessageProvideQuery : 
             EastFive.Linq.QueryProvider<
@@ -64,6 +69,11 @@ namespace EastFive.Api
             return this;
         }
 
+        public Uri RenderLocation(string routeName = "DefaultApi")
+        {
+            throw new NotImplementedException();
+        }
+
         private static Uri AssignQueryExpressions<TResource>(Uri baseUri, IApplication application,
             Expression<Action<TResource>>[] parameters)
         {
@@ -106,6 +116,5 @@ namespace EastFive.Api
             var updatedUri = baseUri.SetQuery(queryParams);
             return updatedUri;
         }
-
     }
 }

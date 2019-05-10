@@ -21,6 +21,7 @@ namespace EastFive.Api
         public InvokeApplication(Uri serverUrl)
         {
             this.ServerLocation = serverUrl;
+            this.Headers = new Dictionary<string, string>();
         }
 
         protected abstract IApplication Application { get; }
