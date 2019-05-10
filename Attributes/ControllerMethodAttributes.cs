@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace EastFive.Api
 {
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Method)]
-    public class HttpVerbAttribute : Attribute
+    public abstract class HttpVerbAttribute : Attribute
     {
         private bool matchAllParameters = true;
         public bool MatchAllParameters
@@ -54,10 +54,12 @@ namespace EastFive.Api
                 matchAllQueryParameters = value;
             }
         }
+
+        public abstract string Method { get; }
     }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Method)]
-    public class HttpBodyAttribute : HttpVerbAttribute
+    public abstract class HttpBodyAttribute : HttpVerbAttribute
     {
         public Type Type { get; set; }
     }
@@ -65,12 +67,13 @@ namespace EastFive.Api
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Method)]
     public class HttpPostAttribute : HttpBodyAttribute
     {
+        public override string Method => System.Net.Http.HttpMethod.Post.Method;
     }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Method)]
     public class HttpGetAttribute : HttpVerbAttribute
     {
-
+        public override string Method => System.Net.Http.HttpMethod.Get.Method;
     }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Method)]
@@ -78,33 +81,37 @@ namespace EastFive.Api
     {
         public HttpActionAttribute(string method)
         {
-            this.Method = method;
+            this.Action = method;
         }
 
-        public string Method { get; set; }
+        public string Action { get; set; }
+
+        public override string Method => Action;
     }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Method)]
     public class HttpPutAttribute : HttpBodyAttribute
     {
+        public override string Method => System.Net.Http.HttpMethod.Put.Method;
 
     }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Method)]
     public class HttpPatchAttribute : HttpBodyAttribute
     {
+        public override string Method => "Patch";
 
     }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Method)]
     public class HttpDeleteAttribute : HttpBodyAttribute
     {
-
+        public override string Method => System.Net.Http.HttpMethod.Delete.Method;
     }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Method)]
     public class HttpOptionsAttribute : HttpVerbAttribute
     {
-
+        public override string Method => System.Net.Http.HttpMethod.Options.Method;
     }
 }

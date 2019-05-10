@@ -135,6 +135,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Attributes\HtmlAttributes.cs" />
     <Compile Include="Attributes\ControllerMethodAttributes.cs" />
     <Compile Include="Attributes\SheetColumnAttribute.cs" />
     <Compile Include="Attributes\ResourceTypeAttribute.cs" />
@@ -166,18 +167,34 @@
     <Compile Include="Extensions\UriExtensions.cs" />
     <Compile Include="Extensions\WebUrnExtensions.cs" />
     <Compile Include="Extensions\ValidationExtensions.cs" />
+    <Compile Include="FVC\Attributes\QueryValidation\ResourceAttribute.cs" />
+    <Compile Include="FVC\Attributes\QueryValidation\SelectParameterResult.cs" />
+    <Compile Include="FVC\IApplication.cs" />
+    <Compile Include="FVC\InvokeApplicationExtensions.cs" />
     <Compile Include="FVC\FunctionViewController4Attribute.cs" />
     <Compile Include="FVC\HttpActionDelegateAttribute.cs" />
     <Compile Include="FVC\HttpResourceAttribute.cs" />
     <Compile Include="FVC\FunctionViewControllerAttribute.cs" />
-    <Compile Include="Controllers\QueryValidationAttribute.cs" />
+    <Compile Include="FVC\Attributes\QueryValidation\QueryValidationAttribute.cs" />
     <Compile Include="FVC\HttpApplication.cs" />
     <Compile Include="FVC\Handlers\ApplicationHandler.cs" />
     <Compile Include="FVC\Handlers\MonitoringHandler.cs" />
-    <Compile Include="FVC\IProvideApiValue.cs" />
+    <Compile Include="FVC\IBuildUrls.cs" />
+    <Compile Include="FVC\InvokeApplicationRemote.cs" />
+    <Compile Include="FVC\InvokeApplicationDirect.cs" />
+    <Compile Include="FVC\InvokeApplication.cs" />
+    <Compile Include="FVC\Attributes\QueryValidation\IProvideApiValue.cs" />
     <Compile Include="FVC\IProviderSerialization.cs" />
     <Compile Include="FVC\IInvokeApplication.cs" />
-    <Compile Include="FVC\IInvokeApplicationFactory.cs" />
+    <Compile Include="FVC\RequestMessage.cs" />
+    <Compile Include="FVC\Serialization\Json\Converter.cs" />
+    <Compile Include="FVC\Serialization\Json\BindConvert.cs" />
+    <Compile Include="FVC\Serialization\Json\ExtrudeConvert.cs" />
+    <Compile Include="FVC\Serialization\TokenParsers\FormDataTokenParser.cs" />
+    <Compile Include="FVC\Serialization\TokenParsers\IParseToken.cs" />
+    <Compile Include="FVC\Serialization\TokenParsers\ParseToken.cs" />
+    <Compile Include="FVC\Serialization\TokenParsers\QueryParamTokenParser.cs" />
+    <Compile Include="FVC\UrlBuilder.cs" />
     <Compile Include="HttpActionResult.cs" />
     <Compile Include="InjectableAssemblyResolver.cs" />
     <Compile Include="FVC\Handlers\ControllerHandler.cs" />

@@ -20,6 +20,7 @@ using BlackBarLabs;
 using System.Threading;
 using System.IO;
 using EastFive.Linq.Async;
+using EastFive.Api.Serialization;
 
 namespace EastFive.Api.Modules
 {
@@ -46,7 +47,7 @@ namespace EastFive.Api.Modules
         /// <param name="cancellationToken"></param>
         /// <param name="continuation"></param>
         /// <returns></returns>
-        public static async Task<HttpResponseMessage> DirectSendAsync(HttpApplication httpApp,
+        public static async Task<HttpResponseMessage> DirectSendAsync(IApplication httpApp,
             HttpRequestMessage request, CancellationToken cancellationToken,
             Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> continuation)
         {
@@ -96,57 +97,7 @@ namespace EastFive.Api.Modules
 
         delegate TResult ParseContentDelegate<TResult>(Type type, Func<object, TResult> onParsed, Func<string, TResult> onFailure);
 
-        private class QueryParamTokenParser : IParseToken
-        {
-            private string value;
-
-            public QueryParamTokenParser(string value)
-            {
-                this.value = value;
-            }
-
-            public IParseToken[] ReadArray()
-            {
-                return value
-                    .Split(new char[] { ',' })
-                    .Select(
-                        v => new QueryParamTokenParser(v))
-                    .ToArray();
-            }
-
-            public byte[] ReadBytes()
-            {
-                throw new NotImplementedException();
-            }
-
-            public IDictionary<string, IParseToken> ReadDictionary()
-            {
-                throw new NotImplementedException();
-            }
-
-            public T ReadObject<T>()
-            {
-                throw new NotImplementedException();
-            }
-
-            public object ReadObject()
-            {
-                throw new NotImplementedException();
-            }
-
-            public Stream ReadStream()
-            {
-                throw new NotImplementedException();
-            }
-
-            public bool IsString => true;
-            public string ReadString()
-            {
-                return value;
-            }
-        }
-
-        private static async Task<HttpResponseMessage> CreateResponseAsync(HttpApplication httpApp, HttpRequestMessage request, string controllerName, MethodInfo[] methods)
+        private static async Task<HttpResponseMessage> CreateResponseAsync(IApplication httpApp, HttpRequestMessage request, string controllerName, MethodInfo[] methods)
         {
             #region setup query parameter casting
 
@@ -251,7 +202,7 @@ namespace EastFive.Api.Modules
             return objs.Cast<KeyValuePair<TKey, TValue>>().ToArray();
         }
 
-        private static IEnumerable<KeyValuePair<string, ParseContentDelegate<SelectParameterResult>>> GetCollectionParameters(HttpApplication httpApp, IEnumerable<KeyValuePair<string, string>> queryParameters)
+        private static IEnumerable<KeyValuePair<string, ParseContentDelegate<SelectParameterResult>>> GetCollectionParameters(IApplication httpApp, IEnumerable<KeyValuePair<string, string>> queryParameters)
         {
             // Convert parameters into Collections if necessary
             return queryParameters
@@ -423,7 +374,7 @@ namespace EastFive.Api.Modules
             CastDelegate<SelectParameterResult> fetchQueryParam,
             CastDelegate<SelectParameterResult> fetchBodyParam,
             CastDelegate<SelectParameterResult> fetchNameParam,
-            HttpApplication httpApp, HttpRequestMessage request,
+            IApplication httpApp, HttpRequestMessage request,
             IEnumerable<string> queryKeys, IEnumerable<string> bodyKeys)
         {
             var methodsForConsideration = methods
@@ -571,7 +522,7 @@ namespace EastFive.Api.Modules
                 () => throw new ArgumentException("method", $"Method {method.DeclaringType.FullName}..{method.Name}(...) does not have an HttpVerbAttribute."));
         }
 
-        private static Task<HttpResponseMessage> InvokeValidatedMethod(HttpApplication httpApp, HttpRequestMessage request, MethodInfo method, 
+        private static Task<HttpResponseMessage> InvokeValidatedMethod(IApplication httpApp, HttpRequestMessage request, MethodInfo method, 
             KeyValuePair<ParameterInfo, object>[] queryParameters,
             Func<SelectParameterResult[], Task<HttpResponseMessage>> onMissingParameters)
         {

@@ -90,5 +90,14 @@ namespace EastFive.Api
                 onFound,
                 onNotInQueryString);
         }
+
+        public static Uri RenderLocation<T>(this IQueryable<T> urlQuery)
+        {
+            if(urlQuery is IRenderUrls)
+                return (urlQuery as IRenderUrls).RenderLocation();
+
+            var values = urlQuery.ToString();
+            return new Uri(values);
+        }
     }
 }

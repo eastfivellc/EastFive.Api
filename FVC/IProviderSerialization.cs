@@ -10,6 +10,8 @@ namespace EastFive.Api
 {
     public interface IProvideSerialization
     {
+        string MediaType { get; }
+
         HttpResponseMessage Serialize(HttpResponseMessage response, HttpApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo, object obj);
     }
 }

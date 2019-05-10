@@ -1,9 +1,4 @@
-﻿using BlackBarLabs.Api;
-using BlackBarLabs.Extensions;
-using EastFive.Extensions;
-using EastFive.Linq;
-using EastFive.Reflection;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -12,6 +7,12 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web;
+
+using BlackBarLabs.Api;
+using BlackBarLabs.Extensions;
+using EastFive.Extensions;
+using EastFive.Linq;
+using EastFive.Reflection;
 
 namespace EastFive.Api
 {
@@ -25,8 +26,14 @@ namespace EastFive.Api
     public class QueryValidationAttribute : System.Attribute, IProvideApiValue
     {
         public string Name { get; set; }
-        
-        public virtual async Task<SelectParameterResult> TryCastAsync(HttpApplication httpApp,
+
+        public RequestMessage<TResource> BindContent<TResource>(RequestMessage<TResource> request,
+            MethodInfo method, ParameterInfo parameter, object resource)
+        {
+            throw new NotImplementedException();
+        }
+
+        public virtual async Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
                 HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
                 Api.CastDelegate<SelectParameterResult> fetchQueryParam,
                 Api.CastDelegate<SelectParameterResult> fetchBodyParam,
@@ -65,6 +72,7 @@ namespace EastFive.Api
                 },
                 (whyQuery) => SelectParameterResult.Failure($"Could not create value in query, body, or file.", this.Name, parameterRequiringValidation));
         }
+
         
     }
 
@@ -79,7 +87,7 @@ namespace EastFive.Api
             return this.Name.ToLower();
         }
 
-        public override async Task<SelectParameterResult> TryCastAsync(HttpApplication httpApp, 
+        public override async Task<SelectParameterResult> TryCastAsync(IApplication httpApp, 
                 HttpRequestMessage request, MethodInfo method, 
                 ParameterInfo parameterRequiringValidation,
                 CastDelegate<SelectParameterResult> fetchQueryParam,
@@ -113,14 +121,16 @@ namespace EastFive.Api
 
     public class OptionalQueryParameterAttribute : QueryParameterAttribute
     {
-        public async override Task<SelectParameterResult> TryCastAsync(HttpApplication httpApp, 
+        public async override Task<SelectParameterResult> TryCastAsync(IApplication httpApp, 
                 HttpRequestMessage request, MethodInfo method,
                 ParameterInfo parameterRequiringValidation, 
                 CastDelegate<SelectParameterResult> fetchQueryParam, 
                 CastDelegate<SelectParameterResult> fetchBodyParam, 
                 CastDelegate<SelectParameterResult> fetchDefaultParam)
         {
-            var baseValue = await base.TryCastAsync(httpApp, request, method, parameterRequiringValidation, fetchQueryParam, fetchBodyParam, fetchDefaultParam);
+            var baseValue = await base.TryCastAsync(httpApp, request, method,
+                parameterRequiringValidation,
+                fetchQueryParam, fetchBodyParam, fetchDefaultParam);
             if (!baseValue.valid)
             {
                 baseValue.value = parameterRequiringValidation.ParameterType.GetDefault();
@@ -132,7 +142,7 @@ namespace EastFive.Api
 
     public class UpdateIdAttribute : QueryParameterAttribute
     {
-        public async override Task<SelectParameterResult> TryCastAsync(HttpApplication httpApp,
+        public async override Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
                 HttpRequestMessage request, MethodInfo method,
                 ParameterInfo parameterRequiringValidation,
                 CastDelegate<SelectParameterResult> fetchQueryParam,
@@ -155,7 +165,7 @@ namespace EastFive.Api
     {
         public string Content { get; set; }
 
-        public override async Task<SelectParameterResult> TryCastAsync(HttpApplication httpApp,
+        public override async Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
             HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
             CastDelegate<SelectParameterResult> fetchQueryParam,
             CastDelegate<SelectParameterResult> fetchBodyParam,
@@ -238,35 +248,9 @@ namespace EastFive.Api
         }
     }
 
-    public class ResourceAttribute : QueryValidationAttribute
-    {
-        public override Task<SelectParameterResult> TryCastAsync(HttpApplication httpApp, 
-            HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
-            CastDelegate<SelectParameterResult> fetchQueryParam, 
-            CastDelegate<SelectParameterResult> fetchBodyParam,
-            CastDelegate<SelectParameterResult> fetchDefaultParam)
-        {
-            // TODO: Use more sophisticated method for determining POST resource type (since this can be modified in attributes
-            if (method.DeclaringType != parameterRequiringValidation.ParameterType)
-                return (new SelectParameterResult
-                {
-                    fromBody = true,
-                    key = "",
-                    fromQuery = false,
-                    parameterInfo = parameterRequiringValidation,
-                    valid = false,
-                    failure = $"Inform server developer!!! `{method.DeclaringType.FullName}..{method.Name}: {this.GetType().Name}` attributes a parameter of type `{parameterRequiringValidation.ParameterType.FullName}` on a resource of type `{method.DeclaringType.FullName}`.",
-                }).AsTask();
-            return fetchBodyParam(string.Empty, parameterRequiringValidation.ParameterType,
-                (value) => new SelectParameterResult(value, string.Empty, parameterRequiringValidation),
-                (why) => SelectParameterResult.Failure(why, string.Empty, parameterRequiringValidation));
-        }
-    }
-
-
     public class PropertyAttribute : QueryValidationAttribute
     {
-        public override Task<SelectParameterResult> TryCastAsync(HttpApplication httpApp,
+        public override Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
                 HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
                 CastDelegate<SelectParameterResult> fetchQueryParam,
                 CastDelegate<SelectParameterResult> fetchBodyParam,
@@ -420,7 +404,7 @@ namespace EastFive.Api
     public class PropertyOptionalAttribute : PropertyAttribute
     {
         public async override Task<SelectParameterResult> TryCastAsync(
-                HttpApplication httpApp, HttpRequestMessage request, MethodInfo method,
+                IApplication httpApp, HttpRequestMessage request, MethodInfo method,
                 ParameterInfo parameterRequiringValidation,
                 CastDelegate<SelectParameterResult> fetchQueryParam, 
                 CastDelegate<SelectParameterResult> fetchBodyParam, 

@@ -39,6 +39,11 @@ namespace EastFive.Api
             Location = "This value is created from secure rand entropy")]
         public const string ApiKey = "EastFive.Api.ApiSecurityKey";
 
+        [ConfigKey("Default directory scoping of the application",
+            DeploymentOverrides.Forbidden,
+            DeploymentSecurityConcern = false,
+            MoreInfo = "If this value is `api` then `MyResource` will server from `http://example.com/api/MyResource`")]
+        public const string DefaultNamespace = "EastFive.Api.DefaultNamespace";
 
         [ConfigKey("URL of the server.",
             DeploymentOverrides.Optional,

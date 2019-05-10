@@ -10,14 +10,11 @@ namespace EastFive.Api
 {
     public interface IInvokeApplication
     {
+        Uri ServerLocation { get; }
+
         IDictionary<string, string> Headers { get; }
 
-        Task<HttpResponseMessage> SendAsync(HttpRequestMessage request);
+        RequestMessage<TResource> GetRequest<TResource>();
 
-        object CastResourceProperty(object value, Type propertyType);
-
-        void SetInstigator(Type type, InstigatorDelegate instigator, bool clear = false);
-
-        void SetInstigatorGeneric(Type type, InstigatorDelegateGeneric instigator, bool clear = true);
     }
 }
