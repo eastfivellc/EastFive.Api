@@ -780,6 +780,42 @@ namespace EastFive.Api
                             }))
                 },
                 {
+                    typeof(EastFive.Api.Controllers.SessionToken?),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        return EastFive.Web.Configuration.Settings.GetString(AppSettings.ActorIdClaimType,
+                            (accountIdClaimType) =>
+                            {
+                                return request.GetClaims(
+                                    (claimsEnumerable) =>
+                                    {
+                                        var claims = claimsEnumerable.ToArray();
+                                        return claims.GetAccountIdMaybe(
+                                                request, accountIdClaimType,
+                                            (accountIdMaybe) =>
+                                            {
+                                                var sessionIdClaimType = BlackBarLabs.Security.ClaimIds.Session;
+                                                return claims.GetSessionIdAsync(
+                                                    request, sessionIdClaimType,
+                                                    (sessionId) =>
+                                                    {
+                                                        var token = new Controllers.SessionToken
+                                                        {
+                                                            accountIdMaybe = accountIdMaybe,
+                                                            sessionId = sessionId,
+                                                            claims = claims,
+                                                        };
+                                                        return success(token);
+                                                    });
+                                            });
+                                    },
+                                    () => success(default(EastFive.Api.Controllers.SessionToken?)),
+                                    (why) => success(default(EastFive.Api.Controllers.SessionToken?)));
+                            },
+                            (why) => request.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).AsTask());
+                    }
+                },
+                {
                     typeof(Controllers.ApiSecurity),
                     (httpApp, request, paramInfo, success) =>
                     {
@@ -878,7 +914,7 @@ namespace EastFive.Api
                     typeof(Controllers.ConfigurationFailureResponse),
                     (httpApp, request, paramInfo, success) =>
                     {
-                        Controllers.ConfigurationFailureResponse dele = 
+                        Controllers.ConfigurationFailureResponse dele =
                             (configurationValue, message) => request
                                 .CreateResponse(System.Net.HttpStatusCode.ServiceUnavailable)
                                 .AddReason($"`{configurationValue}` not specified in config:{message}");
@@ -929,7 +965,7 @@ namespace EastFive.Api
                     typeof(Controllers.ContentResponse),
                     (httpApp, request, paramInfo, success) =>
                     {
-                        Controllers.ContentResponse dele = 
+                        Controllers.ContentResponse dele =
                             (obj, contentType) =>
                             {
                                 var objType = obj.GetType();
