@@ -64,10 +64,10 @@ namespace EastFive.Api
             foreach (var headerKVP in this.Headers)
                 httpRequest.Headers.Add(headerKVP.Key, headerKVP.Value);
 
-            return BuildRequest<TResource>(this.Application);
+            return BuildRequest<TResource>(this.Application, httpRequest);
         }
 
-        protected abstract RequestMessage<TResource> BuildRequest<TResource>(IApplication application);
+        protected abstract RequestMessage<TResource> BuildRequest<TResource>(IApplication application, HttpRequestMessage httpRequest);
     }
 
     

@@ -45,7 +45,7 @@ namespace EastFive.Api
                 {
                     var httpRequest = request.Request;
                     httpRequest.Method = method;
-                    var response = await request.SendAsync(httpRequest);
+                    var response = await request.Application.SendAsync(httpRequest);
 
                     if (response is IDidNotOverride)
                         (response as IDidNotOverride).OnFailure();
@@ -74,7 +74,7 @@ namespace EastFive.Api
             Func<TResource, string, TResult> onCreatedBody = default(Func<TResource, string, TResult>),
             Func<TResult> onUpdated = default(Func<TResult>),
 
-            Func<Uri, string, TResult> onRedirect = default(Func<Uri, string, TResult>),
+            Func<Uri, TResult> onRedirect = default(Func<Uri, TResult>),
 
             Func<TResult> onBadRequest = default(Func<TResult>),
             Func<TResult> onUnauthorized = default(Func<TResult>),
@@ -120,7 +120,7 @@ namespace EastFive.Api
             Func<TResult> onBadRequest = default(Func<TResult>),
             Func<TResult> onNotFound = default(Func<TResult>),
             Func<Type, TResult> onRefDoesNotExistsType = default(Func<Type, TResult>),
-            Func<Uri, string, TResult> onRedirect = default(Func<Uri, string, TResult>),
+            Func<Uri, TResult> onRedirect = default(Func<Uri, TResult>),
             Func<TResult> onCreated = default(Func<TResult>),
             Func<string, TResult> onHtml = default(Func<string, TResult>),
             Func<byte[], string, TResult> onXls = default(Func<byte[], string, TResult>),
@@ -162,7 +162,7 @@ namespace EastFive.Api
             Func<TResult> onBadRequest = default(Func<TResult>),
             Func<TResult> onExists = default(Func<TResult>),
             Func<Type, TResult> onRefDoesNotExistsType = default(Func<Type, TResult>),
-            Func<Uri, string, TResult> onRedirect = default(Func<Uri, string, TResult>),
+            Func<Uri, TResult> onRedirect = default(Func<Uri, TResult>),
             Func<TResult> onNotImplemented = default(Func<TResult>),
             Func<IExecuteAsync, Task<TResult>> onExecuteBackground = default(Func<IExecuteAsync, Task<TResult>>))
         {
@@ -200,7 +200,7 @@ namespace EastFive.Api
             Func<TResult> onBadRequest = default(Func<TResult>),
             Func<TResult> onNotFound = default(Func<TResult>),
             Func<Type, TResult> onRefDoesNotExistsType = default(Func<Type, TResult>),
-            Func<Uri, string, TResult> onRedirect = default(Func<Uri, string, TResult>),
+            Func<Uri, TResult> onRedirect = default(Func<Uri, TResult>),
             Func<string, TResult> onHtml = default(Func<string, TResult>))
         {
             return request.MethodAsync<TResource, TResult>(HttpMethod.Delete,
@@ -511,20 +511,20 @@ namespace EastFive.Api
         }
 
         private static void RedirectResponse<TResource, TResult>(this IApplication application,
-            Func<Uri, string, TResult> onRedirect)
+            Func<Uri, TResult> onRedirect)
         {
             application.SetInstigator(
                 typeof(EastFive.Api.Controllers.RedirectResponse),
                 (thisAgain, requestAgain, paramInfo, onSuccess) =>
                 {
                     EastFive.Api.Controllers.RedirectResponse redirect =
-                        (where, why) =>
+                        (where) =>
                         {
                             if (onRedirect.IsDefaultOrNull())
                                 return FailureToOverride<TResource>(
                                     typeof(EastFive.Api.Controllers.RedirectResponse),
                                     thisAgain, requestAgain, paramInfo, onSuccess);
-                            return new AttachedHttpResponseMessage<TResult>(onRedirect(where, why));
+                            return new AttachedHttpResponseMessage<TResult>(onRedirect(where));
                         };
                     return onSuccess(redirect);
                 });
@@ -812,7 +812,8 @@ namespace EastFive.Api
         #endregion
 
 
-        public static async Task<TResult> UrlAsync<TResource, TResultInner, TResult>(this IInvokeApplication invokeApplication,
+        public static async Task<TResult> UrlAsync<TResource, TResultInner, TResult>(this IApplication application,
+                IInvokeApplication invokeApplication,
                 HttpMethod method, Uri location,
             Func<TResultInner, TResult> onExecuted,
 
@@ -824,7 +825,7 @@ namespace EastFive.Api
             Func<TResource, string, TResult> onCreatedBody = default(Func<TResource, string, TResult>),
             Func<TResult> onUpdated = default(Func<TResult>),
 
-            Func<Uri, string, TResult> onRedirect = default(Func<Uri, string, TResult>),
+            Func<Uri, TResult> onRedirect = default(Func<Uri, TResult>),
 
             Func<TResult> onBadRequest = default(Func<TResult>),
             Func<TResult> onUnauthorized = default(Func<TResult>),
@@ -840,7 +841,6 @@ namespace EastFive.Api
             var request = invokeApplication.GetRequest<TResource>();
             //request.Method = method;
             //request.RequestUri = location;
-            var application = request.Application;
 
             application.CreatedResponse<TResource, TResult>(onCreated);
             application.CreatedBodyResponse<TResource, TResult>(onCreatedBody);
@@ -863,7 +863,7 @@ namespace EastFive.Api
             application.GeneralConflictResponse<TResource, TResult>(onFailure);
             application.ExecuteBackgroundResponse<TResource, TResult>(onExecuteBackground);
 
-            var response = await request.SendAsync(request.Request);
+            var response = await application.SendAsync(request.Request);
 
             if (response is IDidNotOverride)
                 (response as IDidNotOverride).OnFailure();

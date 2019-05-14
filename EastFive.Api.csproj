@@ -167,8 +167,10 @@
     <Compile Include="Extensions\UriExtensions.cs" />
     <Compile Include="Extensions\WebUrnExtensions.cs" />
     <Compile Include="Extensions\ValidationExtensions.cs" />
+    <Compile Include="FVC\Attributes\QueryValidation\IMutateQuery.cs" />
     <Compile Include="FVC\Attributes\QueryValidation\ResourceAttribute.cs" />
     <Compile Include="FVC\Attributes\QueryValidation\SelectParameterResult.cs" />
+    <Compile Include="FVC\Extensions\ResourceQueryExtensions.cs" />
     <Compile Include="FVC\IApplication.cs" />
     <Compile Include="FVC\InvokeApplicationExtensions.cs" />
     <Compile Include="FVC\FunctionViewController4Attribute.cs" />

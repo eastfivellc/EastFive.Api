@@ -26,7 +26,7 @@ namespace EastFive.Api.Controllers
 
     [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Created)]
     public delegate HttpResponseMessage CreatedBodyResponse<TResource>(object content, string contentType = default(string));
-    public delegate HttpResponseMessage RedirectResponse(Uri redirectLocation, string reason);
+    public delegate HttpResponseMessage RedirectResponse(Uri redirectLocation);
     public delegate Task<HttpResponseMessage> MultipartResponseAsync(IEnumerable<HttpResponseMessage> responses);
     public delegate Task<HttpResponseMessage> MultipartAcceptArrayResponseAsync(IEnumerable<object> responses);
     public delegate Task<HttpResponseMessage> MultipartResponseAsync<TResource>(IEnumerableAsync<TResource> responses);

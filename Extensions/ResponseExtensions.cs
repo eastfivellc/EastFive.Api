@@ -40,8 +40,10 @@ namespace BlackBarLabs.Api
             if (reasonPhrase.Length > 510)
                 reasonPhrase = new string(reasonPhrase.Take(510).ToArray());
             response.ReasonPhrase = reasonPhrase;
+
             // TODO: Check user agent and only set this on iOS and other crippled systems
             response.Headers.Add("Reason", reasonPhrase);
+
             if (response.StatusCode == HttpStatusCode.Unauthorized)
                 response.Content = new StringContent(Newtonsoft.Json.JsonConvert.SerializeObject(new { Message = reason }));
             return response;

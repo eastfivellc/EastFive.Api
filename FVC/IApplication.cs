@@ -22,6 +22,8 @@ namespace EastFive.Api
 
     public interface IApplication
     {
+        Task<HttpResponseMessage> SendAsync(HttpRequestMessage request);
+
         object CastResourceProperty(object value, Type propertyType);
 
         void SetInstigator(Type type, InstigatorDelegate instigator, bool clear = false);

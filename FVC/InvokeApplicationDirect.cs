@@ -15,18 +15,9 @@ namespace EastFive.Api
         {
         }
 
-        protected override RequestMessage<TResource> BuildRequest<TResource>(IApplication application)
+        protected override RequestMessage<TResource> BuildRequest<TResource>(IApplication application, HttpRequestMessage httpRequest)
         {
-            return new RequestMessage<TResource>(
-                async (httpRequest) =>
-                {
-                    var response = await EastFive.Api.Modules.ControllerHandler.DirectSendAsync(application, httpRequest, default(CancellationToken),
-                        (requestBack, token) =>
-                        {
-                            throw new Exception($"Failed to invoke `{httpRequest.RequestUri}`");
-                        });
-                    return response;
-                });
+            return new RequestMessage<TResource>(application, httpRequest);
         }
 
     }

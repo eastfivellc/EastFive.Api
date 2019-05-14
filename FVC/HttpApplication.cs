@@ -151,7 +151,26 @@ namespace EastFive.Api
             initializationLock.WaitOne();
         }
 
+
+        public delegate Task StoreMonitoringDelegate(Guid monitorRecordId, Guid authenticationId, DateTime when, string method, string controllerName, string queryString);
+
+        public virtual TResult DoesStoreMonitoring<TResult>(
+            Func<StoreMonitoringDelegate, TResult> onMonitorUsingThisCallback,
+            Func<TResult> onNoMonitoring)
+        {
+            return onNoMonitoring();
+        }
+
         #region Url Handlers
+
+        public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request)
+        {
+            using (var client = new HttpClient())
+            {
+                var response = await client.SendAsync(request);
+                return response;
+            }
+        }
 
         public TResult GetResourceType<TResult>(string resourceType,
             Func<Type, TResult> onConverted,
@@ -183,14 +202,8 @@ namespace EastFive.Api
             return GetResourceLink(resourceType, resourceIdMaybe.Value, url);
         }
 
-        public delegate Task StoreMonitoringDelegate(Guid monitorRecordId, Guid authenticationId, DateTime when, string method, string controllerName, string queryString);
 
-        public virtual TResult DoesStoreMonitoring<TResult>(
-            Func<StoreMonitoringDelegate, TResult> onMonitorUsingThisCallback,
-            Func<TResult> onNoMonitoring)
-        {
-            return onNoMonitoring();
-        }
+
 
         public WebId GetResourceLink(string resourceType, Guid resourceId, UrlHelper url)
         {
@@ -272,8 +285,10 @@ namespace EastFive.Api
             {
             };
 
+        #endregion
+
         #region Casts
-        
+
         public object CastResourceProperty(object value, Type propertyType)
         {
             return this.CastResourceProperty(value, propertyType,
@@ -285,7 +300,7 @@ namespace EastFive.Api
             Func<object, TResult> onCasted,
             Func<TResult> onNotMapped = default(Func<TResult>))
         {
-            if(null == value)
+            if (null == value)
             {
                 var nullDefaultValue = propertyType.GetDefault();
                 return onCasted(value);
@@ -386,8 +401,6 @@ namespace EastFive.Api
             return onNotMapped();
         }
 
-
-        #endregion
 
         #endregion
 
@@ -618,6 +631,14 @@ namespace EastFive.Api
             new Dictionary<Type, InstigatorDelegateGeneric>()
             {
                 {
+                    typeof(RequestMessage<>),
+                    (type, httpApp, request, paramInfo, success) =>
+                    {
+                        var instance = Activator.CreateInstance(type, new object [] { httpApp, request });
+                        return success((object)instance);
+                    }
+                },
+                {
                     typeof(Controllers.ContentTypeResponse<>),
                     (type, httpApp, request, paramInfo, success) =>
                     {
@@ -667,7 +688,6 @@ namespace EastFive.Api
                     }
                 }
             };
-
 
         public static HttpResponseMessage CreatedBodyResponse(HttpRequestMessage request)
         {
@@ -764,7 +784,7 @@ namespace EastFive.Api
 
         #endregion
 
-        
+        #region Instigators - Concrete
 
         protected Dictionary<Type, InstigatorDelegate> instigators =
             new Dictionary<Type, InstigatorDelegate>()
@@ -1021,7 +1041,7 @@ namespace EastFive.Api
                     typeof(Controllers.RedirectResponse),
                     (httpApp, request, paramInfo, success) =>
                     {
-                        Controllers.RedirectResponse dele = (redirectLocation, why) => request.CreateRedirectResponse(redirectLocation).AddReason(why);
+                        Controllers.RedirectResponse dele = (redirectLocation) => request.CreateRedirectResponse(redirectLocation);
                         return success((object)dele);
                     }
                 },
@@ -1292,6 +1312,8 @@ namespace EastFive.Api
                 .AddReason($"Could not instigate type: {methodParameter.ParameterType.FullName}. Please add an instigator for that type.")
                 .AsTask();
         }
+
+        #endregion
 
         #endregion
 
@@ -1750,6 +1772,21 @@ namespace EastFive.Api
                 }
             }
             
+            if(type.IsEnum)
+            {
+                var stringValue = content.ReadString();
+                object value;
+                try
+                {
+                    value = Enum.Parse(type, stringValue);
+                } catch (Exception)
+                {
+                    var validValues = Enum.GetNames(type).Join(", ");
+                    return onDidNotBind($"Value `{stringValue}` is not a valid value for `{type.FullName}.` Valid values are [{validValues}].");
+                }
+                return onParsed(value);
+            }
+
             return onDidNotBind($"No binding for type `{type.FullName}` active in server.");
         }
 

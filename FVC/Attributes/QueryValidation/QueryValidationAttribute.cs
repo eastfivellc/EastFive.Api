@@ -432,7 +432,7 @@ namespace EastFive.Api
                 var refIdsLookupType = typeof(Func<,>).MakeGenericType(new Type[] { typeof(Guid), refType });
                 var refIdsLookup = refIdsLookupType.GetDefault();
                 baseValue.value = Activator.CreateInstance(
-                    parameterTypeGeneric, new object[] { refIds, refIdsLookup });
+                    parameterTypeGeneric, new object[] { refIds });
                 baseValue.valid = true;
                 return baseValue;
             }
