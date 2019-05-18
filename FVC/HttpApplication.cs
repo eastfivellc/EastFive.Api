@@ -47,7 +47,6 @@ namespace EastFive.Api
         {
             Dispose(true);
             base.Dispose();
-            GC.SuppressFinalize(this);
         }
 
         protected virtual void Dispose(bool disposing)
@@ -65,6 +64,11 @@ namespace EastFive.Api
                     initialization = null;
                 }
             }
+        }
+
+        ~HttpApplication()
+        {
+            Dispose(false);
         }
 
         public virtual string Namespace
