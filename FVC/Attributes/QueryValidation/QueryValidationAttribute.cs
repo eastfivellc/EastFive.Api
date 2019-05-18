@@ -248,6 +248,79 @@ namespace EastFive.Api
         }
     }
 
+    public class AcceptsAttribute : QueryValidationAttribute
+    {
+        public string Media { get; set; }
+
+        public override async Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
+            HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
+            CastDelegate<SelectParameterResult> fetchQueryParam,
+            CastDelegate<SelectParameterResult> fetchBodyParam,
+            CastDelegate<SelectParameterResult> fetchDefaultParam)
+        {
+            var bindType = parameterRequiringValidation.ParameterType;
+            if (typeof(MediaTypeWithQualityHeaderValue) == bindType)
+            {
+                if (request.Headers.IsDefaultOrNull())
+                    return new SelectParameterResult
+                    {
+                        valid = false,
+                        fromBody = false,
+                        fromQuery = false,
+                        key = "",
+                        parameterInfo = parameterRequiringValidation,
+                        failure = "No headers sent with request.",
+                    };
+                if (request.Headers.Accept.IsDefaultOrNull())
+                    return new SelectParameterResult
+                    {
+                        valid = true,
+                        fromBody = false,
+                        fromQuery = false,
+                        key = "__accept-header__",
+                        parameterInfo = parameterRequiringValidation,
+                        value = default(MediaTypeWithQualityHeaderValue),
+                    };
+                return request.Headers.Accept
+                    .Where(accept => accept.MediaType.ToLower().Contains(this.Media))
+                    .First(
+                        (accept, next) =>
+                        {
+                            return new SelectParameterResult
+                            {
+                                valid = true,
+                                fromBody = false,
+                                fromQuery = false,
+                                key = "__accept-header__",
+                                parameterInfo = parameterRequiringValidation,
+                                value = accept,
+                            };
+                        },
+                        () =>
+                        {
+                            return new SelectParameterResult
+                            {
+                                valid = true,
+                                fromBody = false,
+                                fromQuery = false,
+                                key = "__accept-header__",
+                                parameterInfo = parameterRequiringValidation,
+                                value = default(MediaTypeWithQualityHeaderValue),
+                            };
+                        });
+            }
+            return new SelectParameterResult
+            {
+                fromBody = false,
+                key = "",
+                fromQuery = false,
+                parameterInfo = parameterRequiringValidation,
+                valid = false,
+                failure = $"No accept binding for type `{bindType.FullName}` (try MediaTypeWithQualityHeaderValue).",
+            };
+        }
+    }
+
     public class PropertyAttribute : QueryValidationAttribute
     {
         public override Task<SelectParameterResult> TryCastAsync(IApplication httpApp,

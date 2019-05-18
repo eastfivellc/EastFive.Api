@@ -18,7 +18,11 @@ namespace EastFive.Api
             HttpApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo, object obj)
         {
             var converter = new Serialization.ExtrudeConvert(httpApp, request);
-            var jsonObj = Newtonsoft.Json.JsonConvert.SerializeObject(obj, new JsonConverter[] { converter } );
+            var jsonObj = Newtonsoft.Json.JsonConvert.SerializeObject(obj,
+                new JsonSerializerSettings
+                {
+                    Converters = new JsonConverter[] { converter }.ToList(),
+                });
             var contentType = this.ContentType.HasBlackSpace() ?
                 this.ContentType
                 :
