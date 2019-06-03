@@ -1,4 +1,5 @@
-﻿using System;
+﻿using EastFive.Extensions;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -17,6 +18,29 @@ namespace EastFive.Api
         public Uri ServerLocation { get; private set; }
 
         public IDictionary<string, string> Headers { get; private set; }
+
+        public string AuthorizationHeader
+        {
+            get
+            {
+                if (this.Headers.IsDefaultOrNull())
+                    return null;
+                if (!this.Headers.ContainsKey("Authorization"))
+                    return null;
+                return this.Headers["Authorization"];
+            }
+            set
+            {
+                if (this.Headers.IsDefaultOrNull())
+                    this.Headers = new Dictionary<string, string>();
+                if (this.Headers.ContainsKey("Authorization"))
+                {
+                    this.Headers["Authorization"] = value;
+                    return;
+                }
+                this.Headers.Add("Authorization", value);
+            }
+        }
 
         public InvokeApplication(Uri serverUrl)
         {

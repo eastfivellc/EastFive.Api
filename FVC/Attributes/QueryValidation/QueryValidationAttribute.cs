@@ -140,6 +140,21 @@ namespace EastFive.Api
         }
     }
 
+
+    public class QueryIdAttribute : QueryParameterAttribute
+    {
+        public async override Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
+                HttpRequestMessage request, MethodInfo method,
+                ParameterInfo parameterRequiringValidation,
+                CastDelegate<SelectParameterResult> fetchQueryParam,
+                CastDelegate<SelectParameterResult> fetchBodyParam,
+                CastDelegate<SelectParameterResult> fetchDefaultParam)
+        {
+            base.CheckFileName = true;
+            return await base.TryCastAsync(httpApp, request, method, parameterRequiringValidation, fetchQueryParam, fetchBodyParam, fetchDefaultParam);
+        }
+    }
+
     public class UpdateIdAttribute : QueryParameterAttribute
     {
         public async override Task<SelectParameterResult> TryCastAsync(IApplication httpApp,

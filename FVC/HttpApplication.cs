@@ -467,6 +467,12 @@ namespace EastFive.Api
                             return type.PairWithKey(attr);
                         })
                     .ToArray();
+                var duplicateRoutes = functionViewControllerAttributesAndTypes
+                    .Duplicates((kvp1, kvp2) => kvp1.Key.Route == kvp2.Key.Route)
+                    .Where(kvp => kvp.Key.Route.HasBlackSpace())
+                    .Distinct(kvp => kvp.Key.Route);
+                if(duplicateRoutes.Any())
+                    throw new Exception($"Duplicate routes:{duplicateRoutes.SelectKeys(attr => attr.Route).Join(",")}");
 
                 resources = resources
                     .NullToEmpty()
