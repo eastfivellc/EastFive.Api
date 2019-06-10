@@ -115,7 +115,7 @@ namespace EastFive.Api
                 var singleResourceQuery2 = urlBuilder
                     .Resources<IReferenceable>()
                     .Where(res => res.id == id)
-                    .RenderLocation();
+                    .Location();
 
                 return $"<a href=\"/{refdType.Name}/{id}\">{this.Label}</a>";
             }
@@ -132,7 +132,7 @@ namespace EastFive.Api
                 var singleResourceQuery2 = urlBuilder
                     .Resources<IReferenceable>()
                     .Where(res => res.id == idRef.id)
-                    .RenderLocation();
+                    .Location();
 
                 return $"<a href=\"/{refdType.Name}/{idRef.id}\">{this.Label}</a>";
             }

@@ -199,15 +199,23 @@ namespace EastFive.Api
             return contentTypeLookup[type];
         }
 
+        public string GetResourceName(Type type)
+        {
+            if (type.IsDefaultOrNull())
+                return string.Empty;
+            var matches = resourceTypeRouteLookup
+                .Where(nameTypeKvp => nameTypeKvp.Key == type);
+            if (!matches.Any())
+                return type.Name;
+            return matches.First().Value;
+        }
+
         public WebId GetResourceLink(string resourceType, Guid? resourceIdMaybe, UrlHelper url)
         {
             if (!resourceIdMaybe.HasValue)
                 return default(WebId);
             return GetResourceLink(resourceType, resourceIdMaybe.Value, url);
         }
-
-
-
 
         public WebId GetResourceLink(string resourceType, Guid resourceId, UrlHelper url)
         {
@@ -414,6 +422,7 @@ namespace EastFive.Api
         private static Type[] resources;
         private static IDictionary<Type, string> contentTypeLookup;
         private static IDictionary<string, Type> resourceNameControllerLookup;
+        private static IDictionary<Type, string> resourceTypeRouteLookup;
         private static IDictionary<Type, Type> resourceTypeControllerLookup;
         private static object lookupLock = new object();
 
@@ -526,6 +535,26 @@ namespace EastFive.Api
                                         })
                                     .ToLower()
                                     .PairWithValue(attrType.Value);
+                            }),
+                        (k, v1, v2) => v2);
+
+                resourceTypeRouteLookup = resourceTypeRouteLookup.Merge(
+                    functionViewControllerAttributesAndTypes
+                        .Select(
+                            attrType =>
+                            {
+                                return attrType.Key.Route
+                                    .IfThen(attrType.Key.Route.IsNullOrWhiteSpace(),
+                                        (route) =>
+                                        {
+                                            var routeType = attrType.Key.Resource.IsDefaultOrNull() ?
+                                                attrType.Value.Name
+                                                :
+                                                attrType.Key.Resource.Name;
+                                            return routeType;
+                                        })
+                                    .ToLower()
+                                    .PairWithKey(attrType.Value);
                             }),
                         (k, v1, v2) => v2);
 

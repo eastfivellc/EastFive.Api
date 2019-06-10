@@ -18,8 +18,8 @@ namespace EastFive.Api
             EastFive.Linq.Queryable<
                 TResource, 
                 RequestMessage<TResource>.RequestMessageProvideQuery>,
-            IQueryable<TResource>,
-            IRenderUrls
+            IQueryable<TResource>//,
+//             IRenderUrls
     {
         public RequestMessage(IApplication application, HttpRequestMessage request)
             : base(new RequestMessageProvideQuery(application, request))
@@ -28,7 +28,7 @@ namespace EastFive.Api
             this.Request = request;
         }
 
-        public RequestMessage(IApplication application, HttpRequestMessage request, Expression expr)
+        private RequestMessage(IApplication application, HttpRequestMessage request, Expression expr)
             : base(new RequestMessageProvideQuery(application, request), expr)
         {
             this.Application = application;
@@ -50,13 +50,13 @@ namespace EastFive.Api
             return this;
         }
 
-        public Uri RenderLocation(string routeName = "DefaultApi")
-        {
-            var expr = this.Expression;
-            var provider = this.Provider as RequestMessageProvideQuery;
-            provider.Execute<TResource>(expr);
-            return provider.RenderLocation(expr, routeName);
-        }
+        //public Uri RenderLocation(string routeName = "DefaultApi")
+        //{
+        //    var expr = this.Expression;
+        //    var provider = this.Provider as RequestMessageProvideQuery;
+        //    provider.Execute<TResource>(expr);
+        //    return provider.RenderLocation(expr, routeName);
+        //}
 
         public class RequestMessageProvideQuery :
             EastFive.Linq.QueryProvider<
@@ -79,13 +79,26 @@ namespace EastFive.Api
                 return 1;
             }
 
-            public Uri RenderLocation(Expression expression, string routeName = "DefaultApi")
-            {
-                throw new NotImplementedException();
-            }
+            //public Uri RenderLocation(Expression expression, string routeName = "DefaultApi")
+            //{
+            //    var urlHelper = new System.Web.Http.Routing.UrlHelper(request);
+            //    var baseUrl = urlHelper.GetLocation(expression.Type.GenericTypeArguments.First(), routeName);
+            //    var queryParams = new QueryTranslator(httpApp).Translate(expression);
+            //    //var queryParams = expression
+            //    //    .Select(param => param.GetUrlAssignment(
+            //    //        (queryParamName, value) =>
+            //    //        {
+            //    //            return queryParamName
+            //    //                .PairWithValue((string)application.CastResourceProperty(value, typeof(String)));
+            //    //        }))
+            //    //    .ToDictionary();
 
-            private static Uri AssignQueryExpressions<TResource>(Uri baseUri, IApplication application,
-            Expression<Action<TResource>>[] parameters)
+            //    var queryUrl = baseUrl.SetQuery(queryParams);
+            //    return queryUrl;
+            //}
+
+            private static Uri AssignQueryExpressions(Uri baseUri, IApplication application,
+                Expression<Action<TResource>>[] parameters)
             {
                 var queryParams = parameters
                     .Select(

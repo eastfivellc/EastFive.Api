@@ -13,18 +13,20 @@ namespace EastFive.Api.Resources
 {
     public class Manifest
     {
-        public Manifest(KeyValuePair<string, KeyValuePair<HttpMethod, MethodInfo[]>[]>[] lookups)
+        public Manifest(KeyValuePair<string, KeyValuePair<HttpMethod, MethodInfo[]>[]>[] lookups,
+            HttpApplication httpApp)
         {
-            this.Routes = lookups.Select(route => new Route(route.Key, route.Value)).ToArray();
+            this.Routes = lookups.Select(route => new Route(route.Key, route.Value, httpApp)).ToArray();
         }
         public Route[] Routes { get; set; }
 
         public class Route
         {
-            public Route(string name, KeyValuePair<HttpMethod, MethodInfo[]>[] methods)
+            public Route(string name, KeyValuePair<HttpMethod, MethodInfo[]>[] methods,
+                HttpApplication httpApp)
             {
                 this.Name = name;
-                this.Verbs = methods.Select(verb => new Verb(verb.Key, verb.Value)).ToArray();
+                this.Verbs = methods.Select(verb => new Verb(verb.Key, verb.Value, httpApp)).ToArray();
                 this.Properties = methods
                     .First(
                         (methodKvp, next) =>
@@ -36,7 +38,7 @@ namespace EastFive.Api.Resources
                                         return method.DeclaringType
                                             .GetPropertyOrFieldMembers()
                                             .Where(property => property.ContainsCustomAttribute<JsonPropertyAttribute>())
-                                            .Select(member => new Property(member))
+                                            .Select(member => new Property(member, httpApp))
                                             .ToArray();
                                         //return new Property[] { };
                                     },
@@ -54,7 +56,7 @@ namespace EastFive.Api.Resources
 
         public class Property
         {
-            public Property(MemberInfo member)
+            public Property(MemberInfo member, HttpApplication httpApp)
             {
                 this.Name = member.GetCustomAttribute<JsonPropertyAttribute, string>(
                     (attr) => attr.PropertyName.HasBlackSpace() ? attr.PropertyName : member.Name,
@@ -64,7 +66,7 @@ namespace EastFive.Api.Resources
                     () => string.Empty);
                 this.Options = new KeyValuePair<string, string>[] { };
                 var type = member.GetPropertyOrFieldType();
-                this.Type = Parameter.GetTypeName(type);
+                this.Type = Parameter.GetTypeName(type, httpApp);
             }
 
             public string Name { get; set; }
@@ -78,10 +80,10 @@ namespace EastFive.Api.Resources
 
         public class Verb
         {
-            public Verb(HttpMethod method, MethodInfo[] methods)
+            public Verb(HttpMethod method, MethodInfo[] methods, HttpApplication httpApp)
             {
                 this.Method = method.Method;
-                this.Methods = methods.Select(methodInfo => new Method(methodInfo)).ToArray();
+                this.Methods = methods.Select(methodInfo => new Method(methodInfo, httpApp)).ToArray();
             }
 
             public string Method { get; set; }
@@ -91,12 +93,12 @@ namespace EastFive.Api.Resources
 
         public class Method
         {
-            public Method(MethodInfo methodInfo)
+            public Method(MethodInfo methodInfo, HttpApplication httpApp)
             {
                 this.Name = methodInfo.Name;
                 this.Parameters = methodInfo.GetParameters()
                     .Where(methodParam => methodParam.ContainsCustomAttribute<QueryValidationAttribute>(true))
-                    .Select(paramInfo => new Parameter(paramInfo)).ToArray();
+                    .Select(paramInfo => new Parameter(paramInfo, httpApp)).ToArray();
                 this.Responses = methodInfo.GetParameters()
                     .Where(methodParam => typeof(MulticastDelegate).IsAssignableFrom(methodParam.ParameterType))
                     .Select(paramInfo => new Response(paramInfo)).ToArray();
@@ -111,7 +113,7 @@ namespace EastFive.Api.Resources
 
         public class Parameter
         {
-            public Parameter(ParameterInfo paramInfo)
+            public Parameter(ParameterInfo paramInfo, HttpApplication httpApp)
             {
                 var validator = paramInfo.GetCustomAttribute<QueryValidationAttribute>();
                 this.Name = validator.Name.IsNullOrWhiteSpace() ?
@@ -121,20 +123,22 @@ namespace EastFive.Api.Resources
                 this.Required = !(paramInfo.ContainsCustomAttribute<PropertyOptionalAttribute>() ||
                     paramInfo.ContainsCustomAttribute<OptionalQueryParameterAttribute>());
                 this.Default = paramInfo.ContainsCustomAttribute<QueryDefaultParameterAttribute>();
-                this.Type = GetTypeName(paramInfo.ParameterType);
+                this.Type = GetTypeName(paramInfo.ParameterType, httpApp);
             }
 
-            public static string GetTypeName(Type type)
+            public static string GetTypeName(Type type, HttpApplication httpApp)
             {
                 if (type.IsSubClassOfGeneric(typeof(IRef<>)))
-                    return $"->{GetTypeName(type.GenericTypeArguments.First())}";
+                    return $"->{GetTypeName(type.GenericTypeArguments.First(), httpApp)}";
+                if (type.IsSubClassOfGeneric(typeof(IRefs<>)))
+                    return $"[]->{GetTypeName(type.GenericTypeArguments.First(), httpApp)}";
                 if (type.IsSubClassOfGeneric(typeof(IRefOptional<>)))
-                    return $"->{GetTypeName(type.GenericTypeArguments.First())}?";
+                    return $"->{GetTypeName(type.GenericTypeArguments.First(), httpApp)}?";
                 if (type.IsArray)
-                    return $"{GetTypeName(type.GetElementType())}[]";
+                    return $"{GetTypeName(type.GetElementType(), httpApp)}[]";
                 return type.IsNullable(
-                    nullableBase => $"{GetTypeName(nullableBase)}?",
-                    () => type.Name);
+                    nullableBase => $"{GetTypeName(nullableBase, httpApp)}?",
+                    () => httpApp.GetResourceName(type));
             }
 
             public string Name { get; set; }

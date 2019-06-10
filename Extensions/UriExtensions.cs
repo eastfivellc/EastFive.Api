@@ -10,6 +10,7 @@ using EastFive;
 using EastFive.Collections.Generic;
 using EastFive.Linq.Expressions;
 using BlackBarLabs.Api.Resources;
+using EastFive.Extensions;
 
 namespace EastFive.Api
 {
@@ -91,13 +92,38 @@ namespace EastFive.Api
                 onNotInQueryString);
         }
 
-        public static Uri RenderLocation<T>(this IQueryable<T> urlQuery)
+        public static Uri Location<TResource>(this IQueryable<TResource> urlQuery,
+            string routeName = "DefaultApi",
+            System.Web.Http.Routing.UrlHelper urlHelper = default)
         {
-            if(urlQuery is IRenderUrls)
-                return (urlQuery as IRenderUrls).RenderLocation();
+            var expression = urlQuery.Expression;
+            var provider = urlQuery.Provider;
+            provider.Execute<TResource>(expression);
+            System.Web.Http.Routing.UrlHelper GetUrlHelper()
+            {
+                if (!urlHelper.IsDefaultOrNull())
+                    return urlHelper;
+                if (urlQuery is RequestMessage<TResource>)
+                    return new System.Web.Http.Routing.UrlHelper((urlQuery as RequestMessage<TResource>).Request);
+                throw new ArgumentException("Could not determine value for urlHelper");
+            }
+            var validUrlHelper = GetUrlHelper();
+            var baseUrl = validUrlHelper.GetLocation(expression.Type.GenericTypeArguments.First(), routeName);
 
-            var values = urlQuery.ToString();
-            return new Uri(values);
+            var queryParams = new Dictionary<string, string>();
+                //expression
+                //.Select(param => 
+                //    param.GetUrlAssignment(
+                //        (queryParamName, value) =>
+                //        {
+                //            return queryParamName
+                //                .PairWithValue((string)application.CastResourceProperty(value, typeof(String)));
+                //        }))
+                //.ToDictionary();
+
+            var queryUrl = baseUrl.SetQuery(queryParams);
+            return queryUrl;
         }
+
     }
 }

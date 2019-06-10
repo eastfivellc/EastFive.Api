@@ -28,15 +28,6 @@ namespace EastFive.Api
 {
     public static class InvokeApplicationExtensions
     {
-        public static Uri Location<T>(this IQueryable<T> urlQuery)
-        {
-            if (urlQuery is IRenderUrls)
-                return (urlQuery as IRenderUrls).RenderLocation();
-
-            var values = urlQuery.ToString();
-            return new Uri(values);
-        }
-
         public static Task<TResult> MethodAsync<TResource, TResult>(this RequestMessage<TResource> request,
                 HttpMethod method)
         {

@@ -14,6 +14,6 @@ namespace EastFive.Api
 
     public interface IRenderUrls
     {
-        Uri RenderLocation(string routeName = "DefaultApi");
+        //Uri RenderLocation(string routeName = "DefaultApi");
     }
 }
