@@ -27,10 +27,10 @@ namespace EastFive.Api
     {
         public string Name { get; set; }
 
-        public RequestMessage<TResource> BindContent<TResource>(RequestMessage<TResource> request,
-            MethodInfo method, ParameterInfo parameter, object resource)
+        public string BindUrlQueryValue(MemberInfo member, object content, out string queryParamName)
         {
-            throw new NotImplementedException();
+            queryParamName = this.Name.HasBlackSpace()? this.Name : member.Name;
+            return content.ToString();
         }
 
         public virtual async Task<SelectParameterResult> TryCastAsync(IApplication httpApp,

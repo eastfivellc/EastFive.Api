@@ -20,7 +20,7 @@ namespace EastFive.Api
                 CastDelegate<SelectParameterResult> fetchBodyParam,
                 CastDelegate<SelectParameterResult> fetchDefaultParam);
 
-        RequestMessage<TResource> BindContent<TResource>(RequestMessage<TResource> request,
-            MethodInfo method, ParameterInfo parameter, object content);
+        string BindUrlQueryValue(MemberInfo member, object content,
+            out string queryParamName);
     }
 }

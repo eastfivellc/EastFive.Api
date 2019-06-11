@@ -11,6 +11,7 @@ using EastFive.Collections.Generic;
 using EastFive.Linq.Expressions;
 using BlackBarLabs.Api.Resources;
 using EastFive.Extensions;
+using EastFive.Linq;
 
 namespace EastFive.Api
 {
@@ -98,7 +99,7 @@ namespace EastFive.Api
         {
             var expression = urlQuery.Expression;
             var provider = urlQuery.Provider;
-            provider.Execute<TResource>(expression);
+            //provider.Execute<TResource>(expression);
             System.Web.Http.Routing.UrlHelper GetUrlHelper()
             {
                 if (!urlHelper.IsDefaultOrNull())
@@ -108,10 +109,63 @@ namespace EastFive.Api
                 throw new ArgumentException("Could not determine value for urlHelper");
             }
             var validUrlHelper = GetUrlHelper();
-            var baseUrl = validUrlHelper.GetLocation(expression.Type.GenericTypeArguments.First(), routeName);
+            var expressionType = expression.Type.GenericTypeArguments.First();
+            var baseUrl = validUrlHelper.GetLocation(expressionType, routeName);
 
-            var queryParams = new Dictionary<string, string>();
-                //expression
+            var methodCallExpression = expression as MethodCallExpression;
+            var queryParams = methodCallExpression.Arguments
+                .Select(
+                    arg =>
+                    {
+                        if (arg is System.Linq.Expressions.UnaryExpression)
+                        {
+                            var unaryExpr = arg as System.Linq.Expressions.UnaryExpression;
+                            if(unaryExpr.Operand is System.Linq.Expressions.LambdaExpression)
+                            {
+                                var unaryLambdaExpr = (unaryExpr.Operand as System.Linq.Expressions.LambdaExpression);
+                                if(unaryLambdaExpr.Body is BinaryExpression)
+                                {
+                                    var binaryExpr = unaryLambdaExpr.Body as BinaryExpression;
+                                    var leftExpr = binaryExpr.Left;
+                                    var rightExpr = binaryExpr.Right;
+                                    if(leftExpr is MemberExpression)
+                                    {
+                                        var leftMemberExpr = leftExpr as MemberExpression;
+                                        var member = leftMemberExpr.Member;
+                                        var value = rightExpr.Resolve();
+                                        return leftMemberExpr.Member
+                                            .GetAttributesInterface<IProvideApiValue>()
+                                            .First(
+                                                (provideApiValue, next) =>
+                                                {
+                                                    var paramValue = provideApiValue.BindUrlQueryValue(
+                                                        member, value, out string paramName);
+                                                    return paramValue.PairWithKey(paramName);
+                                                },
+                                                () => default(KeyValuePair<string, string>?));
+                                    }
+                                }
+                                throw new NotImplementedException();
+                            }
+                            var methodName = unaryExpr.Method.Name;
+                            var operand = unaryExpr.Operand.NodeType;
+                        }
+                        if (arg is System.Linq.Expressions.LambdaExpression)
+                        {
+                            var lambdaExpr = arg as System.Linq.Expressions.LambdaExpression;
+                            lambdaExpr.Parameters.Count();
+                        }
+                        if(arg is System.Linq.Expressions.ConstantExpression)
+                        {
+                            var constExpr = arg as System.Linq.Expressions.ConstantExpression;
+                            var vType = constExpr.Value.GetType();
+                            return default(KeyValuePair<string, string>?);
+                        }
+                        return new KeyValuePair<string, string>("a", "b");
+                    })
+                .SelectWhereHasValue()
+                .ToDictionary();
+            //var queryParams = expression
                 //.Select(param => 
                 //    param.GetUrlAssignment(
                 //        (queryParamName, value) =>

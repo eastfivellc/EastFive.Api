@@ -88,6 +88,8 @@ namespace EastFive.Api
             foreach (var headerKVP in this.Headers)
                 httpRequest.Headers.Add(headerKVP.Key, headerKVP.Value);
 
+            httpRequest.RequestUri = this.ServerLocation;
+
             return BuildRequest<TResource>(this.Application, httpRequest);
         }
 
