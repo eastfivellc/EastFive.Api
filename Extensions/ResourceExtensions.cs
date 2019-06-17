@@ -103,9 +103,26 @@ namespace EastFive.Api
         public static Uri GetLocation(this UrlHelper url, Type controllerType,
             string routeName = "DefaultApi")
         {
-            var controllerName =
-                controllerType.Name.TrimEnd("Controller",
-                    (trimmedName) => trimmedName, (originalName) => originalName);
+            if (String.IsNullOrWhiteSpace(routeName))
+            {
+                var routePrefixes = controllerType
+                    .GetCustomAttributes<System.Web.Http.RoutePrefixAttribute>()
+                    .Select(routePrefix => routePrefix.Prefix)
+                    .ToArray();
+                if (routePrefixes.Any())
+                    routeName = routePrefixes[0];
+                else
+                    routeName = "DefaultApi";
+            }
+
+            var controllerName = controllerType.GetCustomAttribute<FunctionViewControllerAttribute, string>(
+                (attr) => attr.Route,
+                () => controllerType.Name
+                    .TrimEnd("Controller",
+                        (trimmedName) => trimmedName,
+                        (originalName) => originalName)
+                    .ToLower());
+
             var location = url.Link(routeName, new { Controller = controllerName });
             return new Uri(location);
         }
@@ -113,23 +130,7 @@ namespace EastFive.Api
         public static Uri GetLocation<TController>(this UrlHelper url,
             string routeName = "DefaultApi")
         {
-            if (String.IsNullOrWhiteSpace(routeName))
-            {
-                var routePrefixes = typeof(TController)
-                            .GetCustomAttributes<System.Web.Http.RoutePrefixAttribute>()
-                            .Select(routePrefix => routePrefix.Prefix)
-                            .ToArray();
-                if (routePrefixes.Any())
-                    routeName = routePrefixes[0];
-                else
-                    routeName = "DefaultApi";
-            }
-
-            var controllerName =
-                typeof(TController).Name.TrimEnd("Controller",
-                    (trimmedName) => trimmedName, (originalName) => originalName);
-            var location = url.Link(routeName, new { Controller = controllerName });
-            return new Uri(location);
+            return url.GetLocation(typeof(TController), routeName:routeName);
         }
     }
 }

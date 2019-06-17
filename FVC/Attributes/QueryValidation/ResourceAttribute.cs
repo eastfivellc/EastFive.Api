@@ -12,7 +12,7 @@ using EastFive.Extensions;
 
 namespace EastFive.Api
 {
-    public class ResourceAttribute : QueryValidationAttribute, IProvideApiValue
+    public class ResourceAttribute : QueryValidationAttribute, IBindApiValue
     {
         public override Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
             HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,

@@ -20,7 +20,7 @@ namespace EastFive.Api
         Func<object, TResult> onParsed,
         Func<string, TResult> onFailure);
 
-    public interface IApplication
+    public interface IApplication : IInvokeApplication
     {
         Task<HttpResponseMessage> SendAsync(HttpRequestMessage request);
 

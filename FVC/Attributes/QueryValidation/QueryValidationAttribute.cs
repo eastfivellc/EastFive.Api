@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
@@ -23,15 +24,9 @@ namespace EastFive.Api
     }
 
     [AttributeUsage(AttributeTargets.Parameter)]
-    public class QueryValidationAttribute : System.Attribute, IProvideApiValue
+    public class QueryValidationAttribute : System.Attribute, IBindApiValue
     {
         public string Name { get; set; }
-
-        public string BindUrlQueryValue(MemberInfo member, object content, out string queryParamName)
-        {
-            queryParamName = this.Name.HasBlackSpace()? this.Name : member.Name;
-            return content.ToString();
-        }
 
         public virtual async Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
                 HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,

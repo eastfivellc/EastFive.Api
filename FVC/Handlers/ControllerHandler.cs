@@ -387,7 +387,7 @@ namespace EastFive.Api.Modules
                             .Select(
                                 (param) =>
                                 {
-                                    var castValue = param.GetCustomAttribute<QueryValidationAttribute, IProvideApiValue>(
+                                    var castValue = param.GetCustomAttribute<QueryValidationAttribute, IBindApiValue>(
                                         (queryValidationAttribute) => queryValidationAttribute,
                                         () => throw new Exception("Where check failed"));
                                     return castValue.TryCastAsync(httpApp, request, method, param,
@@ -555,6 +555,9 @@ namespace EastFive.Api.Modules
                                 return (await (Task<HttpResponseMessage>)response);
                             if (typeof(Task<Task<HttpResponseMessage>>).IsAssignableFrom(method.ReturnType))
                                 return (await await (Task<Task<HttpResponseMessage>>)response);
+
+                            return (request.CreateResponse(System.Net.HttpStatusCode.InternalServerError)
+                                .AddReason($"Could not convert type: {method.ReturnType.FullName} to HttpResponseMessage."));
                         }
                         catch (TargetInvocationException ex)
                         {
@@ -569,12 +572,17 @@ namespace EastFive.Api.Modules
                         }
                         catch (Exception ex)
                         {
+                            if (ex is IHttpResponseMessageException)
+                            {
+                                var httpResponseMessageException = ex as IHttpResponseMessageException;
+                                return httpResponseMessageException.CreateResponseAsync(
+                                    httpApp, request, queryParameterOptions,
+                                    method, methodParameters);
+                            }
                             // TODO: Only do this in a development environment
                             return request.CreateResponse(HttpStatusCode.InternalServerError, ex.StackTrace).AddReason(ex.Message);
                         }
                         
-                        return (request.CreateResponse(System.Net.HttpStatusCode.InternalServerError)
-                            .AddReason($"Could not convert type: {method.ReturnType.FullName} to HttpResponseMessage."));
                     });
         }
         

@@ -1,6 +1,12 @@
-﻿using System;
+﻿using BlackBarLabs.Extensions;
+using EastFive.Extensions;
+using EastFive.Linq.Expressions;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
+using System.Net.Http;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -8,9 +14,9 @@ namespace EastFive.Api
 {
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class ApiPropertyAttribute : System.Attribute
+    public class ApiIdAttribute : System.Attribute, IProvideApiValue
     {
-        public ApiPropertyAttribute()
+        public ApiIdAttribute()
         {
         }
         
