@@ -204,9 +204,9 @@ namespace EastFive.Api
             return contentTypeLookup.First(
                 (kvp, next) =>
                 {
-                    if (!kvp.Value.Contains(resourceType))
-                        return next();
-                    return onConverted(kvp.Key);
+                    if (kvp.Value.ToLower().Trim() == resourceType.ToLower().Trim())
+                        return onConverted(kvp.Key);
+                    return next();
                 },
                 () => onMatchingResourceNotFound());
         }
