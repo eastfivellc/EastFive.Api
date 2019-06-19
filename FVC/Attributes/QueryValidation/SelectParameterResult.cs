@@ -37,15 +37,34 @@ namespace EastFive.Api
             };
         }
 
-        public SelectParameterResult(ParameterInfo parameterInfo, string why, string key)
+        public static SelectParameterResult Query(object v, string key, ParameterInfo parameterInfo)
         {
-            valid = false;
-            value = default(object);
-            failure = why;
-            this.parameterInfo = parameterInfo;
-            fromQuery = true;
-            fromBody = false;
-            this.key = key;
+            return new SelectParameterResult
+            {
+                valid = true,
+                value = v,
+                failure = string.Empty,
+                parameterInfo = parameterInfo,
+                fromQuery = true,
+                fromBody = false,
+                fromFile = false,
+                key = key,
+            };
+        }
+
+        public static SelectParameterResult File(object v, string key, ParameterInfo parameterInfo)
+        {
+            return new SelectParameterResult
+            {
+                valid = true,
+                value = v,
+                failure = string.Empty,
+                parameterInfo = parameterInfo,
+                fromQuery = true,
+                fromBody = false,
+                fromFile = true,
+                key = key,
+            };
         }
 
         public SelectParameterResult(object v, string key, ParameterInfo parameterInfo)
@@ -56,6 +75,7 @@ namespace EastFive.Api
             this.parameterInfo = parameterInfo;
             fromQuery = true;
             fromBody = false;
+            fromFile = false;
             this.key = key;
         }
 
@@ -65,6 +85,7 @@ namespace EastFive.Api
         public ParameterInfo parameterInfo;
         public bool fromQuery;
         public bool fromBody;
+        public bool fromFile;
         public string key;
     }
 }

@@ -39,10 +39,7 @@ namespace EastFive.Api
                 (v) =>
                 {
                     found = true;
-                    return new SelectParameterResult
-                    {
-
-                    };
+                    return SelectParameterResult.Query(v, this.Name, parameterRequiringValidation);
                 },
                 (whyQuery) => SelectParameterResult.Failure(whyQuery, this.Name, parameterRequiringValidation));
             if (found)
@@ -52,18 +49,17 @@ namespace EastFive.Api
                 (v) =>
                 {
                     found = true;
-                    return new SelectParameterResult(v, this.Name, parameterRequiringValidation);
+                    return SelectParameterResult.Body(v, this.Name, parameterRequiringValidation);
                 },
                 (whyQuery) => SelectParameterResult.Failure(whyQuery, this.Name, parameterRequiringValidation));
             if (found)
                 return bodyResult;
 
-
             return await fetchDefaultParam(this.Name, parameterRequiringValidation.ParameterType,
                 (v) =>
                 {
                     found = true;
-                    return new SelectParameterResult(v, this.Name, parameterRequiringValidation);
+                    return SelectParameterResult.Query(v, this.Name, parameterRequiringValidation);
                 },
                 (whyQuery) => SelectParameterResult.Failure($"Could not create value in query, body, or file.", this.Name, parameterRequiringValidation));
         }
@@ -95,9 +91,9 @@ namespace EastFive.Api
                 (v) =>
                 {
                     found = true;
-                    return new SelectParameterResult(v, queryName, parameterRequiringValidation);
+                    return SelectParameterResult.Query(v, queryName, parameterRequiringValidation);
                 },
-                (whyQuery) => new SelectParameterResult());
+                (whyQuery) => SelectParameterResult.Failure(whyQuery, queryName, parameterRequiringValidation));
             if (found)
                 return queryResult;
 
@@ -108,7 +104,7 @@ namespace EastFive.Api
                 (v) =>
                 {
                     found = true;
-                    return new SelectParameterResult(v, queryName, parameterRequiringValidation);
+                    return SelectParameterResult.File(v, queryName, parameterRequiringValidation);
                 },
                 (whyQuery) => SelectParameterResult.Failure($"Query parameter `{queryName}` was not specified in the request query or filename.", queryName, parameterRequiringValidation));
         }

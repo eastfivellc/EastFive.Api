@@ -101,9 +101,19 @@ namespace EastFive.Api.Modules
         {
             #region setup query parameter casting
 
+            var fileNameParams = request.RequestUri.AbsoluteUri
+                .MatchRegexInvoke(
+                        $".*/(?i){controllerName}(?-i)/(?<defaultQueryParam>[a-zA-Z0-9-]+)",
+                        defaultQueryParam => defaultQueryParam,
+                    (string[] urlFileNames) =>
+                    {
+                        return urlFileNames;
+                    });
+
             var queryParameters = request.RequestUri.ParseQuery()
                 .Select(kvp => kvp.Key.ToLower().PairWithValue(kvp.Value))
                 .ToDictionary();
+
             var queryParameterCollections = GetCollectionParameters(httpApp, queryParameters).ToDictionary();
             CastDelegate<SelectParameterResult> queryCastDelegate =
                 (query, type, onParsed, onFailure) =>
@@ -135,19 +145,13 @@ namespace EastFive.Api.Modules
             CastDelegate<SelectParameterResult> fileNameCastDelegate =
                 (query, type, onParsed, onFailure) =>
                 {
-                    return request.RequestUri.AbsoluteUri
-                        .MatchRegexInvoke(
-                            $".*/(?i){controllerName}(?-i)/(?<defaultQueryParam>[a-zA-Z0-9-]+)",
-                            defaultQueryParam => defaultQueryParam,
-                            (string[] urlFileNames) =>
-                            {
-                                if (!urlFileNames.Any())
-                                    return onFailure("No URI filename value provided.");
-                                return httpApp.Bind(type,
-                                        new QueryParamTokenParser(urlFileNames.First()),
-                                    v => onParsed(v),
-                                    (why) => onFailure(why));
-                            })
+                    if(!fileNameParams.Any())
+                        return onFailure("No URI filename value provided.").AsTask();
+                    return httpApp
+                        .Bind(type,
+                                new QueryParamTokenParser(fileNameParams.First()),
+                            v => onParsed(v),
+                            (why) => onFailure(why))
                         .AsTask();
                 };
 
@@ -173,7 +177,8 @@ namespace EastFive.Api.Modules
                         fileNameCastDelegate,
                         httpApp, request,
                         queryParameters.SelectKeys(),
-                        bodyValues);
+                        bodyValues,
+                        fileNameParams.Any());
                 });
             
         }
@@ -375,7 +380,7 @@ namespace EastFive.Api.Modules
             CastDelegate<SelectParameterResult> fetchBodyParam,
             CastDelegate<SelectParameterResult> fetchNameParam,
             IApplication httpApp, HttpRequestMessage request,
-            IEnumerable<string> queryKeys, IEnumerable<string> bodyKeys)
+            IEnumerable<string> queryKeys, IEnumerable<string> bodyKeys, bool hasFileParam)
         {
             var methodsForConsideration = methods
                 .Select(
@@ -402,7 +407,7 @@ namespace EastFive.Api.Modules
                             .ToArray();
                         return HasExtraParameters(method,
                                 queryKeys,
-                                bodyKeys,
+                                bodyKeys, hasFileParam,
                                 parametersCastResults,
                             () =>
                             {
@@ -482,7 +487,7 @@ namespace EastFive.Api.Modules
         }
 
         private static TResult HasExtraParameters<TResult>(MethodInfo method,
-                IEnumerable<string> queryKeys, IEnumerable<string> bodyKeys,
+                IEnumerable<string> queryKeys, IEnumerable<string> bodyKeys, bool hasFileParam,
                 IEnumerable<SelectParameterResult> matchedParameters,
             Func<TResult> noExtraParameters,
             Func<string[], TResult> onExtraParams)
@@ -492,7 +497,7 @@ namespace EastFive.Api.Modules
                 {
                     if (!verbAttr.MatchAllParameters)
                         return noExtraParameters();
-                    
+
                     if (verbAttr.MatchAllQueryParameters)
                     {
                         var matchParamQueryLookup = matchedParameters
@@ -503,6 +508,17 @@ namespace EastFive.Api.Modules
                             .ToArray();
                         if (extraQueryKeys.Any())
                             return onExtraParams(extraQueryKeys);
+
+                        if (hasFileParam)
+                        {
+                            if (verbAttr.Method.ToLower().Substring(0, 1) != "p")
+                            {
+                                var matchFileQueryLookup = matchedParameters
+                                    .Where(param => param.fromFile);
+                                if (!matchFileQueryLookup.Any())
+                                    return onExtraParams(extraQueryKeys);
+                            }
+                        }
                     }
 
                     if (verbAttr.MatchAllBodyParameters)

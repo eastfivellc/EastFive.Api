@@ -179,7 +179,15 @@ namespace EastFive.Api.Serialization
             }
             if (value is Type)
             {
-                var stringType = (value as Type).GetClrString();
+                var typeValue = (value as Type);
+                var serializationAttrs = typeValue.GetAttributesInterface<IProvideSerialization>();
+                if(serializationAttrs.Any())
+                {
+                    var serializationAttr = serializationAttrs.First();
+                    writer.WriteValue(serializationAttr.ContentType);
+                    return;
+                }
+                var stringType = typeValue.GetClrString();
                 writer.WriteValue(stringType);
                 return;
             }

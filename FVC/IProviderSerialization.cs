@@ -12,6 +12,8 @@ namespace EastFive.Api
     {
         string MediaType { get; }
 
+        string ContentType { get; }
+
         HttpResponseMessage Serialize(HttpResponseMessage response, HttpApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo, object obj);
     }
 }

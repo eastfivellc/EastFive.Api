@@ -32,7 +32,7 @@ namespace EastFive.Api
                     failure = $"Inform server developer!!! `{method.DeclaringType.FullName}..{method.Name}: {this.GetType().Name}` attributes a parameter of type `{parameterRequiringValidation.ParameterType.FullName}` on a resource of type `{method.DeclaringType.FullName}`.",
                 }).AsTask();
             return fetchBodyParam(string.Empty, parameterRequiringValidation.ParameterType,
-                (value) => new SelectParameterResult(value, string.Empty, parameterRequiringValidation),
+                (value) => SelectParameterResult.Body(value, string.Empty, parameterRequiringValidation),
                 (why) => SelectParameterResult.Failure(why, string.Empty, parameterRequiringValidation));
         }
 
