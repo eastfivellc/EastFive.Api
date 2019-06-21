@@ -87,7 +87,14 @@ namespace EastFive.Api
                                     return contentRef.id.ToString();
                                 }
                             }
-                            return content.ToString();
+
+                            if(typeof(Type) == memberType)
+                            {
+                                return (content as Type).GetCustomAttributes<FunctionViewControllerAttribute>()
+                                    .First().ContentType;
+                            }
+
+                            throw new NotImplementedException();
                         }
                     },
                     () =>

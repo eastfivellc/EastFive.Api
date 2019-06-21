@@ -11,9 +11,9 @@ namespace EastFive.Api
 {
     public abstract class InvokeApplication : IInvokeApplication
     {
-        public abstract string [] ApiRoutes { get;  }
+        public virtual string[] ApiRoutes => new string[] { };
 
-        public abstract string[] MvcRoutes { get; }
+        public virtual string[] MvcRoutes => new string[] { };
 
         public Uri ServerLocation { get; private set; }
 
@@ -55,6 +55,20 @@ namespace EastFive.Api
             var httpRequest = new HttpRequestMessage();
             var config = new HttpConfiguration();
 
+            var updatedConfig = ConfigureRoutes(httpRequest, config);
+
+            httpRequest.SetConfiguration(updatedConfig);
+
+            foreach (var headerKVP in this.Headers)
+                httpRequest.Headers.Add(headerKVP.Key, headerKVP.Value);
+
+            httpRequest.RequestUri = this.ServerLocation;
+
+            return BuildRequest<TResource>(this.Application, httpRequest);
+        }
+
+        protected virtual HttpConfiguration ConfigureRoutes(HttpRequestMessage httpRequest, HttpConfiguration config)
+        {
             var apiRoutes = this.ApiRoutes
                 .Select(
                     routeName =>
@@ -82,15 +96,7 @@ namespace EastFive.Api
                         return route;
                     })
                 .ToArray();
-
-            httpRequest.SetConfiguration(config);
-
-            foreach (var headerKVP in this.Headers)
-                httpRequest.Headers.Add(headerKVP.Key, headerKVP.Value);
-
-            httpRequest.RequestUri = this.ServerLocation;
-
-            return BuildRequest<TResource>(this.Application, httpRequest);
+            return config;
         }
 
         protected abstract RequestMessage<TResource> BuildRequest<TResource>(IApplication application, HttpRequestMessage httpRequest);

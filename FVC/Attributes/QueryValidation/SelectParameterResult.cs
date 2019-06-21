@@ -67,6 +67,21 @@ namespace EastFive.Api
             };
         }
 
+        public static SelectParameterResult Header(object v, string key, ParameterInfo parameterInfo)
+        {
+            return new SelectParameterResult
+            {
+                valid = true,
+                value = v,
+                failure = string.Empty,
+                parameterInfo = parameterInfo,
+                fromQuery = false,
+                fromBody = false,
+                fromFile = false,
+                key = key,
+            };
+        }
+
         public SelectParameterResult(object v, string key, ParameterInfo parameterInfo)
         {
             valid = true;
@@ -87,5 +102,19 @@ namespace EastFive.Api
         public bool fromBody;
         public bool fromFile;
         public string key;
+
+        public string Location
+        {
+            get
+            {
+                if (fromFile)
+                    return "FILE";
+                if (fromQuery)
+                    return "QUERY";
+                if (fromBody)
+                    return "BODY";
+                return string.Empty;
+            }
+        }
     }
 }

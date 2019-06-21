@@ -16,8 +16,12 @@ namespace EastFive.Api.Resources
         public Manifest(KeyValuePair<string, KeyValuePair<HttpMethod, MethodInfo[]>[]>[] lookups,
             HttpApplication httpApp)
         {
-            this.Routes = lookups.Select(route => new Route(route.Key, route.Value, httpApp)).ToArray();
+            this.Routes = lookups
+                .Select(route => new Route(route.Key, route.Value, httpApp))
+                .OrderBy(route => route.Name)
+                .ToArray();
         }
+
         public Route[] Routes { get; set; }
 
         public class Route
@@ -96,15 +100,22 @@ namespace EastFive.Api.Resources
             public Method(MethodInfo methodInfo, HttpApplication httpApp)
             {
                 this.Name = methodInfo.Name;
+                this.Description = methodInfo.GetCustomAttribute<System.ComponentModel.DescriptionAttribute, string>(
+                    (attr) => attr.Description,
+                    () => string.Empty);
                 this.Parameters = methodInfo.GetParameters()
-                    .Where(methodParam => methodParam.ContainsCustomAttribute<QueryValidationAttribute>(true))
-                    .Select(paramInfo => new Parameter(paramInfo, httpApp)).ToArray();
+                    .Where(methodParam => methodParam.ContainsAttributeInterface<IBindApiValue>(true))
+                    .Select(paramInfo => new Parameter(paramInfo, httpApp))
+                    .ToArray();
                 this.Responses = methodInfo.GetParameters()
                     .Where(methodParam => typeof(MulticastDelegate).IsAssignableFrom(methodParam.ParameterType))
-                    .Select(paramInfo => new Response(paramInfo)).ToArray();
+                    .Select(paramInfo => new Response(paramInfo))
+                    .ToArray();
             }
 
             public string Name { get; set; }
+
+            public string Description { get; set; }
 
             public Parameter[] Parameters { get; set; }
 
@@ -115,11 +126,8 @@ namespace EastFive.Api.Resources
         {
             public Parameter(ParameterInfo paramInfo, HttpApplication httpApp)
             {
-                var validator = paramInfo.GetCustomAttribute<QueryValidationAttribute>();
-                this.Name = validator.Name.IsNullOrWhiteSpace() ?
-                    paramInfo.Name.ToLower()
-                    :
-                    validator.Name.ToLower();
+                var validator = paramInfo.GetAttributeInterface<IBindApiValue>();
+                this.Name = validator.GetKey(paramInfo);
                 this.Required = !(paramInfo.ContainsCustomAttribute<PropertyOptionalAttribute>() ||
                     paramInfo.ContainsCustomAttribute<OptionalQueryParameterAttribute>());
                 this.Default = paramInfo.ContainsCustomAttribute<QueryDefaultParameterAttribute>();

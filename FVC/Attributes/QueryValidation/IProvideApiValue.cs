@@ -15,6 +15,8 @@ namespace EastFive.Api
 
     public interface IBindApiValue
     {
+        string GetKey(ParameterInfo paramInfo);
+
         Task<SelectParameterResult> TryCastAsync(IApplication httpApp, HttpRequestMessage request,
                 MethodInfo method, ParameterInfo parameterRequiringValidation,
                 CastDelegate<SelectParameterResult> fetchQueryParam,

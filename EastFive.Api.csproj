@@ -168,6 +168,8 @@
     <Compile Include="Extensions\WebUrnExtensions.cs" />
     <Compile Include="Extensions\ValidationExtensions.cs" />
     <Compile Include="FVC\Attributes\ApiIdAttribute.cs" />
+    <Compile Include="FVC\Attributes\Instigation\IInstigatable.cs" />
+    <Compile Include="FVC\Attributes\QueryValidation\AuthorizationAttribute.cs" />
     <Compile Include="FVC\Attributes\QueryValidation\IFilterApiValues.cs" />
     <Compile Include="FVC\Attributes\QueryValidation\ResourceAttribute.cs" />
     <Compile Include="FVC\Attributes\QueryValidation\SelectParameterResult.cs" />

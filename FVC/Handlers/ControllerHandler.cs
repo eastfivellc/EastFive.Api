@@ -326,18 +326,9 @@ namespace EastFive.Api.Modules
                         .Select(
                             paramResult =>
                             {
-                                var validator = paramResult.parameterInfo.GetCustomAttribute<QueryValidationAttribute>();
-                                var lookupName = validator.Name.IsNullOrWhiteSpace() ?
-                                    paramResult.parameterInfo.Name.ToLower()
-                                    :
-                                    validator.Name.ToLower();
-                                var location = paramResult.fromQuery ?
-                                    "Query"
-                                    :
-                                    paramResult.fromBody ?
-                                        "BODY"
-                                        :
-                                        string.Empty;
+                                var validator = paramResult.parameterInfo.GetAttributeInterface<IBindApiValue>();
+                                var lookupName = validator.GetKey(paramResult.parameterInfo);
+                                var location = paramResult.Location;
                                 return $"{lookupName}({location}):{paramResult.failure}";
                             })
                         .ToArray();
@@ -388,13 +379,11 @@ namespace EastFive.Api.Modules
                     {
                         var parametersCastResults = await method
                             .GetParameters()
-                            .Where(param => param.ContainsCustomAttribute<QueryValidationAttribute>())
+                            .Where(param => param.ContainsAttributeInterface<IBindApiValue>())
                             .Select(
                                 (param) =>
                                 {
-                                    var castValue = param.GetCustomAttribute<QueryValidationAttribute, IBindApiValue>(
-                                        (queryValidationAttribute) => queryValidationAttribute,
-                                        () => throw new Exception("Where check failed"));
+                                    var castValue = param.GetAttributeInterface<IBindApiValue>();
                                     return castValue.TryCastAsync(httpApp, request, method, param,
                                             fetchQueryParam,
                                             fetchBodyParam,
@@ -443,8 +432,11 @@ namespace EastFive.Api.Modules
                             });
                     })
                 .AsyncEnumerable();
-            return await await methodsForConsideration
-                .Where(methodCast => !methodCast.parametersWithValues.IsDefaultOrNull())
+            //var debugConsider = await methodsForConsideration.ToArrayAsync();
+            var validMethods = methodsForConsideration
+                .Where(methodCast => !methodCast.parametersWithValues.IsDefaultOrNull());
+            //var debug = await validMethods.ToArrayAsync();
+            return await await validMethods
                 .FirstAsync(
                     (methodCast) =>
                     {

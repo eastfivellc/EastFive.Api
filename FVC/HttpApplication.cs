@@ -125,14 +125,19 @@ namespace EastFive.Api
         {
             config.MapHttpAttributeRoutes();
 
-            config.Routes.MapHttpRoute(
+            DefaultApiRoute(config);
+
+            config.MessageHandlers.Add(new Modules.ControllerHandler(config));
+            config.MessageHandlers.Add(new Modules.MonitoringHandler(config));
+        }
+
+        public IHttpRoute DefaultApiRoute(HttpConfiguration config)
+        {
+            return config.Routes.MapHttpRoute(
                 name: "DefaultApi",
                 routeTemplate: "api/{controller}/{id}",
                 defaults: new { id = RouteParameter.Optional }
             );
-
-            config.MessageHandlers.Add(new Modules.ControllerHandler(config));
-            config.MessageHandlers.Add(new Modules.MonitoringHandler(config));
         }
 
         protected class Initialized
@@ -179,7 +184,7 @@ namespace EastFive.Api
 
             httpRequest.SetConfiguration(config);
 
-            httpRequest.RequestUri = this.ServerLocation;
+            //httpRequest.RequestUri = this.ServerLocation;
             return new RequestMessage<TResource>(this, httpRequest);
         }
 
@@ -1349,6 +1354,13 @@ namespace EastFive.Api
         public Task<HttpResponseMessage> Instigate(HttpRequestMessage request, ParameterInfo methodParameter,
             Func<object, Task<HttpResponseMessage>> onInstigated)
         {
+            var instigationAttrs = methodParameter.ParameterType.GetAttributesInterface<IInstigatable>();
+            if(instigationAttrs.Any())
+            {
+                var instigationAttr = instigationAttrs.First();
+                return instigationAttr.Instigate(this, request, methodParameter,
+                    (v) => onInstigated(v));
+            }
 
             if (this.instigators.ContainsKey(methodParameter.ParameterType))
                 return this.instigators[methodParameter.ParameterType](this, request, methodParameter,
