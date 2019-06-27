@@ -129,7 +129,8 @@ namespace EastFive.Api
             public HttpRequestMessage MutateRequest(HttpRequestMessage request,
                 HttpMethod httpMethod, MethodInfo method, Expression[] arguments)
             {
-                throw new NotImplementedException();
+                request.RequestUri = BindUrlQueryValue(request.RequestUri, method, arguments);
+                return request;
             }
         }
 
@@ -161,14 +162,6 @@ namespace EastFive.Api
         public static IQueryable<TResource> ById<TResource>(this IQueryable<TResource> query, Guid resourceId)
             where TResource : IReferenceable
         {
-            //return query.Where(res => res.id == resourceId);
-
-            //var queryable = new EastFive.Linq.Queryable<TResource, Provider<TResource>>(
-            //    new Provider<TResource>(resourceId));
-
-            //Expression<Func<IQueryable<TResource>, IQueryable<TResource>>> expr = q =>
-            //    q.Where(res => res.id == resourceId);
-
             if (!typeof(RequestMessage<TResource>).IsAssignableFrom(query.GetType()))
                 throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{query.GetType().FullName}`", "query");
             var requestMessageQuery = query as RequestMessage<TResource>;
@@ -176,6 +169,83 @@ namespace EastFive.Api
             var condition = Expression.Call(
                 typeof(ResourceQueryExtensions), "ById", new Type[] { typeof(TResource) },
                 query.Expression, Expression.Constant(resourceId));
+
+            var requestMessageNewQuery = new RequestMessage<TResource>(
+                requestMessageQuery.Application, requestMessageQuery.Request, condition);
+            return requestMessageNewQuery;
+        }
+
+
+        [MutateIdQuery]
+        public static IQueryable<TResource> ById<TResource>(this IQueryable<TResource> query, IRef<TResource> resourceRef)
+            where TResource : IReferenceable
+        {
+            var resourceId = resourceRef.id;
+            return query.ById(resourceId);
+        }
+
+        [AttributeUsage(AttributeTargets.Method)]
+        public class QueryParamQueryAttribute : Attribute, IFilterApiValues
+        {
+            public Uri BindUrlQueryValue(Uri url, MethodInfo method, Expression[] arguments)
+            {
+                return arguments
+                    .Zip(
+                        method.GetParameters(),
+                        (arg, paramInfo) =>
+                        {
+                            KeyValuePair<string, object> Evaluate(Expression expr)
+                            {
+                                if (expr is UnaryExpression)
+                                {
+                                    var argUnary = expr as UnaryExpression;
+                                    return Evaluate(argUnary.Operand);
+                                }
+                                if (expr is Expression<Func<object>>)
+                                {
+                                    var paramExpr = expr as Expression<Func<object>>;
+                                    return Evaluate(paramExpr.Body);
+                                }
+                                if(expr is MemberExpression)
+                                {
+                                    var memberExpr = expr as MemberExpression;
+                                    var paramName = memberExpr.Member.Name;
+                                    var paramValue = arg.Resolve();
+                                    return paramName.PairWithValue(paramValue);
+                                }
+                                {
+                                    var paramValue = expr.Resolve();
+                                    return paramInfo.Name.PairWithValue(paramValue);
+                                }
+                            }
+                            return Evaluate(arg);
+                        })
+                    .Aggregate(url,
+                        (urlAggr, kvp) =>
+                        {
+                            return urlAggr.AddQueryParameter(kvp.Key, kvp.Value.ToString());
+                        });
+            }
+
+            public HttpRequestMessage MutateRequest(HttpRequestMessage request,
+                HttpMethod httpMethod, MethodInfo method, Expression[] arguments)
+            {
+                request.RequestUri = BindUrlQueryValue(request.RequestUri, method, arguments);
+                return request;
+            }
+        }
+
+        [QueryParamQuery]
+        public static IQueryable<TResource> QueryParam<TResource>(this IQueryable<TResource> query, Expression<Func<object>> paramExpr)
+            where TResource : IReferenceable
+        {
+            if (!typeof(RequestMessage<TResource>).IsAssignableFrom(query.GetType()))
+                throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{query.GetType().FullName}`", "query");
+            var requestMessageQuery = query as RequestMessage<TResource>;
+
+            var condition = Expression.Call(
+                typeof(ResourceQueryExtensions), "QueryParam", new Type[] { typeof(TResource) },
+                query.Expression, paramExpr);
 
             var requestMessageNewQuery = new RequestMessage<TResource>(
                 requestMessageQuery.Application, requestMessageQuery.Request, condition);
