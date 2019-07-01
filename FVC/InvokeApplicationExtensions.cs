@@ -110,6 +110,7 @@ namespace EastFive.Api
             Func<object[], TResult> onContentObjects = default(Func<object[], TResult>),
             Func<TResult> onBadRequest = default(Func<TResult>),
             Func<TResult> onNotFound = default(Func<TResult>),
+            Func<TResult> onUnauthorized = default,
             Func<Type, TResult> onRefDoesNotExistsType = default(Func<Type, TResult>),
             Func<Uri, TResult> onRedirect = default(Func<Uri, TResult>),
             Func<TResult> onCreated = default(Func<TResult>),
@@ -123,6 +124,7 @@ namespace EastFive.Api
                 onContentObjects: onContentObjects,
                 onBadRequest: onBadRequest,
                 onNotFound: onNotFound,
+                onUnauthorized: onUnauthorized,
                 onRefDoesNotExistsType: onRefDoesNotExistsType,
                 onRedirect: onRedirect,
                 onCreated: onCreated,
@@ -184,7 +186,7 @@ namespace EastFive.Api
                 onFailure: onFailure);
         }
 
-        private static Task<TResult> DeleteAsync<TResource, TResult>(this RequestMessage<TResource> request,
+        public static Task<TResult> DeleteAsync<TResource, TResult>(this IQueryable<TResource> request,
             Func<TResult> onNoContent = default(Func<TResult>),
             Func<TResource, TResult> onContent = default(Func<TResource, TResult>),
             Func<TResource[], TResult> onContents = default(Func<TResource[], TResult>),
