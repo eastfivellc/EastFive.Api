@@ -17,7 +17,7 @@ namespace EastFive.Api
 
         protected override RequestMessage<TResource> BuildRequest<TResource>(IApplication application, HttpRequestMessage httpRequest)
         {
-            return new RequestMessage<TResource>(application, httpRequest);
+            return new RequestMessage<TResource>(this, application, httpRequest);
         }
 
     }

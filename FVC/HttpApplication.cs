@@ -185,7 +185,7 @@ namespace EastFive.Api
             httpRequest.SetConfiguration(config);
 
             //httpRequest.RequestUri = this.ServerLocation;
-            return new RequestMessage<TResource>(this, httpRequest);
+            return new RequestMessage<TResource>(this, this, httpRequest);
         }
 
         #endregion
@@ -193,7 +193,7 @@ namespace EastFive.Api
 
         #region Url Handlers
 
-        public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request)
+        public virtual async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request)
         {
             using (var client = new HttpClient())
             {

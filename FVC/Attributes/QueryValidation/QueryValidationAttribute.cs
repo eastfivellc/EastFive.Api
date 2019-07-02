@@ -130,8 +130,19 @@ namespace EastFive.Api
                 fetchQueryParam, fetchBodyParam, fetchDefaultParam);
             if (!baseValue.valid)
             {
-                baseValue.value = parameterRequiringValidation.ParameterType.GetDefault();
+                baseValue.value = GetValue();
                 baseValue.valid = true;
+                object GetValue()
+                {
+                    if (parameterRequiringValidation.ParameterType.IsSubClassOfGeneric(typeof(IRefOptional<>)))
+                    {
+                        var instanceType = typeof(RefOptional<>).MakeGenericType(
+                            parameterRequiringValidation.ParameterType.GenericTypeArguments);
+                        return Activator.CreateInstance(instanceType, new object[] { });
+                    }
+
+                    return parameterRequiringValidation.ParameterType.GetDefault();
+                }
             }
             return baseValue;
         }

@@ -107,7 +107,9 @@ namespace EastFive.Api
 
         public static HttpRequestMessage Request<TResource>(this IQueryable<TResource> urlQuery,
             HttpMethod httpMethod = default,
-            IInvokeApplication applicationInvoker = default)
+            IInvokeApplication applicationInvoker = default,
+            string routeName = "DefaultApi",
+            System.Web.Http.Routing.UrlHelper urlHelper = default)
         {
             if (httpMethod.IsDefaultOrNull())
                 httpMethod = HttpMethod.Get;
@@ -119,8 +121,20 @@ namespace EastFive.Api
                     return (urlQuery as RequestMessage<TResource>).Request;
                 return new HttpRequestMessage();
             }
+            System.Web.Http.Routing.UrlHelper GetUrlHelper()
+            {
+                if (!urlHelper.IsDefaultOrNull())
+                    return urlHelper;
+                if (urlQuery is RequestMessage<TResource>)
+                    return new System.Web.Http.Routing.UrlHelper((urlQuery as RequestMessage<TResource>).Request);
+                throw new ArgumentException("Could not determine value for urlHelper");
+            }
+            var validUrlHelper = GetUrlHelper();
+            var baseUrl = validUrlHelper.GetLocation(typeof(TResource), routeName);
 
             var requestMessage = GetRequestMessage();
+            requestMessage.RequestUri = baseUrl;
+            requestMessage.Method = httpMethod;
             return urlQuery.Compile<TResource, HttpRequestMessage, IFilterApiValues, IFilterApiValues>(
                     requestMessage,
                 (request, methodAttr, method, operand) =>

@@ -170,8 +170,7 @@ namespace EastFive.Api
                 typeof(ResourceQueryExtensions), "ById", new Type[] { typeof(TResource) },
                 query.Expression, Expression.Constant(resourceId));
 
-            var requestMessageNewQuery = new RequestMessage<TResource>(
-                requestMessageQuery.Application, requestMessageQuery.Request, condition);
+            var requestMessageNewQuery = requestMessageQuery.FromExpression(condition);
             return requestMessageNewQuery;
         }
 
@@ -247,8 +246,7 @@ namespace EastFive.Api
                 typeof(ResourceQueryExtensions), "QueryParam", new Type[] { typeof(TResource) },
                 query.Expression, paramExpr);
 
-            var requestMessageNewQuery = new RequestMessage<TResource>(
-                requestMessageQuery.Application, requestMessageQuery.Request, condition);
+            var requestMessageNewQuery = requestMessageQuery.FromExpression(condition);
             return requestMessageNewQuery;
         }
     }

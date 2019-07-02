@@ -29,23 +29,30 @@ namespace EastFive.Api
     public static class InvokeApplicationExtensions
     {
         public static Task<TResult> MethodAsync<TResource, TResult>(this RequestMessage<TResource> request,
-                HttpMethod method)
+                HttpMethod method, Func<HttpRequestMessage, HttpRequestMessage> requestMutation,
+                Func<HttpStatusCode, TResult> onNotOverriddenResponse = default)
         {
             return typeof(TResource).GetCustomAttribute<FunctionViewControllerAttribute, Task<TResult>>(
                 async fvcAttr =>
                 {
-                    var httpRequest = request.Request;
-                    httpRequest.Method = method;
+                    var httpRequest = requestMutation(request.Request(method)); // request.Request;
                     var response = await request.Application.SendAsync(httpRequest);
 
                     if (response is IDidNotOverride)
                         (response as IDidNotOverride).OnFailure();
-                    if (!(response is IReturnResult))
-                        throw new Exception($"Failed to override response with status code `{response.StatusCode}` for {typeof(TResource).FullName}\nResponse:{response.ReasonPhrase}");
-
-                    var attachedResponse = response as IReturnResult;
-                    var result = attachedResponse.GetResultCasted<TResult>();
-                    return result;
+                    if (response is IReturnResult)
+                    {
+                        var attachedResponse = response as IReturnResult;
+                        var result = attachedResponse.GetResultCasted<TResult>();
+                        return result;
+                    }
+                    if(!onNotOverriddenResponse.IsDefaultOrNull())
+                    {
+                        return onNotOverriddenResponse(response.StatusCode);
+                    }
+                    var msg = $"Failed to override response with status code `{response.StatusCode}` for {typeof(TResource).FullName}" + 
+                        $"\nResponse:{response.ReasonPhrase}";
+                    throw new Exception(msg);
                 },
                 () =>
                 {
@@ -55,28 +62,31 @@ namespace EastFive.Api
 
         public static Task<TResult> MethodAsync<TResource, TResult>(this IQueryable<TResource> requestQuery,
                 HttpMethod method,
+                Func<HttpRequestMessage, HttpRequestMessage> requestMutation = default,
+            Func<TResource, TResult> onContent = default,
+            Func<TResource[], TResult> onContents = default,
+            Func<object[], TResult> onContentObjects = default,
+            Func<string, TResult> onHtml = default,
+            Func<byte[], string, TResult> onXls = default,
+            Func<TResult> onCreated = default,
+            Func<TResource, string, TResult> onCreatedBody = default,
+            Func<TResult> onUpdated = default,
 
-            Func<TResource, TResult> onContent = default(Func<TResource, TResult>),
-            Func<TResource[], TResult> onContents = default(Func<TResource[], TResult>),
-            Func<object[], TResult> onContentObjects = default(Func<object[], TResult>),
-            Func<string, TResult> onHtml = default(Func<string, TResult>),
-            Func<byte[], string, TResult> onXls = default(Func<byte[], string, TResult>),
-            Func<TResult> onCreated = default(Func<TResult>),
-            Func<TResource, string, TResult> onCreatedBody = default(Func<TResource, string, TResult>),
-            Func<TResult> onUpdated = default(Func<TResult>),
-
-            Func<Uri, TResult> onRedirect = default(Func<Uri, TResult>),
+            Func<Uri, TResult> onRedirect = default,
 
             Func<TResult> onBadRequest = default(Func<TResult>),
             Func<TResult> onUnauthorized = default(Func<TResult>),
             Func<TResult> onExists = default(Func<TResult>),
             Func<TResult> onNotFound = default(Func<TResult>),
-            Func<Type, TResult> onRefDoesNotExistsType = default(Func<Type, TResult>),
-            Func<string, TResult> onFailure = default(Func<string, TResult>),
+            Func<Type, TResult> onRefDoesNotExistsType = default,
+            Func<string, TResult> onFailure = default,
 
-            Func<TResult> onNotImplemented = default(Func<TResult>),
-            Func<IExecuteAsync, Task<TResult>> onExecuteBackground = default(Func<IExecuteAsync, Task<TResult>>))
+            Func<TResult> onNotImplemented = default,
+            Func<IExecuteAsync, Task<TResult>> onExecuteBackground = default,
+            Func<HttpStatusCode, TResult> onNotOverriddenResponse = default)
         {
+            if (requestMutation.IsDefaultOrNull())
+                requestMutation = r => r;
             var request = (requestQuery as RequestMessage<TResource>);
             var application = request.Application;
             application.CreatedResponse<TResource, TResult>(onCreated);
@@ -101,7 +111,7 @@ namespace EastFive.Api
             application.GeneralConflictResponse<TResource, TResult>(onFailure);
             application.ExecuteBackgroundResponse<TResource, TResult>(onExecuteBackground);
 
-            return request.MethodAsync<TResource, TResult>(method);
+            return request.MethodAsync(method, requestMutation, onNotOverriddenResponse);
         }
 
         public static Task<TResult> GetAsync<TResource, TResult>(this IQueryable<TResource> requestQuery,
@@ -115,8 +125,9 @@ namespace EastFive.Api
             Func<Uri, TResult> onRedirect = default(Func<Uri, TResult>),
             Func<TResult> onCreated = default(Func<TResult>),
             Func<string, TResult> onHtml = default(Func<string, TResult>),
-            Func<byte[], string, TResult> onXls = default(Func<byte[], string, TResult>),
-            Func<IExecuteAsync, Task<TResult>> onExecuteBackground = default(Func<IExecuteAsync, Task<TResult>>))
+            Func<byte[], string, TResult> onXls = default,
+            Func<IExecuteAsync, Task<TResult>> onExecuteBackground = default,
+            Func<HttpStatusCode, TResult> onNotOverriddenResponse = default)
         {
             return requestQuery.MethodAsync<TResource, TResult>(HttpMethod.Get,
                 onContent: onContent,
@@ -130,7 +141,8 @@ namespace EastFive.Api
                 onCreated: onCreated,
                 onHtml: onHtml,
                 onXls: onXls,
-                onExecuteBackground: onExecuteBackground);
+                onExecuteBackground: onExecuteBackground,
+                onNotOverriddenResponse: onNotOverriddenResponse);
 
         }
 
@@ -150,16 +162,24 @@ namespace EastFive.Api
         /// <remarks>Response hooks are only called if the method is actually invoked. Responses from the framework are not trapped.</remarks>
         public static Task<TResult> PostAsync<TResource, TResult>(this IQueryable<TResource> requestQuery,
                 TResource resource,
-            Func<TResult> onCreated = default(Func<TResult>),
-            Func<TResource, string, TResult> onCreatedBody = default(Func<TResource, string, TResult>),
-            Func<TResult> onBadRequest = default(Func<TResult>),
-            Func<TResult> onExists = default(Func<TResult>),
-            Func<Type, TResult> onRefDoesNotExistsType = default(Func<Type, TResult>),
-            Func<Uri, TResult> onRedirect = default(Func<Uri, TResult>),
-            Func<TResult> onNotImplemented = default(Func<TResult>),
-            Func<IExecuteAsync, Task<TResult>> onExecuteBackground = default(Func<IExecuteAsync, Task<TResult>>))
+            Func<TResult> onCreated = default,
+            Func<TResource, string, TResult> onCreatedBody = default,
+            Func<TResult> onBadRequest = default,
+            Func<TResult> onExists = default,
+            Func<Type, TResult> onRefDoesNotExistsType = default,
+            Func<Uri, TResult> onRedirect = default,
+            Func<TResult> onNotImplemented = default,
+            Func<IExecuteAsync, Task<TResult>> onExecuteBackground = default,
+            Func<HttpStatusCode, TResult> onNotOverriddenResponse = default)
         {
             return requestQuery.MethodAsync<TResource, TResult>(HttpMethod.Post,
+                    request =>
+                    {
+                        var contentJsonString = JsonConvert.SerializeObject(resource, new Serialization.Converter());
+                        request.Content = new StreamContent(contentJsonString.ToStream());
+                        request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+                        return request;
+                    },
                 onCreated: onCreated,
                 onCreatedBody: onCreatedBody,
                 onBadRequest: onBadRequest,
@@ -167,23 +187,36 @@ namespace EastFive.Api
                 onRefDoesNotExistsType: onRefDoesNotExistsType,
                 onRedirect: onRedirect,
                 onNotImplemented: onNotImplemented,
-                onExecuteBackground: onExecuteBackground);
+                onExecuteBackground: onExecuteBackground,
+                onNotOverriddenResponse: onNotOverriddenResponse);
         }
 
         public static Task<TResult> PatchAsync<TResource, TResult>(this IQueryable<TResource> requestQuery,
                 TResource resource,
-            Func<TResult> onUpdated = default(Func<TResult>),
-            Func<TResource, TResult> onUpdatedBody = default(Func<TResource, TResult>),
-            Func<TResult> onNotFound = default(Func<TResult>),
-            Func<TResult> onUnauthorized = default(Func<TResult>),
-            Func<string, TResult> onFailure = default(Func<string, TResult>))
+            Func<TResult> onUpdated = default,
+            Func<TResource, TResult> onUpdatedBody = default,
+            Func<TResult> onNotFound = default,
+            Func<TResult> onUnauthorized = default,
+            Func<string, TResult> onFailure = default,
+            Func<HttpStatusCode, TResult> onNotOverriddenResponse = default)
         {
             return requestQuery.MethodAsync<TResource, TResult>(new HttpMethod("patch"),
+                    request =>
+                    {
+                        var settings = new JsonSerializerSettings();
+                        settings.Converters.Add(new Serialization.Converter());
+                        settings.DefaultValueHandling = DefaultValueHandling.Ignore;
+                        var contentJsonString = JsonConvert.SerializeObject(resource, settings);
+                        request.Content = new StreamContent(contentJsonString.ToStream());
+                        request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+                        return request;
+                    },
                 onUpdated: onUpdated,
                 onContent: onUpdatedBody,
                 onNotFound: onNotFound,
                 onUnauthorized: onUnauthorized,
-                onFailure: onFailure);
+                onFailure: onFailure,
+                onNotOverriddenResponse: onNotOverriddenResponse);
         }
 
         public static Task<TResult> DeleteAsync<TResource, TResult>(this IQueryable<TResource> request,

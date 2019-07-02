@@ -153,6 +153,14 @@ namespace EastFive.Api.Serialization
             }
             if (value is Type)
             {
+                var typeValue = (value as Type);
+                var serializationAttrs = typeValue.GetAttributesInterface<IProvideSerialization>();
+                if (serializationAttrs.Any())
+                {
+                    var serializationAttr = serializationAttrs.First();
+                    writer.WriteValue(serializationAttr.ContentType);
+                    return;
+                }
                 var stringType = (value as Type).GetClrString();
                 writer.WriteValue(stringType);
             }
