@@ -20,10 +20,8 @@ namespace EastFive.Api
         Func<object, TResult> onParsed,
         Func<string, TResult> onFailure);
 
-    public interface IApplication : IInvokeApplication
+    public interface IApplication // : IInvokeApplication
     {
-        Task<HttpResponseMessage> SendAsync(HttpRequestMessage request);
-
         object CastResourceProperty(object value, Type propertyType);
 
         void SetInstigator(Type type, InstigatorDelegate instigator, bool clear = false);

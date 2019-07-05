@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Web.Http;
 using EastFive;
 using EastFive.Extensions;
+using EastFive.Linq;
 
 namespace EastFive.Api
 {
@@ -16,9 +17,15 @@ namespace EastFive.Api
     {
         Uri ServerLocation { get; }
 
+        string ApiRouteName { get; }
+
         IDictionary<string, string> Headers { get; }
 
+        IApplication Application { get; }
+
         RequestMessage<TResource> GetRequest<TResource>();
+
+        Task<HttpResponseMessage> SendAsync<TResource>(RequestMessage<TResource> requestMessage, HttpRequestMessage httpRequest);
     }
 
     public class IInvokeApplicationAttribute : Attribute, IInstigatable
@@ -26,7 +33,40 @@ namespace EastFive.Api
         public Task<HttpResponseMessage> Instigate(HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo, 
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
-            var instance = new InvokeApplicationFromRequest(httpApp, request);
+            string GetApiPrefix()
+            {
+                try
+                {
+                    return request.RequestUri.AbsolutePath.Trim('/'.AsArray()).Split('/'.AsArray()).First();
+                } catch(Exception)
+                {
+
+                }
+                var routeData = request.GetRouteData();
+                if (routeData.IsDefaultOrNull())
+                    return "api";
+                var route = routeData.Route;
+                if (route.IsDefaultOrNull())
+                    return "api";
+                var routeTemplate = route.RouteTemplate;
+                if(routeTemplate.IsNullOrWhiteSpace())
+                    return "api";
+                var directories = routeTemplate.Split('/'.AsArray());
+                if(!directories.AnyNullSafe())
+                    return "api";
+                return directories.First();
+            }
+            Uri GetServerLocation()
+            {
+                if (request.RequestUri.IsDefaultOrNull())
+                    return new Uri("http://example.com");
+
+                var hostUrlString = request.RequestUri.GetLeftPart(UriPartial.Authority);
+                return new Uri(hostUrlString);
+            }
+            var apiPrefix = GetApiPrefix();
+            var serverLocation = GetServerLocation();
+            var instance = new InvokeApplicationFromRequest(httpApp, request, serverLocation, apiPrefix);
             return onSuccess(instance);
         }
 
@@ -37,9 +77,10 @@ namespace EastFive.Api
 
             private string[] apiRoute;
 
-            protected override IApplication Application => httpApp;
+            public override IApplication Application => httpApp;
 
-            public InvokeApplicationFromRequest(HttpApplication httpApp, HttpRequestMessage request) : base(request.RequestUri)
+            public InvokeApplicationFromRequest(HttpApplication httpApp, HttpRequestMessage request,
+                    Uri serverLocation, string apiPrefix) : base(serverLocation, apiPrefix)
             {
                 this.httpApp = httpApp;
                 this.request = request;
@@ -64,7 +105,17 @@ namespace EastFive.Api
 
             protected override RequestMessage<TResource> BuildRequest<TResource>(IApplication application, HttpRequestMessage httpRequest)
             {
-                return new RequestMessage<TResource>(this, application, httpRequest);
+                return new RequestMessage<TResource>(this, httpRequest);
+            }
+
+            public override async Task<HttpResponseMessage> SendAsync<TResource>(
+                RequestMessage<TResource> requestMessage, HttpRequestMessage httpRequest)
+            {
+                using (var client = new HttpClient())
+                {
+                    var response = await client.SendAsync(request);
+                    return response;
+                }
             }
         }
     }

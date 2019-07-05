@@ -36,7 +36,7 @@ namespace EastFive.Api
                 async fvcAttr =>
                 {
                     var httpRequest = requestMutation(request.Request(method)); // request.Request;
-                    var response = await request.Application.SendAsync(httpRequest);
+                    var response = await request.InvokeApplication.SendAsync(request, httpRequest);
 
                     if (response is IDidNotOverride)
                         (response as IDidNotOverride).OnFailure();
@@ -88,7 +88,7 @@ namespace EastFive.Api
             if (requestMutation.IsDefaultOrNull())
                 requestMutation = r => r;
             var request = (requestQuery as RequestMessage<TResource>);
-            var application = request.Application;
+            var application = request.InvokeApplication.Application;
             application.CreatedResponse<TResource, TResult>(onCreated);
             application.CreatedBodyResponse<TResource, TResult>(onCreatedBody);
             application.BadRequestResponse<TResource, TResult>(onBadRequest);
@@ -864,42 +864,42 @@ namespace EastFive.Api
             Func<IExecuteAsync, Task<TResult>> onExecuteBackground = default(Func<IExecuteAsync, Task<TResult>>))
         {
             throw new NotImplementedException();
-            var request = invokeApplication.GetRequest<TResource>();
-            //request.Method = method;
-            //request.RequestUri = location;
+            //var request = invokeApplication.GetRequest<TResource>();
+            ////request.Method = method;
+            ////request.RequestUri = location;
 
-            application.CreatedResponse<TResource, TResult>(onCreated);
-            application.CreatedBodyResponse<TResource, TResult>(onCreatedBody);
-            application.BadRequestResponse<TResource, TResult>(onBadRequest);
-            application.AlreadyExistsResponse<TResource, TResult>(onExists);
-            application.RefNotFoundTypeResponse(onRefDoesNotExistsType);
-            application.RedirectResponse<TResource, TResult>(onRedirect);
-            application.NotImplementedResponse<TResource, TResult>(onNotImplemented);
+            //application.CreatedResponse<TResource, TResult>(onCreated);
+            //application.CreatedBodyResponse<TResource, TResult>(onCreatedBody);
+            //application.BadRequestResponse<TResource, TResult>(onBadRequest);
+            //application.AlreadyExistsResponse<TResource, TResult>(onExists);
+            //application.RefNotFoundTypeResponse(onRefDoesNotExistsType);
+            //application.RedirectResponse<TResource, TResult>(onRedirect);
+            //application.NotImplementedResponse<TResource, TResult>(onNotImplemented);
 
-            application.ContentResponse(onContent);
-            application.ContentTypeResponse<TResource, TResult>((body, contentType) => onContent(body));
-            application.MultipartContentResponse(onContents);
-            if (!onContentObjects.IsDefaultOrNull())
-                application.MultipartContentObjectResponse<TResource, TResult>(onContentObjects);
-            application.NotFoundResponse<TResource, TResult>(onNotFound);
-            application.HtmlResponse<TResource, TResult>(onHtml);
+            //application.ContentResponse(onContent);
+            //application.ContentTypeResponse<TResource, TResult>((body, contentType) => onContent(body));
+            //application.MultipartContentResponse(onContents);
+            //if (!onContentObjects.IsDefaultOrNull())
+            //    application.MultipartContentObjectResponse<TResource, TResult>(onContentObjects);
+            //application.NotFoundResponse<TResource, TResult>(onNotFound);
+            //application.HtmlResponse<TResource, TResult>(onHtml);
 
-            application.NoContentResponse<TResource, TResult>(onUpdated);
-            application.UnauthorizedResponse<TResource, TResult>(onUnauthorized);
-            application.GeneralConflictResponse<TResource, TResult>(onFailure);
-            application.ExecuteBackgroundResponse<TResource, TResult>(onExecuteBackground);
+            //application.NoContentResponse<TResource, TResult>(onUpdated);
+            //application.UnauthorizedResponse<TResource, TResult>(onUnauthorized);
+            //application.GeneralConflictResponse<TResource, TResult>(onFailure);
+            //application.ExecuteBackgroundResponse<TResource, TResult>(onExecuteBackground);
 
-            var response = await application.SendAsync(request.Request);
+            //var response = await application.SendAsync(request.Request);
 
-            if (response is IDidNotOverride)
-                (response as IDidNotOverride).OnFailure();
+            //if (response is IDidNotOverride)
+            //    (response as IDidNotOverride).OnFailure();
 
-            if (!(response is IReturnResult))
-                throw new Exception($"Failed to override response with status code `{response.StatusCode}` for {typeof(TResource).FullName}\nResponse:{response.ReasonPhrase}");
+            //if (!(response is IReturnResult))
+            //    throw new Exception($"Failed to override response with status code `{response.StatusCode}` for {typeof(TResource).FullName}\nResponse:{response.ReasonPhrase}");
 
-            var attachedResponse = response as IReturnResult;
-            var result = attachedResponse.GetResultCasted<TResultInner>();
-            return onExecuted(result);
+            //var attachedResponse = response as IReturnResult;
+            //var result = attachedResponse.GetResultCasted<TResultInner>();
+            //return onExecuted(result);
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using BlackBarLabs.Extensions;
 using EastFive.Collections.Generic;
+using EastFive.Linq;
 using EastFive.Linq.Expressions;
 using Newtonsoft.Json;
 using System;
@@ -18,33 +19,30 @@ namespace EastFive.Api
             EastFive.Linq.Queryable<
                 TResource, 
                 RequestMessage<TResource>.RequestMessageProvideQuery>,
-            IQueryable<TResource>
+            IQueryable<TResource>,
+            Linq.ISupplyQueryProvider<RequestMessage<TResource>>
     {
-        public RequestMessage(IInvokeApplication invokeApplication, IApplication application, HttpRequestMessage request)
-            : base(new RequestMessageProvideQuery(invokeApplication, application, request))
+        public RequestMessage(IInvokeApplication invokeApplication, HttpRequestMessage request)
+            : base(new RequestMessageProvideQuery(invokeApplication, request))
         {
             this.InvokeApplication = invokeApplication;
-            this.Application = application;
             this.Request = request;
         }
 
-        public RequestMessage(IInvokeApplication invokeApplication, IApplication application, HttpRequestMessage request, Expression expr)
-            : base(new RequestMessageProvideQuery(invokeApplication, application, request), expr)
+        public RequestMessage(IInvokeApplication invokeApplication, HttpRequestMessage request, Expression expr)
+            : base(new RequestMessageProvideQuery(invokeApplication, request), expr)
         {
             this.InvokeApplication = invokeApplication;
-            this.Application = application;
             this.Request = request;
         }
 
         public IInvokeApplication InvokeApplication { get; private set; }
 
-        public IApplication Application { get; private set; }
-
         public HttpRequestMessage Request { get; private set; }
 
         public RequestMessage<TRelatedResource> Related<TRelatedResource>()
         {
-            return new RequestMessage<TRelatedResource>(this.InvokeApplication, this.Application, this.Request);
+            return new RequestMessage<TRelatedResource>(this.InvokeApplication, this.Request);
         }
 
         internal RequestMessage<TResource> SetContent(HttpContent content)
@@ -58,10 +56,16 @@ namespace EastFive.Api
                 EastFive.Linq.Queryable<TResource,
                     EastFive.Api.RequestMessage<TResource>.RequestMessageProvideQuery>>
         {
-            public RequestMessageProvideQuery(IInvokeApplication invokeApplication, IApplication application, HttpRequestMessage request)
+            public RequestMessageProvideQuery(IInvokeApplication invokeApplication, HttpRequestMessage request)
                 : base(
-                    (queryProvider, type) => new RequestMessage<TResource>(invokeApplication, application, request),
-                    (queryProvider, expression, type) => new RequestMessage<TResource>(invokeApplication, application, request, expression))
+                    (queryProvider, type) => (queryProvider is RequestMessage<TResource>)?
+                        (queryProvider as RequestMessage<TResource>).From()
+                        :
+                        new RequestMessage<TResource>(invokeApplication, request),
+                    (queryProvider, expression, type) => (queryProvider is RequestMessage<TResource>) ?
+                        (queryProvider as RequestMessage<TResource>).FromExpression(expression)
+                        :
+                        new RequestMessage<TResource>(invokeApplication, request, expression))
             {
             }
 
@@ -69,58 +73,32 @@ namespace EastFive.Api
             {
                 return 1;
             }
-
-            private static Uri AssignQueryExpressions(Uri baseUri, IApplication application,
-                Expression<Action<TResource>>[] parameters)
-            {
-                var queryParams = parameters
-                    .Select(
-                        param =>
-                        {
-                            return param.GetUrlAssignment(
-                                (propName, value) =>
-                                {
-                                    var propertyValue = (string)application.CastResourceProperty(value, typeof(String));
-                                    return propName.PairWithValue(propertyValue);
-                                });
-                        })
-                    .Concat(baseUri.ParseQuery())
-                    .ToDictionary();
-
-                var updatedUri = baseUri.SetQuery(queryParams);
-                return updatedUri;
-            }
-
-            private static Uri AssignResourceToQuery<TResource>(Uri baseUri, IApplication application, TResource resource)
-            {
-                var queryParams = typeof(TResource)
-                    .GetMembers()
-                    .Where(member => member.MemberType == MemberTypes.Property || member.MemberType == MemberTypes.Field)
-                    .Select(
-                        memberInfo =>
-                        {
-                            var propName = memberInfo.GetCustomAttribute<JsonPropertyAttribute, string>(
-                                jsonAttr => jsonAttr.PropertyName,
-                                () => memberInfo.Name);
-                            var value = memberInfo.GetValue(resource);
-                            var propertyValue = (string)application.CastResourceProperty(value, typeof(String));
-                            return propName.PairWithValue(propertyValue);
-                        })
-                    .Concat(baseUri.ParseQuery())
-                    .ToDictionary();
-
-                var updatedUri = baseUri.SetQuery(queryParams);
-                return updatedUri;
-            }
         }
 
-        internal RequestMessage<TResource> FromExpression(MethodCallExpression condition)
+        internal virtual RequestMessage<TResource> FromExpression(Expression condition)
         {
             return new RequestMessage<TResource>(
                   this.InvokeApplication,
-                  this.Application,
-                  this.Request, 
+                  this.Request,
                   condition);
+        }
+
+        internal virtual RequestMessage<TResource> From()
+        {
+            return new RequestMessage<TResource>(
+                  this.InvokeApplication,
+                  this.Request);
+        }
+
+        public RequestMessage<TResource> ActivateQueryable(QueryProvider<RequestMessage<TResource>> provider, Type type)
+        {
+            return From();
+        }
+
+        public RequestMessage<TResource> ActivateQueryableWithExpression(QueryProvider<RequestMessage<TResource>> queryProvider,
+            Expression expression, Type elementType)
+        {
+            return FromExpression(expression);
         }
     }
 }

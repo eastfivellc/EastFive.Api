@@ -16,6 +16,7 @@ namespace EastFive.Api
         public virtual string[] MvcRoutes => new string[] { };
 
         public Uri ServerLocation { get; private set; }
+        public string ApiRouteName { get; private set; }
 
         public IDictionary<string, string> Headers { get; private set; }
 
@@ -42,13 +43,15 @@ namespace EastFive.Api
             }
         }
 
-        public InvokeApplication(Uri serverUrl)
+        public InvokeApplication(Uri serverUrl, string apiRouteName)
         {
             this.ServerLocation = serverUrl;
+            this.ApiRouteName = apiRouteName;
             this.Headers = new Dictionary<string, string>();
         }
 
-        protected abstract IApplication Application { get; }
+        public abstract IApplication Application { get; }
+
 
         public virtual RequestMessage<TResource> GetRequest<TResource>()
         {
@@ -99,7 +102,12 @@ namespace EastFive.Api
             return config;
         }
 
-        protected abstract RequestMessage<TResource> BuildRequest<TResource>(IApplication application, HttpRequestMessage httpRequest);
+        protected virtual RequestMessage<TResource> BuildRequest<TResource>(IApplication application, HttpRequestMessage httpRequest)
+        {
+            return new RequestMessage<TResource>(this, httpRequest);
+        }
+
+        public abstract Task<HttpResponseMessage> SendAsync<TResource>(RequestMessage<TResource> requestMessage, HttpRequestMessage httpRequest);
     }
 
     

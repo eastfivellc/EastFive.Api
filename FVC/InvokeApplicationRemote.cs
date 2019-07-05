@@ -11,22 +11,23 @@ using System.Web.Http;
 
 namespace EastFive.Api
 {
-    public abstract class InvokeApplicationRemote : InvokeApplication
+    public class InvokeApplicationRemote : InvokeApplication
     {
-        public InvokeApplicationRemote(Uri serverUrl) : base(serverUrl)
+        public InvokeApplicationRemote(Uri serverUrl, string apiRouteName) : base(serverUrl, apiRouteName)
         {
         }
 
-        public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request)
+        public override async Task<HttpResponseMessage> SendAsync<TResource>(
+            RequestMessage<TResource> requestMessage, HttpRequestMessage httpRequest)
         {
             using (var client = new HttpClient())
             {
-                var response = await client.SendAsync(request);
+                var response = await client.SendAsync(httpRequest);
 
                 if (instigators.ContainsKey(response.StatusCode))
                 {
                     var instigator = instigators[response.StatusCode];
-                    var resultAttempt = await instigator(null, request, null,
+                    var resultAttempt = await instigator(null, httpRequest, null,
                         async (data) =>
                         {
                             var dataType = data.GetType();
@@ -49,7 +50,7 @@ namespace EastFive.Api
                 if (instigatorsGeneric.ContainsKey(response.StatusCode))
                 {
                     var instigatorGeneric = instigatorsGeneric[response.StatusCode];
-                    return await instigatorGeneric(default(Type), null, request, null,
+                    return await instigatorGeneric(default(Type), null, httpRequest, null,
                         async (data) =>
                         {
                             var dataType = data.GetType();
@@ -108,6 +109,8 @@ namespace EastFive.Api
         private Dictionary<HttpStatusCode, InstigatorDelegateGeneric> instigatorsGeneric =
             new Dictionary<HttpStatusCode, InstigatorDelegateGeneric>();
 
+        public override IApplication Application => new HttpApplication();
+
         public void SetInstigatorGeneric(Type type, InstigatorDelegateGeneric instigator,
             bool clear = false)
         {
@@ -123,6 +126,11 @@ namespace EastFive.Api
                 if (instigatorsGeneric.ContainsKey(code))
                     instigatorsGeneric.Remove(code);
             }
+        }
+
+        protected override RequestMessage<TResource> BuildRequest<TResource>(IApplication application, HttpRequestMessage httpRequest)
+        {
+            return new RequestMessage<TResource>(this, httpRequest);
         }
 
         public class ExecuteContext : Controllers.IExecuteAsync

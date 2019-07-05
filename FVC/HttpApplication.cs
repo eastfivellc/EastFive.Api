@@ -79,7 +79,36 @@ namespace EastFive.Api
             }
         }
 
-        public Uri ServerLocation => throw new NotImplementedException();
+        //public Uri ServerLocation => throw new NotImplementedException();
+
+        //public string ApiRouteName
+        //{
+        //    get
+        //    {
+        //        if (!this.Request.IsDefaultOrNull())
+        //        {
+        //            if (!this.Request.RequestContext.IsDefaultOrNull())
+        //            {
+        //                if (!this.Request.RequestContext.RouteData.IsDefaultOrNull())
+        //                {
+        //                    if (!this.Request.RequestContext.RouteData.Route.IsDefaultOrNull())
+        //                    {
+        //                        if (this.Request.RequestContext.RouteData.Route is System.Web.Routing.Route)
+        //                        {
+        //                            var webRoute = this.Request.RequestContext.RouteData.Route as System.Web.Routing.Route;
+        //                            return webRoute.Url.Split('/'.AsArray()).First();
+        //                        }
+        //                    }
+        //                }
+        //            }
+        //        }
+        //        return this.Request.Url.AbsolutePath
+        //            .Split('/'.AsArray())
+        //            .First(
+        //                (routeName, next) => routeName,
+        //                () => "DefaultApi");
+        //    }
+        //}
 
         public IDictionary<string, string> Headers => throw new NotImplementedException();
 
@@ -176,31 +205,31 @@ namespace EastFive.Api
 
         #region IInvokeApplication
 
-        public virtual RequestMessage<TResource> GetRequest<TResource>()
-        {
-            var httpRequest = new HttpRequestMessage();
-            var config = new HttpConfiguration();
-            this.Configure(config);
+        //public virtual RequestMessage<TResource> GetRequest<TResource>()
+        //{
+        //    var httpRequest = new HttpRequestMessage();
+        //    var config = new HttpConfiguration();
+        //    this.Configure(config);
 
-            httpRequest.SetConfiguration(config);
+        //    httpRequest.SetConfiguration(config);
 
-            //httpRequest.RequestUri = this.ServerLocation;
-            return new RequestMessage<TResource>(this, this, httpRequest);
-        }
+        //    //httpRequest.RequestUri = this.ServerLocation;
+        //    return new RequestMessage<TResource>(this, httpRequest);
+        //}
 
         #endregion
 
 
         #region Url Handlers
 
-        public virtual async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request)
-        {
-            using (var client = new HttpClient())
-            {
-                var response = await client.SendAsync(request);
-                return response;
-            }
-        }
+        //public virtual async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request)
+        //{
+        //    using (var client = new HttpClient())
+        //    {
+        //        var response = await client.SendAsync(request);
+        //        return response;
+        //    }
+        //}
 
         public TResult GetResourceType<TResult>(string resourceType,
             Func<Type, TResult> onConverted,

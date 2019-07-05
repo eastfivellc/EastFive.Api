@@ -78,20 +78,50 @@ namespace EastFive.Api
                     });
         }
 
-        public static Uri Location<TResource>(this IQueryable<TResource> urlQuery,
-            string routeName = "DefaultApi",
-            System.Web.Http.Routing.UrlHelper urlHelper = default)
+        public static Uri Location<TResource>(this IQueryable<TResource> urlQuery)
         {
-            System.Web.Http.Routing.UrlHelper GetUrlHelper()
+            string GetServerUrl()
             {
-                if (!urlHelper.IsDefaultOrNull())
-                    return urlHelper;
                 if (urlQuery is RequestMessage<TResource>)
-                    return new System.Web.Http.Routing.UrlHelper((urlQuery as RequestMessage<TResource>).Request);
-                throw new ArgumentException("Could not determine value for urlHelper");
+                {
+                    var requestMessage = urlQuery as RequestMessage<TResource>;
+                    return requestMessage.InvokeApplication.ServerLocation.AbsoluteUri.TrimEnd('/'.AsArray());
+                }
+                throw new ArgumentException("Could not determine value for server location.");
             }
-            var validUrlHelper = GetUrlHelper();
-            var baseUrl = validUrlHelper.GetLocation(typeof(TResource), routeName);
+
+            string GetRoutePrefix()
+            {
+                var routePrefixes = typeof(TResource)
+                    .GetCustomAttributes<System.Web.Http.RoutePrefixAttribute>()
+                    .Select(routePrefix => routePrefix.Prefix)
+                    .ToArray();
+                if (routePrefixes.Any())
+                    return routePrefixes.First();
+
+                if (urlQuery is RequestMessage<TResource>)
+                {
+                    var requestMessage = urlQuery as RequestMessage<TResource>;
+                    return requestMessage.InvokeApplication.ApiRouteName;
+                }
+                throw new ArgumentException("Could not determine value for route prefix.");
+            }
+
+            string GetControllerName()
+            {
+                return typeof(TResource).GetCustomAttribute<FunctionViewControllerAttribute, string>(
+                    (attr) => attr.Route,
+                    () => typeof(TResource).Name
+                        .TrimEnd("Controller",
+                            (trimmedName) => trimmedName,
+                            (originalName) => originalName)
+                        .ToLower());
+            }
+
+            var serverUrl = GetServerUrl();
+            var prefix = GetRoutePrefix().Trim('/'.AsArray());
+            var controllerName = GetControllerName().TrimStart('/'.AsArray());
+            Uri.TryCreate($"{serverUrl}/{prefix}/{controllerName}", UriKind.Absolute, out Uri baseUrl);
 
             var queryUrl = urlQuery.Compile<TResource, Uri, IFilterApiValues, IFilterApiValues>(
                     baseUrl,

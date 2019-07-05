@@ -207,6 +207,7 @@
     <Compile Include="FVC\Serialization\TokenParsers\IParseToken.cs" />
     <Compile Include="FVC\Serialization\TokenParsers\ParseToken.cs" />
     <Compile Include="FVC\Serialization\TokenParsers\QueryParamTokenParser.cs" />
+    <Compile Include="FVC\DirectRequestMessage.cs" />
     <Compile Include="FVC\UrlBuilder.cs" />
     <Compile Include="HttpActionResult.cs" />
     <Compile Include="InjectableAssemblyResolver.cs" />
