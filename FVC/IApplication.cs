@@ -22,6 +22,8 @@ namespace EastFive.Api
 
     public interface IApplication // : IInvokeApplication
     {
+        EastFive.Analytics.ILogger Logger { get; }
+
         object CastResourceProperty(object value, Type propertyType);
 
         void SetInstigator(Type type, InstigatorDelegate instigator, bool clear = false);

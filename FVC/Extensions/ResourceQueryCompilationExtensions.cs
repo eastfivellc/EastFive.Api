@@ -138,9 +138,23 @@ namespace EastFive.Api
         public static HttpRequestMessage Request<TResource>(this IQueryable<TResource> urlQuery,
             HttpMethod httpMethod = default,
             IInvokeApplication applicationInvoker = default,
-            string routeName = "DefaultApi",
+            string routeName = default,
             System.Web.Http.Routing.UrlHelper urlHelper = default)
         {
+            routeName = GetRouteName();
+            string GetRouteName()
+            {
+                if (routeName.HasBlackSpace())
+                    return routeName;
+                if (!applicationInvoker.IsDefaultOrNull())
+                    return applicationInvoker.ApiRouteName;
+                if (urlQuery is RequestMessage<TResource>)
+                {
+                    return (urlQuery as RequestMessage<TResource>)
+                        .InvokeApplication.ApiRouteName;
+                }
+                return "DefaultApi";
+            }
             if (httpMethod.IsDefaultOrNull())
                 httpMethod = HttpMethod.Get;
             HttpRequestMessage GetRequestMessage()

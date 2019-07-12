@@ -55,6 +55,21 @@ namespace EastFive.Api
             }
         }
 
+        private bool matchFileParameter = true;
+        public bool MatchFileParameter
+        {
+            get
+            {
+                return matchFileParameter;
+            }
+            set
+            {
+                if (!value)
+                    matchFileParameter = false;
+                matchFileParameter = value;
+            }
+        }
+
         public abstract string Method { get; }
     }
 

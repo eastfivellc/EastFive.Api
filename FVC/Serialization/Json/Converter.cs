@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using EastFive.Linq.Async;
@@ -27,6 +28,8 @@ namespace EastFive.Api.Serialization
                 return true;
             if (objectType.IsSubClassOfGeneric(typeof(IRefs<>)))
                 return true;
+            //if (objectType == typeof(byte[]))
+            //    return true;
             // THis doesn't work because it will serialize the whole object as a single GUID
             //if (objectType.IsSubClassOfGeneric(typeof(IReferenceable)))
             //    return true;
@@ -100,6 +103,36 @@ namespace EastFive.Api.Serialization
                     return Activator.CreateInstance(refType, ids);
                 }
             }
+
+
+            if (objectType.IsSubClassOfGeneric(typeof(IDictionary<,>)))
+            {
+                var dictionaryType = typeof(Dictionary<,>).MakeGenericType(objectType.GenericTypeArguments);
+                var instance = Activator.CreateInstance(dictionaryType);
+
+                if (reader.TokenType != JsonToken.StartObject)
+                    return instance;
+                if(!reader.Read())
+                    return instance;
+
+                var addMethod = dictionaryType.GetMethod("Add", BindingFlags.Public | BindingFlags.Instance);
+                do
+                {
+                    if (reader.TokenType == JsonToken.EndObject)
+                        return instance;
+                    addMethod.Invoke(instance, new object[] { reader.Path, reader.Value });
+
+                } while (reader.Read());
+            }
+
+            if (objectType == typeof(byte[]))
+            {
+                if (reader.TokenType == JsonToken.String)
+                {
+                    var bytesString = reader.Value as string;
+                    return bytesString.FromBase64String();
+                }
+            }
             return existingValue;
         }
 
@@ -162,6 +195,12 @@ namespace EastFive.Api.Serialization
                     return;
                 }
                 var stringType = (value as Type).GetClrString();
+                writer.WriteValue(stringType);
+            }
+            if (value is byte[])
+            {
+                var typeValue = value as byte[];
+                var stringType = typeValue.ToBase64String();
                 writer.WriteValue(stringType);
             }
         }

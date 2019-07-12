@@ -79,36 +79,10 @@ namespace EastFive.Api
             }
         }
 
-        //public Uri ServerLocation => throw new NotImplementedException();
-
-        //public string ApiRouteName
-        //{
-        //    get
-        //    {
-        //        if (!this.Request.IsDefaultOrNull())
-        //        {
-        //            if (!this.Request.RequestContext.IsDefaultOrNull())
-        //            {
-        //                if (!this.Request.RequestContext.RouteData.IsDefaultOrNull())
-        //                {
-        //                    if (!this.Request.RequestContext.RouteData.Route.IsDefaultOrNull())
-        //                    {
-        //                        if (this.Request.RequestContext.RouteData.Route is System.Web.Routing.Route)
-        //                        {
-        //                            var webRoute = this.Request.RequestContext.RouteData.Route as System.Web.Routing.Route;
-        //                            return webRoute.Url.Split('/'.AsArray()).First();
-        //                        }
-        //                    }
-        //                }
-        //            }
-        //        }
-        //        return this.Request.Url.AbsolutePath
-        //            .Split('/'.AsArray())
-        //            .First(
-        //                (routeName, next) => routeName,
-        //                () => "DefaultApi");
-        //    }
-        //}
+        public virtual EastFive.Analytics.ILogger Logger
+        {
+            get => new Analytics.ConsoleLogger();
+        }
 
         public IDictionary<string, string> Headers => throw new NotImplementedException();
 
