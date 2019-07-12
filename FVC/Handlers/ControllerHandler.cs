@@ -415,7 +415,7 @@ namespace EastFive.Api.Modules
                                     .ToArray();
                                 return new MethodCast
                                 {
-                                    valid = false,
+                                    valid = true,
                                     method = method,
                                     parametersWithValues = parametersWithValues,
                                 };
@@ -424,7 +424,7 @@ namespace EastFive.Api.Modules
                             {
                                 return new MethodCast
                                 {
-                                    valid = true,
+                                    valid = false,
                                     failedValidations = failedValidations,
                                     method = method,
                                     extraBodyParams = extraParams,
@@ -434,8 +434,8 @@ namespace EastFive.Api.Modules
                 .AsyncEnumerable();
             //var debugConsider = await methodsForConsideration.ToArrayAsync();
             var validMethods = methodsForConsideration
-                .Where(methodCast => !methodCast.parametersWithValues.IsDefaultOrNull());
-            //var debug = await validMethods.ToArrayAsync();
+                .Where(methodCast => methodCast.valid);
+            var debug = await validMethods.ToArrayAsync();
             return await await validMethods
                 .FirstAsync(
                     (methodCast) =>
