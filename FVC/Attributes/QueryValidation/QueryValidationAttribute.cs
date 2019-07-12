@@ -342,6 +342,28 @@ namespace EastFive.Api
         }
     }
 
+    public class HeaderLogAttribute : QueryValidationAttribute
+    {
+        public override async Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
+            HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
+            CastDelegate<SelectParameterResult> fetchQueryParam,
+            CastDelegate<SelectParameterResult> fetchBodyParam,
+            CastDelegate<SelectParameterResult> fetchDefaultParam)
+        {
+            var logger = httpApp.Logger;
+            return new SelectParameterResult
+            {
+                value = logger,
+                key = "",
+                fromBody = false,
+                fromQuery = false,
+                fromFile = false,
+                parameterInfo = parameterRequiringValidation,
+                valid = true,
+            };
+        }
+    }
+
     public class PropertyAttribute : QueryValidationAttribute
     {
         public override Task<SelectParameterResult> TryCastAsync(IApplication httpApp,

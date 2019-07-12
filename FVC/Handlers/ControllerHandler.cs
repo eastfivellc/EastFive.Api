@@ -503,7 +503,7 @@ namespace EastFive.Api.Modules
 
                         if (hasFileParam)
                         {
-                            if (verbAttr.Method.ToLower().Substring(0, 1) != "p")
+                            if (verbAttr.MatchFileParameter)
                             {
                                 var matchFileQueryLookup = matchedParameters
                                     .Where(param => param.fromFile);

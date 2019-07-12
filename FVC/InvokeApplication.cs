@@ -11,7 +11,7 @@ namespace EastFive.Api
 {
     public abstract class InvokeApplication : IInvokeApplication
     {
-        public virtual string[] ApiRoutes => new string[] { };
+        public virtual string[] ApiRoutes => new string[] { ApiRouteName };
 
         public virtual string[] MvcRoutes => new string[] { };
 

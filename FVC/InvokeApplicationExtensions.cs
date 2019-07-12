@@ -30,6 +30,7 @@ namespace EastFive.Api
     {
         public static Task<TResult> MethodAsync<TResource, TResult>(this RequestMessage<TResource> request,
                 HttpMethod method, Func<HttpRequestMessage, HttpRequestMessage> requestMutation,
+                Func<HttpResponseMessage, TResult> onResponse = default,
                 Func<HttpStatusCode, TResult> onNotOverriddenResponse = default)
         {
             return typeof(TResource).GetCustomAttribute<FunctionViewControllerAttribute, Task<TResult>>(
@@ -38,14 +39,19 @@ namespace EastFive.Api
                     var httpRequest = requestMutation(request.Request(method)); // request.Request;
                     var response = await request.InvokeApplication.SendAsync(request, httpRequest);
 
+                    if (!onResponse.IsDefaultOrNull())
+                        return onResponse(response);
+
                     if (response is IDidNotOverride)
                         (response as IDidNotOverride).OnFailure();
+
                     if (response is IReturnResult)
                     {
                         var attachedResponse = response as IReturnResult;
                         var result = attachedResponse.GetResultCasted<TResult>();
                         return result;
                     }
+
                     if(!onNotOverriddenResponse.IsDefaultOrNull())
                     {
                         return onNotOverriddenResponse(response.StatusCode);
@@ -83,6 +89,7 @@ namespace EastFive.Api
 
             Func<TResult> onNotImplemented = default,
             Func<IExecuteAsync, Task<TResult>> onExecuteBackground = default,
+            Func<HttpResponseMessage, TResult> onResponse = default,
             Func<HttpStatusCode, TResult> onNotOverriddenResponse = default)
         {
             if (requestMutation.IsDefaultOrNull())
@@ -111,7 +118,7 @@ namespace EastFive.Api
             application.GeneralConflictResponse<TResource, TResult>(onFailure);
             application.ExecuteBackgroundResponse<TResource, TResult>(onExecuteBackground);
 
-            return request.MethodAsync(method, requestMutation, onNotOverriddenResponse);
+            return request.MethodAsync(method, requestMutation, onResponse, onNotOverriddenResponse);
         }
 
         public static Task<TResult> GetAsync<TResource, TResult>(this IQueryable<TResource> requestQuery,
@@ -198,7 +205,8 @@ namespace EastFive.Api
             Func<TResult> onNotFound = default,
             Func<TResult> onUnauthorized = default,
             Func<string, TResult> onFailure = default,
-            Func<HttpStatusCode, TResult> onNotOverriddenResponse = default)
+            Func<HttpStatusCode, TResult> onNotOverriddenResponse = default,
+            Func<HttpResponseMessage, TResult> onResponse = default)
         {
             return requestQuery.MethodAsync<TResource, TResult>(new HttpMethod("patch"),
                     request =>
@@ -216,7 +224,8 @@ namespace EastFive.Api
                 onNotFound: onNotFound,
                 onUnauthorized: onUnauthorized,
                 onFailure: onFailure,
-                onNotOverriddenResponse: onNotOverriddenResponse);
+                onNotOverriddenResponse: onNotOverriddenResponse,
+                onResponse: onResponse);
         }
 
         public static Task<TResult> DeleteAsync<TResource, TResult>(this IQueryable<TResource> request,
