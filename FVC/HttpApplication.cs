@@ -84,8 +84,6 @@ namespace EastFive.Api
             get => new Analytics.ConsoleLogger();
         }
 
-        public IDictionary<string, string> Headers => throw new NotImplementedException();
-
         public void Application_Start()
         {
             System.Web.Mvc.AreaRegistration.RegisterAllAreas();
@@ -167,7 +165,6 @@ namespace EastFive.Api
             initializationLock.WaitOne();
         }
 
-
         public delegate Task StoreMonitoringDelegate(Guid monitorRecordId, Guid authenticationId, DateTime when, string method, string controllerName, string queryString);
 
         public virtual TResult DoesStoreMonitoring<TResult>(
@@ -176,22 +173,6 @@ namespace EastFive.Api
         {
             return onNoMonitoring();
         }
-
-        #region IInvokeApplication
-
-        //public virtual RequestMessage<TResource> GetRequest<TResource>()
-        //{
-        //    var httpRequest = new HttpRequestMessage();
-        //    var config = new HttpConfiguration();
-        //    this.Configure(config);
-
-        //    httpRequest.SetConfiguration(config);
-
-        //    //httpRequest.RequestUri = this.ServerLocation;
-        //    return new RequestMessage<TResource>(this, httpRequest);
-        //}
-
-        #endregion
 
 
         #region Url Handlers

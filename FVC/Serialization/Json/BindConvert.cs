@@ -19,12 +19,10 @@ namespace EastFive.Api.Serialization
         private class JsonReaderTokenParser : IParseToken
         {
             private JsonReader reader;
-            private HttpApplication application;
 
-            public JsonReaderTokenParser(JsonReader reader, HttpApplication application)
+            public JsonReaderTokenParser(JsonReader reader)
             {
                 this.reader = reader;
-                this.application = application;
             }
 
 
@@ -160,9 +158,9 @@ namespace EastFive.Api.Serialization
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
-            return this.application.Bind(objectType, new JsonReaderTokenParser(reader, this.application),
-                    v => v,
-                    (why) => existingValue);
+            return this.application.Bind(objectType, new JsonReaderTokenParser(reader),
+                v => v,
+                (why) => existingValue);
         }
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
