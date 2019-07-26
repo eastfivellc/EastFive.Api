@@ -99,15 +99,15 @@ namespace EastFive.Api.Serialization
                 writer.WritePropertyName("uuid");
                 writer.WriteValue(uuid);
 
-                var valueType = value.GetType();
-                if (!valueType.IsGenericType)
+                var valueIdType = value.GetType();
+                if (!valueIdType.IsGenericType)
                 {
                     writer.WriteEndObject();
                     return;
                 }
 
                 // TODO: Handle dictionary, etc
-                var refType = valueType.GetGenericArguments().First();
+                var refType = valueIdType.GetGenericArguments().First();
                 var webId = urlHelper.GetWebId(refType, id);
 
                 var contentType = $"x-application/x-{refType.Name.ToLower()}";
@@ -159,7 +159,13 @@ namespace EastFive.Api.Serialization
                 //writer.WriteValue(id);
                 return;
             }
-            if (value.GetType().IsSubClassOfGeneric(typeof(IDictionary<,>)))
+            if(value == null)
+            {
+                writer.WriteNull();
+                return;
+            }
+            var valueType = value.GetType();
+            if (valueType.IsSubClassOfGeneric(typeof(IDictionary<,>)))
             {
                 writer.WriteStartObject();
                 foreach (var kvpObj in value.DictionaryKeyValuePairs())
@@ -172,6 +178,11 @@ namespace EastFive.Api.Serialization
                     writer.WritePropertyName(propertyName);
 
                     var valueValue = kvpObj.Value;
+                    if (this.CanConvert(valueType.GenericTypeArguments.Last()))
+                    {
+                        WriteJson(writer, valueValue, serializer);
+                        continue;
+                    }
                     writer.WriteValue(valueValue);
                 }
                 writer.WriteEndObject();

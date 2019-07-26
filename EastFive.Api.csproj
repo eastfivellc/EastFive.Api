@@ -181,7 +181,9 @@
     <Compile Include="FVC\Exceptions\UnauthorizedException.cs" />
     <Compile Include="FVC\Extensions\ResourceQueryCompilationExtensions.cs" />
     <Compile Include="FVC\Extensions\ResourceQueryExtensions.cs" />
+    <Compile Include="FVC\FunctionViewController5Attribute.cs" />
     <Compile Include="FVC\IApplication.cs" />
+    <Compile Include="FVC\IInvokeResource.cs" />
     <Compile Include="FVC\InvokeApplicationExtensions.cs" />
     <Compile Include="FVC\FunctionViewController4Attribute.cs" />
     <Compile Include="FVC\HttpActionDelegateAttribute.cs" />
@@ -211,6 +213,7 @@
     <Compile Include="HttpActionResult.cs" />
     <Compile Include="InjectableAssemblyResolver.cs" />
     <Compile Include="FVC\Handlers\ControllerHandler.cs" />
+    <Compile Include="IProvideDocumentation.cs" />
     <Compile Include="Razor\GenericReferenceResolver.cs" />
     <Compile Include="Razor\HtmlSupportTemplateBase.cs" />
     <Compile Include="Razor\RazorTemplateManager.cs" />

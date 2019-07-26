@@ -30,8 +30,8 @@ namespace EastFive.Api
 
         void SetInstigatorGeneric(Type type, InstigatorDelegateGeneric instigator, bool clear = true);
 
-        TResult GetControllerMethods<TResult>(string routeName,
-            Func<IDictionary<HttpMethod, MethodInfo[]>, TResult> onMethodsIdentified,
+        TResult GetControllerType<TResult>(string routeName,
+            Func<Type, TResult> onMethodsIdentified,
             Func<TResult> onKeyNotFound);
 
         TResult Bind<TResult>(Type type, Serialization.IParseToken content,

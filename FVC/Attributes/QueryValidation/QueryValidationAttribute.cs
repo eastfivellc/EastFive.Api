@@ -26,7 +26,7 @@ namespace EastFive.Api
     [AttributeUsage(AttributeTargets.Parameter)]
     public class QueryValidationAttribute : System.Attribute, IBindApiValue
     {
-        public string Name { get; set; }
+        public virtual string Name { get; set; }
 
         public virtual async Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
                 HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
@@ -150,6 +150,18 @@ namespace EastFive.Api
 
     public class QueryIdAttribute : QueryParameterAttribute
     {
+        public override string Name
+        {
+            get
+            {
+                var name = base.Name;
+                if (name.HasBlackSpace())
+                    return name;
+                return "id";
+            }
+            set => base.Name = value;
+        }
+
         public async override Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
                 HttpRequestMessage request, MethodInfo method,
                 ParameterInfo parameterRequiringValidation,
@@ -164,22 +176,17 @@ namespace EastFive.Api
 
     public class UpdateIdAttribute : QueryValidationAttribute
     {
-        //public async override Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
-        //        HttpRequestMessage request, MethodInfo method,
-        //        ParameterInfo parameterRequiringValidation,
-        //        CastDelegate<SelectParameterResult> fetchQueryParam,
-        //        CastDelegate<SelectParameterResult> fetchBodyParam,
-        //        CastDelegate<SelectParameterResult> fetchDefaultParam)
-        //{
-        //    var baseValue = await base.TryCastAsync(httpApp, request, method, parameterRequiringValidation, fetchQueryParam, fetchBodyParam, fetchDefaultParam);
-        //    if (baseValue.valid)
-        //        return baseValue;
-
-        //    var queryName = GetKey(parameterRequiringValidation);
-        //    return await fetchBodyParam(queryName, parameterRequiringValidation.ParameterType,
-        //        vCasted => SelectParameterResult.Body(vCasted, queryName, parameterRequiringValidation),
-        //        why => SelectParameterResult.Failure(why, queryName, parameterRequiringValidation));
-        //}
+        public override string Name
+        {
+            get
+            {
+                var name = base.Name;
+                if (name.HasBlackSpace())
+                    return name;
+                return "id";
+            }
+            set => base.Name = value;
+        }
     }
 
     public class HeaderAttribute : QueryValidationAttribute

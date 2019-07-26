@@ -33,8 +33,15 @@ namespace EastFive.Api
 {
     public class HttpApplication : System.Web.HttpApplication, IApplication
     {
-        private Task initialization;
-        private ManualResetEvent initializationLock;
+        public virtual string Namespace
+        {
+            get
+            {
+                return "";
+            }
+        }
+
+        #region Constructors / Destructors
 
         public HttpApplication()
             : base()
@@ -71,75 +78,12 @@ namespace EastFive.Api
             Dispose(false);
         }
 
-        public virtual string Namespace
-        {
-            get
-            {
-                return "";
-            }
-        }
+        #endregion
 
-        public virtual EastFive.Analytics.ILogger Logger
-        {
-            get => new Analytics.ConsoleLogger();
-        }
+        #region Initialization
 
-        public void Application_Start()
-        {
-            System.Web.Mvc.AreaRegistration.RegisterAllAreas();
-            ApplicationStart();
-            GlobalConfiguration.Configure(this.Configure);
-            Registration();
-            SetupRazorEngine(string.Empty);
-        }
-
-        public virtual void ApplicationStart()
-        {
-            LocateControllers();
-            //SetupRazorEngine();
-        }
-
-        public virtual void SetupRazorEngine()
-        {
-            SetupRazorEngine(string.Empty);
-        }
-
-        public static void SetupRazorEngine(string rootDirectory)
-        {
-            var templateManager = new Razor.RazorTemplateManager(rootDirectory);
-            var referenceResolver = new Razor.GenericReferenceResolver();
-            var config = new RazorEngine.Configuration.TemplateServiceConfiguration
-            {
-                TemplateManager = templateManager,
-                ReferenceResolver = referenceResolver,
-                BaseTemplateType = typeof(Razor.HtmlSupportTemplateBase<>),
-                DisableTempFileLocking = true
-            };
-            RazorEngine.Engine.Razor = RazorEngine.Templating.RazorEngineService.Create(config);
-        }
-
-        protected virtual void Registration()
-        {
-        }
-
-        protected virtual void Configure(HttpConfiguration config)
-        {
-            config.MapHttpAttributeRoutes();
-
-            DefaultApiRoute(config);
-
-            config.MessageHandlers.Add(new Modules.ControllerHandler(config));
-            config.MessageHandlers.Add(new Modules.MonitoringHandler(config));
-        }
-
-        public IHttpRoute DefaultApiRoute(HttpConfiguration config)
-        {
-            return config.Routes.MapHttpRoute(
-                name: "DefaultApi",
-                routeTemplate: "api/{controller}/{id}",
-                defaults: new { id = RouteParameter.Optional }
-            );
-        }
+        private Task initialization;
+        private ManualResetEvent initializationLock;
 
         protected class Initialized
         {
@@ -165,6 +109,15 @@ namespace EastFive.Api
             initializationLock.WaitOne();
         }
 
+        #endregion
+
+        #region Logging
+
+        public virtual EastFive.Analytics.ILogger Logger
+        {
+            get => new Analytics.ConsoleLogger();
+        }
+
         public delegate Task StoreMonitoringDelegate(Guid monitorRecordId, Guid authenticationId, DateTime when, string method, string controllerName, string queryString);
 
         public virtual TResult DoesStoreMonitoring<TResult>(
@@ -174,6 +127,68 @@ namespace EastFive.Api
             return onNoMonitoring();
         }
 
+        #endregion
+
+        #region MVC Initialization
+
+        public void Application_Start()
+        {
+            System.Web.Mvc.AreaRegistration.RegisterAllAreas();
+            ApplicationStart();
+            GlobalConfiguration.Configure(this.Configure);
+            Registration();
+            SetupRazorEngine(string.Empty);
+        }
+
+        public virtual void ApplicationStart()
+        {
+            LocateControllers();
+            //SetupRazorEngine();
+        }
+
+        protected virtual void Registration()
+        {
+        }
+
+        protected virtual void Configure(HttpConfiguration config)
+        {
+            config.MapHttpAttributeRoutes();
+
+            DefaultApiRoute(config);
+
+            config.MessageHandlers.Add(new Modules.ControllerHandler(config));
+            config.MessageHandlers.Add(new Modules.MonitoringHandler(config));
+        }
+
+        public IHttpRoute DefaultApiRoute(HttpConfiguration config)
+        {
+            return config.Routes.MapHttpRoute(
+                name: "DefaultApi",
+                routeTemplate: "api/{controller}/{id}",
+                defaults: new { id = RouteParameter.Optional }
+            );
+        }
+
+        #endregion
+
+        public virtual void SetupRazorEngine()
+        {
+            SetupRazorEngine(string.Empty);
+        }
+
+        public static void SetupRazorEngine(string rootDirectory)
+        {
+            var templateManager = new Razor.RazorTemplateManager(rootDirectory);
+            var referenceResolver = new Razor.GenericReferenceResolver();
+            var config = new RazorEngine.Configuration.TemplateServiceConfiguration
+            {
+                TemplateManager = templateManager,
+                ReferenceResolver = referenceResolver,
+                BaseTemplateType = typeof(Razor.HtmlSupportTemplateBase<>),
+                DisableTempFileLocking = true
+            };
+            RazorEngine.Engine.Razor = RazorEngine.Templating.RazorEngineService.Create(config);
+        }
 
         #region Url Handlers
 
@@ -276,25 +291,21 @@ namespace EastFive.Api
                 HttpApplication httpApp, UrlHelper urlHelper, ParameterInfo parameterInfo,
             Func<Type, string, Uri> onSuccess);
         
-        public KeyValuePair<string, KeyValuePair<HttpMethod, MethodInfo[]>[]>[] GetLookups()
-        {
-            return lookup.Select(kvp => kvp.Key.PairWithValue(kvp.Value.ToArray())).ToArray();
-        }
-
+        
         public Type[] GetResources()
         {
             return resources;
         }
 
-        public TResult GetControllerMethods<TResult>(string routeName,
-            Func<IDictionary<HttpMethod, MethodInfo[]>, TResult> onMethodsIdentified, 
+        public TResult GetControllerType<TResult>(string routeName,
+            Func<Type, TResult> onMethodsIdentified, 
             Func<TResult> onKeyNotFound)
         {
             var routeNameLower = routeName.ToLower();
-            if (!lookup.ContainsKey(routeNameLower))
+            if (!routeResourceTypeLookup.ContainsKey(routeNameLower))
                 return onKeyNotFound();
-            var possibleHttpMethods = lookup[routeNameLower];
-            return onMethodsIdentified(possibleHttpMethods);
+            var controllerType = routeResourceTypeLookup[routeNameLower];
+            return onMethodsIdentified(controllerType);
         }
 
         public Dictionary<Type, ControllerHandlerDelegate> urlHandlersByType =
@@ -428,11 +439,11 @@ namespace EastFive.Api
 
         #region Load Controllers
 
-        private static IDictionary<string, IDictionary<HttpMethod, MethodInfo[]>> lookup;
+        private static IDictionary<string, Type> routeResourceTypeLookup;
         private static Type[] resources;
         private static IDictionary<Type, string> contentTypeLookup;
         private static IDictionary<string, Type> resourceNameControllerLookup;
-        private static IDictionary<Type, string> resourceTypeRouteLookup;
+        private static IDictionary<Type, string> resourceTypeRouteLookup; // TODO: Delete after creating IDocumentParameter
         private static IDictionary<Type, Type> resourceTypeControllerLookup;
         private static object lookupLock = new object();
 
@@ -478,11 +489,11 @@ namespace EastFive.Api
                 var types = assembly
                     .GetTypes();
                 var functionViewControllerAttributesAndTypes = types
-                    .Where(type => type.ContainsCustomAttribute<FunctionViewControllerAttribute>())
+                    .Where(type => type.ContainsAttributeInterface<IInvokeResource>())
                     .Select(
                         (type) =>
                         {
-                            var attr = type.GetCustomAttribute<FunctionViewControllerAttribute>();
+                            var attr = type.GetAttributesInterface<IInvokeResource>().First();
                             return type.PairWithKey(attr);
                         })
                     .ToArray();
@@ -499,57 +510,53 @@ namespace EastFive.Api
                     .Distinct(type => type.GUID)
                     .ToArray();
 
-                lookup = lookup.Merge(
-                    functionViewControllerAttributesAndTypes
+                routeResourceTypeLookup = routeResourceTypeLookup
+                    .NullToEmpty()
+                    .Concat(functionViewControllerAttributesAndTypes
                         .Select(
                             attrType =>
                             {
-                                var actionMethods = attrType.Value
-                                    .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
-                                    .Where(method => method.ContainsCustomAttribute<HttpActionAttribute>())
-                                    .GroupBy(method => method.GetCustomAttribute<HttpActionAttribute>().Method)
-                                    .Select(methodGrp => (new HttpMethod(methodGrp.Key)).PairWithValue(methodGrp.ToArray()));
-
-                                IDictionary<HttpMethod, MethodInfo[]> methods = methodLookup
-                                        .Select(
-                                            methodKvp => methodKvp.Value.PairWithValue(
-                                                attrType.Value
-                                                    .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
-                                                    .Where(method => method.ContainsCustomAttribute(methodKvp.Key))
-                                            .ToArray()))
-                                        .Concat(actionMethods)
-                                        .ToDictionary();
-                                
                                 return attrType.Key.Route
                                     .IfThen(attrType.Key.Route.IsNullOrWhiteSpace(),
-                                        (route) => attrType.Value.Name)
-                                    .ToLower()
-                                    .PairWithValue(methods);
-                            }),
-                        (k, v1, v2) => v2);
-
-                resourceNameControllerLookup = resourceNameControllerLookup.Merge(
-                    functionViewControllerAttributesAndTypes
-                        .Select(
-                            attrType =>
-                            {
-                                return attrType.Key.ContentType
-                                    .IfThen(attrType.Key.ContentType.IsNullOrWhiteSpace(),
                                         (route) =>
                                         {
-                                            var routeType = attrType.Key.Resource.IsDefaultOrNull()?
-                                                attrType.Value
+                                            var routeType = attrType.Key.Resource.IsDefaultOrNull() ?
+                                                attrType.Value.Name
                                                 :
-                                                attrType.Key.Resource;
-                                            return $"x-application/{routeType.Name}";
+                                                attrType.Key.Resource.Name;
+                                            return routeType;
                                         })
                                     .ToLower()
                                     .PairWithValue(attrType.Value);
-                            }),
-                        (k, v1, v2) => v2);
+                            }))
+                    .Distinct(kvp => kvp.Key)
+                    .ToDictionary();
 
-                resourceTypeRouteLookup = resourceTypeRouteLookup.Merge(
-                    functionViewControllerAttributesAndTypes
+                resourceNameControllerLookup = resourceNameControllerLookup
+                    .NullToEmpty()
+                    .Concat(functionViewControllerAttributesAndTypes
+                        .Select(
+                            attrType =>
+                            {
+                                var contentType = GetContentType();
+                                return contentType.PairWithValue(attrType.Value);
+                                string GetContentType()
+                                {
+                                    if (!attrType.Key.ContentType.IsNullOrWhiteSpace())
+                                        return attrType.Key.ContentType;
+                                    var routeType = attrType.Key.Resource.IsDefaultOrNull() ?
+                                        attrType.Value
+                                        :
+                                        attrType.Key.Resource;
+                                    return $"x-application/{routeType.Name}";
+                                }
+                            }))
+                    .Distinct(kvp => kvp.Key)
+                    .ToDictionary();
+
+                resourceTypeRouteLookup = resourceTypeRouteLookup
+                    .NullToEmpty()
+                    .Concat(functionViewControllerAttributesAndTypes
                         .Select(
                             attrType =>
                             {
@@ -565,8 +572,9 @@ namespace EastFive.Api
                                         })
                                     .ToLower()
                                     .PairWithKey(attrType.Value);
-                            }),
-                        (k, v1, v2) => v2);
+                            }))
+                    .Distinct(kvp => kvp.Key.FullName)
+                    .ToDictionary();
 
                 resourceTypeControllerLookup = functionViewControllerAttributesAndTypes
                     .FlatMap(
@@ -838,6 +846,8 @@ namespace EastFive.Api
         protected Dictionary<Type, InstigatorDelegate> instigators =
             new Dictionary<Type, InstigatorDelegate>()
             {
+                #region Security
+
                 {
                     typeof(EastFive.Api.Controllers.Security),
                     (httpApp, request, paramInfo, success) => request.GetActorIdClaimsAsync(
@@ -946,6 +956,11 @@ namespace EastFive.Api
                             (why) => request.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).AsTask());
                     }
                 },
+
+                #endregion
+
+                #region MVC System Objects
+
                 {
                     typeof(System.Web.Http.Routing.UrlHelper),
                     (httpApp, request, paramInfo, success) => success(
@@ -955,82 +970,16 @@ namespace EastFive.Api
                     typeof(HttpRequestMessage),
                     (httpApp, request, paramInfo, success) => success(request)
                 },
-                {
-                    typeof(Controllers.GeneralConflictResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.GeneralConflictResponse dele = (why) => request.CreateResponse(System.Net.HttpStatusCode.Conflict).AddReason(why);
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.GeneralFailureResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.GeneralFailureResponse dele = (why) => request.CreateResponse(System.Net.HttpStatusCode.InternalServerError).AddReason(why);
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.ServiceUnavailableResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.ServiceUnavailableResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.ServiceUnavailable);
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.ConfigurationFailureResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.ConfigurationFailureResponse dele =
-                            (configurationValue, message) => request
-                                .CreateResponse(System.Net.HttpStatusCode.ServiceUnavailable)
-                                .AddReason($"`{configurationValue}` not specified in config:{message}");
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.BadRequestResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.BadRequestResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.BadRequest).AddReason("Bad request.");
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.AlreadyExistsResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.AlreadyExistsResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.Conflict).AddReason("Resource has already been created");
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.AlreadyExistsReferencedResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.AlreadyExistsReferencedResponse dele = (existingId) => request.CreateResponse(System.Net.HttpStatusCode.Conflict).AddReason($"There is already a resource with ID = [{existingId}]");
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.NoContentResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.NoContentResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.NoContent);
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.NotFoundResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.NotFoundResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.NotFound);
-                        return success((object)dele);
-                    }
-                },
-                {
+
+                #endregion
+
+                #region FVC Response actions
+
+                #region 200's
+
+                #region 200 - OK
+
+                { // 200
                     typeof(Controllers.ContentResponse),
                     (httpApp, request, paramInfo, success) =>
                     {
@@ -1054,7 +1003,7 @@ namespace EastFive.Api
                         return success((object)dele);
                     }
                 },
-                {
+                { // 200
                     typeof(Controllers.HtmlResponse),
                     (httpApp, request, paramInfo, success) =>
                     {
@@ -1066,7 +1015,7 @@ namespace EastFive.Api
                         return success((object)dele);
                     }
                 },
-                {
+                { // 200
                     typeof(Controllers.XlsxResponse),
                     (httpApp, request, paramInfo, success) =>
                     {
@@ -1078,7 +1027,7 @@ namespace EastFive.Api
                         return success((object)dele);
                     }
                 },
-                {
+                { // 200
                     typeof(Controllers.MultipartResponseAsync),
                     (httpApp, request, paramInfo, success) =>
                     {
@@ -1086,15 +1035,7 @@ namespace EastFive.Api
                         return success((object)dele);
                     }
                 },
-                {
-                    typeof(Controllers.RedirectResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.RedirectResponse dele = (redirectLocation) => request.CreateRedirectResponse(redirectLocation);
-                        return success((object)dele);
-                    }
-                },
-                {
+                { // 200
                     typeof(Controllers.MultipartAcceptArrayResponseAsync),
                     (httpApp, request, paramInfo, success) =>
                     {
@@ -1113,7 +1054,106 @@ namespace EastFive.Api
                         return success((object)dele);
                     }
                 },
-                {
+                { // 200
+                    typeof(EastFive.Api.Controllers.ViewFileResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        EastFive.Api.Controllers.ViewFileResponse dele =
+                            (filePath, content) =>
+                            {
+                                try
+                                {
+                                    var parsedView =  RazorEngine.Engine.Razor.RunCompile(filePath, null, content);
+                                    return request.CreateHtmlResponse(parsedView);
+                                }
+                                catch(RazorEngine.Templating.TemplateCompilationException ex)
+                                {
+                                    var body = ex.CompilerErrors.Select(error => error.ErrorText).Join(";\n\n");
+                                    return request.CreateHtmlResponse(body);
+                                } catch(Exception ex)
+                                {
+                                    var body = $"Could not load template {filePath} due to:[{ex.GetType().FullName}] `{ex.Message}`";
+                                    return request.CreateHtmlResponse(body);
+                                }
+                            };
+                        return success((object)dele);
+                    }
+                },
+                { // 200
+                    typeof(EastFive.Api.Controllers.ViewStringResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        EastFive.Api.Controllers.ViewStringResponse dele =
+                            (razorTemplate, content) =>
+                            {
+                                var response = request.CreateResponse(HttpStatusCode.OK);
+                                var parsedView =  RazorEngine.Razor.Parse(razorTemplate, content);
+                                response.Content = new StringContent(parsedView);
+                                response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/html");
+                                return response;
+                            };
+                        return success((object)dele);
+                    }
+                },
+                { // 200
+                    typeof(EastFive.Api.Controllers.ViewRenderer),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        EastFive.Api.Controllers.ViewRenderer dele =
+                            (filePath, content) =>
+                            {
+                                try
+                                {
+                                    var parsedView =  RazorEngine.Engine.Razor.RunCompile(filePath, null, content);
+                                    return parsedView;
+                                }
+                                catch(RazorEngine.Templating.TemplateCompilationException ex)
+                                {
+                                    var body = ex.CompilerErrors.Select(error => error.ErrorText).Join(";\n\n");
+                                    return body;
+                                } catch(Exception ex)
+                                {
+                                    return $"Could not load template {filePath} due to:[{ex.GetType().FullName}] `{ex.Message}`";
+                                }
+                            };
+                        return success((object)dele);
+                    }
+                },
+                
+                #endregion
+
+                { // 201
+                    typeof(Controllers.CreatedResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.CreatedResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.Created);
+                        return success((object)dele);
+                    }
+                },
+                { // 202
+                    typeof(Controllers.AcceptedResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.AcceptedResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.Accepted);
+                        return success((object)dele);
+                    }
+                },
+                { // 202
+                    typeof(Controllers.AcceptedBodyResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.AcceptedBodyResponse dele =
+                            (obj, contentType) =>
+                            {
+                                var response = request.CreateResponse(System.Net.HttpStatusCode.Accepted, obj);
+                                if(!contentType.IsNullOrWhiteSpace())
+                                    response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+                                return response;
+                            };
+                        return success((object)dele);
+                    }
+                },
+                { // 202 (or *)
                     typeof(Controllers.BackgroundResponseAsync),
                     (httpApp, request, paramInfo, success) =>
                     {
@@ -1134,7 +1174,7 @@ namespace EastFive.Api
                         return success((object)dele);
                     }
                 },
-                {
+                { // 202 (or *)
                     typeof(Controllers.ExecuteBackgroundResponseAsync),
                     (httpApp, request, paramInfo, success) =>
                     {
@@ -1175,7 +1215,67 @@ namespace EastFive.Api
                         return success((object)dele);
                     }
                 },
-                {
+                { // 204
+                    typeof(Controllers.NoContentResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.NoContentResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.NoContent);
+                        return success((object)dele);
+                    }
+                },
+
+                #endregion
+                
+                #region 300's
+                
+                { // 302
+                    typeof(Controllers.RedirectResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.RedirectResponse dele = (redirectLocation) => request.CreateRedirectResponse(redirectLocation);
+                        return success((object)dele);
+                    }
+                },
+                { // 304
+                    typeof(Controllers.NotModifiedResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.NotModifiedResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.NotModified);
+                        return success((object)dele);
+                    }
+                },
+
+                #endregion
+
+                #region 400's
+
+                { // 400
+                    typeof(Controllers.BadRequestResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.BadRequestResponse dele = () => request
+                            .CreateResponse(System.Net.HttpStatusCode.BadRequest)
+                            .AddReason("Bad request.");
+                        return success((object)dele);
+                    }
+                },
+                { // 401
+                    typeof(Controllers.UnauthorizedResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.UnauthorizedResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized);
+                        return success((object)dele);
+                    }
+                },
+                { // 403
+                    typeof(Controllers.ForbiddenResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.ForbiddenResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.Forbidden);
+                        return success((object)dele);
+                    }
+                },
+                { // 404
                     typeof(Controllers.ReferencedDocumentNotFoundResponse),
                     (httpApp, request, paramInfo, success) =>
                     {
@@ -1185,39 +1285,56 @@ namespace EastFive.Api
                         return success((object)dele);
                     }
                 },
-                {
-                    typeof(Controllers.UnauthorizedResponse),
+                { // 404
+                    typeof(Controllers.NotFoundResponse),
                     (httpApp, request, paramInfo, success) =>
                     {
-                        Controllers.UnauthorizedResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized);
+                        Controllers.NotFoundResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.NotFound);
                         return success((object)dele);
                     }
                 },
-                {
-                    typeof(Controllers.ForbiddenResponse),
+                { // 409
+                    typeof(Controllers.AlreadyExistsResponse),
                     (httpApp, request, paramInfo, success) =>
                     {
-                        Controllers.ForbiddenResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.Forbidden);
+                        Controllers.AlreadyExistsResponse dele = () => request
+                            .CreateResponse(System.Net.HttpStatusCode.Conflict)
+                            .AddReason("Resource has already been created");
                         return success((object)dele);
                     }
                 },
-                {
-                    typeof(Controllers.AcceptedResponse),
+                { // 409
+                    typeof(Controllers.AlreadyExistsReferencedResponse),
                     (httpApp, request, paramInfo, success) =>
                     {
-                        Controllers.AcceptedResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.Accepted);
+                        Controllers.AlreadyExistsReferencedResponse dele = (existingId) => request.CreateResponse(System.Net.HttpStatusCode.Conflict).AddReason($"There is already a resource with ID = [{existingId}]");
                         return success((object)dele);
                     }
                 },
-                {
-                    typeof(Controllers.NotModifiedResponse),
+                { // 409
+                    typeof(Controllers.GeneralConflictResponse),
                     (httpApp, request, paramInfo, success) =>
                     {
-                        Controllers.NotModifiedResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.NotModified);
+                        Controllers.GeneralConflictResponse dele = (why) => request
+                            .CreateResponse(System.Net.HttpStatusCode.Conflict)
+                            .AddReason(why);
                         return success((object)dele);
                     }
                 },
-                {
+
+                #endregion
+
+                #region 500's
+
+                { // 500
+                    typeof(Controllers.GeneralFailureResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.GeneralFailureResponse dele = (why) => request.CreateResponse(System.Net.HttpStatusCode.InternalServerError).AddReason(why);
+                        return success((object)dele);
+                    }
+                },
+                { // 501
                     typeof(Controllers.NotImplementedResponse),
                     (httpApp, request, paramInfo, success) =>
                     {
@@ -1225,94 +1342,31 @@ namespace EastFive.Api
                         return success((object)dele);
                     }
                 },
-                {
-                    typeof(Controllers.CreatedResponse),
+                { // 503
+                    typeof(Controllers.ServiceUnavailableResponse),
                     (httpApp, request, paramInfo, success) =>
                     {
-                        Controllers.CreatedResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.Created);
+                        Controllers.ServiceUnavailableResponse dele = () => request
+                            .CreateResponse(System.Net.HttpStatusCode.ServiceUnavailable);
                         return success((object)dele);
                     }
                 },
-                {
-                    typeof(Controllers.AcceptedBodyResponse),
+                { // 503
+                    typeof(Controllers.ConfigurationFailureResponse),
                     (httpApp, request, paramInfo, success) =>
                     {
-                        Controllers.AcceptedBodyResponse dele =
-                            (obj, contentType) =>
-                            {
-                                var response = request.CreateResponse(System.Net.HttpStatusCode.Accepted, obj);
-                                if(!contentType.IsNullOrWhiteSpace())
-                                    response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
-                                return response;
-                            };
+                        Controllers.ConfigurationFailureResponse dele =
+                            (configurationValue, message) => request
+                                .CreateResponse(System.Net.HttpStatusCode.ServiceUnavailable)
+                                .AddReason($"`{configurationValue}` not specified in config:{message}");
                         return success((object)dele);
                     }
                 },
-                {
-                    typeof(EastFive.Api.Controllers.ViewFileResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        EastFive.Api.Controllers.ViewFileResponse dele =
-                            (filePath, content) =>
-                            {
-                                try
-                                {
-                                    var parsedView =  RazorEngine.Engine.Razor.RunCompile(filePath, null, content);
-                                    return request.CreateHtmlResponse(parsedView);
-                                }
-                                catch(RazorEngine.Templating.TemplateCompilationException ex)
-                                {
-                                    var body = ex.CompilerErrors.Select(error => error.ErrorText).Join(";\n\n");
-                                    return request.CreateHtmlResponse(body);
-                                } catch(Exception ex)
-                                {
-                                    var body = $"Could not load template {filePath} due to:[{ex.GetType().FullName}] `{ex.Message}`";
-                                    return request.CreateHtmlResponse(body);
-                                }
-                            };
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(EastFive.Api.Controllers.ViewStringResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        EastFive.Api.Controllers.ViewStringResponse dele =
-                            (razorTemplate, content) =>
-                            {
-                                var response = request.CreateResponse(HttpStatusCode.OK);
-                                var parsedView =  RazorEngine.Razor.Parse(razorTemplate, content);
-                                response.Content = new StringContent(parsedView);
-                                response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/html");
-                                return response;
-                            };
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(EastFive.Api.Controllers.ViewRenderer),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        EastFive.Api.Controllers.ViewRenderer dele =
-                            (filePath, content) =>
-                            {
-                                try
-                                {
-                                    var parsedView =  RazorEngine.Engine.Razor.RunCompile(filePath, null, content);
-                                    return parsedView;
-                                }
-                                catch(RazorEngine.Templating.TemplateCompilationException ex)
-                                {
-                                    var body = ex.CompilerErrors.Select(error => error.ErrorText).Join(";\n\n");
-                                    return body;
-                                } catch(Exception ex)
-                                {
-                                    return $"Could not load template {filePath} due to:[{ex.GetType().FullName}] `{ex.Message}`";
-                                }
-                            };
-                        return success((object)dele);
-                    }
-                },
+
+                #endregion
+
+                #endregion
+
             };
         
         public void AddInstigator(Type type, InstigatorDelegate instigator)

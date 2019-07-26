@@ -13,169 +13,171 @@ namespace EastFive.Api.Resources
 {
     public class Manifest
     {
-        public Manifest(KeyValuePair<string, KeyValuePair<HttpMethod, MethodInfo[]>[]>[] lookups,
+        public Manifest(IEnumerable<Type> lookups,
             HttpApplication httpApp)
         {
             this.Routes = lookups
-                .Select(route => new Route(route.Key, route.Value, httpApp))
+                .Where(type => type.ContainsAttributeInterface<IProvideDocumentation>())
+                .Select(type => type.GetAttributesInterface<IProvideDocumentation>().First().GetRoute(type, httpApp))
                 .OrderBy(route => route.Name)
                 .ToArray();
         }
 
         public Route[] Routes { get; set; }
+    }
 
-        public class Route
+    public class Route
+    {
+        public Route(string name, KeyValuePair<HttpMethod, MethodInfo[]>[] methods,
+            HttpApplication httpApp)
         {
-            public Route(string name, KeyValuePair<HttpMethod, MethodInfo[]>[] methods,
-                HttpApplication httpApp)
-            {
-                this.Name = name;
-                this.Verbs = methods.Select(verb => new Verb(verb.Key, verb.Value, httpApp)).ToArray();
-                this.Properties = methods
-                    .First(
-                        (methodKvp, next) =>
-                        {
-                            return methodKvp.Value
-                                .First(
-                                    (method, nextInner) =>
-                                    {
-                                        return method.DeclaringType
-                                            .GetPropertyOrFieldMembers()
-                                            .Where(property => property.ContainsCustomAttribute<JsonPropertyAttribute>())
-                                            .Select(member => new Property(member, httpApp))
-                                            .ToArray();
+            this.Name = name;
+            this.Verbs = methods.Select(verb => new Verb(verb.Key, verb.Value, httpApp)).ToArray();
+            this.Properties = methods
+                .First(
+                    (methodKvp, next) =>
+                    {
+                        return methodKvp.Value
+                            .First(
+                                (method, nextInner) =>
+                                {
+                                    return method.DeclaringType
+                                        .GetPropertyOrFieldMembers()
+                                        .Where(property => property.ContainsCustomAttribute<JsonPropertyAttribute>())
+                                        .Select(member => new Property(member, httpApp))
+                                        .ToArray();
                                         //return new Property[] { };
                                     },
-                                    () => new Property[] { });
-                        },
-                        () => new Property[] { });
-            }
-
-            public string Name { get; set; }
-
-            public Verb[] Verbs { get; set; }
-
-            public Property[] Properties { get; set; }
+                                () => new Property[] { });
+                    },
+                    () => new Property[] { });
         }
 
-        public class Property
+        public string Name { get; set; }
+
+        public Verb[] Verbs { get; set; }
+
+        public Property[] Properties { get; set; }
+    }
+
+    public class Property
+    {
+        public Property(MemberInfo member, HttpApplication httpApp)
         {
-            public Property(MemberInfo member, HttpApplication httpApp)
-            {
-                this.Name = member.GetCustomAttribute<JsonPropertyAttribute, string>(
-                    (attr) => attr.PropertyName.HasBlackSpace() ? attr.PropertyName : member.Name,
-                    () => member.Name);
-                this.Description = member.GetCustomAttribute<System.ComponentModel.DescriptionAttribute, string>(
-                    (attr) => attr.Description,
-                    () => string.Empty);
-                this.Options = new KeyValuePair<string, string>[] { };
-                var type = member.GetPropertyOrFieldType();
-                this.Type = Parameter.GetTypeName(type, httpApp);
-            }
-
-            public string Name { get; set; }
-
-            public string Description { get; set; }
-
-            public KeyValuePair<string, string>[] Options { get; set; }
-
-            public string Type { get; set; }
+            this.Name = member.GetCustomAttribute<JsonPropertyAttribute, string>(
+                (attr) => attr.PropertyName.HasBlackSpace() ? attr.PropertyName : member.Name,
+                () => member.Name);
+            this.Description = member.GetCustomAttribute<System.ComponentModel.DescriptionAttribute, string>(
+                (attr) => attr.Description,
+                () => string.Empty);
+            this.Options = new KeyValuePair<string, string>[] { };
+            var type = member.GetPropertyOrFieldType();
+            this.Type = Parameter.GetTypeName(type, httpApp);
         }
 
-        public class Verb
+        public string Name { get; set; }
+
+        public string Description { get; set; }
+
+        public KeyValuePair<string, string>[] Options { get; set; }
+
+        public string Type { get; set; }
+    }
+
+    public class Verb
+    {
+        public Verb(HttpMethod method, MethodInfo[] methods, HttpApplication httpApp)
         {
-            public Verb(HttpMethod method, MethodInfo[] methods, HttpApplication httpApp)
-            {
-                this.Method = method.Method;
-                this.Methods = methods.Select(methodInfo => new Method(methodInfo, httpApp)).ToArray();
-            }
-
-            public string Method { get; set; }
-
-            public Method[] Methods { get; set; }
+            this.Method = method.Method;
+            this.Methods = methods.Select(methodInfo => new Method(methodInfo, httpApp)).ToArray();
         }
 
-        public class Method
+        public string Method { get; set; }
+
+        public Method[] Methods { get; set; }
+    }
+
+    public class Method
+    {
+        public Method(MethodInfo methodInfo, HttpApplication httpApp)
         {
-            public Method(MethodInfo methodInfo, HttpApplication httpApp)
-            {
-                this.Name = methodInfo.Name;
-                this.Description = methodInfo.GetCustomAttribute<System.ComponentModel.DescriptionAttribute, string>(
-                    (attr) => attr.Description,
-                    () => string.Empty);
-                this.Parameters = methodInfo.GetParameters()
-                    .Where(methodParam => methodParam.ContainsAttributeInterface<IBindApiValue>(true))
-                    .Select(paramInfo => new Parameter(paramInfo, httpApp))
-                    .ToArray();
-                this.Responses = methodInfo.GetParameters()
-                    .Where(methodParam => typeof(MulticastDelegate).IsAssignableFrom(methodParam.ParameterType))
-                    .Select(paramInfo => new Response(paramInfo))
-                    .ToArray();
-            }
-
-            public string Name { get; set; }
-
-            public string Description { get; set; }
-
-            public Parameter[] Parameters { get; set; }
-
-            public Response[] Responses { get; set; }
+            this.Name = methodInfo.Name;
+            this.Description = methodInfo.GetCustomAttribute<System.ComponentModel.DescriptionAttribute, string>(
+                (attr) => attr.Description,
+                () => string.Empty);
+            this.Parameters = methodInfo.GetParameters()
+                .Where(methodParam => methodParam.ContainsAttributeInterface<IBindApiValue>(true))
+                .Select(paramInfo => new Parameter(paramInfo, httpApp))
+                .ToArray();
+            this.Responses = methodInfo.GetParameters()
+                .Where(methodParam => typeof(MulticastDelegate).IsAssignableFrom(methodParam.ParameterType))
+                .Select(paramInfo => new Response(paramInfo))
+                .ToArray();
         }
 
-        public class Parameter
+        public string Name { get; set; }
+
+        public string Description { get; set; }
+
+        public Parameter[] Parameters { get; set; }
+
+        public Response[] Responses { get; set; }
+    }
+
+    public class Parameter
+    {
+        public Parameter(ParameterInfo paramInfo, HttpApplication httpApp)
         {
-            public Parameter(ParameterInfo paramInfo, HttpApplication httpApp)
-            {
-                var validator = paramInfo.GetAttributeInterface<IBindApiValue>();
-                this.Name = validator.GetKey(paramInfo);
-                this.Required = !(paramInfo.ContainsCustomAttribute<PropertyOptionalAttribute>() ||
-                    paramInfo.ContainsCustomAttribute<OptionalQueryParameterAttribute>());
-                this.Default = paramInfo.ContainsCustomAttribute<QueryDefaultParameterAttribute>();
-                this.Type = GetTypeName(paramInfo.ParameterType, httpApp);
-            }
-
-            public static string GetTypeName(Type type, HttpApplication httpApp)
-            {
-                if (type.IsSubClassOfGeneric(typeof(IRef<>)))
-                    return $"->{GetTypeName(type.GenericTypeArguments.First(), httpApp)}";
-                if (type.IsSubClassOfGeneric(typeof(IRefs<>)))
-                    return $"[]->{GetTypeName(type.GenericTypeArguments.First(), httpApp)}";
-                if (type.IsSubClassOfGeneric(typeof(IRefOptional<>)))
-                    return $"->{GetTypeName(type.GenericTypeArguments.First(), httpApp)}?";
-                if (type.IsArray)
-                    return $"{GetTypeName(type.GetElementType(), httpApp)}[]";
-                return type.IsNullable(
-                    nullableBase => $"{GetTypeName(nullableBase, httpApp)}?",
-                    () => httpApp.GetResourceName(type));
-            }
-
-            public string Name { get; set; }
-            public bool Required { get; set; }
-            public bool Default { get; set; }
-            public string Where { get; set; }
-            public string Type { get; set; }
+            var validator = paramInfo.GetAttributeInterface<IBindApiValue>();
+            this.Name = validator.GetKey(paramInfo);
+            this.Required = !(paramInfo.ContainsCustomAttribute<PropertyOptionalAttribute>() ||
+                paramInfo.ContainsCustomAttribute<OptionalQueryParameterAttribute>());
+            this.Default = paramInfo.ContainsCustomAttribute<QueryDefaultParameterAttribute>();
+            this.Type = GetTypeName(paramInfo.ParameterType, httpApp);
         }
 
-        public class Response
+        public static string GetTypeName(Type type, HttpApplication httpApp)
         {
-            public Response(ParameterInfo paramInfo)
-            {
-                this.Name = paramInfo.Name;
-                //this.Required = paramInfo.ContainsCustomAttribute<PropertyAttribute>() ||
-                //    paramInfo.ContainsCustomAttribute<RequiredAttribute>();
-                //this.Default = paramInfo.ContainsCustomAttribute<QueryDefaultParameterAttribute>();
-                //this.Type = paramInfo.ParameterType;
-                this.StatusCode = System.Net.HttpStatusCode.OK;
-                this.Example = "TODO: JSON serialize response type";
-                this.Headers = new KeyValuePair<string, string>[] { };
-            }
-
-            public string Name { get; set; }
-            public System.Net.HttpStatusCode StatusCode { get; set; }
-            public string Example { get; set; }
-
-            public KeyValuePair<string, string>[] Headers { get; set; }
+            if (type.IsSubClassOfGeneric(typeof(IRef<>)))
+                return $"->{GetTypeName(type.GenericTypeArguments.First(), httpApp)}";
+            if (type.IsSubClassOfGeneric(typeof(IRefs<>)))
+                return $"[]->{GetTypeName(type.GenericTypeArguments.First(), httpApp)}";
+            if (type.IsSubClassOfGeneric(typeof(IRefOptional<>)))
+                return $"->{GetTypeName(type.GenericTypeArguments.First(), httpApp)}?";
+            if (type.IsArray)
+                return $"{GetTypeName(type.GetElementType(), httpApp)}[]";
+            return type.IsNullable(
+                nullableBase => $"{GetTypeName(nullableBase, httpApp)}?",
+                () => httpApp.GetResourceName(type));
         }
 
+        public string Name { get; set; }
+        public bool Required { get; set; }
+        public bool Default { get; set; }
+        public string Where { get; set; }
+        public string Type { get; set; }
+    }
+
+    public class Response
+    {
+        public Response(ParameterInfo paramInfo)
+        {
+            this.Name = paramInfo.Name;
+            //this.Required = paramInfo.ContainsCustomAttribute<PropertyAttribute>() ||
+            //    paramInfo.ContainsCustomAttribute<RequiredAttribute>();
+            //this.Default = paramInfo.ContainsCustomAttribute<QueryDefaultParameterAttribute>();
+            //this.Type = paramInfo.ParameterType;
+            this.StatusCode = System.Net.HttpStatusCode.OK;
+            this.Example = "TODO: JSON serialize response type";
+            this.Headers = new KeyValuePair<string, string>[] { };
+        }
+
+        public string Name { get; set; }
+
+        public System.Net.HttpStatusCode StatusCode { get; set; }
+
+        public string Example { get; set; }
+
+        public KeyValuePair<string, string>[] Headers { get; set; }
     }
 }
