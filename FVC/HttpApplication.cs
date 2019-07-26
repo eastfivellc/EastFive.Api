@@ -427,6 +427,12 @@ namespace EastFive.Api
                     var stringValue = dateValue.ToString();
                     return onCasted(stringValue);
                 }
+                if (value is DateTimeOffset)
+                {
+                    var dateValue = (DateTimeOffset)value;
+                    var stringValue = dateValue.ToString();
+                    return onCasted(stringValue);
+                }
             }
 
             if (onNotMapped.IsDefaultOrNull())
@@ -1488,6 +1494,16 @@ namespace EastFive.Api
                         if (DateTime.TryParse(dateStringValue, out DateTime dateValue))
                             return onParsed(dateValue);
                         return onNotConvertable($"Failed to convert {dateStringValue} to `{typeof(DateTime).FullName}`.");
+                    }
+                },
+                {
+                    typeof(DateTimeOffset),
+                    (httpApp, token, onParsed, onNotConvertable) =>
+                    {
+                        var dateStringValue = token.ReadString();
+                        if (DateTimeOffset.TryParse(dateStringValue, out DateTimeOffset dateValue))
+                            return onParsed(dateValue);
+                        return onNotConvertable($"Failed to convert {dateStringValue} to `{typeof(DateTimeOffset).FullName}`.");
                     }
                 },
                 {
