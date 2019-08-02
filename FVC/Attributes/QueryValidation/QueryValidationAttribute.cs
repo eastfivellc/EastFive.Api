@@ -32,38 +32,60 @@ namespace EastFive.Api
                 HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
                 Api.CastDelegate<SelectParameterResult> fetchQueryParam,
                 Api.CastDelegate<SelectParameterResult> fetchBodyParam,
-                Api.CastDelegate<SelectParameterResult> fetchDefaultParam)
+                Api.CastDelegate<SelectParameterResult> fetchPathParam,
+            bool matchAllPathParameters,
+            bool matchAllQueryParameters,
+            bool matchAllBodyParameters)
         {
-            var found = false;
             var key = GetKey(parameterRequiringValidation);
+            var fileResult = await fetchPathParam(key, parameterRequiringValidation.ParameterType,
+                (v) =>
+                {
+                    return SelectParameterResult.File(v, key, parameterRequiringValidation);
+                },
+                (whyQuery) => SelectParameterResult.Failure($"Could not create value in query, body, or file.", key, parameterRequiringValidation));
+            if(fileResult.valid)
+                if (!matchAllQueryParameters)
+                    if (!matchAllBodyParameters)
+                        return fileResult;
+
             var queryResult = await fetchQueryParam(key.ToLower(),
                     parameterRequiringValidation.ParameterType,
                 (v) =>
                 {
-                    found = true;
+                    if(fileResult.valid)
+                    {
+                        fileResult.fromQuery = true;
+                        return fileResult;
+                    }
                     return SelectParameterResult.Query(v, key, parameterRequiringValidation);
                 },
-                (whyQuery) => SelectParameterResult.Failure(whyQuery, key, parameterRequiringValidation));
-            if (found)
-                return queryResult;
+                (whyQuery) =>
+                {
+                    if (fileResult.valid)
+                        return fileResult;
+                    return SelectParameterResult.Failure(whyQuery, key, parameterRequiringValidation);
+                });
+            if (queryResult.valid)
+                if (!matchAllBodyParameters)
+                    return queryResult;
             
-            var  bodyResult = await fetchBodyParam(key, parameterRequiringValidation.ParameterType,
+            return await fetchBodyParam(key, parameterRequiringValidation.ParameterType,
                 (v) =>
                 {
-                    found = true;
+                    if (queryResult.valid)
+                    {
+                        queryResult.fromBody = true;
+                        return queryResult;
+                    }
                     return SelectParameterResult.Body(v, key, parameterRequiringValidation);
                 },
-                (whyQuery) => SelectParameterResult.Failure(whyQuery, key, parameterRequiringValidation));
-            if (found)
-                return bodyResult;
-
-            return await fetchDefaultParam(key, parameterRequiringValidation.ParameterType,
-                (v) =>
+                (whyQuery) =>
                 {
-                    found = true;
-                    return SelectParameterResult.File(v, key, parameterRequiringValidation);
-                },
-                (whyQuery) => SelectParameterResult.Failure($"Could not create value in query, body, or file.", key, parameterRequiringValidation));
+                    if (queryResult.valid)
+                        return queryResult;
+                    return SelectParameterResult.Failure(whyQuery, key, parameterRequiringValidation);
+                });
         }
 
         public virtual string GetKey(ParameterInfo paramInfo)
@@ -84,30 +106,39 @@ namespace EastFive.Api
                 ParameterInfo parameterRequiringValidation,
                 CastDelegate<SelectParameterResult> fetchQueryParam,
                 CastDelegate<SelectParameterResult> fetchBodyParam, 
-                CastDelegate<SelectParameterResult> fetchDefaultParam)
+                CastDelegate<SelectParameterResult> fetchDefaultParam,
+            bool matchAllPathParameters,
+            bool matchAllQueryParameters,
+            bool matchAllBodyParameters)
         { 
-            bool found = false;
-            var queryName = this.GetKey(parameterRequiringValidation);
-            var queryResult = await fetchQueryParam(queryName, parameterRequiringValidation.ParameterType,
+            var key = this.GetKey(parameterRequiringValidation);
+            var queryResult = await fetchQueryParam(key, parameterRequiringValidation.ParameterType,
                 (v) =>
                 {
-                    found = true;
-                    return SelectParameterResult.Query(v, queryName, parameterRequiringValidation);
+                    return SelectParameterResult.Query(v, key, parameterRequiringValidation);
                 },
-                (whyQuery) => SelectParameterResult.Failure(whyQuery, queryName, parameterRequiringValidation));
-            if (found)
-                return queryResult;
+                (whyQuery) => SelectParameterResult.Failure(whyQuery, key, parameterRequiringValidation));
 
             if (!CheckFileName)
-                return SelectParameterResult.Failure($"Query parameter `{queryName}` was not specified in the request query.", queryName, parameterRequiringValidation);
+                return queryResult;
 
-            return await fetchDefaultParam(queryName, parameterRequiringValidation.ParameterType,
+            return await fetchDefaultParam(key,
+                    parameterRequiringValidation.ParameterType,
                 (v) =>
                 {
-                    found = true;
-                    return SelectParameterResult.File(v, queryName, parameterRequiringValidation);
+                    if (queryResult.valid)
+                    {
+                        queryResult.fromFile = true;
+                        return queryResult;
+                    }
+                    return SelectParameterResult.File(v, key, parameterRequiringValidation);
                 },
-                (whyQuery) => SelectParameterResult.Failure($"Query parameter `{queryName}` was not specified in the request query or filename.", queryName, parameterRequiringValidation));
+                (whyQuery) =>
+                {
+                    if (queryResult.valid)
+                        return queryResult;
+                    return SelectParameterResult.Failure(whyQuery, key, parameterRequiringValidation);
+                });
         }
 
         public override string GetKey(ParameterInfo paramInfo)
@@ -123,15 +154,20 @@ namespace EastFive.Api
                 ParameterInfo parameterRequiringValidation, 
                 CastDelegate<SelectParameterResult> fetchQueryParam, 
                 CastDelegate<SelectParameterResult> fetchBodyParam, 
-                CastDelegate<SelectParameterResult> fetchDefaultParam)
+                CastDelegate<SelectParameterResult> fetchDefaultParam,
+            bool matchAllPathParameters,
+            bool matchAllQueryParameters,
+            bool matchAllBodyParameters)
         {
             var baseValue = await base.TryCastAsync(httpApp, request, method,
                 parameterRequiringValidation,
-                fetchQueryParam, fetchBodyParam, fetchDefaultParam);
+                fetchQueryParam, fetchBodyParam, fetchDefaultParam,
+                matchAllPathParameters, matchAllQueryParameters, matchAllBodyParameters);
             if (!baseValue.valid)
             {
                 baseValue.value = GetValue();
                 baseValue.valid = true;
+                baseValue.fromQuery = true;
                 object GetValue()
                 {
                     if (parameterRequiringValidation.ParameterType.IsSubClassOfGeneric(typeof(IRefOptional<>)))
@@ -167,10 +203,15 @@ namespace EastFive.Api
                 ParameterInfo parameterRequiringValidation,
                 CastDelegate<SelectParameterResult> fetchQueryParam,
                 CastDelegate<SelectParameterResult> fetchBodyParam,
-                CastDelegate<SelectParameterResult> fetchDefaultParam)
+                CastDelegate<SelectParameterResult> fetchDefaultParam,
+            bool matchAllPathParameters,
+            bool matchAllQueryParameters,
+            bool matchAllBodyParameters)
         {
             base.CheckFileName = true;
-            return await base.TryCastAsync(httpApp, request, method, parameterRequiringValidation, fetchQueryParam, fetchBodyParam, fetchDefaultParam);
+            return await base.TryCastAsync(httpApp, request, method,
+                parameterRequiringValidation, fetchQueryParam, fetchBodyParam, fetchDefaultParam,
+                matchAllPathParameters, matchAllQueryParameters, matchAllBodyParameters);
         }
     }
 
@@ -197,7 +238,10 @@ namespace EastFive.Api
             HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
             CastDelegate<SelectParameterResult> fetchQueryParam,
             CastDelegate<SelectParameterResult> fetchBodyParam,
-            CastDelegate<SelectParameterResult> fetchDefaultParam)
+            CastDelegate<SelectParameterResult> fetchDefaultParam,
+            bool matchAllPathParameters,
+            bool matchAllQueryParameters,
+            bool matchAllBodyParameters)
         {
             var bindType = parameterRequiringValidation.ParameterType;
             if(typeof(System.Net.Http.Headers.MediaTypeHeaderValue) == bindType)
@@ -208,6 +252,7 @@ namespace EastFive.Api
                         valid = true,
                         fromBody = false,
                         fromQuery = false,
+                        fromFile = false,
                         key = Content,
                         parameterInfo = parameterRequiringValidation,
                         value = request.Content.Headers.ContentType.MediaType,
@@ -221,6 +266,7 @@ namespace EastFive.Api
                             valid = true,
                             fromBody = false,
                             fromQuery = false,
+                            fromFile = false,
                             key = Content,
                             parameterInfo = parameterRequiringValidation,
                             value = content.Headers.ContentType,
@@ -233,6 +279,7 @@ namespace EastFive.Api
                             fromBody = false,
                             key = "",
                             fromQuery = false,
+                            fromFile = false,
                             parameterInfo = parameterRequiringValidation,
                             valid = false,
                             failure = why, // $"Cannot extract MediaTypeHeaderValue from non-multipart request.",
@@ -246,9 +293,10 @@ namespace EastFive.Api
                     if (!Content.IsNullOrWhiteSpace())
                         return new SelectParameterResult
                         {
-                            fromBody = false,
                             key = "",
                             fromQuery = false,
+                            fromBody = false,
+                            fromFile = false,
                             parameterInfo = parameterRequiringValidation,
                             valid = false,
                             failure = "AcceptLanguage is not a content header.",
@@ -258,6 +306,7 @@ namespace EastFive.Api
                         valid = true,
                         fromBody = false,
                         fromQuery = false,
+                        fromFile = false,
                         key = Content,
                         parameterInfo = parameterRequiringValidation,
                         value = request.Headers.AcceptLanguage,
@@ -276,15 +325,23 @@ namespace EastFive.Api
         }
     }
 
-    public class AcceptsAttribute : QueryValidationAttribute
+    public class AcceptsAttribute : Attribute, IBindApiValue
     {
         public string Media { get; set; }
 
-        public override async Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
+        public string GetKey(ParameterInfo paramInfo)
+        {
+            return "__accept-header__";
+        }
+
+        public async Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
             HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
             CastDelegate<SelectParameterResult> fetchQueryParam,
             CastDelegate<SelectParameterResult> fetchBodyParam,
-            CastDelegate<SelectParameterResult> fetchDefaultParam)
+            CastDelegate<SelectParameterResult> fetchDefaultParam,
+            bool matchAllPathParameters,
+            bool matchAllQueryParameters,
+            bool matchAllBodyParameters)
         {
             var bindType = parameterRequiringValidation.ParameterType;
             if (typeof(MediaTypeWithQualityHeaderValue) == bindType)
@@ -295,6 +352,7 @@ namespace EastFive.Api
                         valid = false,
                         fromBody = false,
                         fromQuery = false,
+                        fromFile = false,
                         key = "",
                         parameterInfo = parameterRequiringValidation,
                         failure = "No headers sent with request.",
@@ -305,7 +363,8 @@ namespace EastFive.Api
                         valid = true,
                         fromBody = false,
                         fromQuery = false,
-                        key = "__accept-header__",
+                        fromFile = false,
+                        key = GetKey(parameterRequiringValidation),
                         parameterInfo = parameterRequiringValidation,
                         value = default(MediaTypeWithQualityHeaderValue),
                     };
@@ -319,7 +378,8 @@ namespace EastFive.Api
                                 valid = true,
                                 fromBody = false,
                                 fromQuery = false,
-                                key = "__accept-header__",
+                                fromFile = false,
+                                key = GetKey(parameterRequiringValidation),
                                 parameterInfo = parameterRequiringValidation,
                                 value = accept,
                             };
@@ -331,7 +391,8 @@ namespace EastFive.Api
                                 valid = true,
                                 fromBody = false,
                                 fromQuery = false,
-                                key = "__accept-header__",
+                                fromFile = false,
+                                key = GetKey(parameterRequiringValidation),
                                 parameterInfo = parameterRequiringValidation,
                                 value = default(MediaTypeWithQualityHeaderValue),
                             };
@@ -339,9 +400,10 @@ namespace EastFive.Api
             }
             return new SelectParameterResult
             {
-                fromBody = false,
                 key = "",
                 fromQuery = false,
+                fromFile = false,
+                fromBody = false,
                 parameterInfo = parameterRequiringValidation,
                 valid = false,
                 failure = $"No accept binding for type `{bindType.FullName}` (try MediaTypeWithQualityHeaderValue).",
@@ -355,7 +417,10 @@ namespace EastFive.Api
             HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
             CastDelegate<SelectParameterResult> fetchQueryParam,
             CastDelegate<SelectParameterResult> fetchBodyParam,
-            CastDelegate<SelectParameterResult> fetchDefaultParam)
+            CastDelegate<SelectParameterResult> fetchDefaultParam,
+            bool matchAllPathParameters,
+            bool matchAllQueryParameters,
+            bool matchAllBodyParameters)
         {
             var logger = httpApp.Logger;
             return new SelectParameterResult
@@ -377,7 +442,10 @@ namespace EastFive.Api
                 HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
                 CastDelegate<SelectParameterResult> fetchQueryParam,
                 CastDelegate<SelectParameterResult> fetchBodyParam,
-                CastDelegate<SelectParameterResult> fetchDefaultParam)
+                CastDelegate<SelectParameterResult> fetchDefaultParam,
+            bool matchAllPathParameters,
+            bool matchAllQueryParameters,
+            bool matchAllBodyParameters)
         {
             var name = this.GetKey(parameterRequiringValidation);
             return fetchBodyParam(name, parameterRequiringValidation.ParameterType,
@@ -531,47 +599,51 @@ namespace EastFive.Api
                 ParameterInfo parameterRequiringValidation,
                 CastDelegate<SelectParameterResult> fetchQueryParam, 
                 CastDelegate<SelectParameterResult> fetchBodyParam, 
-                CastDelegate<SelectParameterResult> fetchDefaultParam)
+                CastDelegate<SelectParameterResult> fetchDefaultParam,
+            bool matchAllPathParameters,
+            bool matchAllQueryParameters,
+            bool matchAllBodyParameters)
         {
-            var baseValue = await base.TryCastAsync(httpApp, request, method, parameterRequiringValidation, fetchQueryParam, fetchBodyParam, fetchDefaultParam);
+            var baseValue = await base.TryCastAsync(httpApp, request, method,
+                parameterRequiringValidation, fetchQueryParam, fetchBodyParam, fetchDefaultParam,
+                matchAllPathParameters, matchAllQueryParameters, matchAllBodyParameters);
             if (baseValue.valid)
                 return baseValue;
 
-            var parameterType = parameterRequiringValidation.ParameterType;
-            if (parameterType.IsSubClassOfGeneric(typeof(IRefOptional<>)))
-            {
-                var refType = parameterType.GenericTypeArguments.First();
-                var parameterTypeGeneric = typeof(RefOptional<>).MakeGenericType(new Type[] { refType });
-                baseValue.value = Activator.CreateInstance(parameterTypeGeneric, new object[] { });
-                baseValue.valid = true;
-                return baseValue;
-            }
-
-            if (parameterType.IsSubClassOfGeneric(typeof(IRefs<>)))
-            {
-                var refType = parameterType.GenericTypeArguments.First();
-                var parameterTypeGeneric = typeof(Refs<>).MakeGenericType(new Type[] { refType });
-                var refIds = new Guid[] { };
-                var refIdsLookupType = typeof(Func<,>).MakeGenericType(new Type[] { typeof(Guid), refType });
-                var refIdsLookup = refIdsLookupType.GetDefault();
-                baseValue.value = Activator.CreateInstance(
-                    parameterTypeGeneric, new object[] { refIds });
-                baseValue.valid = true;
-                return baseValue;
-            }
-
-            if (parameterType.IsSubClassOfGeneric(typeof(IDictionary<,>)))
-            {
-                var parameterTypeGeneric = typeof(Dictionary<,>).MakeGenericType(parameterType.GenericTypeArguments);
-                baseValue.value = Activator.CreateInstance(parameterTypeGeneric);
-                baseValue.valid = true;
-                return baseValue;
-            }
-
-            baseValue.value = parameterType.GetDefault();
             baseValue.valid = true;
+            baseValue.fromBody = true;
+            baseValue.value = GetValue();
             return baseValue;
 
+            object GetValue()
+            {
+                var parameterType = parameterRequiringValidation.ParameterType;
+                if (parameterType.IsSubClassOfGeneric(typeof(IRefOptional<>)))
+                {
+                    var refType = parameterType.GenericTypeArguments.First();
+                    var parameterTypeGeneric = typeof(RefOptional<>).MakeGenericType(new Type[] { refType });
+                    return Activator.CreateInstance(parameterTypeGeneric, new object[] { });
+                }
+
+                if (parameterType.IsSubClassOfGeneric(typeof(IRefs<>)))
+                {
+                    var refType = parameterType.GenericTypeArguments.First();
+                    var parameterTypeGeneric = typeof(Refs<>).MakeGenericType(new Type[] { refType });
+                    var refIds = new Guid[] { };
+                    var refIdsLookupType = typeof(Func<,>).MakeGenericType(new Type[] { typeof(Guid), refType });
+                    var refIdsLookup = refIdsLookupType.GetDefault();
+                    return Activator.CreateInstance(
+                        parameterTypeGeneric, new object[] { refIds });
+                }
+
+                if (parameterType.IsSubClassOfGeneric(typeof(IDictionary<,>)))
+                {
+                    var parameterTypeGeneric = typeof(Dictionary<,>).MakeGenericType(parameterType.GenericTypeArguments);
+                    return Activator.CreateInstance(parameterTypeGeneric);
+                }
+
+                return parameterType.GetDefault();
+            }
         }
     }
 }

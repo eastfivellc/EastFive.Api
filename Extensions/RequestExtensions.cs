@@ -18,6 +18,7 @@ using EastFive.Linq;
 using EastFive.Extensions;
 using EastFive.Web;
 using BlackBarLabs.Api;
+using EastFive.Linq.Async;
 
 namespace EastFive.Api
 {
@@ -68,6 +69,10 @@ namespace EastFive.Api
             {
                 return request.CreateHttpMultipartResponse(contents);
             }
+            if (request.Headers.Accept.Contains(accept => accept.MediaType.ToLower().Contains("application/json+content-array")))
+            {
+                return await request.CreateJsonArrayResponseAsync(contents);
+            }
 
             return await request.CreateBrowserMultipartResponse(contents);
         }
@@ -84,6 +89,27 @@ namespace EastFive.Api
             var response = request.CreateResponse(HttpStatusCode.OK);
             response.Content = multipartContent;
             return response;
+        }
+
+        private static async Task<HttpResponseMessage> CreateJsonArrayResponseAsync(this HttpRequestMessage request,
+            IEnumerable<HttpResponseMessage> contents)
+        {
+            var multipartContent = await contents
+                .NullToEmpty()
+                .Select(
+                    async (content) =>
+                    {
+                        return await content.Content.HasValue(
+                            async (contentContent) => await contentContent.ReadAsStringAsync(),
+                            () => content.ReasonPhrase.AsTask());
+                    })
+                .Parallel()
+                .ToArrayAsync();
+
+            var multipartResponse = request.CreateHtmlResponse($"[{multipartContent.Join(',')}]");
+            multipartResponse.Content.Headers.ContentType =
+                new MediaTypeHeaderValue("application/json+content-array");
+            return multipartResponse;
         }
 
         private static async Task<HttpResponseMessage> CreateBrowserMultipartResponse(this HttpRequestMessage request,

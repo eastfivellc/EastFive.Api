@@ -249,5 +249,21 @@ namespace EastFive.Api
             var requestMessageNewQuery = requestMessageQuery.FromExpression(condition);
             return requestMessageNewQuery;
         }
+
+        [QueryParamQuery]
+        public static IQueryable<TResource> QueryParam<TResource>(this IQueryable<TResource> query, Expression<bool> paramExpr)
+            where TResource : IReferenceable
+        {
+            if (!typeof(RequestMessage<TResource>).IsAssignableFrom(query.GetType()))
+                throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{query.GetType().FullName}`", "query");
+            var requestMessageQuery = query as RequestMessage<TResource>;
+
+            var condition = Expression.Call(
+                typeof(ResourceQueryExtensions), "QueryParam", new Type[] { typeof(TResource) },
+                query.Expression, paramExpr);
+
+            var requestMessageNewQuery = requestMessageQuery.FromExpression(condition);
+            return requestMessageNewQuery;
+        }
     }
 }

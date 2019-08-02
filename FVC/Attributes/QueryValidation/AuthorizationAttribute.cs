@@ -17,7 +17,10 @@ namespace EastFive.Api
                 HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
                 Api.CastDelegate<SelectParameterResult> fetchQueryParam,
                 Api.CastDelegate<SelectParameterResult> fetchBodyParam,
-                Api.CastDelegate<SelectParameterResult> fetchDefaultParam)
+                Api.CastDelegate<SelectParameterResult> fetchDefaultParam,
+            bool matchAllPathParameters,
+            bool matchAllQueryParameters,
+            bool matchAllBodyParameters)
         {
             return request.GetClaims(
                 (claimsEnumerable) =>

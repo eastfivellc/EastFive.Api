@@ -135,7 +135,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Attributes\HtmlAttributes.cs" />
-    <Compile Include="Attributes\ControllerMethodAttributes.cs" />
+    <Compile Include="Attributes\Manifest\IDocumentResponse.cs" />
     <Compile Include="Attributes\SheetColumnAttribute.cs" />
     <Compile Include="Attributes\ResourceTypeAttribute.cs" />
     <Compile Include="AppSettings.cs" />
@@ -184,6 +184,16 @@
     <Compile Include="FVC\FunctionViewController5Attribute.cs" />
     <Compile Include="FVC\IApplication.cs" />
     <Compile Include="FVC\IInvokeResource.cs" />
+    <Compile Include="FVC\Routing\Attributes\HttpPutAttribute.cs" />
+    <Compile Include="FVC\Routing\Attributes\HttpPatchAttribute.cs" />
+    <Compile Include="FVC\Routing\Attributes\HttpDeleteAttribute.cs" />
+    <Compile Include="FVC\Routing\Attributes\HttpOptionsAttribute.cs" />
+    <Compile Include="FVC\Routing\Attributes\HttpActionAttribute.cs" />
+    <Compile Include="FVC\Routing\Attributes\HttpGetAttribute.cs" />
+    <Compile Include="FVC\Routing\Attributes\HttpPostAttribute.cs" />
+    <Compile Include="FVC\Routing\Attributes\HttpBodyAttribute.cs" />
+    <Compile Include="FVC\Routing\Attributes\HttpVerbAttribute.cs" />
+    <Compile Include="FVC\Routing\IMatchRoute.cs" />
     <Compile Include="FVC\InvokeApplicationExtensions.cs" />
     <Compile Include="FVC\FunctionViewController4Attribute.cs" />
     <Compile Include="FVC\HttpActionDelegateAttribute.cs" />
@@ -213,7 +223,7 @@
     <Compile Include="HttpActionResult.cs" />
     <Compile Include="InjectableAssemblyResolver.cs" />
     <Compile Include="FVC\Handlers\ControllerHandler.cs" />
-    <Compile Include="IProvideDocumentation.cs" />
+    <Compile Include="Attributes\Manifest\IDocumentRoute.cs" />
     <Compile Include="Razor\GenericReferenceResolver.cs" />
     <Compile Include="Razor\HtmlSupportTemplateBase.cs" />
     <Compile Include="Razor\RazorTemplateManager.cs" />

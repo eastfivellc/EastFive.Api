@@ -16,7 +16,7 @@ namespace EastFive.Api
             Type type, HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
         Func<object, Task<HttpResponseMessage>> onSuccess);
 
-    public delegate Task<TResult> ParseContentDelegate<TResult>(string key, Type type,
+    public delegate Task<TResult> ParseContentDelegateAsync<TResult>(string key, Type type,
         Func<object, TResult> onParsed,
         Func<string, TResult> onFailure);
 
@@ -39,7 +39,7 @@ namespace EastFive.Api
             Func<string, TResult> onDidNotBind);
 
         Task<TResult> ParseContentValuesAsync<TParseResult, TResult>(HttpContent content,
-            Func<ParseContentDelegate<TParseResult>, string[], Task<TResult>> onParsedContentValues);
+            Func<ParseContentDelegateAsync<TParseResult>, string[], Task<TResult>> onParsedContentValues);
 
         Task<HttpResponseMessage> Instigate(HttpRequestMessage request, ParameterInfo methodParameter,
             Func<object, Task<HttpResponseMessage>> onInstigated);

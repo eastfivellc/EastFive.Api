@@ -17,8 +17,8 @@ namespace EastFive.Api.Resources
             HttpApplication httpApp)
         {
             this.Routes = lookups
-                .Where(type => type.ContainsAttributeInterface<IProvideDocumentation>())
-                .Select(type => type.GetAttributesInterface<IProvideDocumentation>().First().GetRoute(type, httpApp))
+                .Where(type => type.ContainsAttributeInterface<IDocumentRoute>())
+                .Select(type => type.GetAttributesInterface<IDocumentRoute>().First().GetRoute(type, httpApp))
                 .OrderBy(route => route.Name)
                 .ToArray();
         }
@@ -110,8 +110,30 @@ namespace EastFive.Api.Resources
                 .Select(paramInfo => new Parameter(paramInfo, httpApp))
                 .ToArray();
             this.Responses = methodInfo.GetParameters()
-                .Where(methodParam => typeof(MulticastDelegate).IsAssignableFrom(methodParam.ParameterType))
-                .Select(paramInfo => new Response(paramInfo))
+                .Where(
+                    methodParam =>
+                    {
+                        var isDelegate = typeof(MulticastDelegate).IsAssignableFrom(methodParam.ParameterType);
+                        if (isDelegate)
+                            return true;
+                        if (methodParam.ParameterType.ContainsAttributeInterface<IDocumentResponse>())
+                            return true;
+                        return false;
+                    })
+                .Select(
+                    methodParam =>
+                    {
+                        var attrs = methodParam.ParameterType.GetAttributesInterface<IDocumentResponse>();
+                        if (attrs.Any())
+                        {
+                            var attr = attrs.First();
+                            return attr.GetResponse(methodParam, httpApp);
+                        }
+                        var isDelegate = typeof(MulticastDelegate).IsAssignableFrom(methodParam.ParameterType);
+                        if (isDelegate)
+                            return new Response(methodParam);
+                        throw new Exception();
+                    })
                 .ToArray();
         }
 
@@ -163,13 +185,13 @@ namespace EastFive.Api.Resources
         public Response(ParameterInfo paramInfo)
         {
             this.Name = paramInfo.Name;
-            //this.Required = paramInfo.ContainsCustomAttribute<PropertyAttribute>() ||
-            //    paramInfo.ContainsCustomAttribute<RequiredAttribute>();
-            //this.Default = paramInfo.ContainsCustomAttribute<QueryDefaultParameterAttribute>();
-            //this.Type = paramInfo.ParameterType;
             this.StatusCode = System.Net.HttpStatusCode.OK;
             this.Example = "TODO: JSON serialize response type";
             this.Headers = new KeyValuePair<string, string>[] { };
+        }
+
+        public Response()
+        {
         }
 
         public string Name { get; set; }

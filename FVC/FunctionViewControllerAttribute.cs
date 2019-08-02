@@ -19,7 +19,7 @@ using EastFive.Linq.Async;
 namespace EastFive.Api
 {
     public class FunctionViewControllerAttribute 
-        : Attribute, IInvokeResource, IProvideDocumentation
+        : Attribute, IInvokeResource, IDocumentRoute
     {
         public string Namespace { get; set; }
         public string Route { get; set; }
@@ -72,7 +72,7 @@ namespace EastFive.Api
                         controllerType
                             .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
                             .Where(method => method.ContainsCustomAttribute(methodKvp.Key))
-                .ToArray()))
+                            .ToArray()))
                 .Concat(actionMethods)
                 .ToDictionary();
         }
@@ -331,7 +331,7 @@ namespace EastFive.Api
 
         #endregion
 
-        private struct MethodCast
+        protected struct MethodCast
         {
             public bool valid;
             public string[] extraBodyParams;
@@ -409,7 +409,8 @@ namespace EastFive.Api
                                     return castValue.TryCastAsync(httpApp, request, method, param,
                                             fetchQueryParam,
                                             fetchBodyParam,
-                                            fetchNameParam);
+                                            fetchNameParam,
+                                            false, false, false);
                                 })
                             .WhenAllAsync();
 
@@ -615,7 +616,6 @@ namespace EastFive.Api
 
                     });
         }
-
 
         #endregion
 

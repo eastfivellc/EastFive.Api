@@ -2111,11 +2111,11 @@ namespace EastFive.Api
         #region Conversions
 
         public virtual async Task<TResult> ParseContentValuesAsync<TParseResult, TResult>(HttpContent content,
-            Func<ParseContentDelegate<TParseResult>, string [], Task<TResult>> onParsedContentValues)
+            Func<ParseContentDelegateAsync<TParseResult>, string [], Task<TResult>> onParsedContentValues)
         {
             Task<TResult> InvalidContent(string errorMessage)
             {
-                ParseContentDelegate<TParseResult> parser =
+                ParseContentDelegateAsync<TParseResult> parser =
                     (key, type, onFound, onFailure) =>
                         onFailure(errorMessage).AsTask();
                 return onParsedContentValues(parser, new string[] { });
@@ -2130,7 +2130,7 @@ namespace EastFive.Api
                 var exceptionKeys = new string[] { };
                 if (!contentString.HasBlackSpace())
                 {
-                    ParseContentDelegate<TParseResult> exceptionParser =
+                    ParseContentDelegateAsync<TParseResult> exceptionParser =
                         async (key, type, onFound, onFailure) =>
                         {
                             return onFailure($"[{key}] was not provided (JSON body content was empty).");
@@ -2145,14 +2145,14 @@ namespace EastFive.Api
                 }
                 catch (Exception ex)
                 {
-                    ParseContentDelegate<TParseResult> exceptionParser =
+                    ParseContentDelegateAsync<TParseResult> exceptionParser =
                         async (key, type, onFound, onFailure) =>
                         {
                             return onFailure(ex.Message);
                         };
                     return await onParsedContentValues(exceptionParser, exceptionKeys);
                 }
-                ParseContentDelegate<TParseResult> parser =
+                ParseContentDelegateAsync<TParseResult> parser =
                     async (key, type, onFound, onFailure) =>
                     {
                         if (key.IsNullOrWhiteSpace() || key == ".")
@@ -2230,7 +2230,7 @@ namespace EastFive.Api
                             return select(kvp);
                         })
                     .ToDictionaryAsync();
-                ParseContentDelegate<TParseResult> parser =
+                ParseContentDelegateAsync<TParseResult> parser =
                         async (key, type, onFound, onFailure) =>
                         {
                             if (contentsLookup.ContainsKey(key))
@@ -2245,7 +2245,7 @@ namespace EastFive.Api
             if (content.IsFormData())
             {
                 var optionalFormData = (await this.ParseOptionalFormDataAsync(content)).ToDictionary();
-                ParseContentDelegate<TParseResult> parser =
+                ParseContentDelegateAsync<TParseResult> parser =
                     async (key, type, onFound, onFailure) =>
                     {
                         if (!optionalFormData.ContainsKey(key))

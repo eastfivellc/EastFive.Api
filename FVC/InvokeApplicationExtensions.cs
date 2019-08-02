@@ -249,7 +249,35 @@ namespace EastFive.Api
                 onHtml: onHtml);
         }
 
-        
+        public static Task<TResult> ActionAsync<TResource, TResult>(this IQueryable<TResource> requestQuery,
+                string actionName,
+            Func<TResult> onUpdated = default,
+            Func<TResource, TResult> onUpdatedBody = default,
+            Func<TResource[], TResult> onContents = default(Func<TResource[], TResult>),
+            Func<object[], TResult> onContentObjects = default(Func<object[], TResult>),
+            Func<TResult> onNotFound = default,
+            Func<TResult> onUnauthorized = default,
+            Func<string, TResult> onFailure = default,
+            Func<HttpStatusCode, TResult> onNotOverriddenResponse = default,
+            Func<HttpResponseMessage, TResult> onResponse = default)
+        {
+            return requestQuery.MethodAsync<TResource, TResult>(HttpMethod.Get,
+                    request =>
+                    {
+                        request.RequestUri = request.RequestUri.AppendToPath(actionName);
+                        return request;
+                    },
+                onUpdated: onUpdated,
+                onContent: onUpdatedBody,
+                onContents: onContents,
+                onContentObjects: onContentObjects,
+                onNotFound: onNotFound,
+                onUnauthorized: onUnauthorized,
+                onFailure: onFailure,
+                onNotOverriddenResponse: onNotOverriddenResponse,
+                onResponse: onResponse);
+        }
+
         #region Response types
 
         public interface IReturnResult

@@ -18,15 +18,19 @@ namespace EastFive.Api
             HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
             CastDelegate<SelectParameterResult> fetchQueryParam,
             CastDelegate<SelectParameterResult> fetchBodyParam,
-            CastDelegate<SelectParameterResult> fetchDefaultParam)
+            CastDelegate<SelectParameterResult> fetchDefaultParam,
+            bool matchAllPathParameters,
+            bool matchAllQueryParameters,
+            bool matchAllBodyParameters)
         {
             // TODO: Use more sophisticated method for determining POST resource type (since this can be modified in attributes
             if (method.DeclaringType != parameterRequiringValidation.ParameterType)
                 return (new SelectParameterResult
                 {
-                    fromBody = true,
                     key = "",
+                    fromBody = true,
                     fromQuery = false,
+                    fromFile = false,
                     parameterInfo = parameterRequiringValidation,
                     valid = false,
                     failure = $"Inform server developer!!! `{method.DeclaringType.FullName}..{method.Name}: {this.GetType().Name}` attributes a parameter of type `{parameterRequiringValidation.ParameterType.FullName}` on a resource of type `{method.DeclaringType.FullName}`.",

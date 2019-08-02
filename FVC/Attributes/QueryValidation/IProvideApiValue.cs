@@ -18,10 +18,13 @@ namespace EastFive.Api
         string GetKey(ParameterInfo paramInfo);
 
         Task<SelectParameterResult> TryCastAsync(IApplication httpApp, HttpRequestMessage request,
-                MethodInfo method, ParameterInfo parameterRequiringValidation,
-                CastDelegate<SelectParameterResult> fetchQueryParam,
-                CastDelegate<SelectParameterResult> fetchBodyParam,
-                CastDelegate<SelectParameterResult> fetchDefaultParam);
+            MethodInfo method, ParameterInfo parameterRequiringValidation,
+            CastDelegate<SelectParameterResult> fetchQueryParam,
+            CastDelegate<SelectParameterResult> fetchBodyParam,
+            CastDelegate<SelectParameterResult> fetchDefaultParam,
+            bool matchAllPathParameters,
+            bool matchAllQueryParameters,
+            bool matchAllBodyParameters);
     }
 
     public interface IProvideApiValue

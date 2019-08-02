@@ -1,7 +1,10 @@
-﻿using BlackBarLabs.Extensions;
+﻿using BlackBarLabs.Api;
+using BlackBarLabs.Extensions;
 using EastFive.Api.Serialization;
 using EastFive.Collections.Generic;
 using EastFive.Extensions;
+using EastFive.Linq;
+using EastFive.Linq.Async;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -19,93 +22,18 @@ namespace EastFive.Api
         public override async Task<HttpResponseMessage> CreateResponseAsync(Type controllerType,
             IApplication httpApp, HttpRequestMessage request, string routeName)
         {
-            var path = request.RequestUri.Segments
-                .Skip(1)
-                .Select(segment => segment.Trim('/'.AsArray()))
-                .Where(pathPart => !pathPart.IsNullOrWhiteSpace())
-                .ToArray();
-            var possibleHttpMethods = PossibleHttpMethods(controllerType);
-            if (path.Length > 2)
-            {
-                var actionMethod = path[2];
-                var matchingActionKeys = possibleHttpMethods
-                    .SelectKeys()
-                    .Where(key => String.Compare(key.Method, actionMethod, true) == 0);
-
-                if (matchingActionKeys.Any())
-                {
-                    var actionHttpMethod = matchingActionKeys.First();
-                    var matchingActionMethods = possibleHttpMethods[actionHttpMethod];
-                    return await CreateResponseAsync(httpApp, request, routeName, matchingActionMethods,
-                        path.Skip(3).ToArray());
-                }
-            }
-
-            var matchingKey = possibleHttpMethods
-                .SelectKeys()
-                .Where(key => String.Compare(key.Method, request.Method.Method, true) == 0);
-
-            if (!matchingKey.Any())
-                return request.CreateResponse(HttpStatusCode.NotImplemented);
-
-            var httpMethod = matchingKey.First();
-            var matchingMethods = possibleHttpMethods[httpMethod];
-
-            return await CreateResponseAsync(httpApp, request, routeName, matchingMethods,
-                path.Skip(2).ToArray());
-        }
-
-        private static async Task<HttpResponseMessage> CreateResponseAsync(IApplication httpApp,
-            HttpRequestMessage request, string controllerName, MethodInfo[] methods, string [] fileNameParams)
-        {
-            #region setup query parameter casting
-
-            var queryParameters = request.RequestUri.ParseQuery()
-                .Select(kvp => kvp.Key.ToLower().PairWithValue(kvp.Value))
-                .ToDictionary();
-
-            var queryParameterCollections = GetCollectionParameters(httpApp, queryParameters).ToDictionary();
-            CastDelegate<SelectParameterResult> queryCastDelegate =
-                (query, type, onParsed, onFailure) =>
-                {
-                    var queryKey = query.ToLower();
-                    if (!queryParameters.ContainsKey(queryKey))
+            var matchingActionMethods = controllerType
+                .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
+                .Where(method => method.ContainsAttributeInterface<IMatchRoute>())
+                .Where(
+                    method =>
                     {
-                        if (!queryParameterCollections.ContainsKey(queryKey))
-                            return onFailure($"Missing query parameter `{queryKey}`").AsTask();
-                        return queryParameterCollections[queryKey](
-                                type,
-                                vs => onParsed(vs),
-                                why => onFailure(why))
-                            .AsTask();
-                    }
-                    var queryValueString = queryParameters[queryKey];
-                    var queryValue = new QueryParamTokenParser(queryValueString);
-                    return httpApp
-                        .Bind(type, queryValue,
-                            v => onParsed(v),
-                            (why) => onFailure(why))
-                        .AsTask();
-                };
+                        var routeMatcher = method.GetAttributesInterface<IMatchRoute>().Single();
+                        return routeMatcher.IsMethodMatch(method, request, httpApp);
+                    });
 
-            #endregion
-
-            #region Get file name from URI (optional part between the controller name and the query)
-
-            CastDelegate<SelectParameterResult> fileNameCastDelegate =
-                (query, type, onParsed, onFailure) =>
-                {
-                    if (!fileNameParams.Any())
-                        return onFailure("No URI filename value provided.").AsTask();
-                    return httpApp
-                        .Bind(type,
-                                new QueryParamTokenParser(fileNameParams.First()),
-                            v => onParsed(v),
-                            (why) => onFailure(why))
-                        .AsTask();
-                };
-
-            #endregion
+            if (!matchingActionMethods.Any())
+                return request.CreateResponse(HttpStatusCode.NotImplemented);
 
             return await httpApp.ParseContentValuesAsync<SelectParameterResult, HttpResponseMessage>(request.Content,
                 async (bodyParser, bodyValues) =>
@@ -121,16 +49,120 @@ namespace EastFive.Api
                                 },
                                 (why) => onFailure(why));
                         };
-                    return await GetResponseAsync(methods,
-                        queryCastDelegate,
-                        bodyCastDelegate,
-                        fileNameCastDelegate,
-                        httpApp, request,
-                        queryParameters.SelectKeys(),
-                        bodyValues,
-                        fileNameParams.Any());
-                });
 
+                    //var debugConsider = await methodsForConsideration.ToArrayAsync();
+                    var evaluatedMethods = matchingActionMethods
+                        .Select(
+                            method =>
+                            {
+                                var routeMatcher = method.GetAttributesInterface<IMatchRoute>().Single();
+                                return routeMatcher.IsRouteMatch(method, request, httpApp,
+                                    bodyValues, bodyCastDelegate);
+                            })
+                        .AsyncEnumerable();
+
+                    var validMethods = evaluatedMethods
+                        .Where(methodCast => methodCast.isValid);
+
+                    var debug = await evaluatedMethods.ToArrayAsync();
+                    return await await validMethods
+                        .FirstAsync(
+                            (methodCast) =>
+                            {
+                                return InvokeValidatedMethodAsync(httpApp, request, methodCast.method,
+                                    methodCast.parametersWithValues);
+                            },
+                            () =>
+                            {
+                                return Issues(evaluatedMethods);
+                            });
+
+                    async Task<HttpResponseMessage> Issues(IEnumerableAsync<RouteMatch> methodsCasts)
+                    {
+                        var reasonStrings = await methodsCasts
+                            .Select(
+                                methodCast =>
+                                {
+                                    var errorMessage = methodCast.ErrorMessage;
+                                    return errorMessage;
+                                })
+                            .ToArrayAsync();
+                        if (!reasonStrings.Any())
+                        {
+                            return request
+                                .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
+                                .AddReason("No methods that implement Action");
+                        }
+                        var content = reasonStrings.Join(";");
+                        return request
+                            .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
+                            .AddReason(content);
+                    }
+                });
+        }
+
+        private static Task<HttpResponseMessage> InvokeValidatedMethodAsync(
+            IApplication httpApp, HttpRequestMessage request, MethodInfo method,
+            KeyValuePair<ParameterInfo, object>[] queryParameters)
+        {
+            var queryParameterOptions = queryParameters.ToDictionary(kvp => kvp.Key.Name, kvp => kvp.Value);
+            return method.GetParameters()
+                .SelectReduce(
+                    async (methodParameter, next) =>
+                    {
+                        if (queryParameterOptions.ContainsKey(methodParameter.Name))
+                            return await next(queryParameterOptions[methodParameter.Name]);
+
+                        return await httpApp.Instigate(request, methodParameter,
+                            v => next(v));
+                    },
+                    async (object[] methodParameters) =>
+                    {
+                        try
+                        {
+                            if (method.IsGenericMethod)
+                            {
+                                var genericArguments = method.GetGenericArguments().Select(arg => arg.Name).Join(",");
+                                return request.CreateResponse(HttpStatusCode.InternalServerError)
+                                    .AddReason($"Could not invoke {method.DeclaringType.FullName}..{method.Name} because it contains generic arguments:{genericArguments}");
+                            }
+
+                            var response = method.Invoke(null, methodParameters);
+                            if (typeof(HttpResponseMessage).IsAssignableFrom(method.ReturnType))
+                                return ((HttpResponseMessage)response);
+                            if (typeof(Task<HttpResponseMessage>).IsAssignableFrom(method.ReturnType))
+                                return (await (Task<HttpResponseMessage>)response);
+                            if (typeof(Task<Task<HttpResponseMessage>>).IsAssignableFrom(method.ReturnType))
+                                return (await await (Task<Task<HttpResponseMessage>>)response);
+
+                            return (request.CreateResponse(System.Net.HttpStatusCode.InternalServerError)
+                                .AddReason($"Could not convert type: {method.ReturnType.FullName} to HttpResponseMessage."));
+                        }
+                        catch (TargetInvocationException ex)
+                        {
+                            var paramList = methodParameters.Select(p => p.GetType().FullName).Join(",");
+                            var body = ex.InnerException.IsDefaultOrNull() ?
+                                ex.StackTrace
+                                :
+                                $"[{ex.InnerException.GetType().FullName}]{ex.InnerException.Message}:\n{ex.InnerException.StackTrace}";
+                            return request
+                                .CreateResponse(HttpStatusCode.InternalServerError, body)
+                                .AddReason($"Could not invoke {method.DeclaringType.FullName}.{method.Name}({paramList})");
+                        }
+                        catch (Exception ex)
+                        {
+                            if (ex is IHttpResponseMessageException)
+                            {
+                                var httpResponseMessageException = ex as IHttpResponseMessageException;
+                                return httpResponseMessageException.CreateResponseAsync(
+                                    httpApp, request, queryParameterOptions,
+                                    method, methodParameters);
+                            }
+                            // TODO: Only do this in a development environment
+                            return request.CreateResponse(HttpStatusCode.InternalServerError, ex.StackTrace).AddReason(ex.Message);
+                        }
+
+                    });
         }
     }
 }

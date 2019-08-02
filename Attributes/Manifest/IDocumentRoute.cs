@@ -6,10 +6,9 @@ using System.Threading.Tasks;
 
 namespace EastFive.Api
 {
-    // TODO: Change this to IDocumentRoute 
-    // and add IDocumentProperty, IDocumentMethod, IDocumentParameter, IDocumentResponse, etc
+    // TODO: add IDocumentProperty, IDocumentMethod, IDocumentParameter
 
-    public interface IProvideDocumentation
+    public interface IDocumentRoute
     {
         Resources.Route GetRoute(Type type, HttpApplication httpApp);
     }
