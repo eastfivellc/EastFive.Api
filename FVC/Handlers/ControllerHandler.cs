@@ -52,12 +52,13 @@ namespace EastFive.Api.Modules
             Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> continuation)
         {
             var path = request.RequestUri.Segments
+                .Select(pathPart => pathPart.Trim('/'.AsArray()))
                 .Where(pathPart => !pathPart.IsNullOrWhiteSpace())
                 .ToArray();
 
-            if (path.Length < 3)
+            if (path.Length < 2)
                 return await continuation(request, cancellationToken);
-            var routeName = path[2].ToLower().Trim('/'.AsArray());
+            var routeName = path[1].ToLower();
 
             return await httpApp.GetControllerType(routeName,
                 async (controllerType) =>
