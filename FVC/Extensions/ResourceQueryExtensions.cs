@@ -212,6 +212,20 @@ namespace EastFive.Api
                                     var paramValue = arg.Resolve();
                                     return paramName.PairWithValue(paramValue);
                                 }
+                                if (expr is BinaryExpression)
+                                {
+                                    var memberExpr = expr as BinaryExpression;
+                                    if (memberExpr.Left is ConstantExpression)
+                                    {
+                                        var left = memberExpr.Left as ConstantExpression;
+                                        var paramName = left.Type == typeof(string)?
+                                            left.Value as string
+                                            :
+                                            (string)left.Resolve();
+                                        var paramValue = memberExpr.Right.Resolve();
+                                        return paramName.PairWithValue(paramValue);
+                                    }
+                                }
                                 {
                                     var paramValue = expr.Resolve();
                                     return paramInfo.Name.PairWithValue(paramValue);

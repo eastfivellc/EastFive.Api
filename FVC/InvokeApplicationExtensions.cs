@@ -104,8 +104,11 @@ namespace EastFive.Api
             application.RedirectResponse<TResource, TResult>(onRedirect);
             application.NotImplementedResponse<TResource, TResult>(onNotImplemented);
 
-            application.ContentResponse(onContent);
-            application.ContentTypeResponse<TResource, TResult>((body, contentType) => onContent(body));
+            if (!onContent.IsDefaultOrNull())
+            {
+                application.ContentResponse(onContent);
+                application.ContentTypeResponse<TResource, TResult>((body, contentType) => onContent(body));
+            }
             application.MultipartContentResponse(onContents);
             if(!onContentObjects.IsDefaultOrNull())
                 application.MultipartContentObjectResponse<TResource, TResult>(onContentObjects);
@@ -537,15 +540,27 @@ namespace EastFive.Api
                 typeof(EastFive.Api.Controllers.ContentTypeResponse<>),
                 (type, httpApp, request, paramInfo, onSuccess) =>
                 {
-                    type = typeof(ContentTypeResponse<>).MakeGenericType(typeof(TResource));
+                    //type = typeof(ContentTypeResponse<>).MakeGenericType(typeof(TResource));
+                    //var wrapperConcreteType = typeof(InstigatorGenericWrapper1<,,>).MakeGenericType(
+                    //    typeof(Func<TResource, string, TResult>)
+                    //        .AsArray()
+                    //        .Append(typeof(TResult))
+                    //        .Append(typeof(TResource))
+                    //        .ToArray());
+                    //var wrapperInstance = Activator.CreateInstance(wrapperConcreteType,
+                    //    new object[] { type, httpApp, request, paramInfo, onCreated, onSuccess });
+
+                    var resourceType = type.GenericTypeArguments.First();
+                    var funcOfRes = typeof(Func<,,>).MakeGenericType(new[] { resourceType, typeof(string), typeof(TResult) });
                     var wrapperConcreteType = typeof(InstigatorGenericWrapper1<,,>).MakeGenericType(
-                        typeof(Func<TResource, string, TResult>)
+                        funcOfRes
                             .AsArray()
                             .Append(typeof(TResult))
-                            .Append(typeof(TResource))
+                            .Append(resourceType)
                             .ToArray());
                     var wrapperInstance = Activator.CreateInstance(wrapperConcreteType,
                         new object[] { type, httpApp, request, paramInfo, onCreated, onSuccess });
+
                     var dele = Delegate.CreateDelegate(type, wrapperInstance, "ContentTypeResponse", false);
                     return onSuccess(dele);
                 },
