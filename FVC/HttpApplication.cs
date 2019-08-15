@@ -1034,6 +1034,18 @@ namespace EastFive.Api
                     }
                 },
                 { // 200
+                    typeof(Controllers.PdfResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.PdfResponse dele = (pdfData, filename, inline) =>
+                        {
+                            var response = request.CreatePdfResponse(pdfData, filename, inline);
+                            return response;
+                        };
+                        return success((object)dele);
+                    }
+                },
+                { // 200
                     typeof(Controllers.MultipartResponseAsync),
                     (httpApp, request, paramInfo, success) =>
                     {

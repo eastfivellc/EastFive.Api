@@ -14,6 +14,7 @@ namespace EastFive.Api.Controllers
     public delegate HttpResponseMessage ContentResponse(object content, string contentType = default(string));
     public delegate HttpResponseMessage HtmlResponse(string content);
     public delegate HttpResponseMessage XlsxResponse(byte [] content, string name);
+    public delegate HttpResponseMessage PdfResponse(byte[] content, string name, bool inline);
 
     [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Created)]
     public delegate HttpResponseMessage CreatedResponse();
