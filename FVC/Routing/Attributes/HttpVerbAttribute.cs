@@ -108,7 +108,7 @@ namespace EastFive.Api
                             this.MatchAllQueryParameters, 
                             this.MatchAllBodyParameters);
                     })
-                .Parallel()
+                .AsyncEnumerable()
                 .ToArrayAsync();
 
             var failedValidations = parametersCastResults
