@@ -64,7 +64,7 @@ namespace EastFive.Api
                     var validMethods = evaluatedMethods
                         .Where(methodCast => methodCast.isValid);
 
-                    var debug = await evaluatedMethods.ToArrayAsync();
+                    //var debug = await evaluatedMethods.ToArrayAsync();
                     return await await validMethods
                         .FirstAsync(
                             (methodCast) =>
