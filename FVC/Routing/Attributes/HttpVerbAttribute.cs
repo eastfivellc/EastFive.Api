@@ -142,14 +142,16 @@ namespace EastFive.Api
                         parametersWithValues = parametersWithValues,
                     };
                 },
-                (extraParams) =>
+                (extraFileParams, extraQueryParams, extraBodyParams) =>
                 {
                     return new RouteMatch
                     {
                         isValid = false,
                         failedValidations = failedValidations,
                         method = method,
-                        extraBodyParams = extraParams,
+                        extraFileParams = extraFileParams,
+                        extraQueryParams = extraQueryParams,
+                        extraBodyParams = extraBodyParams,
                     };
                 });
         }
@@ -337,7 +339,7 @@ namespace EastFive.Api
                 IEnumerable<string> pathKeys, IEnumerable<string> queryKeys, IEnumerable<string> bodyKeys,
                 IEnumerable<SelectParameterResult> matchedParameters,
             Func<TResult> noExtraParameters,
-            Func<string[], TResult> onExtraParams)
+            Func<string[], string[], string[], TResult> onExtraParams)
         {
             if (!this.MatchAllParameters)
                 return noExtraParameters();
@@ -349,7 +351,7 @@ namespace EastFive.Api
                        .Count();
                 var extraFileKeys = pathKeys.Count();
                 if (extraFileKeys > matchParamFileCount)
-                    return onExtraParams(pathKeys.ToArray());
+                    return onExtraParams(pathKeys.ToArray(), new string[] { }, new string[] { });
             }
 
             if (this.MatchAllQueryParameters)
@@ -361,7 +363,7 @@ namespace EastFive.Api
                     .Where(queryKey => !matchParamQueryLookup.Contains(queryKey))
                     .ToArray();
                 if (extraQueryKeys.Any())
-                    return onExtraParams(extraQueryKeys);
+                    return onExtraParams(new string[] { }, extraQueryKeys, new string[] { });
             }
 
             if (this.MatchAllBodyParameters)
@@ -373,7 +375,7 @@ namespace EastFive.Api
                     .Where(queryKey => !matchBodyLookup.Contains(queryKey))
                     .ToArray();
                 if (extraQueryKeys.Any())
-                    return onExtraParams(extraQueryKeys);
+                    return onExtraParams(new string[] { }, new string[] { }, extraQueryKeys);
             }
 
             return noExtraParameters();
