@@ -167,6 +167,7 @@
     <Compile Include="Extensions\WebUrnExtensions.cs" />
     <Compile Include="Extensions\ValidationExtensions.cs" />
     <Compile Include="FVC\Attributes\ApiIdAttribute.cs" />
+    <Compile Include="FVC\Attributes\IApiResources.cs" />
     <Compile Include="FVC\Attributes\Instigation\IInstigatable.cs" />
     <Compile Include="FVC\Attributes\QueryValidation\AuthorizationAttribute.cs" />
     <Compile Include="FVC\Attributes\QueryValidation\IFilterApiValues.cs" />
@@ -181,6 +182,8 @@
     <Compile Include="FVC\Exceptions\UnauthorizedException.cs" />
     <Compile Include="FVC\Extensions\ResourceQueryCompilationExtensions.cs" />
     <Compile Include="FVC\Extensions\ResourceQueryExtensions.cs" />
+    <Compile Include="FVC\FunctionViewController6Attribute.cs" />
+    <Compile Include="FVC\FunctionViewControllerExAttribute.cs" />
     <Compile Include="FVC\FunctionViewController5Attribute.cs" />
     <Compile Include="FVC\IApplication.cs" />
     <Compile Include="FVC\IInvokeResource.cs" />
@@ -229,6 +232,9 @@
     <Compile Include="Razor\RazorTemplateManager.cs" />
     <Compile Include="Resources\Exceptions.cs" />
     <Compile Include="Resources\Manifest.cs" />
+    <Compile Include="Resources\Manifest\Method.cs" />
+    <Compile Include="Resources\Manifest\Parameter.cs" />
+    <Compile Include="Resources\Manifest\Property.cs" />
     <Compile Include="Resources\MultipartResponse.cs" />
     <Compile Include="Resources\OptionsResource.cs" />
     <Compile Include="Resources\Queries\IntQuery.cs" />

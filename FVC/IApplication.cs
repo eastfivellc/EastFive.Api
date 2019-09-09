@@ -24,6 +24,7 @@ namespace EastFive.Api
     {
         EastFive.Analytics.ILogger Logger { get; }
 
+        IEnumerable<MethodInfo> GetExtensionMethods(Type controllerType);
         object CastResourceProperty(object value, Type propertyType);
 
         void SetInstigator(Type type, InstigatorDelegate instigator, bool clear = false);

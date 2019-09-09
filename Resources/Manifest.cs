@@ -1,4 +1,5 @@
-﻿using EastFive.Linq;
+﻿using EastFive.Extensions;
+using EastFive.Linq;
 using EastFive.Reflection;
 using Newtonsoft.Json;
 using System;
@@ -32,7 +33,9 @@ namespace EastFive.Api.Resources
             HttpApplication httpApp)
         {
             this.Name = name;
-            this.Verbs = methods.Select(verb => new Verb(verb.Key, verb.Value, httpApp)).ToArray();
+            this.Methods = methods
+                .SelectMany(kvp => kvp.Value.Select(m => m.PairWithKey(kvp.Key)))
+                .Select(verb => new Method(verb.Key.Method, verb.Value, httpApp)).ToArray();
             this.Properties = methods
                 .First(
                     (methodKvp, next) =>
@@ -53,132 +56,34 @@ namespace EastFive.Api.Resources
                     () => new Property[] { });
         }
 
+        public Route(string name, MethodInfo[] methods, MemberInfo[] properties,
+            HttpApplication httpApp)
+        {
+            this.Name = name;
+            this.Methods = methods
+                .Where(method => method.ContainsAttributeInterface<IDocumentMethod>())
+                .Select(
+                    method =>
+                    {
+                        var docMethod = method.GetAttributesInterface<IDocumentMethod>().First();
+                        return docMethod.GetMethod(method, httpApp);
+                    })
+                .ToArray();
+            this.Properties = properties
+                .Where(method => method.ContainsAttributeInterface<IDocumentProperty>())
+                .Select(method => method.GetAttributesInterface<IDocumentProperty>()
+                    .First()
+                    .GetProperty(method, httpApp))
+                .ToArray();
+        }
+
         public string Name { get; set; }
 
-        public Verb[] Verbs { get; set; }
+        public Method[] Methods { get; set; }
 
         public Property[] Properties { get; set; }
     }
 
-    public class Property
-    {
-        public Property(MemberInfo member, HttpApplication httpApp)
-        {
-            this.Name = member.GetCustomAttribute<JsonPropertyAttribute, string>(
-                (attr) => attr.PropertyName.HasBlackSpace() ? attr.PropertyName : member.Name,
-                () => member.Name);
-            this.Description = member.GetCustomAttribute<System.ComponentModel.DescriptionAttribute, string>(
-                (attr) => attr.Description,
-                () => string.Empty);
-            this.Options = new KeyValuePair<string, string>[] { };
-            var type = member.GetPropertyOrFieldType();
-            this.Type = Parameter.GetTypeName(type, httpApp);
-        }
-
-        public string Name { get; set; }
-
-        public string Description { get; set; }
-
-        public KeyValuePair<string, string>[] Options { get; set; }
-
-        public string Type { get; set; }
-    }
-
-    public class Verb
-    {
-        public Verb(HttpMethod method, MethodInfo[] methods, HttpApplication httpApp)
-        {
-            this.Method = method.Method;
-            this.Methods = methods.Select(methodInfo => new Method(methodInfo, httpApp)).ToArray();
-        }
-
-        public string Method { get; set; }
-
-        public Method[] Methods { get; set; }
-    }
-
-    public class Method
-    {
-        public Method(MethodInfo methodInfo, HttpApplication httpApp)
-        {
-            this.Name = methodInfo.Name;
-            this.Description = methodInfo.GetCustomAttribute<System.ComponentModel.DescriptionAttribute, string>(
-                (attr) => attr.Description,
-                () => string.Empty);
-            this.Parameters = methodInfo.GetParameters()
-                .Where(methodParam => methodParam.ContainsAttributeInterface<IBindApiValue>(true))
-                .Select(paramInfo => new Parameter(paramInfo, httpApp))
-                .ToArray();
-            this.Responses = methodInfo.GetParameters()
-                .Where(
-                    methodParam =>
-                    {
-                        var isDelegate = typeof(MulticastDelegate).IsAssignableFrom(methodParam.ParameterType);
-                        if (isDelegate)
-                            return true;
-                        if (methodParam.ParameterType.ContainsAttributeInterface<IDocumentResponse>())
-                            return true;
-                        return false;
-                    })
-                .Select(
-                    methodParam =>
-                    {
-                        var attrs = methodParam.ParameterType.GetAttributesInterface<IDocumentResponse>();
-                        if (attrs.Any())
-                        {
-                            var attr = attrs.First();
-                            return attr.GetResponse(methodParam, httpApp);
-                        }
-                        var isDelegate = typeof(MulticastDelegate).IsAssignableFrom(methodParam.ParameterType);
-                        if (isDelegate)
-                            return new Response(methodParam);
-                        throw new Exception();
-                    })
-                .ToArray();
-        }
-
-        public string Name { get; set; }
-
-        public string Description { get; set; }
-
-        public Parameter[] Parameters { get; set; }
-
-        public Response[] Responses { get; set; }
-    }
-
-    public class Parameter
-    {
-        public Parameter(ParameterInfo paramInfo, HttpApplication httpApp)
-        {
-            var validator = paramInfo.GetAttributeInterface<IBindApiValue>();
-            this.Name = validator.GetKey(paramInfo);
-            this.Required = !(paramInfo.ContainsCustomAttribute<PropertyOptionalAttribute>() ||
-                paramInfo.ContainsCustomAttribute<OptionalQueryParameterAttribute>());
-            this.Default = paramInfo.ContainsCustomAttribute<QueryDefaultParameterAttribute>();
-            this.Type = GetTypeName(paramInfo.ParameterType, httpApp);
-        }
-
-        public static string GetTypeName(Type type, HttpApplication httpApp)
-        {
-            if (type.IsSubClassOfGeneric(typeof(IRef<>)))
-                return $"->{GetTypeName(type.GenericTypeArguments.First(), httpApp)}";
-            if (type.IsSubClassOfGeneric(typeof(IRefs<>)))
-                return $"[]->{GetTypeName(type.GenericTypeArguments.First(), httpApp)}";
-            if (type.IsSubClassOfGeneric(typeof(IRefOptional<>)))
-                return $"->{GetTypeName(type.GenericTypeArguments.First(), httpApp)}?";
-            if (type.IsArray)
-                return $"{GetTypeName(type.GetElementType(), httpApp)}[]";
-            return type.IsNullable(
-                nullableBase => $"{GetTypeName(nullableBase, httpApp)}?",
-                () => httpApp.GetResourceName(type));
-        }
-
-        public string Name { get; set; }
-        public bool Required { get; set; }
-        public bool Default { get; set; }
-        public string Where { get; set; }
-        public string Type { get; set; }
-    }
 
     public class Response
     {
@@ -186,7 +91,7 @@ namespace EastFive.Api.Resources
         {
             this.Name = paramInfo.Name;
             this.StatusCode = System.Net.HttpStatusCode.OK;
-            this.Example = "TODO: JSON serialize response type";
+            //this.Example = "TODO: JSON serialize response type";
             this.Headers = new KeyValuePair<string, string>[] { };
         }
 

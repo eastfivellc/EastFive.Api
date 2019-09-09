@@ -1,6 +1,9 @@
 ﻿using BlackBarLabs.Extensions;
+using EastFive.Api.Resources;
 using EastFive.Extensions;
 using EastFive.Linq.Expressions;
+using EastFive.Reflection;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,25 +15,46 @@ using System.Threading.Tasks;
 
 namespace EastFive.Api
 {
-
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class ApiPropertyAttribute : System.Attribute, IProvideApiValue
+    public class ApiPropertyAttribute : System.Attribute, IProvideApiValue, IDocumentProperty
     {
         public ApiPropertyAttribute()
         {
         }
-        
-        private string propertyName;
-        public string PropertyName
+
+        public string PropertyName { get; set; }
+
+        public Property GetProperty(MemberInfo member, HttpApplication httpApp)
         {
-            get
+            string GetName()
             {
-                return this.propertyName;
+                if (this.PropertyName.HasBlackSpace())
+                    return this.PropertyName;
+                return member.GetCustomAttribute<JsonPropertyAttribute, string>(
+                    (attr) => attr.PropertyName.HasBlackSpace() ? attr.PropertyName : member.Name,
+                    () => member.Name);
             }
-            set
+            string GetDescription()
             {
-                propertyName = value;
+                return member.GetCustomAttribute<System.ComponentModel.DescriptionAttribute, string>(
+                    (attr) => attr.Description,
+                    () => string.Empty);
             }
+            string GetType()
+            {
+                var type = member.GetPropertyOrFieldType();
+                return Parameter.GetTypeName(type, httpApp);
+            }
+            var name = GetName();
+            var description = GetDescription();
+            var options = new KeyValuePair<string, string>[] { };
+            return new Property()
+            {
+                Name = name,
+                Description = description,
+                Options = options,
+                Type = GetType(),
+            };
         }
     }
 }

@@ -12,7 +12,7 @@ namespace EastFive.Api
     public interface IMatchRoute
     {
         bool IsMethodMatch(MethodInfo method, HttpRequestMessage request, IApplication httpApp);
-
+        
         Task<RouteMatch> IsRouteMatch(
             MethodInfo method, HttpRequestMessage request, IApplication httpApp,
             IEnumerable<string> bodyKeys, CastDelegate<SelectParameterResult> fetchBodyParam);

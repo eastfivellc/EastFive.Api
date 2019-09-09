@@ -46,7 +46,7 @@ namespace EastFive.Api
             return new Uri($"{routeDirectory}/{route}", UriKind.Relative);
         }
 
-        private static IDictionary<Type, HttpMethod> methodLookup =
+        protected static IDictionary<Type, HttpMethod> methodLookup =
             new Dictionary<Type, HttpMethod>()
             {
                 { typeof(EastFive.Api.HttpGetAttribute), HttpMethod.Get },
@@ -58,7 +58,7 @@ namespace EastFive.Api
                 { typeof(EastFive.Api.HttpActionAttribute), new HttpMethod("actions") },
             };
 
-        protected virtual IDictionary<HttpMethod, MethodInfo[]> PossibleHttpMethods(Type controllerType)
+        protected virtual IDictionary<HttpMethod, MethodInfo[]> PossibleHttpMethods(Type controllerType, IApplication httpApp)
         {
             var actionMethods = controllerType
                 .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
@@ -85,7 +85,7 @@ namespace EastFive.Api
                 .Select(segment => segment.Trim('/'.AsArray()))
                 .Where(pathPart => !pathPart.IsNullOrWhiteSpace())
                 .ToArray();
-            var possibleHttpMethods = PossibleHttpMethods(controllerType);
+            var possibleHttpMethods = PossibleHttpMethods(controllerType, httpApp);
             if (path.Length > 2)
             {
                 var actionMethod = path[2];
@@ -619,9 +619,9 @@ namespace EastFive.Api
 
         #endregion
 
-        public Route GetRoute(Type type, HttpApplication httpApp)
+        public virtual Route GetRoute(Type type, HttpApplication httpApp)
         {
-            var methods = PossibleHttpMethods(type).ToArray();
+            var methods = PossibleHttpMethods(type, httpApp).ToArray();
             return new Route(this.Route, methods, httpApp);
         }
     }

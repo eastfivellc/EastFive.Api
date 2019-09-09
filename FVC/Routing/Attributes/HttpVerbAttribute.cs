@@ -1,4 +1,5 @@
 ﻿using BlackBarLabs.Extensions;
+using EastFive.Api.Resources;
 using EastFive.Api.Serialization;
 using EastFive.Collections.Generic;
 using EastFive.Extensions;
@@ -17,7 +18,7 @@ using System.Threading.Tasks;
 namespace EastFive.Api
 {
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Method)]
-    public abstract class HttpVerbAttribute : Attribute, IMatchRoute
+    public abstract class HttpVerbAttribute : Attribute, IMatchRoute, IDocumentMethod
     {
         private bool matchAllParameters = true;
         public bool MatchAllParameters
@@ -379,6 +380,11 @@ namespace EastFive.Api
             }
 
             return noExtraParameters();
+        }
+
+        public Method GetMethod(MethodInfo methodInfo, HttpApplication httpApp)
+        {
+            return new Method(this.Method, methodInfo, httpApp);
         }
     }
 }

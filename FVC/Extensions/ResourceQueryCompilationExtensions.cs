@@ -3,6 +3,7 @@ using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Linq.Expressions;
+using EastFive.Reflection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -27,10 +28,7 @@ namespace EastFive.Api
                 {
                     var methodCallExpression = argExpression as MethodCallExpression;
                     var method = methodCallExpression.Method;
-                    var isExtensionMethod = method.IsDefaultOrNull() ?
-                        false
-                        :
-                        method.IsDefined(typeof(System.Runtime.CompilerServices.ExtensionAttribute), false);
+                    var isExtensionMethod = method.IsExtension();
                     if (isExtensionMethod)
                     { 
                         foreach (var subExpr in FlattenArgumentExpression(methodCallExpression.Arguments.First()))

@@ -11,22 +11,23 @@ namespace EastFive.Api
 {
     public class ConfigurationException : Web.ConfigurationException, IHttpResponseMessageException
     {
-        public ConfigurationException(string parameterName, Type parameterType, string message, Type resultType)
-            : base(parameterName, parameterType, message, resultType)
+        public ConfigurationException(string parameterName, Type parameterType, string message)
+            : base(parameterName, parameterType, message)
         {
         }
 
         public static TResult OnApiConfigurationFailure<TResult>(string parameterName, Type parameterType, string message)
         {
-            throw new ConfigurationException(parameterName, parameterType, message, typeof(TResult));
+            throw new ConfigurationException(parameterName, parameterType, message);
         }
 
         public static TResult OnApiConfigurationFailureWhy<TResult>(string message)
         {
-            throw new ConfigurationException(string.Empty, typeof(string), message, typeof(TResult));
+            throw new ConfigurationException(string.Empty, typeof(string), message);
         }
 
-        public HttpResponseMessage CreateResponseAsync(IApplication httpApp, HttpRequestMessage request, Dictionary<string, object> queryParameterOptions, MethodInfo method, object[] methodParameters)
+        public HttpResponseMessage CreateResponseAsync(IApplication httpApp, HttpRequestMessage request,
+            Dictionary<string, object> queryParameterOptions, MethodInfo method, object[] methodParameters)
         {
             var response = request.CreateResponse(System.Net.HttpStatusCode.InternalServerError);
             response.Content = new StringContent(this.StackTrace);

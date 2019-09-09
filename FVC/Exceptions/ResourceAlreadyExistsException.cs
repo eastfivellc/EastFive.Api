@@ -6,13 +6,10 @@ using System.Threading.Tasks;
 
 namespace EastFive.Api
 {
-    public class ResourceAlreadyExists : ResourceConflictException, IHttpResponseMessageException
+    public class ResourceAlreadyExistsException : ResourceConflictException, IHttpResponseMessageException
     {
-        private object currentOrderId;
-
-        public ResourceAlreadyExists(object currentOrderId)
+        public ResourceAlreadyExistsException()
         {
-            this.currentOrderId = currentOrderId;
         }
     }
 }

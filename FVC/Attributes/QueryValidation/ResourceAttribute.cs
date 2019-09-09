@@ -24,17 +24,17 @@ namespace EastFive.Api
             bool matchAllBodyParameters)
         {
             // TODO: Use more sophisticated method for determining POST resource type (since this can be modified in attributes
-            if (method.DeclaringType != parameterRequiringValidation.ParameterType)
-                return (new SelectParameterResult
-                {
-                    key = "",
-                    fromBody = true,
-                    fromQuery = false,
-                    fromFile = false,
-                    parameterInfo = parameterRequiringValidation,
-                    valid = false,
-                    failure = $"Inform server developer!!! `{method.DeclaringType.FullName}..{method.Name}: {this.GetType().Name}` attributes a parameter of type `{parameterRequiringValidation.ParameterType.FullName}` on a resource of type `{method.DeclaringType.FullName}`.",
-                }).AsTask();
+            //if (method.DeclaringType != parameterRequiringValidation.ParameterType)
+            //    return (new SelectParameterResult
+            //    {
+            //        key = "",
+            //        fromBody = true,
+            //        fromQuery = false,
+            //        fromFile = false,
+            //        parameterInfo = parameterRequiringValidation,
+            //        valid = false,
+            //        failure = $"Inform server developer!!! `{method.DeclaringType.FullName}..{method.Name}: {this.GetType().Name}` attributes a parameter of type `{parameterRequiringValidation.ParameterType.FullName}` on a resource of type `{method.DeclaringType.FullName}`.",
+            //    }).AsTask();
             return fetchBodyParam(string.Empty, parameterRequiringValidation.ParameterType,
                 (value) => SelectParameterResult.Body(value, string.Empty, parameterRequiringValidation),
                 (why) => SelectParameterResult.Failure(why, string.Empty, parameterRequiringValidation));

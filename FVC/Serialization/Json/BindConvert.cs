@@ -209,6 +209,15 @@ namespace EastFive.Api.Serialization
             {
                 return (T)((object)this.file);
             }
+            //if (typeof(ByteArrayContent) == typeof(T))
+            //{
+            //    if(this.file is ByteArrayContent)
+            //        return (T)((object)this.file);
+            //    var byteArrayContent = new ByteArrayContent(this.file.)
+            //    {
+            //        Headers
+            //    }
+            //}
             throw new NotImplementedException();
         }
         public object ReadObject()

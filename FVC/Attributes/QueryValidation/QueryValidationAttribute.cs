@@ -11,18 +11,13 @@ using System.Web;
 
 using BlackBarLabs.Api;
 using BlackBarLabs.Extensions;
+using EastFive.Api.Resources;
 using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Reflection;
 
 namespace EastFive.Api
 {
-    [AttributeUsage(AttributeTargets.Parameter)]
-    public class QueryDefaultParameterAttribute : System.Attribute
-    {
-
-    }
-
     [AttributeUsage(AttributeTargets.Parameter)]
     public class QueryValidationAttribute : System.Attribute, IBindApiValue
     {
@@ -44,10 +39,12 @@ namespace EastFive.Api
                     return SelectParameterResult.File(v, key, parameterRequiringValidation);
                 },
                 (whyQuery) => SelectParameterResult.Failure($"Could not create value in query, body, or file.", key, parameterRequiringValidation));
-            if(fileResult.valid)
-                if (!matchAllQueryParameters)
-                    if (!matchAllBodyParameters)
-                        return fileResult;
+            //if(fileResult.valid)
+            //    if (!matchAllQueryParameters)
+            //        if (!matchAllBodyParameters)
+            //            return fileResult;
+            if (fileResult.valid)
+                return fileResult;
 
             var queryResult = await fetchQueryParam(key.ToLower(),
                     parameterRequiringValidation.ParameterType,
@@ -66,10 +63,12 @@ namespace EastFive.Api
                         return fileResult;
                     return SelectParameterResult.Failure(whyQuery, key, parameterRequiringValidation);
                 });
+            //if (queryResult.valid)
+            //    if (!matchAllBodyParameters)
+            //        return queryResult;
             if (queryResult.valid)
-                if (!matchAllBodyParameters)
-                    return queryResult;
-            
+                return queryResult;
+
             return await fetchBodyParam(key, parameterRequiringValidation.ParameterType,
                 (v) =>
                 {
@@ -97,20 +96,20 @@ namespace EastFive.Api
         
     }
 
-    public class QueryParameterAttribute : QueryValidationAttribute
+    public class QueryParameterAttribute : QueryValidationAttribute, IDocumentParameter
     {
         public bool CheckFileName { get; set; }
 
-        public override async Task<SelectParameterResult> TryCastAsync(IApplication httpApp, 
-                HttpRequestMessage request, MethodInfo method, 
+        public override async Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
+                HttpRequestMessage request, MethodInfo method,
                 ParameterInfo parameterRequiringValidation,
                 CastDelegate<SelectParameterResult> fetchQueryParam,
-                CastDelegate<SelectParameterResult> fetchBodyParam, 
+                CastDelegate<SelectParameterResult> fetchBodyParam,
                 CastDelegate<SelectParameterResult> fetchDefaultParam,
             bool matchAllPathParameters,
             bool matchAllQueryParameters,
             bool matchAllBodyParameters)
-        { 
+        {
             var key = this.GetKey(parameterRequiringValidation);
             var queryResult = await fetchQueryParam(key, parameterRequiringValidation.ParameterType,
                 (v) =>
@@ -119,6 +118,9 @@ namespace EastFive.Api
                 },
                 (whyQuery) => SelectParameterResult.Failure(whyQuery, key, parameterRequiringValidation));
 
+            if (queryResult.valid)
+                return queryResult;
+
             if (!CheckFileName)
                 return queryResult;
 
@@ -126,17 +128,10 @@ namespace EastFive.Api
                     parameterRequiringValidation.ParameterType,
                 (v) =>
                 {
-                    if (queryResult.valid)
-                    {
-                        queryResult.fromFile = true;
-                        return queryResult;
-                    }
                     return SelectParameterResult.File(v, key, parameterRequiringValidation);
                 },
                 (whyQuery) =>
                 {
-                    if (queryResult.valid)
-                        return queryResult;
                     return SelectParameterResult.Failure(whyQuery, key, parameterRequiringValidation);
                 });
         }
@@ -144,6 +139,18 @@ namespace EastFive.Api
         public override string GetKey(ParameterInfo paramInfo)
         {
             return base.GetKey(paramInfo).ToLower();
+        }
+
+        public virtual Parameter GetParameter(ParameterInfo paramInfo, HttpApplication httpApp)
+        {
+            return new Parameter()
+            {
+                Default = CheckFileName,
+                Name = this.GetKey(paramInfo),
+                Required = true,
+                Type = Parameter.GetTypeName(paramInfo.ParameterType, httpApp),
+                Where = "QUERY",
+            };
         }
     }
 
@@ -163,24 +170,31 @@ namespace EastFive.Api
                 parameterRequiringValidation,
                 fetchQueryParam, fetchBodyParam, fetchDefaultParam,
                 matchAllPathParameters, matchAllQueryParameters, matchAllBodyParameters);
-            if (!baseValue.valid)
-            {
-                baseValue.value = GetValue();
-                baseValue.valid = true;
-                baseValue.fromQuery = true;
-                object GetValue()
-                {
-                    if (parameterRequiringValidation.ParameterType.IsSubClassOfGeneric(typeof(IRefOptional<>)))
-                    {
-                        var instanceType = typeof(RefOptional<>).MakeGenericType(
-                            parameterRequiringValidation.ParameterType.GenericTypeArguments);
-                        return Activator.CreateInstance(instanceType, new object[] { });
-                    }
+            if (baseValue.valid)
+                return baseValue;
 
-                    return parameterRequiringValidation.ParameterType.GetDefault();
-                }
-            }
+            baseValue.value = GetValue();
+            baseValue.valid = true;
+            baseValue.fromQuery = true;
             return baseValue;
+            object GetValue()
+            {
+                if (parameterRequiringValidation.ParameterType.IsSubClassOfGeneric(typeof(IRefOptional<>)))
+                {
+                    var instanceType = typeof(RefOptional<>).MakeGenericType(
+                        parameterRequiringValidation.ParameterType.GenericTypeArguments);
+                    return Activator.CreateInstance(instanceType, new object[] { });
+                }
+
+                return parameterRequiringValidation.ParameterType.GetDefault();
+            }
+        }
+
+        public override Parameter GetParameter(ParameterInfo paramInfo, HttpApplication httpApp)
+        {
+            var parameter = base.GetParameter(paramInfo, httpApp);
+            parameter.Required = false;
+            return parameter;
         }
     }
 
@@ -213,9 +227,16 @@ namespace EastFive.Api
                 parameterRequiringValidation, fetchQueryParam, fetchBodyParam, fetchDefaultParam,
                 matchAllPathParameters, matchAllQueryParameters, matchAllBodyParameters);
         }
+
+        public override Parameter GetParameter(ParameterInfo paramInfo, HttpApplication httpApp)
+        {
+            var parameter = base.GetParameter(paramInfo, httpApp);
+            parameter.Default = true;
+            return parameter;
+        }
     }
 
-    public class UpdateIdAttribute : QueryValidationAttribute
+    public class UpdateIdAttribute : QueryValidationAttribute, IDocumentParameter
     {
         public override string Name
         {
@@ -227,6 +248,18 @@ namespace EastFive.Api
                 return "id";
             }
             set => base.Name = value;
+        }
+
+        public Parameter GetParameter(ParameterInfo paramInfo, HttpApplication httpApp)
+        {
+            return new Parameter()
+            {
+                Default = true,
+                Name = this.GetKey(paramInfo),
+                Required = true,
+                Type = Parameter.GetTypeName(paramInfo.ParameterType, httpApp),
+                Where = "QUERY|BODY",
+            };
         }
     }
 
@@ -436,7 +469,7 @@ namespace EastFive.Api
         }
     }
 
-    public class PropertyAttribute : QueryValidationAttribute
+    public class PropertyAttribute : QueryValidationAttribute, IDocumentParameter
     {
         public override Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
                 HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
@@ -590,6 +623,18 @@ namespace EastFive.Api
             
             return onInvalid($"Could not convert `{value.GetType().FullName}` to `{type.FullName}`.");
         }
+
+        public virtual Parameter GetParameter(ParameterInfo paramInfo, HttpApplication httpApp)
+        {
+            return new Parameter()
+            {
+                Default = false,
+                Name = this.GetKey(paramInfo),
+                Required = true,
+                Type = Parameter.GetTypeName(paramInfo.ParameterType, httpApp),
+                Where = "BODY",
+            };
+        }
     }
 
     public class PropertyOptionalAttribute : PropertyAttribute
@@ -644,6 +689,13 @@ namespace EastFive.Api
 
                 return parameterType.GetDefault();
             }
+        }
+
+        public override Parameter GetParameter(ParameterInfo paramInfo, HttpApplication httpApp)
+        {
+            var parameter = base.GetParameter(paramInfo, httpApp);
+            parameter.Required = false;
+            return parameter;
         }
     }
 }

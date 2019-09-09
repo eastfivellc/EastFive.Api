@@ -28,9 +28,11 @@ using RazorEngine.Templating;
 using System.Security;
 using System.Security.Permissions;
 using EastFive.Api.Serialization;
+using System.Net.Http.Headers;
 
 namespace EastFive.Api
 {
+    [ApiResourcesAttribute(NameSpacePrefixes = "EastFive.Api,EastFive.Web")]
     public class HttpApplication : System.Web.HttpApplication, IApplication
     {
         public virtual string Namespace
@@ -446,6 +448,7 @@ namespace EastFive.Api
         #region Load Controllers
 
         private static IDictionary<string, Type> routeResourceTypeLookup;
+        private static IDictionary<Type, MethodInfo[]> routeResourceExtensionLookup;
         private static Type[] resources;
         private static IDictionary<Type, string> contentTypeLookup;
         private static IDictionary<string, Type> resourceNameControllerLookup;
@@ -455,14 +458,38 @@ namespace EastFive.Api
 
         private void LocateControllers()
         {
+            var limitedAssemblyQuery = this.GetType()
+                .GetAttributesInterface<IApiResources>(inherit: true, multiple: true);
             var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies()
                 .Where(assembly => (!assembly.GlobalAssemblyCache))
+                .Where(assembly => limitedAssemblyQuery
+                    .First(
+                        (q,n) =>
+                        {
+                            if (q.ShouldCheckAssembly(assembly))
+                                return true;
+                            return n();
+                        },
+                        () => false))
                 .ToArray();
 
             lock (lookupLock)
             {
                 AppDomain.CurrentDomain.AssemblyLoad += (object sender, AssemblyLoadEventArgs args) =>
                 {
+                    if (args.LoadedAssembly.GlobalAssemblyCache)
+                        return;
+                    var check = limitedAssemblyQuery
+                        .First(
+                            (q, n) =>
+                            {
+                                if (q.ShouldCheckAssembly(args.LoadedAssembly))
+                                    return true;
+                                return n();
+                            },
+                            () => false);
+                    if (!check)
+                        return;
                     lock (lookupLock)
                     {
                         AddControllersFromAssembly(args.LoadedAssembly);
@@ -515,6 +542,20 @@ namespace EastFive.Api
                     .Concat(functionViewControllerAttributesAndTypes.SelectValues())
                     .Distinct(type => type.GUID)
                     .ToArray();
+
+                var extendedMethods = types
+                    .Where(type => type.ContainsAttributeInterface<IInvokeExtensions>())
+                    .SelectMany(
+                        (type) =>
+                        {
+                            var attr = type.GetAttributesInterface<IInvokeExtensions>().First();
+                            return attr.GetResourcesExtended(type);
+                        })
+                    .ToArray();
+                routeResourceExtensionLookup = extendedMethods
+                    .ToDictionaryCollapsed((t1, t2) => t1.FullName == t2.FullName)
+                    .Concat(routeResourceExtensionLookup.NullToEmpty())
+                    .ToDictionary();
 
                 routeResourceTypeLookup = routeResourceTypeLookup
                     .NullToEmpty()
@@ -1043,6 +1084,47 @@ namespace EastFive.Api
                             return response;
                         };
                         return success((object)dele);
+                    }
+                },
+                { // 200
+                    typeof(Controllers.BytesResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.BytesResponse dele = (bytes, filename, contentType, inline) =>
+                        {
+                            var response = request.CreateResponse(HttpStatusCode.OK);
+                            response.Content = new ByteArrayContent(bytes);
+                            if(contentType.HasBlackSpace())
+                                response.Content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+                            if (inline.HasValue)
+                                response.Content.Headers.ContentDisposition =
+                                    new ContentDispositionHeaderValue(inline.Value ? "inline" : "attachment")
+                                    {
+                                        FileName = filename,
+                                    };
+                            return response;
+                        };
+                        return success(dele);
+                    }
+                },
+                {
+                    typeof(Controllers.ImageResponse),
+                    (httpApp, request, paramInfo, success) =>
+                    {
+                        Controllers.ImageResponse dele = (imageData, width, height, fill,
+                            filename, contentType) =>
+                        {
+                            if (width.HasValue || height.HasValue || fill.HasValue)
+                            {
+                                var image = System.Drawing.Image.FromStream(new MemoryStream(imageData));
+                                return request.CreateImageResponse(image, width, height, fill, filename);
+                            }
+                            var response = request.CreateResponse(HttpStatusCode.OK);
+                            response.Content = new ByteArrayContent(imageData);
+                            response.Content.Headers.ContentType = new MediaTypeHeaderValue(String.IsNullOrWhiteSpace(contentType) ? "image/png" : contentType);
+                            return response;
+                        };
+                        return success(dele);
                     }
                 },
                 { // 200
@@ -2311,6 +2393,11 @@ namespace EastFive.Api
                 var content = tokenReader.ReadObject<HttpContent>();
                 return onParsed((object)content);
             }
+            if (type.IsAssignableFrom(typeof(ByteArrayContent)))
+            {
+                var content = tokenReader.ReadObject<ByteArrayContent>();
+                return onParsed((object)content);
+            }
             return this.Bind(type, tokenReader,
                 (value) =>
                 {
@@ -2340,6 +2427,13 @@ namespace EastFive.Api
             }
 
             return false;
+        }
+
+        public IEnumerable<MethodInfo> GetExtensionMethods(Type controllerType)
+        {
+            if (routeResourceExtensionLookup.ContainsKey(controllerType))
+                return routeResourceExtensionLookup[controllerType];
+            return new MethodInfo[] { };
         }
 
         #endregion
