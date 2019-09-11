@@ -22,9 +22,22 @@ namespace EastFive.Api
         public KeyValuePair<Type, MethodInfo>[] GetResourcesExtended(Type extensionType)
         {
             return extensionType.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
-                .Where(method => method.IsExtension())
+                .Where(method => method.IsExtension() || method.ContainsCustomAttribute<ExtensionAttribute>())
                 .Where(method => method.ContainsAttributeInterface<IMatchRoute>(true))
-                .Select(method => method.PairWithKey(method.GetParameters().First().ParameterType))
+                .Select(
+                    method =>
+                    {
+                        if (method.ContainsCustomAttribute<ExtensionAttribute>())
+                        {
+                            var type = method.GetCustomAttribute<ExtensionAttribute>().ExtendedResourceType;
+                            return method.PairWithKey(type);
+                        }
+                        // if(meethod.IsExtension())
+                        {
+                            var type = method.GetParameters().First().ParameterType;
+                            return method.PairWithKey(type);
+                        }
+                    })
                 .ToArray();
         }
     }

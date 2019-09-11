@@ -150,6 +150,7 @@
     <Compile Include="Extensions\ClaimsExtensions.cs" />
     <Compile Include="Extensions\HttpConfigurationExtensions.cs" />
     <Compile Include="Extensions\HttpHeaderExtensions.cs" />
+    <Compile Include="Extensions\ImageExtensions.cs" />
     <Compile Include="Extensions\QueryExtensions.IntQueries.cs" />
     <Compile Include="Extensions\QueryExtensions.BoolQueries.cs" />
     <Compile Include="Extensions\QueryExtensions.ParseMethods.cs" />
@@ -167,6 +168,7 @@
     <Compile Include="Extensions\WebUrnExtensions.cs" />
     <Compile Include="Extensions\ValidationExtensions.cs" />
     <Compile Include="FVC\Attributes\ApiIdAttribute.cs" />
+    <Compile Include="FVC\Attributes\ExtensionAttribute.cs" />
     <Compile Include="FVC\Attributes\IApiResources.cs" />
     <Compile Include="FVC\Attributes\Instigation\IInstigatable.cs" />
     <Compile Include="FVC\Attributes\QueryValidation\AuthorizationAttribute.cs" />

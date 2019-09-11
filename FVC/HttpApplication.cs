@@ -682,7 +682,14 @@ namespace EastFive.Api
 
             HttpResponseMessage ContentTypeResponse(object content, string contentTypeString = default(string))
             {
-                return typeof(T1)
+                Type GetType(Type type)
+                {
+                    if (type.IsArray)
+                        return GetType(type.GetElementType());
+                    return type;
+                }
+
+                return GetType(typeof(T1))
                     .GetAttributesInterface<IProvideSerialization>()
                     .Select(
                         serializeAttr =>
@@ -2305,7 +2312,21 @@ namespace EastFive.Api
             if (content.IsMimeMultipartContent())
             {
                 var streamProvider = new MultipartMemoryStreamProvider();
-                await content.ReadAsMultipartAsync(streamProvider);
+                try
+                {
+                    await content.ReadAsMultipartAsync(streamProvider);
+                } catch(System.IO.IOException readError)
+                {
+                    ParseContentDelegateAsync<TParseResult> errorParser =
+                        (key, type, onFound, onFailure) =>
+                        {
+                            if(readError.InnerException.IsDefaultOrNull())
+                                return onFailure(readError.Message).AsTask();
+
+                            return onFailure($"{readError.Message}:{readError.InnerException.Message}").AsTask();
+                        };
+                    return await onParsedContentValues(errorParser, new string[] { });
+                }
                 var contentsLookup = await streamProvider.Contents
                     .SelectAsyncOptional<HttpContent, KeyValuePair<string, IParseToken>>(
                         async (file, select, skip) =>
