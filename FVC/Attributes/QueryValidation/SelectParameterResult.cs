@@ -9,7 +9,21 @@ namespace EastFive.Api
 {
     public struct SelectParameterResult
     {
-        public static SelectParameterResult Failure(string why, string key, ParameterInfo parameterInfo)
+        public static SelectParameterResult FailureFile(string why, string key, ParameterInfo parameterInfo)
+        {
+            return new SelectParameterResult
+            {
+                valid = false,
+                value = default(object),
+                failure = why,
+                parameterInfo = parameterInfo,
+                fromQuery = false,
+                fromBody = false,
+                key = key,
+            };
+        }
+
+        public static SelectParameterResult FailureQuery(string why, string key, ParameterInfo parameterInfo)
         {
             return new SelectParameterResult
             {
@@ -18,6 +32,34 @@ namespace EastFive.Api
                 failure = why,
                 parameterInfo = parameterInfo,
                 fromQuery = true,
+                fromBody = false,
+                key = key,
+            };
+        }
+
+        public static SelectParameterResult FailureBody(string why, string key, ParameterInfo parameterInfo)
+        {
+            return new SelectParameterResult
+            {
+                valid = false,
+                value = default(object),
+                failure = why,
+                parameterInfo = parameterInfo,
+                fromQuery = false,
+                fromBody = true,
+                key = key,
+            };
+        }
+
+        public static SelectParameterResult FailureHeader(string why, string key, ParameterInfo parameterInfo)
+        {
+            return new SelectParameterResult
+            {
+                valid = false,
+                value = default(object),
+                failure = why,
+                parameterInfo = parameterInfo,
+                fromQuery = false,
                 fromBody = false,
                 key = key,
             };

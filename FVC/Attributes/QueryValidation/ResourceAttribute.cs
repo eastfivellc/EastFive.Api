@@ -37,7 +37,7 @@ namespace EastFive.Api
             //    }).AsTask();
             return fetchBodyParam(string.Empty, parameterRequiringValidation.ParameterType,
                 (value) => SelectParameterResult.Body(value, string.Empty, parameterRequiringValidation),
-                (why) => SelectParameterResult.Failure(why, string.Empty, parameterRequiringValidation));
+                (why) => SelectParameterResult.FailureBody(why, string.Empty, parameterRequiringValidation));
         }
 
         public RequestMessage<TResource> BindContent<TResource>(RequestMessage<TResource> request,

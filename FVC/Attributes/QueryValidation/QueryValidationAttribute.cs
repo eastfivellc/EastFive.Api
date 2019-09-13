@@ -38,7 +38,9 @@ namespace EastFive.Api
                 {
                     return SelectParameterResult.File(v, key, parameterRequiringValidation);
                 },
-                (whyQuery) => SelectParameterResult.Failure($"Could not create value in query, body, or file.", key, parameterRequiringValidation));
+                (whyQuery) => SelectParameterResult.FailureFile(
+                    $"Could not create value in query, body, or file.", 
+                    key, parameterRequiringValidation));
             //if(fileResult.valid)
             //    if (!matchAllQueryParameters)
             //        if (!matchAllBodyParameters)
@@ -61,7 +63,7 @@ namespace EastFive.Api
                 {
                     if (fileResult.valid)
                         return fileResult;
-                    return SelectParameterResult.Failure(whyQuery, key, parameterRequiringValidation);
+                    return SelectParameterResult.FailureQuery(whyQuery, key, parameterRequiringValidation);
                 });
             //if (queryResult.valid)
             //    if (!matchAllBodyParameters)
@@ -83,7 +85,7 @@ namespace EastFive.Api
                 {
                     if (queryResult.valid)
                         return queryResult;
-                    return SelectParameterResult.Failure(whyQuery, key, parameterRequiringValidation);
+                    return SelectParameterResult.FailureBody(whyQuery, key, parameterRequiringValidation);
                 });
         }
 
@@ -116,7 +118,7 @@ namespace EastFive.Api
                 {
                     return SelectParameterResult.Query(v, key, parameterRequiringValidation);
                 },
-                (whyQuery) => SelectParameterResult.Failure(whyQuery, key, parameterRequiringValidation));
+                (whyQuery) => SelectParameterResult.FailureQuery(whyQuery, key, parameterRequiringValidation));
 
             if (queryResult.valid)
                 return queryResult;
@@ -132,7 +134,7 @@ namespace EastFive.Api
                 },
                 (whyQuery) =>
                 {
-                    return SelectParameterResult.Failure(whyQuery, key, parameterRequiringValidation);
+                    return queryResult;
                 });
         }
 
@@ -483,7 +485,7 @@ namespace EastFive.Api
             var name = this.GetKey(parameterRequiringValidation);
             return fetchBodyParam(name, parameterRequiringValidation.ParameterType,
                 vCasted => SelectParameterResult.Body(vCasted, name, parameterRequiringValidation),
-                why => SelectParameterResult.Failure(why, name, parameterRequiringValidation));
+                why => SelectParameterResult.FailureBody(why, name, parameterRequiringValidation));
 
         }
 

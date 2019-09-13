@@ -45,7 +45,7 @@ namespace EastFive.Api
                                                     new object[] { accountId });
                                                 return SelectParameterResult.Header(refInstance, "Authentication", parameterRequiringValidation);
                                             }
-                                            return SelectParameterResult.Failure(
+                                            return SelectParameterResult.FailureHeader(
                                                 $"Inform server developer type `{parameterRequiringValidation.ParameterType.FullName}` is not a valid Authorization result.",
                                                 "Authentication", parameterRequiringValidation);
                                         }
@@ -53,16 +53,16 @@ namespace EastFive.Api
                                     },
                                     () =>
                                     {
-                                        return SelectParameterResult.Failure("Account is not set in token",
+                                        return SelectParameterResult.FailureHeader("Account is not set in token",
                                             "Authentication", parameterRequiringValidation);
                                     });
 
                         },
-                        (why) => SelectParameterResult.Failure(why, "Authentication", parameterRequiringValidation));
+                        (why) => SelectParameterResult.FailureHeader(why, "Authentication", parameterRequiringValidation));
                 },
-                () => SelectParameterResult.Failure("Authentication header not set.",
+                () => SelectParameterResult.FailureHeader("Authentication header not set.",
                     "Authentication", parameterRequiringValidation),
-                (why) => SelectParameterResult.Failure(why, "Authentication", parameterRequiringValidation));
+                (why) => SelectParameterResult.FailureHeader(why, "Authentication", parameterRequiringValidation));
         }
 
         public virtual string GetKey(ParameterInfo paramInfo)
