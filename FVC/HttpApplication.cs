@@ -554,7 +554,7 @@ namespace EastFive.Api
                     .ToArray();
                 routeResourceExtensionLookup = extendedMethods
                     .ToDictionaryCollapsed((t1, t2) => t1.FullName == t2.FullName)
-                    .Concat(routeResourceExtensionLookup.NullToEmpty())
+                    .Concat(routeResourceExtensionLookup.NullToEmpty().Where(kvp => !extendedMethods.Contains(kvp2 => kvp2.Key == kvp.Key)))
                     .ToDictionary();
 
                 routeResourceTypeLookup = routeResourceTypeLookup

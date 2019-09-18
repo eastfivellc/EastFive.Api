@@ -28,6 +28,73 @@ namespace EastFive.Api
 {
     public static class InvokeApplicationExtensions
     {
+        public static HttpRequestMessage Method<TResource>(this IQueryable<TResource> requestQuery,
+            HttpMethod method, 
+            Func<HttpRequestMessage, HttpRequestMessage> requestMutation = default)
+        {
+            if (requestMutation.IsDefaultOrNull())
+                requestMutation = r => r;
+            var request = (requestQuery as RequestMessage<TResource>);
+            return typeof(TResource).GetAttributesInterface<IInvokeResource>(true)
+                .First<IInvokeResource, HttpRequestMessage>(
+                    (fvcAttr,next) =>
+                    {
+                        var httpRequest = requestMutation(request.Request(method));
+                        return httpRequest;
+                    },
+                    () =>
+                    {
+                        throw new Exception($"Type {typeof(TResource).FullName} does not have FunctionViewControllerAttribute");
+                    });
+        }
+
+        public static HttpRequestMessage HttpGet<TResource>(this IQueryable<TResource> requestQuery)
+        {
+            return requestQuery.Method<TResource>(HttpMethod.Get);
+        }
+
+        public static HttpRequestMessage Post<TResource>(this IQueryable<TResource> requestQuery, TResource resource)
+        {
+            return requestQuery.Method<TResource>(HttpMethod.Post,
+                request =>
+                {
+                    var contentJsonString = JsonConvert.SerializeObject(resource, new Serialization.Converter());
+                    request.Content = new StreamContent(contentJsonString.ToStream());
+                    request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+                    return request;
+                });
+        }
+
+        public static HttpRequestMessage Patch<TResource>(this IQueryable<TResource> requestQuery, TResource resource)
+        {
+            return requestQuery.Method<TResource>(new HttpMethod("patch"),
+                    request =>
+                    {
+                        var settings = new JsonSerializerSettings();
+                        settings.Converters.Add(new Serialization.Converter());
+                        settings.DefaultValueHandling = DefaultValueHandling.Ignore;
+                        var contentJsonString = JsonConvert.SerializeObject(resource, settings);
+                        request.Content = new StreamContent(contentJsonString.ToStream());
+                        request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+                        return request;
+                    });
+        }
+
+        public static HttpRequestMessage HttpDelete<TResource>(this IQueryable<TResource> requestQuery)
+        {
+            return requestQuery.Method<TResource>(HttpMethod.Delete);
+        }
+
+        public static HttpRequestMessage Action<TResource>(this IQueryable<TResource> requestQuery, string actionName)
+        {
+            return requestQuery.Method<TResource>(HttpMethod.Get,
+                request =>
+                {
+                    request.RequestUri = request.RequestUri.AppendToPath(actionName);
+                    return request;
+                });
+        }
+
         public static Task<TResult> MethodAsync<TResource, TResult>(this RequestMessage<TResource> request,
                 HttpMethod method, Func<HttpRequestMessage, HttpRequestMessage> requestMutation,
                 Func<HttpResponseMessage, TResult> onResponse = default,

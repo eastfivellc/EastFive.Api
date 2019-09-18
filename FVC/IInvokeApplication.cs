@@ -75,7 +75,7 @@ namespace EastFive.Api
             private HttpApplication httpApp;
             private HttpRequestMessage request;
 
-            private string[] apiRoute;
+            //private string[] apiRoute;
 
             public override IApplication Application => httpApp;
 
