@@ -1943,6 +1943,14 @@ namespace EastFive.Api
 
             if (type.IsGenericType)
             {
+                if(type.IsNullable())
+                {
+                    if(!CanBind(type.GenericTypeArguments.First()))
+                    {
+                        return false;
+                    }
+                }
+
                 var possibleGenericInstigator = this.bindingsGeneric
                     .Where(
                         instigatorKvp =>
