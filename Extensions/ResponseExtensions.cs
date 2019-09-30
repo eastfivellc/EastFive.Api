@@ -771,6 +771,27 @@ namespace BlackBarLabs.Api
             return response;
         }
 
+        public static HttpResponseMessage CreateImageResponse(this HttpRequestMessage request,
+            Image image,
+            string filename = default(string),
+            string contentType = "image/jpeg")
+        {
+            var response = request.CreateResponse(HttpStatusCode.OK);
+            
+            var encoder = getEncoderInfo(contentType);
+            response.Content = new PushStreamContent(
+                async (outputStream, httpContent, transportContext) =>
+                {
+                    var encoderParameters = new EncoderParameters(1);
+                    encoderParameters.Param[0] = new EncoderParameter(Encoder.Quality, 80L);
+
+                    image.Save(outputStream, encoder, encoderParameters);
+                    outputStream.Close();
+                }, new MediaTypeHeaderValue(encoder.MimeType));
+            //TODO: response.Content.Headers. = filename
+            return response;
+        }
+
         private static ImageCodecInfo getEncoderInfo(string mimeType)
         {
             ImageCodecInfo[] encoders = ImageCodecInfo.GetImageEncoders();
