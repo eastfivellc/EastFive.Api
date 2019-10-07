@@ -1,4 +1,5 @@
 ﻿using BlackBarLabs.Api;
+using EastFive.Extensions;
 using EastFive.Linq;
 using System;
 using System.Collections.Generic;
@@ -13,7 +14,7 @@ namespace EastFive.Api
 {
     public class AuthorizationAttribute : System.Attribute, IBindApiValue
     {
-        public virtual async Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
+        public virtual Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
                 HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
                 Api.CastDelegate<SelectParameterResult> fetchQueryParam,
                 Api.CastDelegate<SelectParameterResult> fetchBodyParam,
@@ -62,7 +63,7 @@ namespace EastFive.Api
                 },
                 () => SelectParameterResult.FailureHeader("Authentication header not set.",
                     "Authentication", parameterRequiringValidation),
-                (why) => SelectParameterResult.FailureHeader(why, "Authentication", parameterRequiringValidation));
+                (why) => SelectParameterResult.FailureHeader(why, "Authentication", parameterRequiringValidation)).AsTask();
         }
 
         public virtual string GetKey(ParameterInfo paramInfo)

@@ -15,6 +15,7 @@ using EastFive.Api.Resources;
 using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Reflection;
+using EastFive.Serialization;
 
 namespace EastFive.Api
 {
@@ -235,6 +236,47 @@ namespace EastFive.Api
             var parameter = base.GetParameter(paramInfo, httpApp);
             parameter.Default = true;
             return parameter;
+        }
+    }
+
+    public class HashedFileAttribute : QueryValidationAttribute, IDocumentParameter
+    {
+        public override Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
+                HttpRequestMessage request, MethodInfo method,
+                ParameterInfo parameterRequiringValidation,
+                CastDelegate<SelectParameterResult> fetchQueryParam,
+                CastDelegate<SelectParameterResult> fetchBodyParam,
+                CastDelegate<SelectParameterResult> fetchDefaultParam,
+            bool matchAllPathParameters,
+            bool matchAllQueryParameters,
+            bool matchAllBodyParameters)
+        {
+            var key = this.GetKey(parameterRequiringValidation);
+            return request.RequestUri
+                .VerifyParametersHash(
+                    onValid:(id, paramsHash) =>
+                    {
+                        var resourceType = parameterRequiringValidation
+                            .ParameterType.GenericTypeArguments.First();
+                        var instantiatableType = typeof(CheckSumRef<>).MakeGenericType(resourceType);
+                        var instance = Activator.CreateInstance(instantiatableType, new object[] { id, paramsHash });
+                        return SelectParameterResult.File(instance, key, parameterRequiringValidation);
+                    },
+                    onInvalid:(why) => SelectParameterResult
+                        .FailureFile(why, key, parameterRequiringValidation))
+                .AsTask();
+        }
+
+        public virtual Parameter GetParameter(ParameterInfo paramInfo, HttpApplication httpApp)
+        {
+            return new Parameter()
+            {
+                Default = true,
+                Name = this.GetKey(paramInfo),
+                Required = true,
+                Type = $"Hashed({Parameter.GetTypeName(paramInfo.ParameterType.GenericTypeArguments.First(), httpApp)})",
+                Where = "QUERY",
+            };
         }
     }
 

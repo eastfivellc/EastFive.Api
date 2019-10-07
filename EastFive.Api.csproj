@@ -232,6 +232,7 @@
     <Compile Include="Razor\GenericReferenceResolver.cs" />
     <Compile Include="Razor\HtmlSupportTemplateBase.cs" />
     <Compile Include="Razor\RazorTemplateManager.cs" />
+    <Compile Include="Resources\CheckSumRef.cs" />
     <Compile Include="Resources\Exceptions.cs" />
     <Compile Include="Resources\Manifest.cs" />
     <Compile Include="Resources\Manifest\Method.cs" />

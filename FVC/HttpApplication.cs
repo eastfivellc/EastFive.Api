@@ -216,7 +216,7 @@ namespace EastFive.Api
                 },
                 () => onMatchingResourceNotFound());
         }
-        
+
         public string GetResourceMime(Type type)
         {
             if (type.IsDefaultOrNull())
@@ -292,15 +292,15 @@ namespace EastFive.Api
         public delegate Uri ControllerHandlerDelegate(
                 HttpApplication httpApp, UrlHelper urlHelper, ParameterInfo parameterInfo,
             Func<Type, string, Uri> onSuccess);
-        
-        
+
+
         public Type[] GetResources()
         {
             return resources;
         }
 
         public TResult GetControllerType<TResult>(string routeName,
-            Func<Type, TResult> onMethodsIdentified, 
+            Func<Type, TResult> onMethodsIdentified,
             Func<TResult> onKeyNotFound)
         {
             var routeNameLower = routeName.ToLower();
@@ -464,7 +464,7 @@ namespace EastFive.Api
                 .Where(assembly => (!assembly.GlobalAssemblyCache))
                 .Where(assembly => limitedAssemblyQuery
                     .First(
-                        (q,n) =>
+                        (q, n) =>
                         {
                             if (q.ShouldCheckAssembly(assembly))
                                 return true;
@@ -534,7 +534,7 @@ namespace EastFive.Api
                     .Duplicates((kvp1, kvp2) => kvp1.Key.Route == kvp2.Key.Route)
                     .Where(kvp => kvp.Key.Route.HasBlackSpace())
                     .Distinct(kvp => kvp.Key.Route);
-                if(duplicateRoutes.Any())
+                if (duplicateRoutes.Any())
                     throw new Exception($"Duplicate routes:{duplicateRoutes.SelectKeys(attr => attr.Route).Join(",")}");
 
                 resources = resources
@@ -1475,7 +1475,7 @@ namespace EastFive.Api
                 #endregion
 
             };
-        
+
         public void AddInstigator(Type type, InstigatorDelegate instigator)
         {
             instigators.Add(type, instigator);
@@ -1500,7 +1500,7 @@ namespace EastFive.Api
             Func<object, Task<HttpResponseMessage>> onInstigated)
         {
             var instigationAttrs = methodParameter.ParameterType.GetAttributesInterface<IInstigatable>();
-            if(instigationAttrs.Any())
+            if (instigationAttrs.Any())
             {
                 var instigationAttr = instigationAttrs.First();
                 return instigationAttr.Instigate(this, request, methodParameter,
@@ -1943,9 +1943,9 @@ namespace EastFive.Api
 
             if (type.IsGenericType)
             {
-                if(type.IsNullable())
+                if (type.IsNullable())
                 {
-                    if(!CanBind(type.GenericTypeArguments.First()))
+                    if (!CanBind(type.GenericTypeArguments.First()))
                     {
                         return false;
                     }
@@ -1965,6 +1965,26 @@ namespace EastFive.Api
             }
 
             return false;
+        }
+
+        public TResult Bind<T, TResult>(Serialization.IParseToken content,
+            Func<T, TResult> onParsed,
+            Func<string, TResult> onDidNotBind)
+        {
+            return Bind(typeof(T), content,
+                (obj) =>
+                {
+                    if (obj.IsDefaultOrNull())
+                        return onParsed((T)obj);
+                    
+                    if (typeof(T).IsAssignableFrom(obj.GetType()))
+                    {
+                        var result = (T)obj;
+                        return onParsed(result);
+                    }
+                    return onDidNotBind($"Could not cast {obj.GetType().FullName} to `{typeof(T).FullName}`.");
+                }, 
+                onDidNotBind);
         }
 
         public TResult Bind<TResult>(Type type, Serialization.IParseToken content,
@@ -2435,28 +2455,28 @@ namespace EastFive.Api
                 why => onFailure(why));
         }
 
-        internal bool CanExtrude(Type type)
-        {
-            if (this.bindings.ContainsKey(type))
-                return true;
+        //internal bool CanExtrude(Type type)
+        //{
+        //    if (this.bindings.ContainsKey(type))
+        //        return true;
 
-            if (type.IsGenericType)
-            {
-                var possibleGenericInstigator = this.bindingsGeneric
-                    .Where(
-                        instigatorKvp =>
-                        {
-                            if (instigatorKvp.Key.GUID == type.GUID)
-                                return true;
-                            if (type.IsAssignableFrom(instigatorKvp.Key))
-                                return true;
-                            return false;
-                        });
-                return possibleGenericInstigator.Any();
-            }
+        //    if (type.IsGenericType)
+        //    {
+        //        var possibleGenericInstigator = this.bindingsGeneric
+        //            .Where(
+        //                instigatorKvp =>
+        //                {
+        //                    if (instigatorKvp.Key.GUID == type.GUID)
+        //                        return true;
+        //                    if (type.IsAssignableFrom(instigatorKvp.Key))
+        //                        return true;
+        //                    return false;
+        //                });
+        //        return possibleGenericInstigator.Any();
+        //    }
 
-            return false;
-        }
+        //    return false;
+        //}
 
         public IEnumerable<MethodInfo> GetExtensionMethods(Type controllerType)
         {
