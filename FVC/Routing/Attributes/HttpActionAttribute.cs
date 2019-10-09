@@ -47,12 +47,12 @@ namespace EastFive.Api
                 .ToArray();
             pathKeys = path.Skip(3).ToArray();
             CastDelegate<SelectParameterResult> fileNameCastDelegate =
-                (query, type, onParsed, onFailure) =>
+                (paramInfo, onParsed, onFailure) =>
                 {
                     if (path.Length < 4)
                         return onFailure("No URI filename value provided.").AsTask();
                     return httpApp
-                        .Bind(type,
+                        .Bind(paramInfo.ParameterType,
                                 new QueryParamTokenParser(path[3]),
                             v => onParsed(v),
                             (why) => onFailure(why))

@@ -29,6 +29,7 @@ using System.Security;
 using System.Security.Permissions;
 using EastFive.Api.Serialization;
 using System.Net.Http.Headers;
+using System.Xml;
 
 namespace EastFive.Api
 {
@@ -2245,7 +2246,7 @@ namespace EastFive.Api
             Task<TResult> InvalidContent(string errorMessage)
             {
                 ParseContentDelegateAsync<TParseResult> parser =
-                    (key, type, onFound, onFailure) =>
+                    (app, request, paramInfo, onFound, onFailure) =>
                         onFailure(errorMessage).AsTask();
                 return onParsedContentValues(parser, new string[] { });
             }
@@ -2260,9 +2261,14 @@ namespace EastFive.Api
                 if (!contentString.HasBlackSpace())
                 {
                     ParseContentDelegateAsync<TParseResult> exceptionParser =
-                        async (key, type, onFound, onFailure) =>
+                        (paramInfo, app, request, onFound, onFailure) =>
                         {
-                            return onFailure($"[{key}] was not provided (JSON body content was empty).");
+                            var key = paramInfo
+                                        .GetAttributeInterface<IBindApiValue>()
+                                        .GetKey(paramInfo)
+                                        .ToLower();
+                            var type = paramInfo.ParameterType;
+                            return onFailure($"[{key}] was not provided (JSON body content was empty).").AsTask();
                         };
                     return await onParsedContentValues(exceptionParser, exceptionKeys);
                 }
@@ -2275,66 +2281,75 @@ namespace EastFive.Api
                 catch (Exception ex)
                 {
                     ParseContentDelegateAsync<TParseResult> exceptionParser =
-                        async (key, type, onFound, onFailure) =>
+                        async (app, request, paramInfo, onFound, onFailure) =>
                         {
                             return onFailure(ex.Message);
                         };
                     return await onParsedContentValues(exceptionParser, exceptionKeys);
                 }
                 ParseContentDelegateAsync<TParseResult> parser =
-                    async (key, type, onFound, onFailure) =>
+                    (paramInfo, app, request, onFound, onFailure) =>
                     {
-                        if (key.IsNullOrWhiteSpace() || key == ".")
-                        {
-                            try
-                            {
-                                var rootObject = Newtonsoft.Json.JsonConvert.DeserializeObject(
-                                    contentString, type, bindConvert);
-                                return onFound(rootObject);
-                            }
-                            catch (Exception ex)
-                            {
-                                return onFailure(ex.Message);
-                            }
-                        }
-
-                        if (!contentJObject.TryGetValue(key, out Newtonsoft.Json.Linq.JToken valueToken))
-                            return await onFailure($"Key[{key}] was not found in JSON").AsTask();
-
-                        try
-                        {
-                            var tokenParser = new JsonTokenParser(valueToken);
-                            return ContentToTypeAsync(type, tokenParser,
-                                obj => onFound(obj),
-                                (why) =>
-                                {
-                                    if (valueToken.Type == JTokenType.Object || valueToken.Type == JTokenType.Array)
-                                    {
-                                        try
-                                        {
-                                            var value = Newtonsoft.Json.JsonConvert.DeserializeObject(
-                                                valueToken.ToString(), type, bindConvert);
-                                            // var value = valueToken.ToObject(type);
-                                            return onFound(value);
-                                        }
-                                        catch (Newtonsoft.Json.JsonSerializationException)
-                                        {
-                                            throw;
-                                        }
-                                    }
-                                    return onFailure(why);
-                                });
-                        }
-                        catch (Exception ex)
-                        {
-                            return onFailure(ex.Message);
-                        }
+                        return paramInfo
+                            .GetAttributeInterface<IBindJsonApiValue>()
+                            .ParseContentDelegateAsync(contentJObject,
+                                    contentString, bindConvert,
+                                    paramInfo, app, request,
+                                onFound,
+                                onFailure);
                     };
                 var keys = contentJObject
                         .Properties()
                         .Select(jProperty => jProperty.Name)
                         .ToArray();
                 return await onParsedContentValues(parser, keys);
+            }
+
+            if (content.IsXml())
+            {
+                var contentString = await content.ReadAsStringAsync();
+
+                var exceptionKeys = new string[] { };
+                if (!contentString.HasBlackSpace())
+                {
+                    ParseContentDelegateAsync<TParseResult> exceptionParser =
+                        (paramInfo, app, request, onFound, onFailure) =>
+                        {
+                            var key = paramInfo
+                                        .GetAttributeInterface<IBindApiValue>()
+                                        .GetKey(paramInfo)
+                                        .ToLower();
+                            return onFailure($"[{key}] was not provided (JSON body content was empty).").AsTask();
+                        };
+                    return await onParsedContentValues(exceptionParser, exceptionKeys);
+                }
+
+                var xmldoc = new XmlDocument();
+                try
+                {
+                    xmldoc.LoadXml(contentString);
+                }
+                catch (Exception ex)
+                {
+                    ParseContentDelegateAsync<TParseResult> exceptionParser =
+                        async (app, request, paramInfo, onFound, onFailure) =>
+                        {
+                            return onFailure(ex.Message);
+                        };
+                    return await onParsedContentValues(exceptionParser, exceptionKeys);
+                }
+
+                ParseContentDelegateAsync<TParseResult> parser =
+                    (paramInfo, app, request, onFound, onFailure) =>
+                    {
+                        return paramInfo
+                            .GetAttributeInterface<IBindXmlApiValue>()
+                            .ParseContentDelegateAsync(xmldoc,
+                                paramInfo, app, request,
+                                onFound,
+                                onFailure);
+                    };
+                return await onParsedContentValues(parser, new string[] { });
             }
 
             if (content.IsMimeMultipartContent())
@@ -2346,7 +2361,7 @@ namespace EastFive.Api
                 } catch(System.IO.IOException readError)
                 {
                     ParseContentDelegateAsync<TParseResult> errorParser =
-                        (key, type, onFound, onFailure) =>
+                        (app, request, paramInfo, onFound, onFailure) =>
                         {
                             if(readError.InnerException.IsDefaultOrNull())
                                 return onFailure(readError.Message).AsTask();
@@ -2374,8 +2389,13 @@ namespace EastFive.Api
                         })
                     .ToDictionaryAsync();
                 ParseContentDelegateAsync<TParseResult> parser =
-                        async (key, type, onFound, onFailure) =>
+                        async (paramInfo, app, request, onFound, onFailure) =>
                         {
+                            var key = paramInfo
+                                        .GetAttributeInterface<IBindApiValue>()
+                                        .GetKey(paramInfo)
+                                        .ToLower();
+                            var type = paramInfo.ParameterType;
                             if (contentsLookup.ContainsKey(key))
                                 return ContentToTypeAsync(type, contentsLookup[key],
                                     onFound,
@@ -2387,10 +2407,15 @@ namespace EastFive.Api
 
             if (content.IsFormData())
             {
-                var optionalFormData = (await this.ParseOptionalFormDataAsync(content)).ToDictionary();
+                var optionalFormData = (await ParseOptionalFormDataAsync(content)).ToDictionary();
                 ParseContentDelegateAsync<TParseResult> parser =
-                    async (key, type, onFound, onFailure) =>
+                    async (paramInfo, app, request, onFound, onFailure) =>
                     {
+                        var key = paramInfo
+                                    .GetAttributeInterface<IBindApiValue>()
+                                    .GetKey(paramInfo)
+                                    .ToLower();
+                        var type = paramInfo.ParameterType;
                         if (!optionalFormData.ContainsKey(key))
                             return onFailure("Key not found");
                         return this.Bind(type, optionalFormData[key],
@@ -2410,7 +2435,7 @@ namespace EastFive.Api
             return await InvalidContent($"Could not parse content of type {mediaType}");
         }
 
-        private async Task<KeyValuePair<string, IParseToken>[]> ParseOptionalFormDataAsync(HttpContent content)
+        private static async Task<KeyValuePair<string, IParseToken>[]> ParseOptionalFormDataAsync(HttpContent content)
         {
             var formData = await content.ReadAsFormDataAsync();
 

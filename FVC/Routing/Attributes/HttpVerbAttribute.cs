@@ -167,12 +167,12 @@ namespace EastFive.Api
                 .ToArray();
             pathKeys = path.Skip(2).ToArray();
             CastDelegate<SelectParameterResult> fileNameCastDelegate =
-                (query, type, onParsed, onFailure) =>
+                (paramInfo, onParsed, onFailure) =>
                 {
                     if (path.Length < 3)
                         return onFailure("No URI filename value provided.").AsTask();
                     return httpApp
-                        .Bind(type,
+                        .Bind(paramInfo.ParameterType,
                                 new QueryParamTokenParser(path[2]),
                             v => onParsed(v),
                             (why) => onFailure(why))
@@ -192,9 +192,13 @@ namespace EastFive.Api
 
             var queryParameterCollections = GetCollectionParameters(httpApp, queryParameters).ToDictionary();
             CastDelegate<SelectParameterResult> queryCastDelegate =
-                (query, type, onParsed, onFailure) =>
+                (paramInfo, onParsed, onFailure) =>
                 {
-                    var queryKey = query.ToLower();
+                    var queryKey = paramInfo
+                           .GetAttributeInterface<IBindApiValue>()
+                           .GetKey(paramInfo)
+                           .ToLower();
+                    var type = paramInfo.ParameterType;
                     if (!queryParameters.ContainsKey(queryKey))
                     {
                         if (!queryParameterCollections.ContainsKey(queryKey))

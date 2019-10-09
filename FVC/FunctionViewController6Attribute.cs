@@ -41,9 +41,10 @@ namespace EastFive.Api
                 async (bodyParser, bodyValues) =>
                 {
                     CastDelegate<SelectParameterResult> bodyCastDelegate =
-                        (queryKey, type, onParsed, onFailure) =>
+                        (parameterInfo, onParsed, onFailure) =>
                         {
-                            return bodyParser(queryKey, type,
+                            return bodyParser(parameterInfo,
+                                    httpApp, request,
                                 value =>
                                 {
                                     var parsedResult = onParsed(value);
@@ -52,7 +53,6 @@ namespace EastFive.Api
                                 (why) => onFailure(why));
                         };
 
-                    //var debugConsider = await methodsForConsideration.ToArrayAsync();
                     var evaluatedMethods = matchingActionMethods
                         .Select(
                             method =>
@@ -66,7 +66,6 @@ namespace EastFive.Api
                     var validMethods = evaluatedMethods
                         .Where(methodCast => methodCast.isValid);
 
-                    //var debug = await evaluatedMethods.ToArrayAsync();
                     return await await validMethods
                         .FirstAsync(
                             (methodCast) =>
