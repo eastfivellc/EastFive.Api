@@ -2393,8 +2393,7 @@ namespace EastFive.Api
                         {
                             var key = paramInfo
                                         .GetAttributeInterface<IBindApiValue>()
-                                        .GetKey(paramInfo)
-                                        .ToLower();
+                                        .GetKey(paramInfo);
                             var type = paramInfo.ParameterType;
                             if (contentsLookup.ContainsKey(key))
                                 return ContentToTypeAsync(type, contentsLookup[key],
@@ -2413,8 +2412,7 @@ namespace EastFive.Api
                     {
                         var key = paramInfo
                                     .GetAttributeInterface<IBindApiValue>()
-                                    .GetKey(paramInfo)
-                                    .ToLower();
+                                    .GetKey(paramInfo);
                         var type = paramInfo.ParameterType;
                         if (!optionalFormData.ContainsKey(key))
                             return onFailure("Key not found");
