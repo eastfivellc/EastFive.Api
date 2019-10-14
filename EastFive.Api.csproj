@@ -271,10 +271,6 @@
       <Project>{a6a53d1c-fc21-4385-afd7-f5748cc5135b}</Project>
       <Name>EastFive.Sheets</Name>
     </ProjectReference>
-    <ProjectReference Include="C:\Dev\E5\affirmMaster\\EastFive.Sheets\EastFive.Sheets.csproj">
-      <Project>{a6a53d1c-fc21-4385-afd7-f5748cc5135b}</Project>
-      <Name>EastFive.Sheets</Name>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

@@ -1260,27 +1260,27 @@ namespace EastFive.Api
                         return success((object)dele);
                     }
                 },
-                { // 202 (or *)
-                    typeof(Controllers.BackgroundResponseAsync),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.BackgroundResponseAsync dele =
-                            async (callback) =>
-                            {
-                                if(request.Headers.Accept.Contains(mediaType => mediaType.MediaType.ToLower().Contains("background")))
-                                {
-                                    var urlHelper = request.GetUrlHelper();
-                                    var processId = Controllers.BackgroundProgressController.CreateProcess(callback, 1.0);
-                                    var response = request.CreateResponse(HttpStatusCode.Accepted);
-                                    response.Headers.Add("Access-Control-Expose-Headers", "x-backgroundprocess");
-                                    response.Headers.Add("x-backgroundprocess", urlHelper.GetLocation<Controllers.BackgroundProgressController>(processId).AbsoluteUri);
-                                    return response;
-                                }
-                                return await callback(v => { }); // TODO: Not this
-                            };
-                        return success((object)dele);
-                    }
-                },
+                //{ // 202 (or *)
+                //    typeof(Controllers.BackgroundResponseAsync),
+                //    (httpApp, request, paramInfo, success) =>
+                //    {
+                //        Controllers.BackgroundResponseAsync dele =
+                //            async (callback) =>
+                //            {
+                //                if(request.Headers.Accept.Contains(mediaType => mediaType.MediaType.ToLower().Contains("background")))
+                //                {
+                //                    var urlHelper = request.GetUrlHelper();
+                //                    var processId = Controllers.BackgroundProgressController.CreateProcess(callback, 1.0);
+                //                    var response = request.CreateResponse(HttpStatusCode.Accepted);
+                //                    response.Headers.Add("Access-Control-Expose-Headers", "x-backgroundprocess");
+                //                    response.Headers.Add("x-backgroundprocess", urlHelper.GetLocation<Controllers.BackgroundProgressController>(processId).AbsoluteUri);
+                //                    return response;
+                //                }
+                //                return await callback(v => { }); // TODO: Not this
+                //            };
+                //        return success((object)dele);
+                //    }
+                //},
                 { // 202 (or *)
                     typeof(Controllers.ExecuteBackgroundResponseAsync),
                     (httpApp, request, paramInfo, success) =>
@@ -1683,7 +1683,7 @@ namespace EastFive.Api
                             var byteArrayBase64 = content.ReadString();
                             var byteArrayValue = Convert.FromBase64String(byteArrayBase64);
                             return onParsed(new MemoryStream(byteArrayValue));
-                        } catch(Exception ex)
+                        } catch(Exception)
                         {
                             return content.ReadStream();
                             //return onNotConvertable($"Failed to convert {content} to `{typeof(Stream).FullName}` as base64 string:{ex.Message}.");
@@ -1699,7 +1699,7 @@ namespace EastFive.Api
                             var byteArrayBase64 = content.ReadString();
                             var byteArrayValue = Convert.FromBase64String(byteArrayBase64);
                             return onParsed(byteArrayValue);
-                        } catch(Exception ex)
+                        } catch(Exception)
                         {
                             return content.ReadBytes();
                             //return onNotConvertable($"Failed to convert {content} to `{typeof(byte[]).FullName}` as base64 string:{ex.Message}.");
@@ -1716,7 +1716,7 @@ namespace EastFive.Api
                                 return onNotConvertable($"Could not convert `{content}` to GUID");
                             var webIdObj = (object) new WebId() { UUID = guidValue };
                             return onParsed(webIdObj);
-                        } catch (Exception ex)
+                        } catch (Exception)
                         {
                             var result = content.ReadObject<WebId>();
                             return onParsed(result);
@@ -2260,9 +2260,9 @@ namespace EastFive.Api
                 if (!contentString.HasBlackSpace())
                 {
                     ParseContentDelegateAsync<TParseResult> exceptionParser =
-                        async (key, type, onFound, onFailure) =>
+                        (key, type, onFound, onFailure) =>
                         {
-                            return onFailure($"[{key}] was not provided (JSON body content was empty).");
+                            return onFailure($"[{key}] was not provided (JSON body content was empty).").AsTask();
                         };
                     return await onParsedContentValues(exceptionParser, exceptionKeys);
                 }
@@ -2275,9 +2275,9 @@ namespace EastFive.Api
                 catch (Exception ex)
                 {
                     ParseContentDelegateAsync<TParseResult> exceptionParser =
-                        async (key, type, onFound, onFailure) =>
+                        (key, type, onFound, onFailure) =>
                         {
-                            return onFailure(ex.Message);
+                            return onFailure(ex.Message).AsTask();
                         };
                     return await onParsedContentValues(exceptionParser, exceptionKeys);
                 }
@@ -2304,7 +2304,7 @@ namespace EastFive.Api
                         try
                         {
                             var tokenParser = new JsonTokenParser(valueToken);
-                            return ContentToTypeAsync(type, tokenParser,
+                            return ContentToType(type, tokenParser,
                                 obj => onFound(obj),
                                 (why) =>
                                 {
@@ -2377,10 +2377,10 @@ namespace EastFive.Api
                         async (key, type, onFound, onFailure) =>
                         {
                             if (contentsLookup.ContainsKey(key))
-                                return ContentToTypeAsync(type, contentsLookup[key],
+                                return ContentToType(type, contentsLookup[key],
                                     onFound,
                                     onFailure);
-                            return onFailure("Key not found");
+                            return await onFailure("Key not found").AsTask();
                         };
                 return await onParsedContentValues(parser, contentsLookup.SelectKeys().ToArray());
             }
@@ -2392,7 +2392,7 @@ namespace EastFive.Api
                     async (key, type, onFound, onFailure) =>
                     {
                         if (!optionalFormData.ContainsKey(key))
-                            return onFailure("Key not found");
+                            return await onFailure("Key not found").AsTask();
                         return this.Bind(type, optionalFormData[key],
                             (value) => onFound(value),
                             (why) => onFailure(why));
@@ -2422,7 +2422,7 @@ namespace EastFive.Api
             return (parameters);
         }
 
-        private TResult ContentToTypeAsync<TResult>(Type type, 
+        private TResult ContentToType<TResult>(Type type, 
             IParseToken tokenReader,
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure)

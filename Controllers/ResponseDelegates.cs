@@ -104,6 +104,6 @@ namespace EastFive.Api.Controllers
     [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Accepted)]
     public delegate Task<HttpResponseMessage> ExecuteBackgroundResponseAsync(IExecuteAsync executeAsync);
 
-    [Obsolete("Use ExecuteBackgroundResponseAsync instead.")]
-    public delegate Task<HttpResponseMessage> BackgroundResponseAsync(Func<Action<double>, Task<HttpResponseMessage>> callback);
+    //[Obsolete("Use ExecuteBackgroundResponseAsync instead.")]
+    //public delegate Task<HttpResponseMessage> BackgroundResponseAsync(Func<Action<double>, Task<HttpResponseMessage>> callback);
 }

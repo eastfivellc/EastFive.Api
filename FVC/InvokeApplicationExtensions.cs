@@ -957,68 +957,68 @@ namespace EastFive.Api
         #endregion
 
 
-        public static async Task<TResult> UrlAsync<TResource, TResultInner, TResult>(this IApplication application,
-                IInvokeApplication invokeApplication,
-                HttpMethod method, Uri location,
-            Func<TResultInner, TResult> onExecuted,
+        //public static async Task<TResult> UrlAsync<TResource, TResultInner, TResult>(this IApplication application,
+        //        IInvokeApplication invokeApplication,
+        //        HttpMethod method, Uri location,
+        //    Func<TResultInner, TResult> onExecuted,
 
-            Func<TResource, TResult> onContent = default(Func<TResource, TResult>),
-            Func<TResource[], TResult> onContents = default(Func<TResource[], TResult>),
-            Func<object[], TResult> onContentObjects = default(Func<object[], TResult>),
-            Func<string, TResult> onHtml = default(Func<string, TResult>),
-            Func<TResult> onCreated = default(Func<TResult>),
-            Func<TResource, string, TResult> onCreatedBody = default(Func<TResource, string, TResult>),
-            Func<TResult> onUpdated = default(Func<TResult>),
+        //    Func<TResource, TResult> onContent = default(Func<TResource, TResult>),
+        //    Func<TResource[], TResult> onContents = default(Func<TResource[], TResult>),
+        //    Func<object[], TResult> onContentObjects = default(Func<object[], TResult>),
+        //    Func<string, TResult> onHtml = default(Func<string, TResult>),
+        //    Func<TResult> onCreated = default(Func<TResult>),
+        //    Func<TResource, string, TResult> onCreatedBody = default(Func<TResource, string, TResult>),
+        //    Func<TResult> onUpdated = default(Func<TResult>),
 
-            Func<Uri, TResult> onRedirect = default(Func<Uri, TResult>),
+        //    Func<Uri, TResult> onRedirect = default(Func<Uri, TResult>),
 
-            Func<TResult> onBadRequest = default(Func<TResult>),
-            Func<TResult> onUnauthorized = default(Func<TResult>),
-            Func<TResult> onExists = default(Func<TResult>),
-            Func<TResult> onNotFound = default(Func<TResult>),
-            Func<Type, TResult> onRefDoesNotExistsType = default(Func<Type, TResult>),
-            Func<string, TResult> onFailure = default(Func<string, TResult>),
+        //    Func<TResult> onBadRequest = default(Func<TResult>),
+        //    Func<TResult> onUnauthorized = default(Func<TResult>),
+        //    Func<TResult> onExists = default(Func<TResult>),
+        //    Func<TResult> onNotFound = default(Func<TResult>),
+        //    Func<Type, TResult> onRefDoesNotExistsType = default(Func<Type, TResult>),
+        //    Func<string, TResult> onFailure = default(Func<string, TResult>),
 
-            Func<TResult> onNotImplemented = default(Func<TResult>),
-            Func<IExecuteAsync, Task<TResult>> onExecuteBackground = default(Func<IExecuteAsync, Task<TResult>>))
-        {
-            throw new NotImplementedException();
-            //var request = invokeApplication.GetRequest<TResource>();
-            ////request.Method = method;
-            ////request.RequestUri = location;
+        //    Func<TResult> onNotImplemented = default(Func<TResult>),
+        //    Func<IExecuteAsync, Task<TResult>> onExecuteBackground = default(Func<IExecuteAsync, Task<TResult>>))
+        //{
+        //    throw new NotImplementedException();
+        //    //var request = invokeApplication.GetRequest<TResource>();
+        //    ////request.Method = method;
+        //    ////request.RequestUri = location;
 
-            //application.CreatedResponse<TResource, TResult>(onCreated);
-            //application.CreatedBodyResponse<TResource, TResult>(onCreatedBody);
-            //application.BadRequestResponse<TResource, TResult>(onBadRequest);
-            //application.AlreadyExistsResponse<TResource, TResult>(onExists);
-            //application.RefNotFoundTypeResponse(onRefDoesNotExistsType);
-            //application.RedirectResponse<TResource, TResult>(onRedirect);
-            //application.NotImplementedResponse<TResource, TResult>(onNotImplemented);
+        //    //application.CreatedResponse<TResource, TResult>(onCreated);
+        //    //application.CreatedBodyResponse<TResource, TResult>(onCreatedBody);
+        //    //application.BadRequestResponse<TResource, TResult>(onBadRequest);
+        //    //application.AlreadyExistsResponse<TResource, TResult>(onExists);
+        //    //application.RefNotFoundTypeResponse(onRefDoesNotExistsType);
+        //    //application.RedirectResponse<TResource, TResult>(onRedirect);
+        //    //application.NotImplementedResponse<TResource, TResult>(onNotImplemented);
 
-            //application.ContentResponse(onContent);
-            //application.ContentTypeResponse<TResource, TResult>((body, contentType) => onContent(body));
-            //application.MultipartContentResponse(onContents);
-            //if (!onContentObjects.IsDefaultOrNull())
-            //    application.MultipartContentObjectResponse<TResource, TResult>(onContentObjects);
-            //application.NotFoundResponse<TResource, TResult>(onNotFound);
-            //application.HtmlResponse<TResource, TResult>(onHtml);
+        //    //application.ContentResponse(onContent);
+        //    //application.ContentTypeResponse<TResource, TResult>((body, contentType) => onContent(body));
+        //    //application.MultipartContentResponse(onContents);
+        //    //if (!onContentObjects.IsDefaultOrNull())
+        //    //    application.MultipartContentObjectResponse<TResource, TResult>(onContentObjects);
+        //    //application.NotFoundResponse<TResource, TResult>(onNotFound);
+        //    //application.HtmlResponse<TResource, TResult>(onHtml);
 
-            //application.NoContentResponse<TResource, TResult>(onUpdated);
-            //application.UnauthorizedResponse<TResource, TResult>(onUnauthorized);
-            //application.GeneralConflictResponse<TResource, TResult>(onFailure);
-            //application.ExecuteBackgroundResponse<TResource, TResult>(onExecuteBackground);
+        //    //application.NoContentResponse<TResource, TResult>(onUpdated);
+        //    //application.UnauthorizedResponse<TResource, TResult>(onUnauthorized);
+        //    //application.GeneralConflictResponse<TResource, TResult>(onFailure);
+        //    //application.ExecuteBackgroundResponse<TResource, TResult>(onExecuteBackground);
 
-            //var response = await application.SendAsync(request.Request);
+        //    //var response = await application.SendAsync(request.Request);
 
-            //if (response is IDidNotOverride)
-            //    (response as IDidNotOverride).OnFailure();
+        //    //if (response is IDidNotOverride)
+        //    //    (response as IDidNotOverride).OnFailure();
 
-            //if (!(response is IReturnResult))
-            //    throw new Exception($"Failed to override response with status code `{response.StatusCode}` for {typeof(TResource).FullName}\nResponse:{response.ReasonPhrase}");
+        //    //if (!(response is IReturnResult))
+        //    //    throw new Exception($"Failed to override response with status code `{response.StatusCode}` for {typeof(TResource).FullName}\nResponse:{response.ReasonPhrase}");
 
-            //var attachedResponse = response as IReturnResult;
-            //var result = attachedResponse.GetResultCasted<TResultInner>();
-            //return onExecuted(result);
-        }
+        //    //var attachedResponse = response as IReturnResult;
+        //    //var result = attachedResponse.GetResultCasted<TResultInner>();
+        //    //return onExecuted(result);
+        //}
     }
 }

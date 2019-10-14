@@ -160,14 +160,14 @@ namespace BlackBarLabs.Api
 
             var parametersPopulated = await parameterInfos
                 .Select(
-                    async (param) =>
+                    (param) =>
                     {
                         var paramContent = streamProvider.Contents
                             .FirstOrDefault(file => String.Compare(
                                     file.Headers.ContentDisposition.Name.Trim(new char[] { '"' }),
                                     param.Key,
                                 true) == 0);
-                        return ContentToTypeAsync(param.Value, paramContent);
+                        return ContentToTypeAsync(param.Value, paramContent).AsTask();
                     })
                 .WhenAllAsync();
             return onPopulated(parametersPopulated);

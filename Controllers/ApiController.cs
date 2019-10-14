@@ -295,422 +295,422 @@ namespace EastFive.Api.Controllers
         }
     }
 
-    public class ApiController<TResource, TQuery> : ApiController
-        where TResource : BlackBarLabs.Api.ResourceBase
-    {
-        [ApiValidations.ValidationValue]
-        public delegate Guid ValidGuid(Expression<Func<TResource, WebId>> expression);
+    //public class ApiController<TResource, TQuery> : ApiController
+    //    where TResource : BlackBarLabs.Api.ResourceBase
+    //{
+    //    [ApiValidations.ValidationValue]
+    //    public delegate Guid ValidGuid(Expression<Func<TResource, WebId>> expression);
 
-        public delegate BlackBarLabs.Api.Resources.WebIdQuery WebIdValueValidation(TQuery query);
-        public delegate BlackBarLabs.Api.Resources.DateTimeQuery DateTimeEmptyValidation(TQuery query);
+    //    public delegate BlackBarLabs.Api.Resources.WebIdQuery WebIdValueValidation(TQuery query);
+    //    public delegate BlackBarLabs.Api.Resources.DateTimeQuery DateTimeEmptyValidation(TQuery query);
 
-        private static Func<ValidatedResponse> _newValidatedResponse;
+    //    private static Func<ValidatedResponse> _newValidatedResponse;
         
-        protected sealed class ValidatedResponse
-        {
-            static ValidatedResponse()
-            {
-                _newValidatedResponse = () => new ValidatedResponse();
-            }
+    //    protected sealed class ValidatedResponse
+    //    {
+    //        static ValidatedResponse()
+    //        {
+    //            _newValidatedResponse = () => new ValidatedResponse();
+    //        }
 
-            private ValidatedResponse()
-            {
+    //        private ValidatedResponse()
+    //        {
                 
-            }
-        }
+    //        }
+    //    }
 
-        protected delegate ValidatedResponse Validation<T1, V1>(
-            Expression<T1> validation1,
-            Func<V1, Task<HttpResponseMessage>> callback);
+    //    protected delegate ValidatedResponse Validation<T1, V1>(
+    //        Expression<T1> validation1,
+    //        Func<V1, Task<HttpResponseMessage>> callback);
 
-        protected delegate ValidatedResponse Validation<T1, V1, T2, V2>(
-            Expression<T1> validation1,
-            Expression<T2> validation2,
-            Func<V1, V2, Task<HttpResponseMessage>> callback);
+    //    protected delegate ValidatedResponse Validation<T1, V1, T2, V2>(
+    //        Expression<T1> validation1,
+    //        Expression<T2> validation2,
+    //        Func<V1, V2, Task<HttpResponseMessage>> callback);
 
-                // Func<
-                //Expression<WebIdValueValidation>,
-                //Expression<DateTimeEmptyValidation>,
-                //Func<Guid, DateTime?, Task<HttpResponseMessage>>,
-                //Task<HttpResponseMessage>> validate)
+    //            // Func<
+    //            //Expression<WebIdValueValidation>,
+    //            //Expression<DateTimeEmptyValidation>,
+    //            //Func<Guid, DateTime?, Task<HttpResponseMessage>>,
+    //            //Task<HttpResponseMessage>> validate)
 
-        public delegate Task<HttpResponseMessage> RequestGetById<TContext>(
-                Security security,
-                TContext context,
-                TQuery query,
-                HttpRequestMessage request,
-                System.Web.Http.Routing.UrlHelper url,
-                ContentResponse onContent,
-                NotFoundResponse onNotFound,
-                UnauthorizedResponse onUnauthorized);
+    //    public delegate Task<HttpResponseMessage> RequestGetById<TContext>(
+    //            Security security,
+    //            TContext context,
+    //            TQuery query,
+    //            HttpRequestMessage request,
+    //            System.Web.Http.Routing.UrlHelper url,
+    //            ContentResponse onContent,
+    //            NotFoundResponse onNotFound,
+    //            UnauthorizedResponse onUnauthorized);
 
-        public delegate Task<HttpResponseMessage> RequestGetByIdWithFailure<TContext>(
-                Security security,
-                TContext context,
-                TQuery query,
-                HttpRequestMessage request,
-                System.Web.Http.Routing.UrlHelper url,
-                ContentResponse onContent,
-                NotFoundResponse onNotFound,
-                UnauthorizedResponse onUnauthorized,
-                GeneralFailureResponse onFailure);
+    //    public delegate Task<HttpResponseMessage> RequestGetByIdWithFailure<TContext>(
+    //            Security security,
+    //            TContext context,
+    //            TQuery query,
+    //            HttpRequestMessage request,
+    //            System.Web.Http.Routing.UrlHelper url,
+    //            ContentResponse onContent,
+    //            NotFoundResponse onNotFound,
+    //            UnauthorizedResponse onUnauthorized,
+    //            GeneralFailureResponse onFailure);
 
-        public delegate Task<Task<HttpResponseMessage>> RequestGetMultiple<TContext>(
-                Security security,
-                TContext context,
-                TQuery query,
-                HttpRequestMessage request,
-                System.Web.Http.Routing.UrlHelper url,
-                ContentResponse onContent,
-                MultipartResponseAsync onMultipart,
-                ReferencedDocumentNotFoundResponse onQueryByDoc,
-                UnauthorizedResponse onUnauthorized);
+    //    public delegate Task<Task<HttpResponseMessage>> RequestGetMultiple<TContext>(
+    //            Security security,
+    //            TContext context,
+    //            TQuery query,
+    //            HttpRequestMessage request,
+    //            System.Web.Http.Routing.UrlHelper url,
+    //            ContentResponse onContent,
+    //            MultipartResponseAsync onMultipart,
+    //            ReferencedDocumentNotFoundResponse onQueryByDoc,
+    //            UnauthorizedResponse onUnauthorized);
 
-        public delegate Task<Task<HttpResponseMessage>> RequestGetMultipleAccept<TContext>(
-                Security security,
-                TContext context,
-                TQuery query,
-                HttpRequestMessage request,
-                System.Web.Http.Routing.UrlHelper url,
-                ContentResponse onContent,
-                MultipartAcceptArrayResponseAsync onMultipart,
-                ReferencedDocumentNotFoundResponse onQueryByDoc,
-                UnauthorizedResponse onUnauthorized);
+    //    public delegate Task<Task<HttpResponseMessage>> RequestGetMultipleAccept<TContext>(
+    //            Security security,
+    //            TContext context,
+    //            TQuery query,
+    //            HttpRequestMessage request,
+    //            System.Web.Http.Routing.UrlHelper url,
+    //            ContentResponse onContent,
+    //            MultipartAcceptArrayResponseAsync onMultipart,
+    //            ReferencedDocumentNotFoundResponse onQueryByDoc,
+    //            UnauthorizedResponse onUnauthorized);
 
-        public delegate Task<Task<HttpResponseMessage>> RequestGetMultipleArrayAccept<TContext>(
-                Security security,
-                TContext context,
-                TQuery query,
-                HttpRequestMessage request,
-                System.Web.Http.Routing.UrlHelper url,
-                ContentResponse onContent,
-                MultipartAcceptArrayResponseAsync onMultipart,
-                ReferencedDocumentNotFoundResponse onQueryByDoc,
-                UnauthorizedResponse onUnauthorized);
+    //    public delegate Task<Task<HttpResponseMessage>> RequestGetMultipleArrayAccept<TContext>(
+    //            Security security,
+    //            TContext context,
+    //            TQuery query,
+    //            HttpRequestMessage request,
+    //            System.Web.Http.Routing.UrlHelper url,
+    //            ContentResponse onContent,
+    //            MultipartAcceptArrayResponseAsync onMultipart,
+    //            ReferencedDocumentNotFoundResponse onQueryByDoc,
+    //            UnauthorizedResponse onUnauthorized);
 
-        public delegate Task<HttpResponseMessage> ParseXlsxDelegate(
-                 Func<KeyValuePair<string, string>[], KeyValuePair<string, ResourceBase[]>[], Task<HttpResponseMessage>> execute);
+    //    public delegate Task<HttpResponseMessage> ParseXlsxDelegate(
+    //             Func<KeyValuePair<string, string>[], KeyValuePair<string, ResourceBase[]>[], Task<HttpResponseMessage>> execute);
 
-        public delegate Task<HttpResponseMessage> ParseXlsxMultipartDelegate(
-                 Func<TResource, KeyValuePair<string, string>[], Task<HttpResponseMessage>> executePost,
-                 Func<TResource, KeyValuePair<string, string>[], Task<HttpResponseMessage>> executePut);
+    //    public delegate Task<HttpResponseMessage> ParseXlsxMultipartDelegate(
+    //             Func<TResource, KeyValuePair<string, string>[], Task<HttpResponseMessage>> executePost,
+    //             Func<TResource, KeyValuePair<string, string>[], Task<HttpResponseMessage>> executePut);
 
-        private void AddGenericInstigator(Type type, Func<ApiController, Func<object, Task<HttpResponseMessage>>, Task<HttpResponseMessage>> instigator)
-        {
-            if (instigators.ContainsKey(type))
-                return;
-            AddInstigator(
-                type,
-                instigator);
-        }
+    //    private void AddGenericInstigator(Type type, Func<ApiController, Func<object, Task<HttpResponseMessage>>, Task<HttpResponseMessage>> instigator)
+    //    {
+    //        if (instigators.ContainsKey(type))
+    //            return;
+    //        AddInstigator(
+    //            type,
+    //            instigator);
+    //    }
 
-        protected ApiController()
-            : base()
-        {
-            AddGenericInstigator(
-                typeof(ParseXlsxDelegate),
-                async (controller, success) =>
-                {
-                    return await await controller.Request.Content.ParseMultipartAsync(
-                        (System.IO.Stream xlsx, Type [] types) => ParseSheetAsync(controller, xlsx, types, success),
-                        () => controller.Request
-                            .CreateResponse(System.Net.HttpStatusCode.BadRequest, "xlsx file was not provided")
-                            .ToTask());
-                });
+    //    protected ApiController()
+    //        : base()
+    //    {
+    //        AddGenericInstigator(
+    //            typeof(ParseXlsxDelegate),
+    //            async (controller, success) =>
+    //            {
+    //                return await await controller.Request.Content.ParseMultipartAsync(
+    //                    (System.IO.Stream xlsx, Type [] types) => ParseSheetAsync(controller, xlsx, types, success),
+    //                    () => controller.Request
+    //                        .CreateResponse(System.Net.HttpStatusCode.BadRequest, "xlsx file was not provided")
+    //                        .ToTask());
+    //            });
 
-            AddGenericInstigator(
-                typeof(ParseXlsxMultipartDelegate),
-                async (controller, success) =>
-                {
-                    return await await controller.Request.Content.ParseMultipartAsync(
-                        (System.IO.Stream xlsx) => ParseSheetMultipartAsync(controller, xlsx, success),
-                        () => controller.Request
-                            .CreateResponse(System.Net.HttpStatusCode.BadRequest, "xlsx file was not provided")
-                            .ToTask());
-                });
+    //        AddGenericInstigator(
+    //            typeof(ParseXlsxMultipartDelegate),
+    //            async (controller, success) =>
+    //            {
+    //                return await await controller.Request.Content.ParseMultipartAsync(
+    //                    (System.IO.Stream xlsx) => ParseSheetMultipartAsync(controller, xlsx, success),
+    //                    () => controller.Request
+    //                        .CreateResponse(System.Net.HttpStatusCode.BadRequest, "xlsx file was not provided")
+    //                        .ToTask());
+    //            });
 
-            AddGenericInstigator(
-                typeof(TResource),
-                async (controller, success) =>
-                {
-                    var contentString = await controller.Request.Content.ReadAsStringAsync();
-                    var create = Newtonsoft.Json.JsonConvert.DeserializeObject<TResource>(contentString);
-                    return await success(create);
-                });
-        }
+    //        AddGenericInstigator(
+    //            typeof(TResource),
+    //            async (controller, success) =>
+    //            {
+    //                var contentString = await controller.Request.Content.ReadAsStringAsync();
+    //                var create = Newtonsoft.Json.JsonConvert.DeserializeObject<TResource>(contentString);
+    //                return await success(create);
+    //            });
+    //    }
 
-        private static Task<HttpResponseMessage> ParseSheetAsync(ApiController controller, System.IO.Stream xlsx, Type[] types,
-            Func<object, Task<HttpResponseMessage>> success)
-        {
-            ParseXlsxDelegate dele =
-                (execute) =>
-                {
-                    return controller.Request.ParseXlsx(xlsx, types, execute);
-                };
-            return success(dele);
-        }
+    //    private static Task<HttpResponseMessage> ParseSheetAsync(ApiController controller, System.IO.Stream xlsx, Type[] types,
+    //        Func<object, Task<HttpResponseMessage>> success)
+    //    {
+    //        ParseXlsxDelegate dele =
+    //            (execute) =>
+    //            {
+    //                return controller.Request.ParseXlsx(xlsx, types, execute);
+    //            };
+    //        return success(dele);
+    //    }
 
-        private static Task<HttpResponseMessage> ParseSheetMultipartAsync(ApiController controller, System.IO.Stream xlsx, Func<object, Task<HttpResponseMessage>> success)
-        {
-            ParseXlsxMultipartDelegate dele =
-                async (executePost, executePut) =>
-                {
-                    return await await controller.Request.ParseXlsxAsync(xlsx, executePost, executePut,
-                        responses => controller.Request.CreateMultipartResponseAsync(responses));
-                };
-            return success(dele);
-        }
+    //    private static Task<HttpResponseMessage> ParseSheetMultipartAsync(ApiController controller, System.IO.Stream xlsx, Func<object, Task<HttpResponseMessage>> success)
+    //    {
+    //        ParseXlsxMultipartDelegate dele =
+    //            async (executePost, executePut) =>
+    //            {
+    //                return await await controller.Request.ParseXlsxAsync(xlsx, executePost, executePut,
+    //                    responses => controller.Request.CreateMultipartResponseAsync(responses));
+    //            };
+    //        return success(dele);
+    //    }
 
-        //public IHttpActionResult Post([FromBody]TResource resource)
-        //{
-        //    return new HttpActionResult(() => Invoke<TResource, HttpPostAttribute>(resource, new PropertyInfo[] { }));
-        //}
+    //    //public IHttpActionResult Post([FromBody]TResource resource)
+    //    //{
+    //    //    return new HttpActionResult(() => Invoke<TResource, HttpPostAttribute>(resource, new PropertyInfo[] { }));
+    //    //}
 
-        public IHttpActionResult Post([FromUri]TQuery resource)
-        {
-            return new HttpActionResult(() => Invoke<HttpPostAttribute>(resource, new PropertyInfo[] { }));
-        }
+    //    public IHttpActionResult Post([FromUri]TQuery resource)
+    //    {
+    //        return new HttpActionResult(() => Invoke<HttpPostAttribute>(resource, new PropertyInfo[] { }));
+    //    }
 
-        public IHttpActionResult Get([FromUri]TQuery resource)
-        {
-            return new HttpActionResult(() => GetQueryObjectParameters(resource, this.Request,
-                (validations) =>
-                {
-                    return Invoke<HttpGetAttribute>(resource, validations);
-                }));
-        }
+    //    public IHttpActionResult Get([FromUri]TQuery resource)
+    //    {
+    //        return new HttpActionResult(() => GetQueryObjectParameters(resource, this.Request,
+    //            (validations) =>
+    //            {
+    //                return Invoke<HttpGetAttribute>(resource, validations);
+    //            }));
+    //    }
 
-        public async Task<IHttpActionResult> Put([FromUri]TQuery resource)
-        {
-            var response = await Invoke<HttpPutAttribute>(resource, new PropertyInfo[] { });
-            return new HttpActionResult(() => response.ToTask());
-        }
+    //    public async Task<IHttpActionResult> Put([FromUri]TQuery resource)
+    //    {
+    //        var response = await Invoke<HttpPutAttribute>(resource, new PropertyInfo[] { });
+    //        return new HttpActionResult(() => response.ToTask());
+    //    }
 
-        public IHttpActionResult Delete([FromUri]TQuery resource)
-        {
-            return new HttpActionResult(() => Invoke<HttpDeleteAttribute>(resource, new PropertyInfo[] { }));
-        }
+    //    public IHttpActionResult Delete([FromUri]TQuery resource)
+    //    {
+    //        return new HttpActionResult(() => Invoke<HttpDeleteAttribute>(resource, new PropertyInfo[] { }));
+    //    }
 
-        private Task<HttpResponseMessage> Invoke<TAttribute>(TQuery resource, PropertyInfo[] mustMatchProperties)
-            where TAttribute : System.Attribute
-        {
-            var responseMessage = this.GetType()
-                .GetFields()
-                .Where(field => field.ContainsCustomAttribute<TAttribute>())
-                .Where(field => field.FieldType.IsSubClassOfGeneric(typeof(Expression<>)))
-                .SelectReduce(
-                    (propertyType, nextExpression, skipExpression) =>
-                    {
-                        var expression = propertyType.GetValue(this);
-                        if (!(expression is LambdaExpression))
-                            return skipExpression();
-                        var lambdaExpr = expression as LambdaExpression;
-                        var parameters = lambdaExpr.Parameters;
-                        var body = lambdaExpr.Body;
-                        if (!(body is MethodCallExpression))
-                            return skipExpression();
+    //    private Task<HttpResponseMessage> Invoke<TAttribute>(TQuery resource, PropertyInfo[] mustMatchProperties)
+    //        where TAttribute : System.Attribute
+    //    {
+    //        var responseMessage = this.GetType()
+    //            .GetFields()
+    //            .Where(field => field.ContainsCustomAttribute<TAttribute>())
+    //            .Where(field => field.FieldType.IsSubClassOfGeneric(typeof(Expression<>)))
+    //            .SelectReduce(
+    //                (propertyType, nextExpression, skipExpression) =>
+    //                {
+    //                    var expression = propertyType.GetValue(this);
+    //                    if (!(expression is LambdaExpression))
+    //                        return skipExpression();
+    //                    var lambdaExpr = expression as LambdaExpression;
+    //                    var parameters = lambdaExpr.Parameters;
+    //                    var body = lambdaExpr.Body;
+    //                    if (!(body is MethodCallExpression))
+    //                        return skipExpression();
 
-                        var doubleAwait = false;
-                        var methodBody = body as MethodCallExpression;
-                        if (!typeof(Task<HttpResponseMessage>).IsAssignableFrom(methodBody.Method.ReturnType))
-                        {
-                            if (!typeof(Task<Task<HttpResponseMessage>>).IsAssignableFrom(methodBody.Method.ReturnType))
-                                return skipExpression();
-                            doubleAwait = true;
-                        }
+    //                    var doubleAwait = false;
+    //                    var methodBody = body as MethodCallExpression;
+    //                    if (!typeof(Task<HttpResponseMessage>).IsAssignableFrom(methodBody.Method.ReturnType))
+    //                    {
+    //                        if (!typeof(Task<Task<HttpResponseMessage>>).IsAssignableFrom(methodBody.Method.ReturnType))
+    //                            return skipExpression();
+    //                        doubleAwait = true;
+    //                    }
 
-                        var unvalidatedProperties = methodBody.Arguments
-                            .Where(argument => argument is MethodCallExpression)
-                            .Select(argument => argument as MethodCallExpression)
-                            .Aggregate(mustMatchProperties.Cast<MemberInfo>(),
-                                (props, methodCallExpression) =>
-                                {
-                                    return methodCallExpression.Method.GetCustomAttribute(
-                                        (ApiValidations.ValidationAttribute validationAttr) =>
-                                        {
-                                            // TODO: Catch convert here for Casted parameters (defined -> nullable, etc)
-                                            var memberLookupArgumentsMatchingResourceType = methodCallExpression.Arguments
-                                                .Where(arg => arg is MemberExpression)
-                                                .Where(arg => (arg as MemberExpression).Member is MemberInfo)
-                                                .Where(arg => ((arg as MemberExpression).Member as MemberInfo).ReflectedType.IsAssignableFrom(typeof(TQuery)));
-                                            if (!memberLookupArgumentsMatchingResourceType.Any())
-                                                return props;
-                                            var memberLookupArgument = memberLookupArgumentsMatchingResourceType.First();
-                                            var member = ((memberLookupArgument as MemberExpression).Member as MemberInfo);
-                                            var v = member.GetValue(resource);
-                                            var conversionMethod = methodCallExpression.Method;
-                                            var validationFunction = paramFunctions[memberLookupArgument.Type][conversionMethod.ReturnType];
-                                            var validationResult = validationFunction(v, this);
-                                            if (validationResult.GetType() != validationAttr.GetType())
-                                                return props.Append(member).ToArray();
+    //                    var unvalidatedProperties = methodBody.Arguments
+    //                        .Where(argument => argument is MethodCallExpression)
+    //                        .Select(argument => argument as MethodCallExpression)
+    //                        .Aggregate(mustMatchProperties.Cast<MemberInfo>(),
+    //                            (props, methodCallExpression) =>
+    //                            {
+    //                                return methodCallExpression.Method.GetCustomAttribute(
+    //                                    (ApiValidations.ValidationAttribute validationAttr) =>
+    //                                    {
+    //                                        // TODO: Catch convert here for Casted parameters (defined -> nullable, etc)
+    //                                        var memberLookupArgumentsMatchingResourceType = methodCallExpression.Arguments
+    //                                            .Where(arg => arg is MemberExpression)
+    //                                            .Where(arg => (arg as MemberExpression).Member is MemberInfo)
+    //                                            .Where(arg => ((arg as MemberExpression).Member as MemberInfo).ReflectedType.IsAssignableFrom(typeof(TQuery)));
+    //                                        if (!memberLookupArgumentsMatchingResourceType.Any())
+    //                                            return props;
+    //                                        var memberLookupArgument = memberLookupArgumentsMatchingResourceType.First();
+    //                                        var member = ((memberLookupArgument as MemberExpression).Member as MemberInfo);
+    //                                        var v = member.GetValue(resource);
+    //                                        var conversionMethod = methodCallExpression.Method;
+    //                                        var validationFunction = paramFunctions[memberLookupArgument.Type][conversionMethod.ReturnType];
+    //                                        var validationResult = validationFunction(v, this);
+    //                                        if (validationResult.GetType() != validationAttr.GetType())
+    //                                            return props.Append(member).ToArray();
 
-                                            var reducedProps = props
-                                                .Where(prop => prop.Name != member.Name)
-                                                .ToArray();
-                                            return reducedProps;
-                                        },
-                                        () => props);
-                                });
+    //                                        var reducedProps = props
+    //                                            .Where(prop => prop.Name != member.Name)
+    //                                            .ToArray();
+    //                                        return reducedProps;
+    //                                    },
+    //                                    () => props);
+    //                            });
 
-                        if (unvalidatedProperties.Any())
-                            return nextExpression(unvalidatedProperties.ToArray());
+    //                    if (unvalidatedProperties.Any())
+    //                        return nextExpression(unvalidatedProperties.ToArray());
                         
-                        return parameters
-                            .SelectReduce(
-                                (param, next) =>
-                                {
-                                    if (param.Type == typeof(TQuery))
-                                        return next(resource);
-                                    if (instigators.ContainsKey(param.Type))
-                                        return instigators[param.Type](this,
-                                            (v) => next(v));
-                                    if (optionalGenerators.ContainsKey(param.Type))
-                                    {
-                                        return optionalGenerators[param.Type](this,
-                                                generatedValue => next(generatedValue),
-                                                () => nextExpression(unvalidatedProperties.ToArray()));
-                                    }
-                                    return Request.CreateResponse(System.Net.HttpStatusCode.InternalServerError)
-                                        .AddReason($"Could not instatiate type: {param.Type.FullName}")
-                                        .ToTask();
-                                },
-                                async (object[] paramValues) =>
-                                {
-                                    // Expression.Call()
-                                    // lambdaExpr.CompileToMethod()
-                                    HttpResponseMessage response = (doubleAwait)?
-                                        await await (Task<Task<HttpResponseMessage>>)lambdaExpr.Compile().DynamicInvoke(paramValues)
-                                        :
-                                        await (Task<HttpResponseMessage>)lambdaExpr.Compile().DynamicInvoke(paramValues);
-                                    return response;
-                                });
-                    },
-                    (MemberInfo[][] unvalidateds) =>
-                    {
-                        var content = $"Please include a value for one of [{unvalidateds.Select(uvs => uvs.Select(uv => uv.Name).Join(",")).Join(" or ")}]";
-                        return Request
-                            .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
-                            .AddReason(content)
-                            .ToTask();
-                    });
+    //                    return parameters
+    //                        .SelectReduce(
+    //                            (param, next) =>
+    //                            {
+    //                                if (param.Type == typeof(TQuery))
+    //                                    return next(resource);
+    //                                if (instigators.ContainsKey(param.Type))
+    //                                    return instigators[param.Type](this,
+    //                                        (v) => next(v));
+    //                                if (optionalGenerators.ContainsKey(param.Type))
+    //                                {
+    //                                    return optionalGenerators[param.Type](this,
+    //                                            generatedValue => next(generatedValue),
+    //                                            () => nextExpression(unvalidatedProperties.ToArray()));
+    //                                }
+    //                                return Request.CreateResponse(System.Net.HttpStatusCode.InternalServerError)
+    //                                    .AddReason($"Could not instatiate type: {param.Type.FullName}")
+    //                                    .ToTask();
+    //                            },
+    //                            async (object[] paramValues) =>
+    //                            {
+    //                                // Expression.Call()
+    //                                // lambdaExpr.CompileToMethod()
+    //                                HttpResponseMessage response = (doubleAwait)?
+    //                                    await await (Task<Task<HttpResponseMessage>>)lambdaExpr.Compile().DynamicInvoke(paramValues)
+    //                                    :
+    //                                    await (Task<HttpResponseMessage>)lambdaExpr.Compile().DynamicInvoke(paramValues);
+    //                                return response;
+    //                            });
+    //                },
+    //                (MemberInfo[][] unvalidateds) =>
+    //                {
+    //                    var content = $"Please include a value for one of [{unvalidateds.Select(uvs => uvs.Select(uv => uv.Name).Join(",")).Join(" or ")}]";
+    //                    return Request
+    //                        .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
+    //                        .AddReason(content)
+    //                        .ToTask();
+    //                });
 
-            return responseMessage;
-        }
+    //        return responseMessage;
+    //    }
         
-        internal static async Task<HttpResponseMessage> GetQueryObjectParameters(TQuery query, HttpRequestMessage request,
-            Func<PropertyInfo[], Task<HttpResponseMessage>> callback)
-        {
-            if (query.IsDefault())
-            {
-                var emptyQuery = Activator.CreateInstance<TQuery>();
-                if (emptyQuery.IsDefault())
-                    throw new Exception($"Could not activate object of type {typeof(TQuery).FullName}");
-                return await GetQueryObjectParameters(emptyQuery, request, callback);
-            }
+    //    internal static async Task<HttpResponseMessage> GetQueryObjectParameters(TQuery query, HttpRequestMessage request,
+    //        Func<PropertyInfo[], Task<HttpResponseMessage>> callback)
+    //    {
+    //        if (query.IsDefault())
+    //        {
+    //            var emptyQuery = Activator.CreateInstance<TQuery>();
+    //            if (emptyQuery.IsDefault())
+    //                throw new Exception($"Could not activate object of type {typeof(TQuery).FullName}");
+    //            return await GetQueryObjectParameters(emptyQuery, request, callback);
+    //        }
 
-            if (query is ResourceQueryBase)
-            {
-                var resourceQuery = query as ResourceQueryBase;
-                if (resourceQuery.Id.IsDefault() &&
-                   String.IsNullOrWhiteSpace(request.RequestUri.Query) &&
-                   request.RequestUri.Segments.Any())
-                {
-                    var idRefQuery = request.RequestUri.Segments.Last();
-                    Guid idRefGuid;
-                    if (Guid.TryParse(idRefQuery, out idRefGuid))
-                        resourceQuery.Id = idRefGuid;
-                }
-            }
+    //        if (query is ResourceQueryBase)
+    //        {
+    //            var resourceQuery = query as ResourceQueryBase;
+    //            if (resourceQuery.Id.IsDefault() &&
+    //               String.IsNullOrWhiteSpace(request.RequestUri.Query) &&
+    //               request.RequestUri.Segments.Any())
+    //            {
+    //                var idRefQuery = request.RequestUri.Segments.Last();
+    //                Guid idRefGuid;
+    //                if (Guid.TryParse(idRefQuery, out idRefGuid))
+    //                    resourceQuery.Id = idRefGuid;
+    //            }
+    //        }
 
-            if (query is ResourceBase)
-            {
-                var resource = query as ResourceBase;
-                if (resource.Id.IsDefault() &&
-                   String.IsNullOrWhiteSpace(request.RequestUri.Query) &&
-                   request.RequestUri.Segments.Any())
-                {
-                    var idRefQuery = request.RequestUri.Segments.Last();
-                    Guid idRefGuid;
-                    if (Guid.TryParse(idRefQuery, out idRefGuid))
-                        resource.Id = idRefGuid;
-                }
-            }
+    //        if (query is ResourceBase)
+    //        {
+    //            var resource = query as ResourceBase;
+    //            if (resource.Id.IsDefault() &&
+    //               String.IsNullOrWhiteSpace(request.RequestUri.Query) &&
+    //               request.RequestUri.Segments.Any())
+    //            {
+    //                var idRefQuery = request.RequestUri.Segments.Last();
+    //                Guid idRefGuid;
+    //                if (Guid.TryParse(idRefQuery, out idRefGuid))
+    //                    resource.Id = idRefGuid;
+    //            }
+    //        }
 
-            return await query.GetType().GetProperties()
-                .Aggregate<PropertyInfo, PropertyInfo[], Task<HttpResponseMessage>>(
-                    (new PropertyInfo[] { }),
-                    (properties, prop, next) =>
-                    {
-                        var value = prop.GetValue(query);
-                        if (null == value)
-                            return next(properties);
-                        if (typeof(IQueryParameter).IsInstanceOfType(value))
-                        {
-                            return ((IQueryParameter)value).Parse(
-                                (v) => next(properties.Append(prop).ToArray()),
-                                (why) => request.CreateResponse(System.Net.HttpStatusCode.BadRequest).AddReason(why).ToTask());
-                        }
-                        return next(properties);
-                    },
-                    (kvps) => callback(kvps));
-        }
+    //        return await query.GetType().GetProperties()
+    //            .Aggregate<PropertyInfo, PropertyInfo[], Task<HttpResponseMessage>>(
+    //                (new PropertyInfo[] { }),
+    //                (properties, prop, next) =>
+    //                {
+    //                    var value = prop.GetValue(query);
+    //                    if (null == value)
+    //                        return next(properties);
+    //                    if (typeof(IQueryParameter).IsInstanceOfType(value))
+    //                    {
+    //                        return ((IQueryParameter)value).Parse(
+    //                            (v) => next(properties.Append(prop).ToArray()),
+    //                            (why) => request.CreateResponse(System.Net.HttpStatusCode.BadRequest).AddReason(why).ToTask());
+    //                    }
+    //                    return next(properties);
+    //                },
+    //                (kvps) => callback(kvps));
+    //    }
 
-        internal static async Task<HttpResponseMessage> GetBaseObjectParameters(TQuery query, HttpRequestMessage request,
-            Func<PropertyInfo[], Task<HttpResponseMessage>> callback)
-        {
-            if (query.IsDefault())
-            {
-                var emptyQuery = Activator.CreateInstance<TQuery>();
-                if (emptyQuery.IsDefault())
-                    throw new Exception($"Could not activate object of type {typeof(TQuery).FullName}");
-                return await GetQueryObjectParameters(emptyQuery, request, callback);
-            }
+    //    internal static async Task<HttpResponseMessage> GetBaseObjectParameters(TQuery query, HttpRequestMessage request,
+    //        Func<PropertyInfo[], Task<HttpResponseMessage>> callback)
+    //    {
+    //        if (query.IsDefault())
+    //        {
+    //            var emptyQuery = Activator.CreateInstance<TQuery>();
+    //            if (emptyQuery.IsDefault())
+    //                throw new Exception($"Could not activate object of type {typeof(TQuery).FullName}");
+    //            return await GetQueryObjectParameters(emptyQuery, request, callback);
+    //        }
 
-            if (query is ResourceQueryBase)
-            {
-                var resourceQuery = query as ResourceQueryBase;
-                if (resourceQuery.Id.IsDefault() &&
-                   String.IsNullOrWhiteSpace(request.RequestUri.Query) &&
-                   request.RequestUri.Segments.Any())
-                {
-                    var idRefQuery = request.RequestUri.Segments.Last();
-                    Guid idRefGuid;
-                    if (Guid.TryParse(idRefQuery, out idRefGuid))
-                        resourceQuery.Id = idRefGuid;
-                }
-            }
+    //        if (query is ResourceQueryBase)
+    //        {
+    //            var resourceQuery = query as ResourceQueryBase;
+    //            if (resourceQuery.Id.IsDefault() &&
+    //               String.IsNullOrWhiteSpace(request.RequestUri.Query) &&
+    //               request.RequestUri.Segments.Any())
+    //            {
+    //                var idRefQuery = request.RequestUri.Segments.Last();
+    //                Guid idRefGuid;
+    //                if (Guid.TryParse(idRefQuery, out idRefGuid))
+    //                    resourceQuery.Id = idRefGuid;
+    //            }
+    //        }
 
-            if (query is ResourceBase)
-            {
-                var resource = query as ResourceBase;
-                if (resource.Id.IsDefault() &&
-                   String.IsNullOrWhiteSpace(request.RequestUri.Query) &&
-                   request.RequestUri.Segments.Any())
-                {
-                    var idRefQuery = request.RequestUri.Segments.Last();
-                    Guid idRefGuid;
-                    if (Guid.TryParse(idRefQuery, out idRefGuid))
-                        resource.Id = idRefGuid;
-                }
-            }
+    //        if (query is ResourceBase)
+    //        {
+    //            var resource = query as ResourceBase;
+    //            if (resource.Id.IsDefault() &&
+    //               String.IsNullOrWhiteSpace(request.RequestUri.Query) &&
+    //               request.RequestUri.Segments.Any())
+    //            {
+    //                var idRefQuery = request.RequestUri.Segments.Last();
+    //                Guid idRefGuid;
+    //                if (Guid.TryParse(idRefQuery, out idRefGuid))
+    //                    resource.Id = idRefGuid;
+    //            }
+    //        }
 
-            return await query.GetType().GetProperties()
-                .Aggregate<PropertyInfo, PropertyInfo[], Task<HttpResponseMessage>>(
-                    (new PropertyInfo[] { }),
-                    (properties, prop, next) =>
-                    {
-                        var value = prop.GetValue(query);
-                        if (null == value)
-                            return next(properties);
-                        if (typeof(IQueryParameter).IsInstanceOfType(value))
-                        {
-                            return ((IQueryParameter)value).Parse(
-                                (v) => next(properties.Append(prop).ToArray()),
-                                (why) => request.CreateResponse(System.Net.HttpStatusCode.BadRequest).AddReason(why).ToTask());
-                        }
-                        return next(properties);
-                    },
-                    (kvps) => callback(kvps));
-        }
-    }
+    //        return await query.GetType().GetProperties()
+    //            .Aggregate<PropertyInfo, PropertyInfo[], Task<HttpResponseMessage>>(
+    //                (new PropertyInfo[] { }),
+    //                (properties, prop, next) =>
+    //                {
+    //                    var value = prop.GetValue(query);
+    //                    if (null == value)
+    //                        return next(properties);
+    //                    if (typeof(IQueryParameter).IsInstanceOfType(value))
+    //                    {
+    //                        return ((IQueryParameter)value).Parse(
+    //                            (v) => next(properties.Append(prop).ToArray()),
+    //                            (why) => request.CreateResponse(System.Net.HttpStatusCode.BadRequest).AddReason(why).ToTask());
+    //                    }
+    //                    return next(properties);
+    //                },
+    //                (kvps) => callback(kvps));
+    //    }
+    //}
 }

@@ -26,8 +26,10 @@ using EastFive.Linq.Async;
 using EastFive.Api.Controllers;
 using EastFive.Api;
 using EastFive.Collections.Generic;
+using BlackBarLabs.Api;
+using BlackBarLabs;
 
-namespace BlackBarLabs.Api
+namespace EastFive.Api
 {
     public static class ResponseExtensions
     {
@@ -146,7 +148,7 @@ namespace BlackBarLabs.Api
         public static HttpResponseMessage CreateMultisheetXlsxResponse<TResource>(this HttpRequestMessage request,
             IDictionary<string, string> properties, IEnumerable<TResource> resources,
             string filename = "")
-            where TResource : ResourceBase
+            where TResource : BlackBarLabs.Api.ResourceBase
         {
             try
             {
@@ -760,7 +762,7 @@ namespace BlackBarLabs.Api
 
             var encoder = getEncoderInfo("image/jpeg");
             response.Content = new PushStreamContent(
-                async (outputStream, httpContent, transportContext) =>
+                (outputStream, httpContent, transportContext) =>
                 {
                     var encoderParameters = new EncoderParameters(1);
                     encoderParameters.Param[0] = new EncoderParameter(Encoder.Quality, 80L);
@@ -780,7 +782,7 @@ namespace BlackBarLabs.Api
             
             var encoder = getEncoderInfo(contentType);
             response.Content = new PushStreamContent(
-                async (outputStream, httpContent, transportContext) =>
+                (outputStream, httpContent, transportContext) =>
                 {
                     var encoderParameters = new EncoderParameters(1);
                     encoderParameters.Param[0] = new EncoderParameter(Encoder.Quality, 80L);
@@ -865,7 +867,7 @@ namespace BlackBarLabs.Api
                             await outputStream.WriteAsync(video, (int)range.From.Value, (int)length);
                         }
                     }
-                    catch (System.Web.HttpException ex)
+                    catch (System.Web.HttpException)
                     {
                         return;
                     }
