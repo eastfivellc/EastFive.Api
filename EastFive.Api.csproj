@@ -136,6 +136,11 @@
   <ItemGroup>
     <Compile Include="Attributes\HtmlAttributes.cs" />
     <Compile Include="Attributes\Manifest\IDocumentResponse.cs" />
+    <Compile Include="Attributes\QueryValidation\PropertyAttribute.cs" />
+    <Compile Include="Attributes\QueryValidation\PropertyOptionalAttribute.cs" />
+    <Compile Include="Attributes\QueryValidation\UpdateIdAttribute.cs" />
+    <Compile Include="Attributes\QueryValidation\XmlResourceAttribute.cs" />
+    <Compile Include="Attributes\QueryValidation\XmlPropertyAttribute.cs" />
     <Compile Include="Attributes\SheetColumnAttribute.cs" />
     <Compile Include="Attributes\ResourceTypeAttribute.cs" />
     <Compile Include="AppSettings.cs" />

@@ -6,10 +6,12 @@ using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml;
 
 namespace EastFive.Api
 {
-    public delegate Task<TResult> CastDelegate<TResult>(string query, Type type,
+    public delegate Task<TResult> CastDelegate<TResult>(ParameterInfo parameterInfo,
+            // IApplication httpApp, HttpRequestMessage request,
         Func<object, TResult> onCasted,
         Func<string, TResult> onFailedToCast);
 
@@ -25,6 +27,26 @@ namespace EastFive.Api
             bool matchAllPathParameters,
             bool matchAllQueryParameters,
             bool matchAllBodyParameters);
+    }
+
+    public interface IBindXmlApiValue
+    {
+        Task<TResult> ParseContentDelegateAsync<TResult>(
+            XmlDocument xmlDoc,
+            ParameterInfo parameterInfo,
+            IApplication httpApp, HttpRequestMessage request,
+        Func<object, TResult> onParsed,
+        Func<string, TResult> onFailure);
+    }
+
+    public interface IBindJsonApiValue
+    {
+        Task<TResult> ParseContentDelegateAsync<TResult>(Newtonsoft.Json.Linq.JObject contentJObject,
+                string contentString, Serialization.BindConvert bindConvert,
+            ParameterInfo parameterInfo,
+            IApplication httpApp, HttpRequestMessage request,
+        Func<object, TResult> onParsed,
+        Func<string, TResult> onFailure);
     }
 
     public interface IProvideApiValue

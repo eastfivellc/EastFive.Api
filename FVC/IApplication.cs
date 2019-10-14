@@ -16,7 +16,9 @@ namespace EastFive.Api
             Type type, HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
         Func<object, Task<HttpResponseMessage>> onSuccess);
 
-    public delegate Task<TResult> ParseContentDelegateAsync<TResult>(string key, Type type,
+    public delegate Task<TResult> ParseContentDelegateAsync<TResult>(
+            ParameterInfo parameterInfo,
+            IApplication httpApp, HttpRequestMessage request, 
         Func<object, TResult> onParsed,
         Func<string, TResult> onFailure);
 

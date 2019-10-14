@@ -39,9 +39,9 @@ namespace EastFive.Api
                 async (bodyParser, bodyValues) =>
                 {
                     CastDelegate<SelectParameterResult> bodyCastDelegate =
-                        (queryKey, type, onParsed, onFailure) =>
+                        (paramInfo, onParsed, onFailure) =>
                         {
-                            return bodyParser(queryKey, type,
+                            return bodyParser(paramInfo, httpApp, request,
                                 value =>
                                 {
                                     var parsedResult = onParsed(value);

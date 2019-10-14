@@ -138,9 +138,13 @@ namespace EastFive.Api
 
             var queryParameterCollections = GetCollectionParameters(httpApp, queryParameters).ToDictionary();
             CastDelegate<SelectParameterResult> queryCastDelegate =
-                (query, type, onParsed, onFailure) =>
+                (paramInfo, onParsed, onFailure) =>
                 {
-                    var queryKey = query.ToLower();
+                    var queryKey = paramInfo
+                        .GetAttributeInterface<IBindApiValue>()
+                        .GetKey(paramInfo)
+                        .ToLower();
+                    var type = paramInfo.ParameterType;
                     if (!queryParameters.ContainsKey(queryKey))
                     {
                         if (!queryParameterCollections.ContainsKey(queryKey))
@@ -165,13 +169,13 @@ namespace EastFive.Api
             #region Get file name from URI (optional part between the controller name and the query)
 
             CastDelegate<SelectParameterResult> fileNameCastDelegate =
-                (query, type, onParsed, onFailure) =>
+                (paramInfo, onParsed, onFailure) =>
                 {
                     if (!fileNameParams.Any())
                         return onFailure("No URI filename value provided.").AsTask();
+                    var type = paramInfo.ParameterType;
                     return httpApp
-                        .Bind(type,
-                                new QueryParamTokenParser(fileNameParams.First()),
+                        .Bind(type, new QueryParamTokenParser(fileNameParams.First()),
                             v => onParsed(v),
                             (why) => onFailure(why))
                         .AsTask();
@@ -183,9 +187,9 @@ namespace EastFive.Api
                 async (bodyParser, bodyValues) =>
                 {
                     CastDelegate<SelectParameterResult> bodyCastDelegate =
-                        (queryKey, type, onParsed, onFailure) =>
+                        (parameterInfo, onParsed, onFailure) =>
                         {
-                            return bodyParser(queryKey, type,
+                            return bodyParser(parameterInfo, httpApp, request,
                                 value =>
                                 {
                                     var parsedResult = onParsed(value);
