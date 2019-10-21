@@ -22,13 +22,16 @@ namespace EastFive.Api
 {
     public class XmlResourceAttribute : PropertyAttribute, IBindApiValue, IBindXmlApiValue
     {
-        public async Task<TResult> ParseContentDelegateAsync<TResult>(XmlDocument xmlDoc,
+        public async Task<TResult> ParseContentDelegateAsync<TResult>(XmlDocument xmlDoc, string rawContent,
                 ParameterInfo parameterInfo, IApplication httpApp, HttpRequestMessage request,
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure)
         {
             if (parameterInfo.ParameterType.IsAssignableFrom(typeof(XmlDocument)))
                 return onParsed(xmlDoc);
+
+            if (parameterInfo.ParameterType.IsAssignableFrom(typeof(string)))
+                return onParsed(rawContent);
 
             return await onFailure($"Cannot bind XML Resource to `{parameterInfo.ParameterType.FullName}.`")
                 .AsTask();

@@ -1475,6 +1475,15 @@ namespace EastFive.Api
 
                 #endregion
 
+                #region Logging
+
+                {
+                    typeof(Analytics.ILogger),
+                    (httpApp, request, paramInfo, success) => success(httpApp.Logger)
+                },
+
+                #endregion
+
             };
 
         public void AddInstigator(Type type, InstigatorDelegate instigator)
@@ -2344,7 +2353,7 @@ namespace EastFive.Api
                     {
                         return paramInfo
                             .GetAttributeInterface<IBindXmlApiValue>()
-                            .ParseContentDelegateAsync(xmldoc,
+                            .ParseContentDelegateAsync(xmldoc, contentString,
                                 paramInfo, app, request,
                                 onFound,
                                 onFailure);
