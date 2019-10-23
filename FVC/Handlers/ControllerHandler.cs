@@ -61,14 +61,26 @@ namespace EastFive.Api.Modules
             var routeName = path[1].ToLower();
 
             return await httpApp.GetControllerType(routeName,
-                async (controllerType) =>
+                (controllerType) =>
                 {
-                    var invokeResource = controllerType.GetAttributesInterface<IInvokeResource>().First();
-                    return await invokeResource.CreateResponseAsync(controllerType, httpApp, request, routeName);
+                    return httpApp.GetType()
+                        .GetAttributesInterface<IHandleRoutes>(true, true)
+                        .Aggregate<IHandleRoutes, Func<Task<HttpResponseMessage>>>(
+                            () =>
+                            {
+                                var invokeResource = controllerType.GetAttributesInterface<IInvokeResource>().First();
+                                return invokeResource.CreateResponseAsync(controllerType, httpApp, request, routeName);
+                            },
+                            (callback, routeHandler) =>
+                            {
+                                return () => routeHandler.RouteHandlersAsync(controllerType,
+                                    httpApp, request, routeName,
+                                    callback);
+                            })
+                        .Invoke();
+                    
                 },
                 () => continuation(request, cancellationToken));
         }
-
-
     }
 }
