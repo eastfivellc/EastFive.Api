@@ -65,19 +65,24 @@ namespace EastFive.Api
                 });
         }
 
-        public static HttpRequestMessage Patch<TResource>(this IQueryable<TResource> requestQuery, TResource resource)
+        public static HttpRequestMessage Patch<TResource>(this IQueryable<TResource> requestQuery, TResource resource,
+            System.Net.Http.Headers.HttpRequestHeaders headers = default)
         {
             return requestQuery.Method<TResource>(new HttpMethod("patch"),
-                    request =>
+                request =>
+                {
+                    var settings = new JsonSerializerSettings();
+                    settings.Converters.Add(new Serialization.Converter());
+                    settings.DefaultValueHandling = DefaultValueHandling.Ignore;
+                    var contentJsonString = JsonConvert.SerializeObject(resource, settings);
+                    request.Content = new StreamContent(contentJsonString.ToStream());
+                    request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+                    foreach(var header in headers)
                     {
-                        var settings = new JsonSerializerSettings();
-                        settings.Converters.Add(new Serialization.Converter());
-                        settings.DefaultValueHandling = DefaultValueHandling.Ignore;
-                        var contentJsonString = JsonConvert.SerializeObject(resource, settings);
-                        request.Content = new StreamContent(contentJsonString.ToStream());
-                        request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
-                        return request;
-                    });
+                        request.Headers.Add(header.Key, header.Value);
+                    }
+                    return request;
+                });
         }
 
         public static HttpRequestMessage HttpDelete<TResource>(this IQueryable<TResource> requestQuery)
