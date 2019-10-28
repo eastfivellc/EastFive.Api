@@ -11,41 +11,41 @@ namespace EastFive.Api.Controllers
 {
     
 
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Created)]
+    //[HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Created)]
     public delegate HttpResponseMessage CreatedResponse();
 
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.NoContent)]
+    //[HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.NoContent)]
     public delegate HttpResponseMessage NoContentResponse();
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.NotModified)]
+    //[HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.NotModified)]
     public delegate HttpResponseMessage NotModifiedResponse();
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Accepted)]
+    //[HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Accepted)]
     public delegate HttpResponseMessage AcceptedResponse();
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Accepted, Example = "serialized object")]
+    //[HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Accepted, Example = "serialized object")]
     public delegate HttpResponseMessage AcceptedBodyResponse(object content, string contentType = default(string));
 
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Created, Example = "serialized object")]
+    //[HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Created, Example = "serialized object")]
     public delegate HttpResponseMessage CreatedBodyResponse<TResource>(object content, string contentType = default(string));
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Redirect)]
+    //[HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Redirect)]
     public delegate HttpResponseMessage RedirectResponse(Uri redirectLocation);
 
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.BadRequest)]
+    //[HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.BadRequest)]
     public delegate HttpResponseMessage BadRequestResponse();
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.NotFound)]
+    //[HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.NotFound)]
     public delegate HttpResponseMessage NotFoundResponse();
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Conflict)]
+    //[HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Conflict)]
     public delegate HttpResponseMessage AlreadyExistsResponse();
-    [HttpHeaderDelegate(StatusCode = System.Net.HttpStatusCode.Conflict, HeaderName = "", HeaderValue = "")]
+    //[HttpHeaderDelegate(StatusCode = System.Net.HttpStatusCode.Conflict, HeaderName = "", HeaderValue = "")]
     public delegate HttpResponseMessage AlreadyExistsReferencedResponse(Guid value);
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Conflict)]
+    //[HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Conflict)]
     public delegate HttpResponseMessage ForbiddenResponse();
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Conflict)]
+    //[HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Conflict)]
     public delegate HttpResponseMessage GeneralConflictResponse(string value);
 
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.InternalServerError)]
+    //[HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.InternalServerError)]
     public delegate HttpResponseMessage GeneralFailureResponse(string value);
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.ServiceUnavailable)]
+    //[HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.ServiceUnavailable)]
     public delegate HttpResponseMessage ServiceUnavailableResponse();
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.ServiceUnavailable)]
+    //[HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.ServiceUnavailable)]
     public delegate HttpResponseMessage ConfigurationFailureResponse(string configurationValue, string message);
 
     /// <summary>
@@ -72,7 +72,7 @@ namespace EastFive.Api.Controllers
         Task<HttpResponseMessage> InvokeAsync(Action<double> updateCallback);
     }
 
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Accepted)]
+    //[HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Accepted)]
     public delegate Task<HttpResponseMessage> ExecuteBackgroundResponseAsync(IExecuteAsync executeAsync);
 
     //[Obsolete("Use ExecuteBackgroundResponseAsync instead.")]

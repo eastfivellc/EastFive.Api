@@ -751,16 +751,6 @@ namespace EastFive.Api
                     }
                 },
                 {
-                    typeof(Controllers.ContentTypeResponse<>),
-                    (type, httpApp, request, paramInfo, success) =>
-                    {
-                        var wrapperConcreteType = typeof(InstigatorGenericWrapper1<>).MakeGenericType(type.GenericTypeArguments);
-                        var wrapperInstance = Activator.CreateInstance(wrapperConcreteType, new object [] { httpApp, request, paramInfo });
-                        var dele = Delegate.CreateDelegate(type, wrapperInstance, "ContentTypeResponse", false);
-                        return success((object)dele);
-                    }
-                },
-                {
                     typeof(Controllers.CreatedBodyResponse<>),
                     (type, httpApp, request, paramInfo, success) =>
                     {
@@ -788,17 +778,6 @@ namespace EastFive.Api
                         return success((object)dele);
                     }
                 },
-                {
-                    typeof(Controllers.MultipartResponseAsync<>),
-                    (type, httpApp, request, paramInfo, success) =>
-                    {
-                        var scope = new GenericInstigatorScoping(type, httpApp, request, paramInfo);
-                        var multipartResponseMethodInfoGeneric = typeof(GenericInstigatorScoping).GetMethod("MultipartResponseAsync", BindingFlags.Public | BindingFlags.Instance);
-                        var multipartResponseMethodInfoBound = multipartResponseMethodInfoGeneric.MakeGenericMethod(type.GenericTypeArguments);
-                        var dele = Delegate.CreateDelegate(type, scope, multipartResponseMethodInfoBound);
-                        return success((object)dele);
-                    }
-                }
             };
 
         public static HttpResponseMessage CreatedBodyResponse(HttpRequestMessage request)
@@ -1323,6 +1302,14 @@ namespace EastFive.Api
                     (v) => onInstigated(v));
             }
 
+            var instigationGenericAttrs = methodParameter.ParameterType.GetAttributesInterface<IInstigatableGeneric>();
+            if (instigationGenericAttrs.Any())
+            {
+                var instigationAttr = instigationGenericAttrs.First();
+                return instigationAttr.InstigatorDelegateGeneric(methodParameter.ParameterType, this, request, methodParameter,
+                    (v) => onInstigated(v));
+            }
+
             if (this.instigators.ContainsKey(methodParameter.ParameterType))
                 return this.instigators[methodParameter.ParameterType](this, request, methodParameter,
                     (v) => onInstigated(v));
@@ -1431,6 +1418,16 @@ namespace EastFive.Api
                         if (int.TryParse(intStringValue, out int intValue))
                             return onParsed(intValue);
                         return onNotConvertable($"Failed to convert {intStringValue} to `{typeof(int).FullName}`.");
+                    }
+                },
+                {
+                    typeof(double),
+                    (httpApp, token, onParsed, onNotConvertable) =>
+                    {
+                        var intStringValue = token.ReadString();
+                        if (double.TryParse(intStringValue, out double intValue))
+                            return onParsed(intValue);
+                        return onNotConvertable($"Failed to convert {intStringValue} to `{typeof(double).FullName}`.");
                     }
                 },
                 {

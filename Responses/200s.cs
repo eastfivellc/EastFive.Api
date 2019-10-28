@@ -14,11 +14,60 @@ using EastFive.Api.Resources;
 using EastFive.Linq;
 using EastFive.Extensions;
 using EastFive.Linq.Async;
+using System.IO;
+using BlackBarLabs.Extensions;
 
 namespace EastFive.Api
 {
-    [HttpFuncDelegate(StatusCode = System.Net.HttpStatusCode.OK)]
+    [ContentTypeResponse]
     public delegate HttpResponseMessage ContentTypeResponse<TResource>(object content, string contentType = default(string));
+    public class ContentTypeResponseAttribute : HttpGenericDelegateAttribute
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override string Example => default;
+
+        [InstigateMethod]
+        public HttpResponseMessage ContentTypeResponse<TResource>(object content, string contentTypeString = default(string))
+        {
+            Type GetType(Type type)
+            {
+                if (type.IsArray)
+                    return GetType(type.GetElementType());
+                return type;
+            }
+
+            return GetType(typeof(TResource))
+                .GetAttributesInterface<IProvideSerialization>()
+                .Select(
+                    serializeAttr =>
+                    {
+                        var quality = request.Headers.Accept
+                            .Where(acceptOption => acceptOption.MediaType.ToLower() == serializeAttr.MediaType.ToLower())
+                            .First(
+                                (acceptOption, next) => acceptOption.Quality.HasValue ? acceptOption.Quality.Value : -1.0,
+                                () => -2.0);
+                        return serializeAttr.PairWithValue(quality);
+                    })
+                .OrderByDescending(kvp => kvp.Value)
+                .First(
+                    (serializerQualityKvp, next) =>
+                    {
+                        var serializationProvider = serializerQualityKvp.Key;
+                        var quality = serializerQualityKvp.Value;
+                        var responseNoContent = request.CreateResponse(System.Net.HttpStatusCode.OK, content);
+                        var customResponse = serializationProvider.Serialize(responseNoContent, httpApp, request, parameterInfo, content);
+                        return customResponse;
+                    },
+                    () =>
+                    {
+                        var response = request.CreateResponse(System.Net.HttpStatusCode.OK, content);
+                        if (!contentTypeString.IsNullOrWhiteSpace())
+                            response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentTypeString);
+                        return response;
+                    });
+        }
+    }
 
     [ContentResponse(StatusCode = System.Net.HttpStatusCode.OK)]
     public delegate HttpResponseMessage ContentResponse(object content, string contentType = default(string));
@@ -49,6 +98,8 @@ namespace EastFive.Api
             return onSuccess((object)dele);
         }
     }
+
+    #region Data
 
     [BytesResponse]
     public delegate HttpResponseMessage BytesResponse(byte[] bytes, string filename = default, string contentType = default, bool? inline = default);
@@ -94,7 +145,7 @@ namespace EastFive.Api
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
-            Controllers.ImageResponse responseDelegate = (imageData, width, height, fill,
+            ImageResponse responseDelegate = (imageData, width, height, fill,
                             filename, contentType) =>
             {
                 if (width.HasValue || height.HasValue || fill.HasValue)
@@ -111,6 +162,31 @@ namespace EastFive.Api
         }
     }
 
+
+    [PdfResponse()]
+    public delegate HttpResponseMessage PdfResponse(byte[] content, string name, bool inline);
+    public class PdfResponseAttribute : HttpFuncDelegateAttribute
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override string Example => "PDF File data";
+
+        public override Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
+                HttpRequestMessage request, ParameterInfo parameterInfo,
+            Func<object, Task<HttpResponseMessage>> onSuccess)
+        {
+            PdfResponse responseDelegate = (pdfData, filename, inline) =>
+            {
+                var response = request.CreatePdfResponse(pdfData, filename, inline);
+                return response;
+            };
+            return onSuccess((object)responseDelegate);
+        }
+    }
+
+    #endregion
+
+    #region HTML
 
     [HtmlResponse]
     public delegate HttpResponseMessage HtmlResponse(string content);
@@ -232,6 +308,7 @@ namespace EastFive.Api
         }
     }
 
+    #endregion
 
     [XlsxResponse()]
     public delegate HttpResponseMessage XlsxResponse(byte[] content, string name);
@@ -254,28 +331,7 @@ namespace EastFive.Api
         }
     }
 
-    [PdfResponse()]
-    public delegate HttpResponseMessage PdfResponse(byte[] content, string name, bool inline);
-    public class PdfResponseAttribute : HttpFuncDelegateAttribute
-    {
-        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
-
-        public override string Example => "PDF File data";
-
-        public override Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
-                HttpRequestMessage request, ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
-        {
-            PdfResponse responseDelegate = (pdfData, filename, inline) =>
-            {
-                var response = request.CreatePdfResponse(pdfData, filename, inline);
-                return response;
-            };
-            return onSuccess((object)responseDelegate);
-        }
-    }
-
-    
+    #region Multipart
 
     [MultipartResponseAsync]
     public delegate Task<HttpResponseMessage> MultipartResponseAsync(IEnumerable<HttpResponseMessage> responses);
@@ -331,17 +387,7 @@ namespace EastFive.Api
 
         public override string Example => "[]";
 
-        public override Task<HttpResponseMessage> InstigatorDelegateGeneric(Type type,
-                HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
-        {
-            var scope = new GenericInstigatorScoping(type, httpApp, request, paramInfo);
-            var multipartResponseMethodInfoGeneric = typeof(GenericInstigatorScoping).GetMethod("MultipartResponseAsync", BindingFlags.Public | BindingFlags.Instance);
-            var multipartResponseMethodInfoBound = multipartResponseMethodInfoGeneric.MakeGenericMethod(type.GenericTypeArguments);
-            var responseDelegate = Delegate.CreateDelegate(type, scope, multipartResponseMethodInfoBound);
-            return onSuccess(responseDelegate);
-        }
-
+        [InstigateMethod]
         public async Task<HttpResponseMessage> MultipartResponseAsync<T>(IEnumerableAsync<T> objectsAsync)
         {
             if (request.Headers.Accept.Contains(accept => accept.MediaType.ToLower().Contains("xlsx")))
@@ -349,7 +395,7 @@ namespace EastFive.Api
                 var objects = await objectsAsync.ToArrayAsync();
                 return await request.CreateMultisheetXlsxResponse(
                     new Dictionary<string, string>(),
-                    objects.Cast<ResourceBase>()).ToTask();
+                    objects.Cast<BlackBarLabs.Api.ResourceBase>()).AsTask();
             }
 
             var responses = await objectsAsync
@@ -365,7 +411,7 @@ namespace EastFive.Api
 
                         var responseNoContent = request.CreateResponse(System.Net.HttpStatusCode.OK, obj);
                         var serializationProvider = objType.GetAttributesInterface<IProvideSerialization>().Single();
-                        var customResponse = serializationProvider.Serialize(responseNoContent, httpApp, request, paramInfo, obj);
+                        var customResponse = serializationProvider.Serialize(responseNoContent, httpApp, request, parameterInfo, obj);
                         return customResponse;
                     })
                 .Async();
@@ -398,4 +444,6 @@ namespace EastFive.Api
             return await request.CreateMultipartResponseAsync(responses);
         }
     }
+
+    #endregion
 }
