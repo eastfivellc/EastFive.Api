@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,11 +17,11 @@ namespace EastFive.Api
         Response GetResponse(Response response, ParameterInfo paramInfo, HttpApplication httpApp);
     }
 
-    public class HttpDelegateAttribute : Attribute, IDocumentResponse
+    public abstract class HttpDelegateAttribute : Attribute, IDocumentResponse, IInstigatable
     {
-        public HttpStatusCode StatusCode { get; set; }
+        public virtual HttpStatusCode StatusCode { get; set; }
 
-        public string Example { get; set; }
+        public virtual string Example { get; set; }
 
         public virtual Response GetResponse(ParameterInfo paramInfo, HttpApplication httpApp)
         {
@@ -36,13 +37,17 @@ namespace EastFive.Api
                 .Aggregate(response,
                     (last, attr) => attr.GetResponse(last, paramInfo, httpApp));
         }
+
+        public abstract Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
+            HttpRequestMessage request, ParameterInfo parameterInfo,
+            Func<object, Task<HttpResponseMessage>> onSuccess);
     }
 
-    public class HttpActionDelegateAttribute : HttpDelegateAttribute
+    public abstract class HttpActionDelegateAttribute : HttpDelegateAttribute
     {
     }
 
-    public class HttpFuncDelegateAttribute : HttpDelegateAttribute
+    public abstract class HttpFuncDelegateAttribute : HttpDelegateAttribute
     {
         public override Response GetResponse(ParameterInfo paramInfo, HttpApplication httpApp)
         {
@@ -52,12 +57,7 @@ namespace EastFive.Api
                 response.Example = Parameter.GetTypeName(paramInfo.ParameterType.GenericTypeArguments.First(), httpApp);
                 return response;
             }
-            if (paramInfo.ParameterType.IsSubClassOfGeneric(typeof(Controllers.CreatedBodyResponse<>)))
-            {
-                response.Example = Parameter.GetTypeName(paramInfo.ParameterType.GenericTypeArguments.First(), httpApp);
-                return response;
-            }
-            if (paramInfo.ParameterType.IsSubClassOfGeneric(typeof(Controllers.MultipartResponseAsync<>)))
+            if (paramInfo.ParameterType.IsSubClassOfGeneric(typeof(MultipartResponseAsync<>)))
             {
                 var typeName = Parameter.GetTypeName(paramInfo.ParameterType.GenericTypeArguments.First(), httpApp);
                 response.Example = $"{typeName}[]";
@@ -67,11 +67,10 @@ namespace EastFive.Api
         }
     }
 
-    public class HttpHeaderDelegateAttribute : HttpDelegateAttribute
+    public abstract class HttpHeaderDelegateAttribute : HttpDelegateAttribute
     {
         public string HeaderName { get; set; }
         public string HeaderValue { get; set; }
-
 
         public override Response GetResponse(ParameterInfo paramInfo, HttpApplication httpApp)
         {
@@ -87,7 +86,7 @@ namespace EastFive.Api
                 response.Example = Parameter.GetTypeName(paramInfo.ParameterType.GenericTypeArguments.First(), httpApp);
                 return response;
             }
-            if (paramInfo.ParameterType.IsSubClassOfGeneric(typeof(Controllers.MultipartResponseAsync<>)))
+            if (paramInfo.ParameterType.IsSubClassOfGeneric(typeof(MultipartResponseAsync<>)))
             {
                 var typeName = Parameter.GetTypeName(paramInfo.ParameterType.GenericTypeArguments.First(), httpApp);
                 response.Example = $"{typeName}[]";

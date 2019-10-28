@@ -9,30 +9,7 @@ using System.Threading.Tasks;
 
 namespace EastFive.Api.Controllers
 {
-    [HttpFuncDelegate(StatusCode = System.Net.HttpStatusCode.OK)]
-    public delegate HttpResponseMessage ContentTypeResponse<TResource>(object content, string contentType = default(string));
-    [HttpFuncDelegate(StatusCode = System.Net.HttpStatusCode.OK)]
-    public delegate HttpResponseMessage ContentResponse(object content, string contentType = default(string));
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.OK, Example = "Raw data (byte [])")]
-    public delegate HttpResponseMessage BytesResponse(byte[] bytes, string filename = default, string contentType = default, bool? inline = default);
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.OK, Example = "Raw data (byte [])")]
-    public delegate HttpResponseMessage ImageResponse(byte[] bytes,
-        int? width, int? height, bool? fill,
-        string filename = default, string contentType = default);
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.OK, Example = "<html><head></head><body>Hello World</body></html>")]
-    public delegate HttpResponseMessage HtmlResponse(string content);
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.OK, Example = "<xml></xml>")]
-    public delegate HttpResponseMessage XlsxResponse(byte [] content, string name);
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.OK, Example = "PDF File data")]
-    public delegate HttpResponseMessage PdfResponse(byte[] content, string name, bool inline);
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.OK, Example = "<html><head></head><body>Hello World</body></html>")]
-    public delegate HttpResponseMessage ViewFileResponse(string viewPath, object content);
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.OK, Example = "Hello World")]
-    public delegate HttpResponseMessage ViewStringResponse(string view, object content);
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.OK, Example = "<html><head></head><body>Hello World</body></html>")]
-    public delegate string ViewRenderer(string filePath, object content);
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.OK, Example = "<html><head></head><body>Hello World</body></html>")]
-    public delegate string ViewPathResolver(string view);
+    
 
     [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Created)]
     public delegate HttpResponseMessage CreatedResponse();
@@ -50,12 +27,6 @@ namespace EastFive.Api.Controllers
     public delegate HttpResponseMessage CreatedBodyResponse<TResource>(object content, string contentType = default(string));
     [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.Redirect)]
     public delegate HttpResponseMessage RedirectResponse(Uri redirectLocation);
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.OK, Example = "[]")]
-    public delegate Task<HttpResponseMessage> MultipartResponseAsync(IEnumerable<HttpResponseMessage> responses);
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.OK, Example = "[]")]
-    public delegate Task<HttpResponseMessage> MultipartAcceptArrayResponseAsync(IEnumerable<object> responses);
-    [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.OK, Example = "[]")]
-    public delegate Task<HttpResponseMessage> MultipartResponseAsync<TResource>(IEnumerableAsync<TResource> responses);
 
     [HttpActionDelegate(StatusCode = System.Net.HttpStatusCode.BadRequest)]
     public delegate HttpResponseMessage BadRequestResponse();
