@@ -135,6 +135,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Attributes\HtmlAttributes.cs" />
+    <Compile Include="Attributes\Instigation\HttpGenericDelegateAttribute.cs" />
+    <Compile Include="Attributes\Instigation\IInstigatableGeneric.cs" />
     <Compile Include="Attributes\Manifest\IDocumentResponse.cs" />
     <Compile Include="Attributes\QueryValidation\PropertyAttribute.cs" />
     <Compile Include="Attributes\QueryValidation\PropertyOptionalAttribute.cs" />
@@ -206,7 +208,7 @@
     <Compile Include="FVC\Routing\IMatchRoute.cs" />
     <Compile Include="FVC\InvokeApplicationExtensions.cs" />
     <Compile Include="FVC\FunctionViewController4Attribute.cs" />
-    <Compile Include="FVC\HttpActionDelegateAttribute.cs" />
+    <Compile Include="Attributes\Instigation\HttpActionDelegateAttribute.cs" />
     <Compile Include="FVC\HttpResourceAttribute.cs" />
     <Compile Include="FVC\FunctionViewControllerAttribute.cs" />
     <Compile Include="Attributes\QueryValidation\QueryValidationAttribute.cs" />
@@ -258,6 +260,7 @@
     <Compile Include="Resources\SheetsStream.cs" />
     <Compile Include="Resources\WebId.cs" />
     <Compile Include="Attributes\ApiPropertyAttribute.cs" />
+    <Compile Include="Responses\200s.cs" />
     <Compile Include="Services\IIdentityService.cs" />
     <Compile Include="Services\ServiceConfiguration.cs" />
     <Compile Include="Workers\BackgroundWorker.cs" />
