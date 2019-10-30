@@ -35,12 +35,19 @@ namespace EastFive.Api
                 RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
+            var instance = Instigate(httpApp, request);
+            return onSuccess(instance);
+        }
+
+        public static IInvokeApplication Instigate(HttpApplication httpApp, HttpRequestMessage request)
+        {
             string GetApiPrefix()
             {
                 try
                 {
                     return request.RequestUri.AbsolutePath.Trim('/'.AsArray()).Split('/'.AsArray()).First();
-                } catch(Exception)
+                }
+                catch (Exception)
                 {
 
                 }
@@ -51,10 +58,10 @@ namespace EastFive.Api
                 if (route.IsDefaultOrNull())
                     return "api";
                 var routeTemplate = route.RouteTemplate;
-                if(routeTemplate.IsNullOrWhiteSpace())
+                if (routeTemplate.IsNullOrWhiteSpace())
                     return "api";
                 var directories = routeTemplate.Split('/'.AsArray());
-                if(!directories.AnyNullSafe())
+                if (!directories.AnyNullSafe())
                     return "api";
                 return directories.First();
             }
@@ -69,7 +76,7 @@ namespace EastFive.Api
             var apiPrefix = GetApiPrefix();
             var serverLocation = GetServerLocation();
             var instance = new InvokeApplicationFromRequest(httpApp, request, serverLocation, apiPrefix);
-            return onSuccess(instance);
+            return instance;
         }
 
         private class InvokeApplicationFromRequest : InvokeApplication

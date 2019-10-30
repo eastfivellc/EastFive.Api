@@ -17,67 +17,70 @@ namespace EastFive.Api
 {
     public static class ResourceQueryCompilationExtensions
     {
-        public static TAggr Compile<TResource, TAggr, TMemberAttribute, TMethodAttribute>(this IQueryable<TResource> urlQuery,
-                TAggr startingValue,
-            Func<TAggr, TMethodAttribute, MethodInfo, Expression[], TAggr> onAttribute,
-            params KeyValuePair<string, TMethodAttribute> [] baseClassAttrs)
-        {
-            IEnumerable<KeyValuePair<MethodInfo, Expression[]>> FlattenArgumentExpression(Expression argExpression)
-            {
-                if (argExpression is MethodCallExpression)
-                {
-                    var methodCallExpression = argExpression as MethodCallExpression;
-                    var method = methodCallExpression.Method;
-                    var isExtensionMethod = method.IsExtension();
-                    if (isExtensionMethod)
-                    { 
-                        foreach (var subExpr in FlattenArgumentExpression(methodCallExpression.Arguments.First()))
-                            yield return subExpr;
-                    }
-                    var nonExtensionThisArgs = methodCallExpression.Arguments
-                        .If(isExtensionMethod, args => args.Skip(1))
-                        .Where(arg => !(arg is MethodCallExpression))
-                        .ToArray();
-                    yield return methodCallExpression.Method
-                        .PairWithValue(nonExtensionThisArgs);
-                }
-                yield break;
-            }
-
-            var expression = urlQuery.Expression;
-            var provider = urlQuery.Provider;
-            return FlattenArgumentExpression(expression)
-                .Aggregate(startingValue,
-                    (aggr, methodArgsKvp) =>
-                    {
-                        var method = methodArgsKvp.Key;
-                        var argumentExpressions = methodArgsKvp.Value;
-                        var methodAttr = GetMethodAttr();
-                        return onAttribute(aggr, methodAttr, method, argumentExpressions);
-
-                        TMethodAttribute  GetMethodAttr()
-                        {
-                            var methodAttrs = method.GetAttributesInterface<TMethodAttribute>();
-                            if (methodAttrs.Any())
-                                return methodAttrs.First();
-
-                            if (method.DeclaringType == typeof(System.Linq.Queryable))
-                            {
-                                var baseClassAttrsMatching = baseClassAttrs
-                                    .Where(kvp => kvp.Key == method.Name);
-                                if (baseClassAttrsMatching.Any())
-                                {
-                                    var baseClassAttr = baseClassAttrsMatching.First().Value;
-                                    return baseClassAttr;
-                                }
-                            }
-                            return default;
-                        }
-                    });
-        }
-
         public static Uri Location<TResource>(this IQueryable<TResource> urlQuery)
         {
+            var baseUrl = BaseUrl(urlQuery);
+
+            var queryUrl = urlQuery.Compile<Uri, IBuildUrls>(
+                    baseUrl,
+                (url, attr, method, operand) =>
+                {
+                    var updatedUrl = attr.BindUrlQueryValue(url, method, operand);
+                    return updatedUrl;
+                },
+                (url, method, operand) =>
+                {
+                    if (method.Name == "Where")
+                    {
+                        var x = new ResourceQueryExtensions.BinaryComparisonQueryAttribute();
+                        return x.BindUrlQueryValue(url, method, operand);
+                    }
+                    throw new ArgumentException($"Cannot compile Method `{method.DeclaringType.FullName}..{method.Name}`");
+                });
+
+            return queryUrl;
+        }
+
+        public static HttpRequestMessage CompileRequest<TResource>(this IQueryable<TResource> urlQuery)
+        {
+            var baseUrl = BaseUrl(urlQuery);
+
+            var requestMessage = GetRequestMessage();
+            requestMessage.RequestUri = baseUrl;
+            return urlQuery.Compile<HttpRequestMessage, IBuildHttpRequests>(
+                    requestMessage,
+                (request, methodAttr, method, operand) =>
+                {
+                    return methodAttr.MutateRequest(request,
+                        method, operand);
+                },
+                (request, method, operand) =>
+                {
+                    if (method.Name == "Where")
+                    {
+                        var x = new ResourceQueryExtensions.BinaryComparisonQueryAttribute();
+                        return x.MutateRequest(request, method, operand);
+                    }
+                    throw new ArgumentException($"Cannot compile Method `{method.DeclaringType.FullName}..{method.Name}`");
+                });
+
+            HttpRequestMessage GetRequestMessage()
+            {
+                if (urlQuery is RequestMessage<TResource>)
+                    return (urlQuery as RequestMessage<TResource>).Request;
+                return new HttpRequestMessage();
+            }
+        }
+
+
+        private static Uri BaseUrl<TResource>(IQueryable<TResource> urlQuery)
+        {
+            var serverUrl = GetServerUrl();
+            var prefix = GetRoutePrefix().Trim('/'.AsArray());
+            var controllerName = GetControllerName().TrimStart('/'.AsArray());
+            Uri.TryCreate($"{serverUrl}/{prefix}/{controllerName}", UriKind.Absolute, out Uri baseUrl);
+            return baseUrl;
+
             string GetServerUrl()
             {
                 if (urlQuery is RequestMessage<TResource>)
@@ -92,8 +95,7 @@ namespace EastFive.Api
             {
                 var routePrefixes = typeof(TResource)
                     .GetCustomAttributes<System.Web.Http.RoutePrefixAttribute>()
-                    .Select(routePrefix => routePrefix.Prefix)
-                    .ToArray();
+                    .Select(routePrefix => routePrefix.Prefix);
                 if (routePrefixes.Any())
                     return routePrefixes.First();
 
@@ -107,84 +109,16 @@ namespace EastFive.Api
 
             string GetControllerName()
             {
-                return typeof(TResource).GetCustomAttribute<FunctionViewControllerAttribute, string>(
-                    (attr) => attr.Route,
-                    () => typeof(TResource).Name
-                        .TrimEnd("Controller",
-                            (trimmedName) => trimmedName,
-                            (originalName) => originalName)
-                        .ToLower());
+                var routeAttrs = typeof(TResource).GetAttributesInterface<IInvokeResource>();
+                if (!routeAttrs.Any())
+                    throw new ArgumentException($"`{typeof(TResource).FullName}` is not invocable (needs attribute that implements {typeof(IInvokeResource).FullName})");
+                return routeAttrs.First().Route;
+                //return typeof(TResource).Name
+                //    .TrimEnd("Controller",
+                //        (trimmedName) => trimmedName,
+                //        (originalName) => originalName)
+                //    .ToLower();
             }
-
-            var serverUrl = GetServerUrl();
-            var prefix = GetRoutePrefix().Trim('/'.AsArray());
-            var controllerName = GetControllerName().TrimStart('/'.AsArray());
-            Uri.TryCreate($"{serverUrl}/{prefix}/{controllerName}", UriKind.Absolute, out Uri baseUrl);
-
-            var queryUrl = urlQuery.Compile<TResource, Uri, IFilterApiValues, IFilterApiValues>(
-                    baseUrl,
-                (url, attr, method, operand) =>
-                {
-                    var updatedUrl = attr.BindUrlQueryValue(url, method, operand);
-                    return updatedUrl;
-                },
-                "Where".PairWithValue((IFilterApiValues)new ResourceQueryExtensions.BinaryComparisonQueryAttribute()));
-
-            return queryUrl;
-        }
-
-        public static HttpRequestMessage Request<TResource>(this IQueryable<TResource> urlQuery,
-            HttpMethod httpMethod = default,
-            IInvokeApplication applicationInvoker = default,
-            string routeName = default,
-            System.Web.Http.Routing.UrlHelper urlHelper = default)
-        {
-            routeName = GetRouteName();
-            string GetRouteName()
-            {
-                if (routeName.HasBlackSpace())
-                    return routeName;
-                if (!applicationInvoker.IsDefaultOrNull())
-                    return applicationInvoker.ApiRouteName;
-                if (urlQuery is RequestMessage<TResource>)
-                {
-                    return (urlQuery as RequestMessage<TResource>)
-                        .InvokeApplication.ApiRouteName;
-                }
-                return "DefaultApi";
-            }
-            if (httpMethod.IsDefaultOrNull())
-                httpMethod = HttpMethod.Get;
-            HttpRequestMessage GetRequestMessage()
-            {
-                if (!applicationInvoker.IsDefaultOrNull())
-                    return applicationInvoker.GetRequest<TResource>().Request;
-                if (urlQuery is RequestMessage<TResource>)
-                    return (urlQuery as RequestMessage<TResource>).Request;
-                return new HttpRequestMessage();
-            }
-            System.Web.Http.Routing.UrlHelper GetUrlHelper()
-            {
-                if (!urlHelper.IsDefaultOrNull())
-                    return urlHelper;
-                if (urlQuery is RequestMessage<TResource>)
-                    return new System.Web.Http.Routing.UrlHelper((urlQuery as RequestMessage<TResource>).Request);
-                throw new ArgumentException("Could not determine value for urlHelper");
-            }
-            var validUrlHelper = GetUrlHelper();
-            var baseUrl = validUrlHelper.GetLocation(typeof(TResource), routeName);
-
-            var requestMessage = GetRequestMessage();
-            requestMessage.RequestUri = baseUrl;
-            requestMessage.Method = httpMethod;
-            return urlQuery.Compile<TResource, HttpRequestMessage, IFilterApiValues, IFilterApiValues>(
-                    requestMessage,
-                (request, methodAttr, method, operand) =>
-                {
-                    return methodAttr.MutateRequest(request,
-                        httpMethod, method, operand);
-                },
-                "Where".PairWithValue((IFilterApiValues)new ResourceQueryExtensions.BinaryComparisonQueryAttribute()));
         }
     }
 }

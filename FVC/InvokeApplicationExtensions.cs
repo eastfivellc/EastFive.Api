@@ -28,119 +28,151 @@ namespace EastFive.Api
 {
     public static class InvokeApplicationExtensions
     {
-        public static HttpRequestMessage Method<TResource>(this IQueryable<TResource> requestQuery,
-            HttpMethod method, 
-            Func<HttpRequestMessage, HttpRequestMessage> requestMutation = default)
+        #region GET
+
+        [HttpMethodRequestBuilder(Method = "Get")]
+        public static IQueryable<TResource> HttpGet<TResource>(this IQueryable<TResource> requestQuery)
         {
-            if (requestMutation.IsDefaultOrNull())
-                requestMutation = r => r;
-            var request = (requestQuery as RequestMessage<TResource>);
-            return typeof(TResource).GetAttributesInterface<IInvokeResource>(true)
-                .First<IInvokeResource, HttpRequestMessage>(
-                    (fvcAttr,next) =>
-                    {
-                        var httpRequest = requestMutation(request.Request(method));
-                        return httpRequest;
-                    },
-                    () =>
-                    {
-                        throw new Exception($"Type {typeof(TResource).FullName} does not have FunctionViewControllerAttribute");
-                    });
+            return requestQuery;
+        }
+        public class HttpMethodRequestBuilderAttribute : Attribute, IBuildHttpRequests
+        {
+            public string Method { get; set; }
+
+            public HttpRequestMessage MutateRequest(HttpRequestMessage request, MethodInfo method, Expression[] arguments)
+            {
+                request.Method =new HttpMethod(Method);
+                return request;
+            }
         }
 
-        public static HttpRequestMessage HttpGet<TResource>(this IQueryable<TResource> requestQuery)
+        #endregion
+
+        #region POST
+
+        [HttpPostRequestBuilder]
+        public static IQueryable<TResource> HttpPost<TResource>(this IQueryable<TResource> requestQuery, TResource resource)
         {
-            return requestQuery.Method<TResource>(HttpMethod.Get);
+            if (!typeof(RequestMessage<TResource>).IsAssignableFrom(requestQuery.GetType()))
+                throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{requestQuery.GetType().FullName}`", "query");
+            var requestMessageQuery = requestQuery as RequestMessage<TResource>;
+
+            var condition = Expression.Call(
+                typeof(ResourceQueryExtensions), "HttpPost", new Type[] { typeof(TResource) },
+                requestQuery.Expression, Expression.Constant(resource));
+
+            var requestMessageNewQuery = requestMessageQuery.FromExpression(condition);
+            return requestMessageNewQuery;
+        }
+        public class HttpPostRequestBuilderAttribute : Attribute, IBuildHttpRequests
+        {
+            public HttpRequestMessage MutateRequest(HttpRequestMessage request, MethodInfo method, Expression[] arguments)
+            {
+                var resource = arguments.First().Resolve();
+
+                var contentJsonString = JsonConvert.SerializeObject(resource, new Serialization.Converter());
+                request.Content = new StreamContent(contentJsonString.ToStream());
+                request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+                return request;
+            }
         }
 
-        public static HttpRequestMessage Post<TResource>(this IQueryable<TResource> requestQuery, TResource resource)
-        {
-            return requestQuery.Method<TResource>(HttpMethod.Post,
-                request =>
-                {
-                    var contentJsonString = JsonConvert.SerializeObject(resource, new Serialization.Converter());
-                    request.Content = new StreamContent(contentJsonString.ToStream());
-                    request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
-                    return request;
-                });
-        }
+        #endregion
 
-        public static HttpRequestMessage Patch<TResource>(this IQueryable<TResource> requestQuery, TResource resource,
+        #region PATCH
+
+        [HttpPatchRequestBuilder]
+        public static IQueryable<TResource> HttpPatch<TResource>(this IQueryable<TResource> requestQuery,
+            TResource resource,
             System.Net.Http.Headers.HttpRequestHeaders headers = default)
         {
-            return requestQuery.Method<TResource>(new HttpMethod("patch"),
-                request =>
-                {
-                    var settings = new JsonSerializerSettings();
-                    settings.Converters.Add(new Serialization.Converter());
-                    settings.DefaultValueHandling = DefaultValueHandling.Ignore;
-                    var contentJsonString = JsonConvert.SerializeObject(resource, settings);
-                    request.Content = new StreamContent(contentJsonString.ToStream());
-                    request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
-                    foreach(var header in headers)
-                    {
-                        request.Headers.Add(header.Key, header.Value);
-                    }
-                    return request;
-                });
+            if (!typeof(RequestMessage<TResource>).IsAssignableFrom(requestQuery.GetType()))
+                throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{requestQuery.GetType().FullName}`", "query");
+            var requestMessageQuery = requestQuery as RequestMessage<TResource>;
+
+            var methodInfo = typeof(InvokeApplicationExtensions)
+                .GetMethod("HttpPatch", BindingFlags.Static | BindingFlags.Public)
+                .MakeGenericMethod(typeof(TResource));
+            var resourceExpr = Expression.Constant(resource, typeof(TResource));
+            var headersExpr = Expression.Constant(headers, typeof(System.Net.Http.Headers.HttpRequestHeaders));
+            var condition = Expression.Call(methodInfo, requestQuery.Expression, resourceExpr, headersExpr);
+
+            var requestMessageNewQuery = requestMessageQuery.FromExpression(condition);
+            return requestMessageNewQuery;
         }
 
-        public static HttpRequestMessage HttpDelete<TResource>(this IQueryable<TResource> requestQuery)
+        public class HttpPatchRequestBuilderAttribute : Attribute, IBuildHttpRequests
         {
-            return requestQuery.Method<TResource>(HttpMethod.Delete);
+            public HttpRequestMessage MutateRequest(HttpRequestMessage request, MethodInfo method, Expression[] arguments)
+            {
+                request.Method = new HttpMethod("Patch");
+                var resource = arguments[0].Resolve();
+                var headers = (System.Net.Http.Headers.HttpRequestHeaders)arguments[1].Resolve();
+
+                var settings = new JsonSerializerSettings();
+                settings.Converters.Add(new Serialization.Converter());
+                settings.DefaultValueHandling = DefaultValueHandling.Ignore;
+                var contentJsonString = JsonConvert.SerializeObject(resource, settings);
+                request.Content = new StreamContent(contentJsonString.ToStream());
+                request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+                foreach (var header in headers.NullToEmpty())
+                {
+                    request.Headers.Add(header.Key, header.Value);
+                }
+                return request;
+            }
         }
 
-        public static HttpRequestMessage Action<TResource>(this IQueryable<TResource> requestQuery, string actionName)
+        #endregion
+
+        #region DELETE
+
+        [HttpMethodRequestBuilder(Method = "Delete")]
+        public static IQueryable<TResource> HttpDelete<TResource>(this IQueryable<TResource> requestQuery)
         {
-            return requestQuery.Method<TResource>(HttpMethod.Get,
-                request =>
-                {
-                    request.RequestUri = request.RequestUri.AppendToPath(actionName);
-                    return request;
-                });
+            return requestQuery;
         }
 
-        public static Task<TResult> MethodAsync<TResource, TResult>(this RequestMessage<TResource> request,
-                HttpMethod method, Func<HttpRequestMessage, HttpRequestMessage> requestMutation,
-                Func<HttpResponseMessage, TResult> onResponse = default,
-                Func<HttpStatusCode, TResult> onNotOverriddenResponse = default)
+        #endregion
+
+        #region Action
+
+        [HttpActionRequestBuilder]
+        public static IQueryable<TResource> HttpAction<TResource>(this IQueryable<TResource> requestQuery,
+            string actionName,
+            System.Net.Http.Headers.HttpRequestHeaders headers = default)
         {
-            return typeof(TResource).GetCustomAttribute<FunctionViewControllerAttribute, Task<TResult>>(
-                async fvcAttr =>
-                {
-                    var httpRequest = requestMutation(request.Request(method)); // request.Request;
-                    var response = await request.InvokeApplication.SendAsync(request, httpRequest);
+            if (!typeof(RequestMessage<TResource>).IsAssignableFrom(requestQuery.GetType()))
+                throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{requestQuery.GetType().FullName}`", "query");
+            var requestMessageQuery = requestQuery as RequestMessage<TResource>;
 
-                    if (!onResponse.IsDefaultOrNull())
-                        return onResponse(response);
+            var condition = Expression.Call(
+                typeof(ResourceQueryExtensions), "HttpPost", new Type[] { typeof(TResource) },
+                requestQuery.Expression, Expression.Constant(actionName), Expression.Constant(headers));
 
-                    if (response is IDidNotOverride)
-                        (response as IDidNotOverride).OnFailure();
-
-                    if (response is IReturnResult)
-                    {
-                        var attachedResponse = response as IReturnResult;
-                        var result = attachedResponse.GetResultCasted<TResult>();
-                        return result;
-                    }
-
-                    if(!onNotOverriddenResponse.IsDefaultOrNull())
-                    {
-                        return onNotOverriddenResponse(response.StatusCode);
-                    }
-                    var msg = $"Failed to override response with status code `{response.StatusCode}` for {typeof(TResource).FullName}" + 
-                        $"\nResponse:{response.ReasonPhrase}";
-                    throw new Exception(msg);
-                },
-                () =>
-                {
-                    throw new Exception($"Type {typeof(TResource).FullName} does not have FunctionViewControllerAttribute");
-                });
+            var requestMessageNewQuery = requestMessageQuery.FromExpression(condition);
+            return requestMessageNewQuery;
         }
 
-        public static Task<TResult> MethodAsync<TResource, TResult>(this IQueryable<TResource> requestQuery,
-                HttpMethod method,
-                Func<HttpRequestMessage, HttpRequestMessage> requestMutation = default,
+        public class HttpActionRequestBuilder : Attribute, IBuildHttpRequests
+        {
+            public HttpRequestMessage MutateRequest(HttpRequestMessage request, MethodInfo method, Expression[] arguments)
+            {
+                var actionName = (string)arguments[0].Resolve();
+                var headers = (System.Net.Http.Headers.HttpRequestHeaders)arguments[1].Resolve();
+                request.RequestUri = request.RequestUri.AppendToPath(actionName);
+
+                foreach (var header in headers)
+                {
+                    request.Headers.Add(header.Key, header.Value);
+                }
+                return request;
+            }
+        }
+
+        #endregion
+
+        public static async Task<TResult> MethodAsync<TResource, TResult>(this IQueryable<TResource> requestQuery,
             Func<TResource, TResult> onContent = default,
             Func<TResource[], TResult> onContents = default,
             Func<object[], TResult> onContentObjects = default,
@@ -164,8 +196,6 @@ namespace EastFive.Api
             Func<HttpResponseMessage, TResult> onResponse = default,
             Func<HttpStatusCode, TResult> onNotOverriddenResponse = default)
         {
-            if (requestMutation.IsDefaultOrNull())
-                requestMutation = r => r;
             var request = (requestQuery as RequestMessage<TResource>);
             var application = request.InvokeApplication.Application;
             application.CreatedResponse<TResource, TResult>(onCreated);
@@ -193,7 +223,29 @@ namespace EastFive.Api
             application.GeneralConflictResponse<TResource, TResult>(onFailure);
             application.ExecuteBackgroundResponse<TResource, TResult>(onExecuteBackground);
 
-            return request.MethodAsync(method, requestMutation, onResponse, onNotOverriddenResponse);
+            var httpRequest = request.CompileRequest();
+            var response = await request.InvokeApplication.SendAsync(request, httpRequest);
+
+            if (!onResponse.IsDefaultOrNull())
+                return onResponse(response);
+
+            if (response is IDidNotOverride)
+                (response as IDidNotOverride).OnFailure();
+
+            if (response is IReturnResult)
+            {
+                var attachedResponse = response as IReturnResult;
+                var result = attachedResponse.GetResultCasted<TResult>();
+                return result;
+            }
+
+            if (!onNotOverriddenResponse.IsDefaultOrNull())
+            {
+                return onNotOverriddenResponse(response.StatusCode);
+            }
+            var msg = $"Failed to override response with status code `{response.StatusCode}` for {typeof(TResource).FullName}" +
+                $"\nResponse:{response.ReasonPhrase}";
+            throw new Exception(msg);
         }
 
         public static Task<TResult> GetAsync<TResource, TResult>(this IQueryable<TResource> requestQuery,
@@ -211,21 +263,22 @@ namespace EastFive.Api
             Func<IExecuteAsync, Task<TResult>> onExecuteBackground = default,
             Func<HttpStatusCode, TResult> onNotOverriddenResponse = default)
         {
-            return requestQuery.MethodAsync<TResource, TResult>(HttpMethod.Get,
-                onContent: onContent,
-                onContents: onContents,
-                onContentObjects: onContentObjects,
-                onBadRequest: onBadRequest,
-                onNotFound: onNotFound,
-                onUnauthorized: onUnauthorized,
-                onRefDoesNotExistsType: onRefDoesNotExistsType,
-                onRedirect: onRedirect,
-                onCreated: onCreated,
-                onHtml: onHtml,
-                onXls: onXls,
-                onExecuteBackground: onExecuteBackground,
-                onNotOverriddenResponse: onNotOverriddenResponse);
-
+            return requestQuery
+                .HttpGet()
+                .MethodAsync<TResource, TResult>(
+                    onContent: onContent,
+                    onContents: onContents,
+                    onContentObjects: onContentObjects,
+                    onBadRequest: onBadRequest,
+                    onNotFound: onNotFound,
+                    onUnauthorized: onUnauthorized,
+                    onRefDoesNotExistsType: onRefDoesNotExistsType,
+                    onRedirect: onRedirect,
+                    onCreated: onCreated,
+                    onHtml: onHtml,
+                    onXls: onXls,
+                    onExecuteBackground: onExecuteBackground,
+                    onNotOverriddenResponse: onNotOverriddenResponse);
         }
 
         /// <summary>
@@ -254,23 +307,18 @@ namespace EastFive.Api
             Func<IExecuteAsync, Task<TResult>> onExecuteBackground = default,
             Func<HttpStatusCode, TResult> onNotOverriddenResponse = default)
         {
-            return requestQuery.MethodAsync<TResource, TResult>(HttpMethod.Post,
-                    request =>
-                    {
-                        var contentJsonString = JsonConvert.SerializeObject(resource, new Serialization.Converter());
-                        request.Content = new StreamContent(contentJsonString.ToStream());
-                        request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
-                        return request;
-                    },
-                onCreated: onCreated,
-                onCreatedBody: onCreatedBody,
-                onBadRequest: onBadRequest,
-                onExists: onExists,
-                onRefDoesNotExistsType: onRefDoesNotExistsType,
-                onRedirect: onRedirect,
-                onNotImplemented: onNotImplemented,
-                onExecuteBackground: onExecuteBackground,
-                onNotOverriddenResponse: onNotOverriddenResponse);
+            return requestQuery
+                .HttpPost(resource)
+                .MethodAsync<TResource, TResult>(
+                    onCreated: onCreated,
+                    onCreatedBody: onCreatedBody,
+                    onBadRequest: onBadRequest,
+                    onExists: onExists,
+                    onRefDoesNotExistsType: onRefDoesNotExistsType,
+                    onRedirect: onRedirect,
+                    onNotImplemented: onNotImplemented,
+                    onExecuteBackground: onExecuteBackground,
+                    onNotOverriddenResponse: onNotOverriddenResponse);
         }
 
         public static Task<TResult> PatchAsync<TResource, TResult>(this IQueryable<TResource> requestQuery,
@@ -283,24 +331,16 @@ namespace EastFive.Api
             Func<HttpStatusCode, TResult> onNotOverriddenResponse = default,
             Func<HttpResponseMessage, TResult> onResponse = default)
         {
-            return requestQuery.MethodAsync<TResource, TResult>(new HttpMethod("patch"),
-                    request =>
-                    {
-                        var settings = new JsonSerializerSettings();
-                        settings.Converters.Add(new Serialization.Converter());
-                        settings.DefaultValueHandling = DefaultValueHandling.Ignore;
-                        var contentJsonString = JsonConvert.SerializeObject(resource, settings);
-                        request.Content = new StreamContent(contentJsonString.ToStream());
-                        request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
-                        return request;
-                    },
-                onUpdated: onUpdated,
-                onContent: onUpdatedBody,
-                onNotFound: onNotFound,
-                onUnauthorized: onUnauthorized,
-                onFailure: onFailure,
-                onNotOverriddenResponse: onNotOverriddenResponse,
-                onResponse: onResponse);
+            return requestQuery
+                .HttpPatch(resource)
+                .MethodAsync<TResource, TResult>(
+                    onUpdated: onUpdated,
+                    onContent: onUpdatedBody,
+                    onNotFound: onNotFound,
+                    onUnauthorized: onUnauthorized,
+                    onFailure: onFailure,
+                    onNotOverriddenResponse: onNotOverriddenResponse,
+                    onResponse: onResponse);
         }
 
         public static Task<TResult> DeleteAsync<TResource, TResult>(this IQueryable<TResource> request,
@@ -313,15 +353,17 @@ namespace EastFive.Api
             Func<Uri, TResult> onRedirect = default(Func<Uri, TResult>),
             Func<string, TResult> onHtml = default(Func<string, TResult>))
         {
-            return request.MethodAsync<TResource, TResult>(HttpMethod.Delete,
-                onUpdated: onNoContent,
-                onContent: onContent,
-                onContents: onContents,
-                onBadRequest: onBadRequest,
-                onNotFound: onNotFound,
-                onRefDoesNotExistsType: onRefDoesNotExistsType,
-                onRedirect: onRedirect,
-                onHtml: onHtml);
+            return request
+                .HttpDelete()
+                .MethodAsync<TResource, TResult>(
+                    onUpdated: onNoContent,
+                    onContent: onContent,
+                    onContents: onContents,
+                    onBadRequest: onBadRequest,
+                    onNotFound: onNotFound,
+                    onRefDoesNotExistsType: onRefDoesNotExistsType,
+                    onRedirect: onRedirect,
+                    onHtml: onHtml);
         }
 
         public static Task<TResult> ActionAsync<TResource, TResult>(this IQueryable<TResource> requestQuery,
@@ -336,21 +378,18 @@ namespace EastFive.Api
             Func<HttpStatusCode, TResult> onNotOverriddenResponse = default,
             Func<HttpResponseMessage, TResult> onResponse = default)
         {
-            return requestQuery.MethodAsync<TResource, TResult>(HttpMethod.Get,
-                    request =>
-                    {
-                        request.RequestUri = request.RequestUri.AppendToPath(actionName);
-                        return request;
-                    },
-                onUpdated: onUpdated,
-                onContent: onUpdatedBody,
-                onContents: onContents,
-                onContentObjects: onContentObjects,
-                onNotFound: onNotFound,
-                onUnauthorized: onUnauthorized,
-                onFailure: onFailure,
-                onNotOverriddenResponse: onNotOverriddenResponse,
-                onResponse: onResponse);
+            return requestQuery
+                .HttpAction(actionName)
+                .MethodAsync<TResource, TResult>(
+                    onUpdated: onUpdated,
+                    onContent: onUpdatedBody,
+                    onContents: onContents,
+                    onContentObjects: onContentObjects,
+                    onNotFound: onNotFound,
+                    onUnauthorized: onUnauthorized,
+                    onFailure: onFailure,
+                    onNotOverriddenResponse: onNotOverriddenResponse,
+                    onResponse: onResponse);
         }
 
         #region Response types

@@ -105,39 +105,39 @@ namespace EastFive.Api
         {
             var type = member.GetPropertyOrFieldType();
             
-            if (type.IsSubClassOfGeneric(typeof(IRef<>)))
-            {
-                var refdType = type.GenericTypeArguments.First();
-                var id = (Guid)member.GetPropertyOrFieldValue(obj);
-                var singleResourceQuery1 =
-                    from res in urlBuilder.Resources<IReferenceable>()
-                    where res.id == id
-                    select res;
+            //if (type.IsSubClassOfGeneric(typeof(IRef<>)))
+            //{
+            //    var refdType = type.GenericTypeArguments.First();
+            //    var id = (Guid)member.GetPropertyOrFieldValue(obj);
+            //    var singleResourceQuery1 =
+            //        from res in urlBuilder.Resources<IReferenceable>()
+            //        where res.id == id
+            //        select res;
 
-                var singleResourceQuery2 = urlBuilder
-                    .Resources<IReferenceable>()
-                    .Where(res => res.id == id)
-                    .Location();
+            //    var singleResourceQuery2 = urlBuilder
+            //        .Resources<IReferenceable>()
+            //        .Where(res => res.id == id)
+            //        .Location();
 
-                return $"<a href=\"/{refdType.Name}/{id}\">{this.Label}</a>";
-            }
+            //    return $"<a href=\"/{refdType.Name}/{id}\">{this.Label}</a>";
+            //}
 
-            if (type.IsSubClassOfGeneric(typeof(IRefOptional<>)))
-            {
-                var refdType = type.GenericTypeArguments.First();
-                var idRef = member.GetPropertyOrFieldValue(obj) as IReferenceableOptional;
-                var singleResourceQuery1 =
-                    from res in urlBuilder.Resources<IReferenceable>()
-                    where res.id == idRef.id
-                    select res;
+            //if (type.IsSubClassOfGeneric(typeof(IRefOptional<>)))
+            //{
+            //    var refdType = type.GenericTypeArguments.First();
+            //    var idRef = member.GetPropertyOrFieldValue(obj) as IReferenceableOptional;
+            //    var singleResourceQuery1 =
+            //        from res in urlBuilder.Resources<IReferenceable>()
+            //        where res.id == idRef.id
+            //        select res;
 
-                var singleResourceQuery2 = urlBuilder
-                    .Resources<IReferenceable>()
-                    .Where(res => res.id == idRef.id)
-                    .Location();
+            //    var singleResourceQuery2 = urlBuilder
+            //        .Resources<IReferenceable>()
+            //        .Where(res => res.id == idRef.id)
+            //        .Location();
 
-                return $"<a href=\"/{refdType.Name}/{idRef.id}\">{this.Label}</a>";
-            }
+            //    return $"<a href=\"/{refdType.Name}/{idRef.id}\">{this.Label}</a>";
+            //}
 
             return $"<a href=\"unknown\">{this.Label}</a>";
         }

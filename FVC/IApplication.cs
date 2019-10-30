@@ -30,7 +30,7 @@ namespace EastFive.Api
             Func<Task<HttpResponseMessage>> continueExecution);
     }
 
-    public interface IApplication // : IInvokeApplication
+    public interface IApplication //: IInvokeApplication
     {
         EastFive.Analytics.ILogger Logger { get; }
 

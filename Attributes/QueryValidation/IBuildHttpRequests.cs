@@ -9,11 +9,14 @@ using System.Threading.Tasks;
 
 namespace EastFive.Api
 {
-    public interface IFilterApiValues
+    public interface IBuildHttpRequests
     {
-        HttpRequestMessage MutateRequest(HttpRequestMessage request, HttpMethod httpMethod, 
+        HttpRequestMessage MutateRequest(HttpRequestMessage request,
             MethodInfo method, Expression[] arguments);
+    }
 
+    public interface IBuildUrls
+    {
         Uri BindUrlQueryValue(Uri url, MethodInfo method, Expression[] arguments);
     }
 }

@@ -30,6 +30,11 @@ namespace EastFive.Api
             return new RenderableQuery<T>(queryProvider);
         }
 
+        public Uri BindUrlQueryValue(Uri url, MethodInfo method, Expression[] arguments)
+        {
+            throw new NotImplementedException();
+        }
+
         private class RenderableQueryProvider : IQueryProvider
         {
             private UrlHelper urlHelper;

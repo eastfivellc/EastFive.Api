@@ -13,27 +13,14 @@ using EastFive.Linq;
 
 namespace EastFive.Api
 {
-    public abstract class HttpGenericDelegateAttribute : Attribute, IDocumentResponse, IInstigatableGeneric
+    public abstract class HttpGenericDelegateAttribute
+        : InstigateGenericAttribute, IDocumentResponse
     {
-        public interface IDefineInstigateMethod
-        {
-
-        }
-
-        public class InstigateMethodAttribute : Attribute, IDefineInstigateMethod
-        {
-        }
-
         public virtual HttpStatusCode StatusCode { get; set; }
 
         public virtual string Example { get; set; }
 
-        protected Type type;
-        protected HttpApplication httpApp;
-        protected HttpRequestMessage request;
-        protected ParameterInfo parameterInfo;
-
-        public virtual Task<HttpResponseMessage> InstigatorDelegateGeneric(Type type,
+        public override Task<HttpResponseMessage> InstigatorDelegateGeneric(Type type,
             HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
@@ -51,11 +38,7 @@ namespace EastFive.Api
             attrType
                 .GetField("parameterInfo", BindingFlags.NonPublic | BindingFlags.Instance)
                 .SetValue(scope, parameterInfo);
-            var statusCodeProperty = attrType
-                .GetProperty("StatusCode", BindingFlags.Public | BindingFlags.Instance);
-            if(statusCodeProperty.CanWrite)
-                statusCodeProperty.SetValue(scope, this.StatusCode);
-
+            
             return attrType
                 .GetMethods(BindingFlags.Public | BindingFlags.Instance)
                 .Where(method => method.ContainsAttributeInterface<IDefineInstigateMethod>())
@@ -71,6 +54,16 @@ namespace EastFive.Api
                     {
                         throw new NotImplementedException();
                     });
+        }
+
+        protected override object CreateScope(Type type, HttpApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo)
+        {
+            var scope = base.CreateScope(type, httpApp, request, paramInfo);
+            var statusCodeProperty = typeof(HttpGenericDelegateAttribute)
+                .GetProperty("StatusCode", BindingFlags.Public | BindingFlags.Instance);
+            if (statusCodeProperty.CanWrite)
+                statusCodeProperty.SetValue(scope, this.StatusCode);
+            return scope;
         }
 
         public virtual Response GetResponse(ParameterInfo paramInfo, HttpApplication httpApp)

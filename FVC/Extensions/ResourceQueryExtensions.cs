@@ -16,7 +16,7 @@ namespace EastFive.Api
     public static class ResourceQueryExtensions
     {
         [AttributeUsage(AttributeTargets.Method)]
-        public class BinaryComparisonQueryAttribute : Attribute, IFilterApiValues
+        public class BinaryComparisonQueryAttribute : Attribute, IBuildHttpRequests, IBuildUrls
         {
             public Uri BindUrlQueryValue(Uri url, MethodInfo method, Expression[] arguments)
             {
@@ -103,7 +103,7 @@ namespace EastFive.Api
                     });
             }
 
-            public HttpRequestMessage MutateRequest(HttpRequestMessage request, HttpMethod httpMethod,
+            public HttpRequestMessage MutateRequest(HttpRequestMessage request,
                 MethodInfo method, Expression[] arguments)
             {
                 request.RequestUri = BindUrlQueryValue(request.RequestUri, method, arguments);
@@ -112,7 +112,7 @@ namespace EastFive.Api
         }
 
         [AttributeUsage(AttributeTargets.Method)]
-        public class MutateIdQueryAttribute : Attribute, IFilterApiValues
+        public class MutateIdQueryAttribute : Attribute, IBuildHttpRequests, IBuildUrls
         {
             public Uri BindUrlQueryValue(Uri url, MethodInfo method, Expression[] arguments)
             {
@@ -127,7 +127,7 @@ namespace EastFive.Api
             }
 
             public HttpRequestMessage MutateRequest(HttpRequestMessage request,
-                HttpMethod httpMethod, MethodInfo method, Expression[] arguments)
+                MethodInfo method, Expression[] arguments)
             {
                 request.RequestUri = BindUrlQueryValue(request.RequestUri, method, arguments);
                 return request;
@@ -184,7 +184,7 @@ namespace EastFive.Api
         }
 
         [AttributeUsage(AttributeTargets.Method)]
-        public class QueryParamQueryAttribute : Attribute, IFilterApiValues
+        public class QueryParamQueryAttribute : Attribute, IBuildHttpRequests, IBuildUrls
         {
             public Uri BindUrlQueryValue(Uri url, MethodInfo method, Expression[] arguments)
             {
@@ -241,7 +241,7 @@ namespace EastFive.Api
             }
 
             public HttpRequestMessage MutateRequest(HttpRequestMessage request,
-                HttpMethod httpMethod, MethodInfo method, Expression[] arguments)
+                MethodInfo method, Expression[] arguments)
             {
                 request.RequestUri = BindUrlQueryValue(request.RequestUri, method, arguments);
                 return request;

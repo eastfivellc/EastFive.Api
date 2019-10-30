@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 
 namespace EastFive.Api
 {
+    [RequestMessage]
     public class RequestMessage<TResource>
         : 
             EastFive.Linq.Queryable<
@@ -99,6 +100,18 @@ namespace EastFive.Api
             Expression expression, Type elementType)
         {
             return FromExpression(expression);
+        }
+    }
+
+    public class RequestMessageAttribute : Attribute, IInstigatableGeneric
+    {
+        public virtual Task<HttpResponseMessage> InstigatorDelegateGeneric(Type type,
+            HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
+            Func<object, Task<HttpResponseMessage>> onSuccess)
+        {
+            var invokeApp = IInvokeApplicationAttribute.Instigate(httpApp, request);
+            var requestMessage = Activator.CreateInstance(type, invokeApp, request);
+            return onSuccess(requestMessage);
         }
     }
 }

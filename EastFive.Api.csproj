@@ -156,6 +156,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Attributes\HtmlAttributes.cs" />
+    <Compile Include="Attributes\Instigation\InstigateGenericAttribute.cs" />
     <Compile Include="Attributes\Instigation\HttpGenericDelegateAttribute.cs" />
     <Compile Include="Attributes\Instigation\IInstigatableGeneric.cs" />
     <Compile Include="Attributes\Manifest\IDocumentResponse.cs" />
@@ -198,7 +199,7 @@
     <Compile Include="Attributes\IApiResources.cs" />
     <Compile Include="Attributes\Instigation\IInstigatable.cs" />
     <Compile Include="Attributes\QueryValidation\AuthorizationAttribute.cs" />
-    <Compile Include="Attributes\QueryValidation\IFilterApiValues.cs" />
+    <Compile Include="Attributes\QueryValidation\IBuildHttpRequests.cs" />
     <Compile Include="Attributes\QueryValidation\ResourceAttribute.cs" />
     <Compile Include="Attributes\QueryValidation\SelectParameterResult.cs" />
     <Compile Include="FVC\Exceptions\ConfigurationException.cs" />
@@ -234,7 +235,6 @@
     <Compile Include="FVC\HttpApplication.cs" />
     <Compile Include="FVC\Handlers\ApplicationHandler.cs" />
     <Compile Include="FVC\Handlers\MonitoringHandler.cs" />
-    <Compile Include="FVC\IBuildUrls.cs" />
     <Compile Include="FVC\InvokeApplicationRemote.cs" />
     <Compile Include="FVC\InvokeApplicationDirect.cs" />
     <Compile Include="FVC\InvokeApplication.cs" />
