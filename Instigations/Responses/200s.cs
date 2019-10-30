@@ -1,34 +1,31 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
 
 using RazorEngine.Templating;
 
-using EastFive.Api.Resources;
 using EastFive.Linq;
 using EastFive.Extensions;
 using EastFive.Linq.Async;
-using System.IO;
-using BlackBarLabs.Extensions;
+using Microsoft.ApplicationInsights.DataContracts;
 
 namespace EastFive.Api
 {
-    [ContentTypeResponse]
+    [ContentTypeResponse(StatusCode = HttpStatusCode.OK)]
     public delegate HttpResponseMessage ContentTypeResponse<TResource>(object content, string contentType = default(string));
     public class ContentTypeResponseAttribute : HttpGenericDelegateAttribute
     {
-        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
-
-        public override string Example => default;
+        public override string Example => "serialized object";
 
         [InstigateMethod]
-        public HttpResponseMessage ContentTypeResponse<TResource>(object content, string contentTypeString = default(string))
+        public HttpResponseMessage ContentResponse<TResource>(object content, string contentTypeString = default(string))
         {
             Type GetType(Type type)
             {
@@ -55,15 +52,15 @@ namespace EastFive.Api
                     {
                         var serializationProvider = serializerQualityKvp.Key;
                         var quality = serializerQualityKvp.Value;
-                        var responseNoContent = request.CreateResponse(System.Net.HttpStatusCode.OK, content);
+                        var responseNoContent = request.CreateResponse(this.StatusCode, content);
                         var customResponse = serializationProvider.Serialize(responseNoContent, httpApp, request, parameterInfo, content);
                         return customResponse;
                     },
                     () =>
                     {
-                        var response = request.CreateResponse(System.Net.HttpStatusCode.OK, content);
+                        var response = request.CreateResponse(this.StatusCode, content);
                         if (!contentTypeString.IsNullOrWhiteSpace())
-                            response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentTypeString);
+                            response.Content.Headers.ContentType = new MediaTypeHeaderValue(contentTypeString);
                         return response;
                     });
         }
@@ -73,11 +70,12 @@ namespace EastFive.Api
     public delegate HttpResponseMessage ContentResponse(object content, string contentType = default(string));
     public class ContentResponseAttribute : HttpFuncDelegateAttribute
     {
-        public override Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
-                HttpRequestMessage request,ParameterInfo parameterInfo, 
+        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+                HttpRequestMessage request,ParameterInfo parameterInfo,
+                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
-            ContentResponse dele =
+            ContentResponse responseDelegate =
                 (obj, contentType) =>
                 {
                     var objType = obj.GetType();
@@ -95,7 +93,7 @@ namespace EastFive.Api
                         responseNoContent, httpApp, request, parameterInfo, obj);
                     return customResponse;
                 };
-            return onSuccess((object)dele);
+            return onSuccess(responseDelegate);
         }
     }
 
@@ -109,8 +107,9 @@ namespace EastFive.Api
 
         public override string Example => "Raw data (byte [])";
 
-        public override Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
+                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             BytesResponse responseDelegate = (bytes, filename, contentType, inline) =>
@@ -127,7 +126,7 @@ namespace EastFive.Api
                         };
                 return response;
             };
-            return onSuccess((object)responseDelegate);
+            return onSuccess(responseDelegate);
         }
     }
 
@@ -141,8 +140,9 @@ namespace EastFive.Api
 
         public override string Example => "Raw data (byte [])";
 
-        public override Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
+                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             ImageResponse responseDelegate = (imageData, width, height, fill,
@@ -171,8 +171,9 @@ namespace EastFive.Api
 
         public override string Example => "PDF File data";
 
-        public override Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
+                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             PdfResponse responseDelegate = (pdfData, filename, inline) =>
@@ -196,8 +197,9 @@ namespace EastFive.Api
 
         public override string Example => "<html><head></head><body>Hello World</body></html>";
 
-        public override Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
+                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             HtmlResponse responseDelegate = (html) =>
@@ -213,8 +215,9 @@ namespace EastFive.Api
     public delegate HttpResponseMessage ViewFileResponse(string viewPath, object content);
     public class ViewFileResponseAttribute : HtmlResponseAttribute
     {
-        public override Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
+                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             ViewFileResponse responseDelegate =
@@ -244,8 +247,9 @@ namespace EastFive.Api
     public delegate HttpResponseMessage ViewStringResponse(string view, object content);
     public class ViewStringResponseAttribute : HtmlResponseAttribute
     {
-        public override Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
+                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             ViewStringResponse responseDelegate =
@@ -265,8 +269,9 @@ namespace EastFive.Api
     public delegate string ViewRenderer(string filePath, object content);
     public class ViewRendererAttribute : HtmlResponseAttribute
     {
-        public override Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
+                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             ViewRenderer responseDelegate =
@@ -295,8 +300,9 @@ namespace EastFive.Api
     public delegate string ViewPathResolver(string view);
     public class ViewPathAttribute : HtmlResponseAttribute
     {
-        public override Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
+                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             ViewPathResolver responseDelegate =
@@ -318,8 +324,9 @@ namespace EastFive.Api
 
         public override string Example => "<xml></xml>";
 
-        public override Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
+                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             XlsxResponse responseDelegate = (xlsxData, filename) =>
@@ -341,8 +348,9 @@ namespace EastFive.Api
 
         public override string Example => "[]";
 
-        public override Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
+                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             MultipartResponseAsync responseDelegate =
@@ -359,8 +367,9 @@ namespace EastFive.Api
 
         public override string Example => "[]";
 
-        public override Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
+                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             MultipartAcceptArrayResponseAsync responseDelegate =

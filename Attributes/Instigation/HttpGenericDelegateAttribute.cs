@@ -33,21 +33,6 @@ namespace EastFive.Api
         protected HttpRequestMessage request;
         protected ParameterInfo parameterInfo;
 
-        public virtual Response GetResponse(ParameterInfo paramInfo, HttpApplication httpApp)
-        {
-            var response = new Response()
-            {
-                Name = paramInfo.Name,
-                StatusCode = this.StatusCode,
-                Example = this.Example,
-                Headers = new KeyValuePair<string, string>[] { },
-            };
-            return paramInfo
-                .GetAttributesInterface<IModifyDocumentResponse>()
-                .Aggregate(response,
-                    (last, attr) => attr.GetResponse(last, paramInfo, httpApp));
-        }
-
         public virtual Task<HttpResponseMessage> InstigatorDelegateGeneric(Type type,
             HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
@@ -66,6 +51,10 @@ namespace EastFive.Api
             attrType
                 .GetField("parameterInfo", BindingFlags.NonPublic | BindingFlags.Instance)
                 .SetValue(scope, parameterInfo);
+            var statusCodeProperty = attrType
+                .GetProperty("StatusCode", BindingFlags.Public | BindingFlags.Instance);
+            if(statusCodeProperty.CanWrite)
+                statusCodeProperty.SetValue(scope, this.StatusCode);
 
             return attrType
                 .GetMethods(BindingFlags.Public | BindingFlags.Instance)
@@ -83,5 +72,22 @@ namespace EastFive.Api
                         throw new NotImplementedException();
                     });
         }
+
+        public virtual Response GetResponse(ParameterInfo paramInfo, HttpApplication httpApp)
+        {
+            var response = new Response()
+            {
+                Name = paramInfo.Name,
+                StatusCode = this.StatusCode,
+                Example = this.Example,
+                Headers = new KeyValuePair<string, string>[] { },
+            };
+            return paramInfo
+                .GetAttributesInterface<IModifyDocumentResponse>()
+                .Aggregate(response,
+                    (last, attr) => attr.GetResponse(last, paramInfo, httpApp));
+        }
+
     }
+
 }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.ApplicationInsights.DataContracts;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -52,6 +53,7 @@ namespace EastFive.Api
             Func<ParseContentDelegateAsync<TParseResult>, string[], Task<TResult>> onParsedContentValues);
 
         Task<HttpResponseMessage> Instigate(HttpRequestMessage request, ParameterInfo methodParameter,
+                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onInstigated);
 
     }

@@ -54,7 +54,7 @@ namespace EastFive.Api
                         async (data) =>
                         {
                             var dataType = data.GetType();
-                            if (dataType.IsSubClassOfGeneric(typeof(Controllers.CreatedBodyResponse<>)))
+                            if (dataType.IsSubClassOfGeneric(typeof(CreatedBodyResponse<>)))
                             {
                                 var jsonString = await response.Content.ReadAsStringAsync();
                                 var resourceType = dataType.GenericTypeArguments.First();
@@ -65,7 +65,7 @@ namespace EastFive.Api
                                     instance, response.Content.Headers.ContentType.MediaType);
                                 return (HttpResponseMessage)responseDelegate;
                             }
-                            if (dataType.IsSubClassOfGeneric(typeof(Controllers.ExecuteBackgroundResponseAsync)))
+                            if (dataType.IsSubClassOfGeneric(typeof(ExecuteBackgroundResponseAsync)))
                             {
                                 //var jsonString = await response.Headers.();
                                 //var resourceType = dataType.GenericTypeArguments.First();
@@ -90,9 +90,9 @@ namespace EastFive.Api
 
         public void SetInstigator(Type type, InstigatorDelegate instigator, bool clear = false)
         {
-            if (type.ContainsCustomAttribute<HttpActionDelegateAttribute>())
+            if (type.ContainsCustomAttribute<HttpDelegateAttribute>())
             {
-                var actionDelAttr = type.GetCustomAttribute<HttpActionDelegateAttribute>();
+                var actionDelAttr = type.GetCustomAttribute<HttpDelegateAttribute>();
                 var code = actionDelAttr.StatusCode;
 
                 if (!clear)
@@ -114,9 +114,9 @@ namespace EastFive.Api
         public void SetInstigatorGeneric(Type type, InstigatorDelegateGeneric instigator,
             bool clear = false)
         {
-            if (type.ContainsCustomAttribute<HttpActionDelegateAttribute>())
+            if (type.ContainsCustomAttribute<HttpDelegateAttribute>())
             {
-                var actionDelAttr = type.GetCustomAttribute<HttpActionDelegateAttribute>();
+                var actionDelAttr = type.GetCustomAttribute<HttpDelegateAttribute>();
                 var code = actionDelAttr.StatusCode;
                 if (!clear)
                 {
@@ -133,7 +133,7 @@ namespace EastFive.Api
             return new RequestMessage<TResource>(this, httpRequest);
         }
 
-        public class ExecuteContext : Controllers.IExecuteAsync
+        public class ExecuteContext : IExecuteAsync
         {
             public bool ForceBackground => false;
 

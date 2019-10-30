@@ -57,6 +57,11 @@ namespace EastFive.Api
             Location = "Should be dervied from secure random numbers into a GUID.")]
         public const string AuthorizationIdSuperAdmin = "EastFive.Api.AuthorizationIdSuperAdmin";
 
-        
+        [ConfigKey("Application Insights Key.",
+            DeploymentOverrides.Suggested,
+            DeploymentSecurityConcern = false,
+            Location = "Azure Portal.")]
+        public const string ApplicationInsightsKey = "EastFive.Security.SessionServer.ApplicationInsightsKey";
+
     }
 }

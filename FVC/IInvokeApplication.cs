@@ -9,6 +9,7 @@ using System.Web.Http;
 using EastFive;
 using EastFive.Extensions;
 using EastFive.Linq;
+using Microsoft.ApplicationInsights.DataContracts;
 
 namespace EastFive.Api
 {
@@ -30,7 +31,8 @@ namespace EastFive.Api
 
     public class IInvokeApplicationAttribute : Attribute, IInstigatable
     {
-        public Task<HttpResponseMessage> Instigate(HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo, 
+        public Task<HttpResponseMessage> Instigate(HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
+                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             string GetApiPrefix()

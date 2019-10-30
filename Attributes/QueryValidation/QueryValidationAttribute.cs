@@ -273,7 +273,7 @@ namespace EastFive.Api
     {
         public string Content { get; set; }
 
-        public override async Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
+        public override Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
             HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
             CastDelegate<SelectParameterResult> fetchQueryParam,
             CastDelegate<SelectParameterResult> fetchBodyParam,
@@ -295,7 +295,7 @@ namespace EastFive.Api
                         key = Content,
                         parameterInfo = parameterRequiringValidation,
                         value = request.Content.Headers.ContentType.MediaType,
-                    };
+                    }.AsTask();
                 throw new NotImplementedException();
                 //return await fetchBodyParam(
                 //    new ParameterInfo() { ParameterType = typeof(HttpContent) },
@@ -341,7 +341,7 @@ namespace EastFive.Api
                             parameterInfo = parameterRequiringValidation,
                             valid = false,
                             failure = "AcceptLanguage is not a content header.",
-                        };
+                        }.AsTask();
                     return new SelectParameterResult
                     {
                         valid = true,
@@ -351,7 +351,7 @@ namespace EastFive.Api
                         key = default,
                         parameterInfo = parameterRequiringValidation,
                         value = request.Headers.AcceptLanguage,
-                    };
+                    }.AsTask();
                 }
             }
             return new SelectParameterResult
@@ -362,7 +362,7 @@ namespace EastFive.Api
                 parameterInfo = parameterRequiringValidation,
                 valid = false,
                 failure = $"No header binding for type `{bindType.FullName}`.",
-            };
+            }.AsTask();
         }
     }
 

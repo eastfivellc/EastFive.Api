@@ -15,6 +15,7 @@ using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Linq.Async;
+using Microsoft.ApplicationInsights.DataContracts;
 
 namespace EastFive.Api
 {
@@ -78,7 +79,8 @@ namespace EastFive.Api
         }
 
         public virtual async Task<HttpResponseMessage> CreateResponseAsync(Type controllerType,
-            IApplication httpApp, HttpRequestMessage request, string routeName)
+            IApplication httpApp, HttpRequestMessage request, string routeName,
+            RequestTelemetry telemetry)
         {
             var path = request.RequestUri.Segments
                 .Skip(1)
@@ -97,7 +99,7 @@ namespace EastFive.Api
                 {
                     var actionHttpMethod = matchingActionKeys.First();
                     var matchingActionMethods = possibleHttpMethods[actionHttpMethod];
-                    return await CreateResponseAsync(httpApp, request, routeName, matchingActionMethods);
+                    return await CreateResponseAsync(httpApp, request, routeName, matchingActionMethods, telemetry);
                 }
             }
 
@@ -111,7 +113,7 @@ namespace EastFive.Api
             var httpMethod = matchingKey.First();
             var matchingMethods = possibleHttpMethods[httpMethod];
 
-            return await CreateResponseAsync(httpApp, request, routeName, matchingMethods);
+            return await CreateResponseAsync(httpApp, request, routeName, matchingMethods, telemetry);
         }
 
         #region Invoke correct method
@@ -119,7 +121,8 @@ namespace EastFive.Api
         public delegate TResult ParseContentDelegate<TResult>(Type type, Func<object, TResult> onParsed, Func<string, TResult> onFailure);
 
         private static async Task<HttpResponseMessage> CreateResponseAsync(IApplication httpApp,
-            HttpRequestMessage request, string controllerName, MethodInfo[] methods)
+            HttpRequestMessage request, string controllerName, MethodInfo[] methods,
+            RequestTelemetry telemetry)
         {
             #region setup query parameter casting
 
@@ -204,7 +207,8 @@ namespace EastFive.Api
                         httpApp, request,
                         queryParameters.SelectKeys(),
                         bodyValues,
-                        fileNameParams.Any());
+                        fileNameParams.Any(),
+                        telemetry);
                 });
 
         }
@@ -397,7 +401,8 @@ namespace EastFive.Api
             CastDelegate<SelectParameterResult> fetchBodyParam,
             CastDelegate<SelectParameterResult> fetchNameParam,
             IApplication httpApp, HttpRequestMessage request,
-            IEnumerable<string> queryKeys, IEnumerable<string> bodyKeys, bool hasFileParam)
+            IEnumerable<string> queryKeys, IEnumerable<string> bodyKeys, bool hasFileParam,
+            RequestTelemetry telemetry)
         {
             var methodsForConsideration = methods
                 .Select(
@@ -462,20 +467,14 @@ namespace EastFive.Api
             //var debugConsider = await methodsForConsideration.ToArrayAsync();
             var validMethods = methodsForConsideration
                 .Where(methodCast => methodCast.valid);
-            var debug = await validMethods.ToArrayAsync();
+            //var debug = await validMethods.ToArrayAsync();
             return await await validMethods
                 .FirstAsync(
                     (methodCast) =>
                     {
-                        return InvokeValidatedMethod(httpApp, request, methodCast.method, methodCast.parametersWithValues,
-                            (failedParameters) =>
-                            {
-                                methodCast.failedValidations = failedParameters;
-                                var methodCasts = methodsForConsideration
-                                    .Where(mc => mc.parametersWithValues.IsDefaultOrNull())
-                                    .Append(methodCast);
-                                return Issues(methodCasts);
-                            });
+                        return InvokeValidatedMethod(httpApp, request, 
+                                methodCast.method, methodCast.parametersWithValues,
+                                telemetry);
                     },
                     () =>
                     {
@@ -559,7 +558,7 @@ namespace EastFive.Api
 
         private static Task<HttpResponseMessage> InvokeValidatedMethod(IApplication httpApp, HttpRequestMessage request, MethodInfo method,
             KeyValuePair<ParameterInfo, object>[] queryParameters,
-            Func<SelectParameterResult[], Task<HttpResponseMessage>> onMissingParameters)
+            RequestTelemetry telemetry)
         {
             var queryParameterOptions = queryParameters.ToDictionary(kvp => kvp.Key.Name, kvp => kvp.Value);
             return method.GetParameters()
@@ -570,6 +569,7 @@ namespace EastFive.Api
                             return await next(queryParameterOptions[methodParameter.Name]);
 
                         return await httpApp.Instigate(request, methodParameter,
+                                telemetry,
                             v => next(v));
                     },
                     async (object[] methodParameters) =>

@@ -5,6 +5,7 @@ using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Linq.Async;
+using Microsoft.ApplicationInsights.DataContracts;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -20,7 +21,8 @@ namespace EastFive.Api
     public class FunctionViewController5Attribute : FunctionViewController4Attribute
     {
         public override async Task<HttpResponseMessage> CreateResponseAsync(Type controllerType,
-            IApplication httpApp, HttpRequestMessage request, string routeName)
+            IApplication httpApp, HttpRequestMessage request, string routeName,
+            RequestTelemetry telemetry)
         {
             var matchingActionMethods = controllerType
                 .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
@@ -70,7 +72,7 @@ namespace EastFive.Api
                             (methodCast) =>
                             {
                                 return InvokeValidatedMethodAsync(httpApp, request, methodCast.method,
-                                    methodCast.parametersWithValues);
+                                    methodCast.parametersWithValues, telemetry);
                             },
                             () =>
                             {
@@ -103,8 +105,10 @@ namespace EastFive.Api
 
         protected static Task<HttpResponseMessage> InvokeValidatedMethodAsync(
             IApplication httpApp, HttpRequestMessage request, MethodInfo method,
-            KeyValuePair<ParameterInfo, object>[] queryParameters)
+            KeyValuePair<ParameterInfo, object>[] queryParameters,
+            RequestTelemetry telemetry)
         {
+            telemetry.Name = $"{request.Method} - {method.DeclaringType.FullName}..{method.Name}";
             var queryParameterOptions = queryParameters.ToDictionary(kvp => kvp.Key.Name, kvp => kvp.Value);
             return method.GetParameters()
                 .SelectReduce(
@@ -114,6 +118,7 @@ namespace EastFive.Api
                             return await next(queryParameterOptions[methodParameter.Name]);
 
                         return await httpApp.Instigate(request, methodParameter,
+                                telemetry,
                             v => next(v));
                     },
                     async (object[] methodParameters) =>

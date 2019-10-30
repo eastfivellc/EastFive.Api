@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.ApplicationInsights.DataContracts;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -12,6 +13,7 @@ namespace EastFive.Api
     {
         Task<HttpResponseMessage> Instigate(
                 HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
+                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess);
     }
 }

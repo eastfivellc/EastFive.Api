@@ -1,13 +1,4 @@
-﻿using BlackBarLabs.Api;
-using BlackBarLabs.Extensions;
-using EastFive.Api.Resources;
-using EastFive.Api.Serialization;
-using EastFive.Collections.Generic;
-using EastFive.Extensions;
-using EastFive.Linq;
-using EastFive.Linq.Async;
-using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -16,12 +7,23 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
+using Newtonsoft.Json;
+using Microsoft.ApplicationInsights.DataContracts;
+
+using EastFive.Linq;
+using EastFive.Linq.Async;
+using EastFive.Api.Resources;
+using EastFive.Api.Serialization;
+using EastFive.Collections.Generic;
+using EastFive.Extensions;
+
 namespace EastFive.Api
 {
     public class FunctionViewController6Attribute : FunctionViewController5Attribute
     {
         public override async Task<HttpResponseMessage> CreateResponseAsync(Type controllerType,
-            IApplication httpApp, HttpRequestMessage request, string routeName)
+            IApplication httpApp, HttpRequestMessage request, string routeName,
+            RequestTelemetry telemetry)
         {
             var matchingActionMethods = controllerType
                 .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
@@ -71,7 +73,7 @@ namespace EastFive.Api
                             (methodCast) =>
                             {
                                 return InvokeValidatedMethodAsync(httpApp, request, methodCast.method,
-                                    methodCast.parametersWithValues);
+                                    methodCast.parametersWithValues, telemetry);
                             },
                             () =>
                             {

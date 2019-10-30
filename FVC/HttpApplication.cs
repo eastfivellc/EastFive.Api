@@ -30,6 +30,7 @@ using System.Security.Permissions;
 using EastFive.Api.Serialization;
 using System.Net.Http.Headers;
 using System.Xml;
+using Microsoft.ApplicationInsights.DataContracts;
 
 namespace EastFive.Api
 {
@@ -668,77 +669,6 @@ namespace EastFive.Api
 
         #region Instigators - GENERIC
 
-        public class InstigatorGenericWrapper1<T1>
-        {
-            public HttpApplication httpApp;
-            public HttpRequestMessage request;
-            public ParameterInfo paramInfo;
-
-            public InstigatorGenericWrapper1(HttpApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo)
-            {
-                this.httpApp = httpApp;
-                this.request = request;
-                this.paramInfo = paramInfo;
-            }
-
-            HttpResponseMessage ContentTypeResponse(object content, string contentTypeString = default(string))
-            {
-                Type GetType(Type type)
-                {
-                    if (type.IsArray)
-                        return GetType(type.GetElementType());
-                    return type;
-                }
-
-                return GetType(typeof(T1))
-                    .GetAttributesInterface<IProvideSerialization>()
-                    .Select(
-                        serializeAttr =>
-                        {
-                            var quality = request.Headers.Accept
-                                .Where(acceptOption => acceptOption.MediaType.ToLower() == serializeAttr.MediaType.ToLower())
-                                .First(
-                                    (acceptOption, next) => acceptOption.Quality.HasValue ? acceptOption.Quality.Value : -1.0,
-                                    () => -2.0);
-                            return serializeAttr.PairWithValue(quality);
-                        })
-                    .OrderByDescending(kvp => kvp.Value)
-                    .First(
-                        (serializerQualityKvp, next) =>
-                        {
-                            var serializationProvider = serializerQualityKvp.Key;
-                            var quality = serializerQualityKvp.Value;
-                            var responseNoContent = request.CreateResponse(System.Net.HttpStatusCode.OK, content);
-                            var customResponse = serializationProvider.Serialize(responseNoContent, httpApp, request, paramInfo, content);
-                            return customResponse;
-                        },
-                        () =>
-                        {
-                            var response = request.CreateResponse(System.Net.HttpStatusCode.OK, content);
-                            if (!contentTypeString.IsNullOrWhiteSpace())
-                                response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentTypeString);
-                            return response;
-                        });
-            }
-
-            HttpResponseMessage CreatedBodyResponse(object content, string contentTypeString = default(string))
-            {
-                var contentType = typeof(T1);
-                if (!contentType.ContainsAttributeInterface<IProvideSerialization>())
-                {
-                    var response = request.CreateResponse(System.Net.HttpStatusCode.Created, content);
-                    if (!contentTypeString.IsNullOrWhiteSpace())
-                        response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentTypeString);
-                    return response;
-                }
-
-                var responseNoContent = request.CreateResponse(System.Net.HttpStatusCode.Created, content);
-                var serializationProvider = contentType.GetAttributesInterface<IProvideSerialization>().Single();
-                var customResponse = serializationProvider.Serialize(responseNoContent, httpApp, request, paramInfo, content);
-                return customResponse;
-            }
-        }
-
         public Dictionary<Type, InstigatorDelegateGeneric> instigatorsGeneric =
             new Dictionary<Type, InstigatorDelegateGeneric>()
             {
@@ -750,128 +680,7 @@ namespace EastFive.Api
                         return success((object)instance);
                     }
                 },
-                {
-                    typeof(Controllers.CreatedBodyResponse<>),
-                    (type, httpApp, request, paramInfo, success) =>
-                    {
-                        var wrapperConcreteType = typeof(InstigatorGenericWrapper1<>).MakeGenericType(type.GenericTypeArguments);
-                        var wrapperInstance = Activator.CreateInstance(wrapperConcreteType, new object [] { httpApp, request, paramInfo });
-                        var dele = Delegate.CreateDelegate(type, wrapperInstance, "CreatedBodyResponse", false);
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.ReferencedDocumentDoesNotExistsResponse<>),
-                    (type, httpApp, request, paramInfo, success) =>
-                    {
-                        var refDocMethodInfo = typeof(HttpApplication).GetMethod("RefDocDoesNotExist", BindingFlags.Public | BindingFlags.Static);
-                        var dele = Delegate.CreateDelegate(type, request, refDocMethodInfo);
-                        return success((object)dele);
-                    }
-                },
-                {
-                    typeof(Controllers.ReferencedDocumentNotFoundResponse<>),
-                    (type, httpApp, request, paramInfo, success) =>
-                    {
-                        var refDocMethodInfo = typeof(HttpApplication).GetMethod("ReferencedDocumentNotFound", BindingFlags.Public | BindingFlags.Static);
-                        var dele = Delegate.CreateDelegate(type, request, refDocMethodInfo);
-                        return success((object)dele);
-                    }
-                },
             };
-
-        public static HttpResponseMessage CreatedBodyResponse(HttpRequestMessage request)
-        {
-            return request
-                .CreateResponse(System.Net.HttpStatusCode.BadRequest)
-                .AddReason("The query parameter did not reference an existing document.");
-        }
-
-        public static HttpResponseMessage RefDocDoesNotExist(HttpRequestMessage request)
-        {
-            return request
-                .CreateResponse(System.Net.HttpStatusCode.BadRequest)
-                .AddReason("The query parameter did not reference an existing document.");
-        }
-
-        public static HttpResponseMessage ReferencedDocumentNotFound(HttpRequestMessage request)
-        {
-            return request
-                .CreateResponse(System.Net.HttpStatusCode.NotFound)
-                .AddReason("The document referrenced by the parameter was not found.");
-        }
-
-        private class GenericInstigatorScoping
-        {
-            private Type type;
-            private HttpApplication httpApp;
-            private HttpRequestMessage request;
-            private ParameterInfo paramInfo;
-
-            public GenericInstigatorScoping(Type type, HttpApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo)
-            {
-                this.type = type;
-                this.httpApp = httpApp;
-                this.request = request;
-                this.paramInfo = paramInfo;
-            }
-
-            public async Task<HttpResponseMessage> MultipartResponseAsync<T>(IEnumerableAsync<T> objectsAsync)
-            {
-                if (request.Headers.Accept.Contains(accept => accept.MediaType.ToLower().Contains("xlsx")))
-                {
-                    var objects = await objectsAsync.ToArrayAsync();
-                    return await request.CreateMultisheetXlsxResponse(
-                        new Dictionary<string, string>(),
-                        objects.Cast<ResourceBase>()).ToTask();
-                }
-
-                var responses = await objectsAsync
-                    .Select(
-                        obj =>
-                        {
-                            var objType = obj.GetType();
-                            if (!objType.ContainsAttributeInterface<IProvideSerialization>())
-                            {
-                                var response = request.CreateResponse(System.Net.HttpStatusCode.OK, obj);
-                                return response;
-                            }
-
-                            var responseNoContent = request.CreateResponse(System.Net.HttpStatusCode.OK, obj);
-                            var serializationProvider = objType.GetAttributesInterface<IProvideSerialization>().Single();
-                            var customResponse = serializationProvider.Serialize(responseNoContent, httpApp, request, paramInfo, obj);
-                            return customResponse;
-                        })
-                    .Async();
-
-                bool IsMultipart()
-                {
-                    var acceptHeader = request.Headers.Accept;
-                    if (acceptHeader.IsDefaultOrNull())
-                        return false;
-                    if (request.Headers.Accept.Count == 0)
-                    {
-                        var hasMultipart = acceptHeader.ToString().ToLower().Contains("multipart");
-                        return hasMultipart;
-                    }
-                    return false;
-                }
-
-                if (!IsMultipart())
-                {
-                    var jsonStrings = await responses
-                        .Select(v => v.Content.ReadAsStringAsync())
-                        .AsyncEnumerable()
-                        .ToArrayAsync();
-                    var jsonArrayContent = $"[{jsonStrings.Join(",")}]";
-                    var response = request.CreateResponse(HttpStatusCode.OK);
-                    response.Content = new StringContent(jsonArrayContent, Encoding.UTF8, "application/json");
-                    return response;
-                }
-
-                return await request.CreateMultipartResponseAsync(responses);
-            }
-        }
 
         #endregion
 
@@ -1007,259 +816,6 @@ namespace EastFive.Api
 
                 #endregion
 
-                #region FVC Response actions
-
-                #region 200's
-
-                #region 200 - OK
-
-                #endregion
-
-                { // 201
-                    typeof(Controllers.CreatedResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.CreatedResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.Created);
-                        return success((object)dele);
-                    }
-                },
-                { // 202
-                    typeof(Controllers.AcceptedResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.AcceptedResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.Accepted);
-                        return success((object)dele);
-                    }
-                },
-                { // 202
-                    typeof(Controllers.AcceptedBodyResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.AcceptedBodyResponse dele =
-                            (obj, contentType) =>
-                            {
-                                var response = request.CreateResponse(System.Net.HttpStatusCode.Accepted, obj);
-                                if(!contentType.IsNullOrWhiteSpace())
-                                    response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
-                                return response;
-                            };
-                        return success((object)dele);
-                    }
-                },
-                //{ // 202 (or *)
-                //    typeof(Controllers.BackgroundResponseAsync),
-                //    (httpApp, request, paramInfo, success) =>
-                //    {
-                //        Controllers.BackgroundResponseAsync dele =
-                //            async (callback) =>
-                //            {
-                //                if(request.Headers.Accept.Contains(mediaType => mediaType.MediaType.ToLower().Contains("background")))
-                //                {
-                //                    var urlHelper = request.GetUrlHelper();
-                //                    var processId = Controllers.BackgroundProgressController.CreateProcess(callback, 1.0);
-                //                    var response = request.CreateResponse(HttpStatusCode.Accepted);
-                //                    response.Headers.Add("Access-Control-Expose-Headers", "x-backgroundprocess");
-                //                    response.Headers.Add("x-backgroundprocess", urlHelper.GetLocation<Controllers.BackgroundProgressController>(processId).AbsoluteUri);
-                //                    return response;
-                //                }
-                //                return await callback(v => { }); // TODO: Not this
-                //            };
-                //        return success((object)dele);
-                //    }
-                //},
-                { // 202 (or *)
-                    typeof(Controllers.ExecuteBackgroundResponseAsync),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.ExecuteBackgroundResponseAsync dele =
-                            async (executionContext) =>
-                            {
-                                bool shouldRunInBackground()
-                                {
-                                    if (executionContext.ForceBackground)
-                                        return true;
-
-                                    if(request.Headers.Accept.Contains(mediaType => mediaType.MediaType.ToLower().Contains("background")))
-                                        return true;
-
-                                    return false;
-                                }
-
-                                if(shouldRunInBackground())
-                                {
-                                    var urlHelper = request.GetUrlHelper();
-                                    var processId = Controllers.BackgroundProgressController.CreateProcess(
-                                        async updateCallback =>
-                                        {
-                                            var completion = await executionContext.InvokeAsync(
-                                                v =>
-                                                {
-                                                    updateCallback(v);
-                                                });
-                                            return completion;
-                                        }, 1.0);
-                                    var response = request.CreateResponse(HttpStatusCode.Accepted);
-                                    response.Headers.Add("Access-Control-Expose-Headers", "x-backgroundprocess");
-                                    response.Headers.Add("x-backgroundprocess", urlHelper.GetLocation<Controllers.BackgroundProgressController>(processId).AbsoluteUri);
-                                    return response;
-                                }
-                                return await executionContext.InvokeAsync(v => { });
-                            };
-                        return success((object)dele);
-                    }
-                },
-                { // 204
-                    typeof(Controllers.NoContentResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.NoContentResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.NoContent);
-                        return success((object)dele);
-                    }
-                },
-
-                #endregion
-                
-                #region 300's
-                
-                { // 302
-                    typeof(Controllers.RedirectResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.RedirectResponse dele = (redirectLocation) => request.CreateRedirectResponse(redirectLocation);
-                        return success((object)dele);
-                    }
-                },
-                { // 304
-                    typeof(Controllers.NotModifiedResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.NotModifiedResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.NotModified);
-                        return success((object)dele);
-                    }
-                },
-
-                #endregion
-
-                #region 400's
-
-                { // 400
-                    typeof(Controllers.BadRequestResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.BadRequestResponse dele = () => request
-                            .CreateResponse(System.Net.HttpStatusCode.BadRequest)
-                            .AddReason("Bad request.");
-                        return success((object)dele);
-                    }
-                },
-                { // 401
-                    typeof(Controllers.UnauthorizedResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.UnauthorizedResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized);
-                        return success((object)dele);
-                    }
-                },
-                { // 403
-                    typeof(Controllers.ForbiddenResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.ForbiddenResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.Forbidden);
-                        return success((object)dele);
-                    }
-                },
-                { // 404
-                    typeof(Controllers.ReferencedDocumentNotFoundResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.ReferencedDocumentNotFoundResponse dele = () => request
-                            .CreateResponse(System.Net.HttpStatusCode.BadRequest)
-                            .AddReason("The query parameter did not reference an existing document.");
-                        return success((object)dele);
-                    }
-                },
-                { // 404
-                    typeof(Controllers.NotFoundResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.NotFoundResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.NotFound);
-                        return success((object)dele);
-                    }
-                },
-                { // 409
-                    typeof(Controllers.AlreadyExistsResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.AlreadyExistsResponse dele = () => request
-                            .CreateResponse(System.Net.HttpStatusCode.Conflict)
-                            .AddReason("Resource has already been created");
-                        return success((object)dele);
-                    }
-                },
-                { // 409
-                    typeof(Controllers.AlreadyExistsReferencedResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.AlreadyExistsReferencedResponse dele = (existingId) => request.CreateResponse(System.Net.HttpStatusCode.Conflict).AddReason($"There is already a resource with ID = [{existingId}]");
-                        return success((object)dele);
-                    }
-                },
-                { // 409
-                    typeof(Controllers.GeneralConflictResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.GeneralConflictResponse dele = (why) => request
-                            .CreateResponse(System.Net.HttpStatusCode.Conflict)
-                            .AddReason(why);
-                        return success((object)dele);
-                    }
-                },
-
-                #endregion
-
-                #region 500's
-
-                { // 500
-                    typeof(Controllers.GeneralFailureResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.GeneralFailureResponse dele = (why) => request.CreateResponse(System.Net.HttpStatusCode.InternalServerError).AddReason(why);
-                        return success((object)dele);
-                    }
-                },
-                { // 501
-                    typeof(Controllers.NotImplementedResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.NotImplementedResponse dele = () => request.CreateResponse(System.Net.HttpStatusCode.NotImplemented);
-                        return success((object)dele);
-                    }
-                },
-                { // 503
-                    typeof(Controllers.ServiceUnavailableResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.ServiceUnavailableResponse dele = () => request
-                            .CreateResponse(System.Net.HttpStatusCode.ServiceUnavailable);
-                        return success((object)dele);
-                    }
-                },
-                { // 503
-                    typeof(Controllers.ConfigurationFailureResponse),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        Controllers.ConfigurationFailureResponse dele =
-                            (configurationValue, message) => request
-                                .CreateResponse(System.Net.HttpStatusCode.ServiceUnavailable)
-                                .AddReason($"`{configurationValue}` not specified in config:{message}");
-                        return success((object)dele);
-                    }
-                },
-
-                #endregion
-
-                #endregion
-
                 #region Logging
 
                 {
@@ -1292,6 +848,7 @@ namespace EastFive.Api
         }
 
         public Task<HttpResponseMessage> Instigate(HttpRequestMessage request, ParameterInfo methodParameter,
+                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onInstigated)
         {
             var instigationAttrs = methodParameter.ParameterType.GetAttributesInterface<IInstigatable>();
@@ -1299,6 +856,7 @@ namespace EastFive.Api
             {
                 var instigationAttr = instigationAttrs.First();
                 return instigationAttr.Instigate(this, request, methodParameter,
+                        telemetry,
                     (v) => onInstigated(v));
             }
 
@@ -2261,29 +1819,6 @@ namespace EastFive.Api
                 },
                 why => onFailure(why));
         }
-
-        //internal bool CanExtrude(Type type)
-        //{
-        //    if (this.bindings.ContainsKey(type))
-        //        return true;
-
-        //    if (type.IsGenericType)
-        //    {
-        //        var possibleGenericInstigator = this.bindingsGeneric
-        //            .Where(
-        //                instigatorKvp =>
-        //                {
-        //                    if (instigatorKvp.Key.GUID == type.GUID)
-        //                        return true;
-        //                    if (type.IsAssignableFrom(instigatorKvp.Key))
-        //                        return true;
-        //                    return false;
-        //                });
-        //        return possibleGenericInstigator.Any();
-        //    }
-
-        //    return false;
-        //}
 
         public IEnumerable<MethodInfo> GetExtensionMethods(Type controllerType)
         {

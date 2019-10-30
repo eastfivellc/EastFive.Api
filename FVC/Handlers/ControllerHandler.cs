@@ -21,11 +21,20 @@ using System.Threading;
 using System.IO;
 using EastFive.Linq.Async;
 using EastFive.Api.Serialization;
+using Microsoft.ApplicationInsights.DataContracts;
+using System.Diagnostics;
+using EastFive.Web.Configuration;
+using Microsoft.ApplicationInsights;
 
 namespace EastFive.Api.Modules
 {
     public class ControllerHandler : ApplicationHandler
     {
+        public const string HeaderStatusName = "X-StatusName";
+        public const string HeaderStatusInstance = "X-StatusInstance";
+        public const string TelemetryStatusName = "StatusName";
+        public const string TelemetryStatusInstance = "StatusInstance";
+
         public ControllerHandler(System.Web.Http.HttpConfiguration config)
             : base(config)
         {
@@ -63,13 +72,38 @@ namespace EastFive.Api.Modules
             return await httpApp.GetControllerType(routeName,
                 (controllerType) =>
                 {
+                    var telemetry = new RequestTelemetry()
+                    {
+                        Id = Guid.NewGuid().ToString("N"),
+                        Source = "EastFive.Api",
+                        Timestamp = DateTimeOffset.UtcNow,
+                        Url = request.RequestUri,
+                    };
+                    var stopwatch = Stopwatch.StartNew();
                     return httpApp.GetType()
                         .GetAttributesInterface<IHandleRoutes>(true, true)
                         .Aggregate<IHandleRoutes, Func<Task<HttpResponseMessage>>>(
-                            () =>
+                            async () =>
                             {
                                 var invokeResource = controllerType.GetAttributesInterface<IInvokeResource>().First();
-                                return invokeResource.CreateResponseAsync(controllerType, httpApp, request, routeName);
+                                var response = await invokeResource.CreateResponseAsync(controllerType, httpApp, request, routeName, telemetry);
+                                
+                                telemetry.Duration = stopwatch.Elapsed;
+                                if (telemetry.Properties.ContainsKey(TelemetryStatusName))
+                                    response.Headers.Add(HeaderStatusName, telemetry.Properties[TelemetryStatusName]);
+                                if (telemetry.Properties.ContainsKey(TelemetryStatusInstance))
+                                    response.Headers.Add(HeaderStatusInstance, telemetry.Properties[TelemetryStatusInstance]);
+                                var telemetryClient = EastFive.Api.AppSettings.ApplicationInsightsKey.ConfigurationString(
+                                    (applicationInsightsKey) =>
+                                    {
+                                        return new TelemetryClient { InstrumentationKey = applicationInsightsKey };
+                                    },
+                                    (why) =>
+                                    {
+                                        return new TelemetryClient();
+                                    });
+                                telemetryClient.TrackRequest(telemetry);
+                                return response;
                             },
                             (callback, routeHandler) =>
                             {
