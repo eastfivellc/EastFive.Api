@@ -49,8 +49,6 @@ namespace EastFive.Api.Serialization
         {
             if (objectType.IsSubClassOfGeneric(typeof(IRef<>)))
                 return true;
-            if (objectType.IsSubClassOfGeneric(typeof(IRefObj<>)))
-                return true;
             if (objectType.IsSubClassOfGeneric(typeof(IRefs<>)))
                 return true;
             if (objectType.IsSubClassOfGeneric(typeof(IRefOptional<>)))

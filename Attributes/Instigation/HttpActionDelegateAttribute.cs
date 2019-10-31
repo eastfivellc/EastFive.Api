@@ -31,11 +31,9 @@ namespace EastFive.Api
 
         public virtual Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
-                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             return InstigateInternal(httpApp, request, parameterInfo,
-                    telemetry,
                 onSuccess);
             //callback =>
             //{
@@ -59,7 +57,6 @@ namespace EastFive.Api
 
         public abstract Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
-                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess);
 
         private void UpdateTelemetry(HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo, 

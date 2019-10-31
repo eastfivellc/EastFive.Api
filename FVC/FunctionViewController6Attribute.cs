@@ -22,8 +22,7 @@ namespace EastFive.Api
     public class FunctionViewController6Attribute : FunctionViewController5Attribute
     {
         public override async Task<HttpResponseMessage> CreateResponseAsync(Type controllerType,
-            IApplication httpApp, HttpRequestMessage request, string routeName,
-            RequestTelemetry telemetry)
+            IApplication httpApp, HttpRequestMessage request, string routeName)
         {
             var matchingActionMethods = controllerType
                 .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
@@ -73,7 +72,7 @@ namespace EastFive.Api
                             (methodCast) =>
                             {
                                 return InvokeValidatedMethodAsync(httpApp, request, methodCast.method,
-                                    methodCast.parametersWithValues, telemetry);
+                                    methodCast.parametersWithValues);
                             },
                             () =>
                             {

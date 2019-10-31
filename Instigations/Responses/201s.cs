@@ -24,7 +24,6 @@ namespace EastFive.Api
     {
         public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
-                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             Func<HttpResponseMessage> responseFunc = 

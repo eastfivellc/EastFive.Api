@@ -72,7 +72,6 @@ namespace EastFive.Api
     {
         public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request,ParameterInfo parameterInfo,
-                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             ContentResponse responseDelegate =
@@ -109,7 +108,6 @@ namespace EastFive.Api
 
         public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
-                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             BytesResponse responseDelegate = (bytes, filename, contentType, inline) =>
@@ -142,7 +140,6 @@ namespace EastFive.Api
 
         public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
-                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             ImageResponse responseDelegate = (imageData, width, height, fill,
@@ -173,7 +170,6 @@ namespace EastFive.Api
 
         public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
-                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             PdfResponse responseDelegate = (pdfData, filename, inline) =>
@@ -199,7 +195,6 @@ namespace EastFive.Api
 
         public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
-                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             HtmlResponse responseDelegate = (html) =>
@@ -217,7 +212,6 @@ namespace EastFive.Api
     {
         public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
-                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             ViewFileResponse responseDelegate =
@@ -249,7 +243,6 @@ namespace EastFive.Api
     {
         public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
-                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             ViewStringResponse responseDelegate =
@@ -271,7 +264,6 @@ namespace EastFive.Api
     {
         public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
-                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             ViewRenderer responseDelegate =
@@ -302,7 +294,6 @@ namespace EastFive.Api
     {
         public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
-                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             ViewPathResolver responseDelegate =
@@ -326,7 +317,6 @@ namespace EastFive.Api
 
         public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
-                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             XlsxResponse responseDelegate = (xlsxData, filename) =>
@@ -350,7 +340,6 @@ namespace EastFive.Api
 
         public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
-                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             MultipartResponseAsync responseDelegate =
@@ -369,7 +358,6 @@ namespace EastFive.Api
 
         public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
-                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             MultipartAcceptArrayResponseAsync responseDelegate =

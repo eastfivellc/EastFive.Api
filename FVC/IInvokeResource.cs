@@ -1,5 +1,4 @@
-﻿using Microsoft.ApplicationInsights.DataContracts;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -17,8 +16,8 @@ namespace EastFive.Api
 
         Type Resource { get; }
 
-        Task<HttpResponseMessage> CreateResponseAsync(Type controllerType, IApplication httpApp, HttpRequestMessage request, string routeName,
-            RequestTelemetry telemetry);
+        Task<HttpResponseMessage> CreateResponseAsync(Type controllerType, 
+            IApplication httpApp, HttpRequestMessage request, string routeName);
     }
 
     public interface IInvokeExtensions

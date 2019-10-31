@@ -23,13 +23,6 @@ namespace EastFive.Api
         Func<object, TResult> onParsed,
         Func<string, TResult> onFailure);
 
-    public interface IHandleRoutes
-    {
-        Task<HttpResponseMessage> RouteHandlersAsync(Type controllerType,
-            IApplication httpApp, HttpRequestMessage request, string routeName,
-            Func<Task<HttpResponseMessage>> continueExecution);
-    }
-
     public interface IApplication //: IInvokeApplication
     {
         EastFive.Analytics.ILogger Logger { get; }
@@ -53,7 +46,6 @@ namespace EastFive.Api
             Func<ParseContentDelegateAsync<TParseResult>, string[], Task<TResult>> onParsedContentValues);
 
         Task<HttpResponseMessage> Instigate(HttpRequestMessage request, ParameterInfo methodParameter,
-                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onInstigated);
 
     }

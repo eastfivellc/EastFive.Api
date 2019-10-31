@@ -13,7 +13,6 @@ namespace EastFive.Api
     {
         Task<HttpResponseMessage> Instigate(
                 HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
-                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onSuccess);
     }
 }

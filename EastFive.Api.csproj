@@ -165,6 +165,8 @@
     <Compile Include="Attributes\QueryValidation\UpdateIdAttribute.cs" />
     <Compile Include="Attributes\QueryValidation\XmlResourceAttribute.cs" />
     <Compile Include="Attributes\QueryValidation\XmlPropertyAttribute.cs" />
+    <Compile Include="Attributes\Routing\IHandleMethods.cs" />
+    <Compile Include="Attributes\Routing\IHandleRoutes.cs" />
     <Compile Include="Attributes\SheetColumnAttribute.cs" />
     <Compile Include="Attributes\ResourceTypeAttribute.cs" />
     <Compile Include="AppSettings.cs" />
@@ -255,6 +257,8 @@
     <Compile Include="InjectableAssemblyResolver.cs" />
     <Compile Include="FVC\Handlers\ControllerHandler.cs" />
     <Compile Include="Attributes\Manifest\IDocumentRoute.cs" />
+    <Compile Include="Instigations\Security\Security.cs" />
+    <Compile Include="Instigations\Security\SessionToken.cs" />
     <Compile Include="Razor\GenericReferenceResolver.cs" />
     <Compile Include="Razor\HtmlSupportTemplateBase.cs" />
     <Compile Include="Razor\RazorTemplateManager.cs" />
@@ -309,9 +313,7 @@
     <None Include="app.config" />
     <None Include="packages.config" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Instigations\Security\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>

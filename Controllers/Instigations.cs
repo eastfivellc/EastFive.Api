@@ -8,19 +8,7 @@ using System.Threading.Tasks;
 
 namespace EastFive.Api.Controllers
 {
-    public struct Security
-    {
-        public Guid performingAsActorId;
-        public System.Security.Claims.Claim[] claims;
-    }
-
-    public struct SessionToken
-    {
-        public Guid sessionId;
-        public Claim[] claims;
-        public Guid? accountIdMaybe;
-    }
-
+    
     public struct ApiSecurity
     {
 

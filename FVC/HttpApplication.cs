@@ -672,14 +672,6 @@ namespace EastFive.Api
         public Dictionary<Type, InstigatorDelegateGeneric> instigatorsGeneric =
             new Dictionary<Type, InstigatorDelegateGeneric>()
             {
-                {
-                    typeof(RequestMessage<>),
-                    (type, httpApp, request, paramInfo, success) =>
-                    {
-                        var instance = Activator.CreateInstance(type, new object [] { httpApp, request });
-                        return success((object)instance);
-                    }
-                },
             };
 
         #endregion
@@ -692,17 +684,7 @@ namespace EastFive.Api
                 #region Security
 
                 {
-                    typeof(EastFive.Api.Controllers.Security),
-                    (httpApp, request, paramInfo, success) => request.GetActorIdClaimsAsync(
-                        (actorId, claims) => success(
-                            new Controllers.Security
-                            {
-                                performingAsActorId = actorId,
-                                claims = claims,
-                            }))
-                },
-                {
-                    typeof(EastFive.Api.Controllers.SessionToken?),
+                    typeof(SessionToken?),
                     (httpApp, request, paramInfo, success) =>
                     {
                         return EastFive.Web.Configuration.Settings.GetString(AppSettings.ActorIdClaimType,
@@ -721,7 +703,7 @@ namespace EastFive.Api
                                                     request, sessionIdClaimType,
                                                     (sessionId) =>
                                                     {
-                                                        var token = new Controllers.SessionToken
+                                                        var token = new SessionToken
                                                         {
                                                             accountIdMaybe = accountIdMaybe,
                                                             sessionId = sessionId,
@@ -731,8 +713,8 @@ namespace EastFive.Api
                                                     });
                                             });
                                     },
-                                    () => success(default(EastFive.Api.Controllers.SessionToken?)),
-                                    (why) => success(default(EastFive.Api.Controllers.SessionToken?)));
+                                    () => success(default(SessionToken?)),
+                                    (why) => success(default(SessionToken?)));
                             },
                             (why) => request.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).AsTask());
                     }
@@ -761,42 +743,6 @@ namespace EastFive.Api
                                 return request.CreateResponse(HttpStatusCode.Unauthorized).ToTask();
                             },
                             (why) => request.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).ToTask());
-                    }
-                },
-                {
-                    typeof(Controllers.SessionToken),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        return EastFive.Web.Configuration.Settings.GetString(AppSettings.ActorIdClaimType,
-                            (accountIdClaimType) =>
-                            {
-                                return request.GetClaims(
-                                    (claimsEnumerable) =>
-                                    {
-                                        var claims = claimsEnumerable.ToArray();
-                                        return claims.GetAccountIdMaybe(
-                                                request, accountIdClaimType,
-                                            (accountIdMaybe) =>
-                                            {
-                                                var sessionIdClaimType = BlackBarLabs.Security.ClaimIds.Session;
-                                                return claims.GetSessionIdAsync(
-                                                    request, sessionIdClaimType,
-                                                    (sessionId) =>
-                                                    {
-                                                        var token = new Controllers.SessionToken
-                                                        {
-                                                            accountIdMaybe = accountIdMaybe,
-                                                            sessionId = sessionId,
-                                                            claims = claims,
-                                                        };
-                                                        return success(token);
-                                                    });
-                                            });
-                                    },
-                                    () => request.CreateResponse(HttpStatusCode.Unauthorized).AddReason("Authorization header not set.").AsTask(),
-                                    (why) => request.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).AsTask());
-                            },
-                            (why) => request.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).AsTask());
                     }
                 },
 
@@ -848,7 +794,6 @@ namespace EastFive.Api
         }
 
         public Task<HttpResponseMessage> Instigate(HttpRequestMessage request, ParameterInfo methodParameter,
-                RequestTelemetry telemetry,
             Func<object, Task<HttpResponseMessage>> onInstigated)
         {
             var instigationAttrs = methodParameter.ParameterType.GetAttributesInterface<IInstigatable>();
@@ -856,7 +801,6 @@ namespace EastFive.Api
             {
                 var instigationAttr = instigationAttrs.First();
                 return instigationAttr.Instigate(this, request, methodParameter,
-                        telemetry,
                     (v) => onInstigated(v));
             }
 
@@ -1178,22 +1122,6 @@ namespace EastFive.Api
                             {
                                 var resourceType = type.GenericTypeArguments.First();
                                 var instantiatableType = typeof(EastFive.Ref<>).MakeGenericType(resourceType);
-                                var instance = Activator.CreateInstance(instantiatableType, new object[] { id });
-                                return onBound(instance);
-                            },
-                            (why) => onFailedToBind(why));
-                    }
-                },
-                {
-                    typeof(IRefObj<>),
-                    (type, httpApp, content, onBound, onFailedToBind) =>
-                    {
-                        var resourceType = type.GenericTypeArguments.First();
-                        var instantiatableType = typeof(EastFive.RefObj<>).MakeGenericType(resourceType);
-
-                        return httpApp.Bind(typeof(Guid), content,
-                            (id) =>
-                            {
                                 var instance = Activator.CreateInstance(instantiatableType, new object[] { id });
                                 return onBound(instance);
                             },

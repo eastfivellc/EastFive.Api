@@ -38,8 +38,8 @@ namespace EastFive.Api
 
         public class InstigateAttribute : Attribute, IInstigatable
         {
-            public Task<HttpResponseMessage> Instigate(HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
-                RequestTelemetry telemetry,
+            public Task<HttpResponseMessage> Instigate(HttpApplication httpApp, 
+                    HttpRequestMessage request, ParameterInfo parameterInfo,
                 Func<object, Task<HttpResponseMessage>> onSuccess)
             {
                 string GetApiPrefix()

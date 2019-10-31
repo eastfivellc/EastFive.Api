@@ -79,8 +79,7 @@ namespace EastFive.Api
         }
 
         public virtual async Task<HttpResponseMessage> CreateResponseAsync(Type controllerType,
-            IApplication httpApp, HttpRequestMessage request, string routeName,
-            RequestTelemetry telemetry)
+            IApplication httpApp, HttpRequestMessage request, string routeName)
         {
             var path = request.RequestUri.Segments
                 .Skip(1)
@@ -99,7 +98,7 @@ namespace EastFive.Api
                 {
                     var actionHttpMethod = matchingActionKeys.First();
                     var matchingActionMethods = possibleHttpMethods[actionHttpMethod];
-                    return await CreateResponseAsync(httpApp, request, routeName, matchingActionMethods, telemetry);
+                    return await CreateResponseAsync(httpApp, request, routeName, matchingActionMethods);
                 }
             }
 
@@ -113,7 +112,7 @@ namespace EastFive.Api
             var httpMethod = matchingKey.First();
             var matchingMethods = possibleHttpMethods[httpMethod];
 
-            return await CreateResponseAsync(httpApp, request, routeName, matchingMethods, telemetry);
+            return await CreateResponseAsync(httpApp, request, routeName, matchingMethods);
         }
 
         #region Invoke correct method
@@ -121,8 +120,7 @@ namespace EastFive.Api
         public delegate TResult ParseContentDelegate<TResult>(Type type, Func<object, TResult> onParsed, Func<string, TResult> onFailure);
 
         private static async Task<HttpResponseMessage> CreateResponseAsync(IApplication httpApp,
-            HttpRequestMessage request, string controllerName, MethodInfo[] methods,
-            RequestTelemetry telemetry)
+            HttpRequestMessage request, string controllerName, MethodInfo[] methods)
         {
             #region setup query parameter casting
 
@@ -207,8 +205,7 @@ namespace EastFive.Api
                         httpApp, request,
                         queryParameters.SelectKeys(),
                         bodyValues,
-                        fileNameParams.Any(),
-                        telemetry);
+                        fileNameParams.Any());
                 });
 
         }
@@ -401,8 +398,7 @@ namespace EastFive.Api
             CastDelegate<SelectParameterResult> fetchBodyParam,
             CastDelegate<SelectParameterResult> fetchNameParam,
             IApplication httpApp, HttpRequestMessage request,
-            IEnumerable<string> queryKeys, IEnumerable<string> bodyKeys, bool hasFileParam,
-            RequestTelemetry telemetry)
+            IEnumerable<string> queryKeys, IEnumerable<string> bodyKeys, bool hasFileParam)
         {
             var methodsForConsideration = methods
                 .Select(
@@ -473,8 +469,7 @@ namespace EastFive.Api
                     (methodCast) =>
                     {
                         return InvokeValidatedMethod(httpApp, request, 
-                                methodCast.method, methodCast.parametersWithValues,
-                                telemetry);
+                                methodCast.method, methodCast.parametersWithValues);
                     },
                     () =>
                     {
@@ -557,8 +552,7 @@ namespace EastFive.Api
         }
 
         private static Task<HttpResponseMessage> InvokeValidatedMethod(IApplication httpApp, HttpRequestMessage request, MethodInfo method,
-            KeyValuePair<ParameterInfo, object>[] queryParameters,
-            RequestTelemetry telemetry)
+            KeyValuePair<ParameterInfo, object>[] queryParameters)
         {
             var queryParameterOptions = queryParameters.ToDictionary(kvp => kvp.Key.Name, kvp => kvp.Value);
             return method.GetParameters()
@@ -569,7 +563,6 @@ namespace EastFive.Api
                             return await next(queryParameterOptions[methodParameter.Name]);
 
                         return await httpApp.Instigate(request, methodParameter,
-                                telemetry,
                             v => next(v));
                     },
                     async (object[] methodParameters) =>

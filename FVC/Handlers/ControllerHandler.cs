@@ -72,46 +72,24 @@ namespace EastFive.Api.Modules
             return await httpApp.GetControllerType(routeName,
                 (controllerType) =>
                 {
-                    var telemetry = new RequestTelemetry()
-                    {
-                        Id = Guid.NewGuid().ToString("N"),
-                        Source = "EastFive.Api",
-                        Timestamp = DateTimeOffset.UtcNow,
-                        Url = request.RequestUri,
-                    };
-                    var stopwatch = Stopwatch.StartNew();
                     return httpApp.GetType()
                         .GetAttributesInterface<IHandleRoutes>(true, true)
-                        .Aggregate<IHandleRoutes, Func<Task<HttpResponseMessage>>>(
-                            async () =>
+                        .Aggregate<IHandleRoutes, RouteHandlingDelegate>(
+                            async (controllerTypeFinal, httpAppFinal, requestFinal, routeNameFinal) =>
                             {
                                 var invokeResource = controllerType.GetAttributesInterface<IInvokeResource>().First();
-                                var response = await invokeResource.CreateResponseAsync(controllerType, httpApp, request, routeName, telemetry);
-                                
-                                telemetry.Duration = stopwatch.Elapsed;
-                                if (telemetry.Properties.ContainsKey(TelemetryStatusName))
-                                    response.Headers.Add(HeaderStatusName, telemetry.Properties[TelemetryStatusName]);
-                                if (telemetry.Properties.ContainsKey(TelemetryStatusInstance))
-                                    response.Headers.Add(HeaderStatusInstance, telemetry.Properties[TelemetryStatusInstance]);
-                                var telemetryClient = EastFive.Api.AppSettings.ApplicationInsightsKey.ConfigurationString(
-                                    (applicationInsightsKey) =>
-                                    {
-                                        return new TelemetryClient { InstrumentationKey = applicationInsightsKey };
-                                    },
-                                    (why) =>
-                                    {
-                                        return new TelemetryClient();
-                                    });
-                                telemetryClient.TrackRequest(telemetry);
+                                var response = await invokeResource.CreateResponseAsync(
+                                    controllerTypeFinal, httpAppFinal, requestFinal, routeNameFinal);
                                 return response;
                             },
                             (callback, routeHandler) =>
                             {
-                                return () => routeHandler.RouteHandlersAsync(controllerType,
-                                    httpApp, request, routeName,
-                                    callback);
+                                return (controllerTypeCurrent, httpAppCurrent, requestCurrent, routeNameCurrent) =>
+                                    routeHandler.RouteHandlersAsync(controllerTypeCurrent,
+                                        httpAppCurrent, requestCurrent, routeNameCurrent,
+                                        callback);
                             })
-                        .Invoke();
+                        .Invoke(controllerType, httpApp, request, routeName);
                     
                 },
                 () => continuation(request, cancellationToken));

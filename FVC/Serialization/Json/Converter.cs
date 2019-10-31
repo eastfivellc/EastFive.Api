@@ -22,8 +22,6 @@ namespace EastFive.Api.Serialization
                 return true;
             if (objectType.IsSubClassOfGeneric(typeof(IRef<>)))
                 return true;
-            if (objectType.IsSubClassOfGeneric(typeof(IRefObj<>)))
-                return true;
             if (objectType.IsSubClassOfGeneric(typeof(IRefOptional<>)))
                 return true;
             if (objectType.IsSubClassOfGeneric(typeof(IRefs<>)))
@@ -140,11 +138,6 @@ namespace EastFive.Api.Serialization
         {
             // THis doesn't work because it will serialize the whole object as a single GUID if (value is IReferenceable)
             if(value.GetType().IsSubClassOfGeneric(typeof(IRef<>)))
-            {
-                var id = (value as IReferenceable).id;
-                writer.WriteValue(id);
-            }
-            if (value.GetType().IsSubClassOfGeneric(typeof(IRefObj<>)))
             {
                 var id = (value as IReferenceable).id;
                 writer.WriteValue(id);

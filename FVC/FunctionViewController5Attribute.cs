@@ -21,8 +21,7 @@ namespace EastFive.Api
     public class FunctionViewController5Attribute : FunctionViewController4Attribute
     {
         public override async Task<HttpResponseMessage> CreateResponseAsync(Type controllerType,
-            IApplication httpApp, HttpRequestMessage request, string routeName,
-            RequestTelemetry telemetry)
+            IApplication httpApp, HttpRequestMessage request, string routeName)
         {
             var matchingActionMethods = controllerType
                 .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
@@ -72,7 +71,7 @@ namespace EastFive.Api
                             (methodCast) =>
                             {
                                 return InvokeValidatedMethodAsync(httpApp, request, methodCast.method,
-                                    methodCast.parametersWithValues, telemetry);
+                                    methodCast.parametersWithValues);
                             },
                             () =>
                             {
@@ -105,10 +104,30 @@ namespace EastFive.Api
 
         protected static Task<HttpResponseMessage> InvokeValidatedMethodAsync(
             IApplication httpApp, HttpRequestMessage request, MethodInfo method,
-            KeyValuePair<ParameterInfo, object>[] queryParameters,
-            RequestTelemetry telemetry)
+            KeyValuePair<ParameterInfo, object>[] queryParameters)
         {
-            telemetry.Name = $"{request.Method} - {method.DeclaringType.FullName}..{method.Name}";
+            return httpApp.GetType()
+                .GetAttributesInterface<IHandleMethods>(true, true)
+                .Aggregate<IHandleMethods, MethodHandlingDelegate>(
+                    (methodFinal, queryParametersFinal, httpAppFinal, requestFinal) =>
+                    {
+                        var response = InvokeHandledMethodAsync(httpApp, request, method, queryParameters);
+                        return response;
+                    },
+                    (callback, methodHandler) =>
+                    {
+                        return (methodCurrent, queryParametersCurrent, httpAppCurrent, requestCurrent) =>
+                            methodHandler.RouteHandlersAsync(methodCurrent,
+                                queryParametersCurrent, httpAppCurrent, requestCurrent,
+                                callback);
+                    })
+                .Invoke(method, queryParameters, httpApp, request);
+        }
+
+        protected static Task<HttpResponseMessage> InvokeHandledMethodAsync(
+            IApplication httpApp, HttpRequestMessage request, MethodInfo method,
+            KeyValuePair<ParameterInfo, object>[] queryParameters)
+        {
             var queryParameterOptions = queryParameters.ToDictionary(kvp => kvp.Key.Name, kvp => kvp.Value);
             return method.GetParameters()
                 .SelectReduce(
@@ -118,7 +137,6 @@ namespace EastFive.Api
                             return await next(queryParameterOptions[methodParameter.Name]);
 
                         return await httpApp.Instigate(request, methodParameter,
-                                telemetry,
                             v => next(v));
                     },
                     async (object[] methodParameters) =>
