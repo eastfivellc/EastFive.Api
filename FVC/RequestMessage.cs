@@ -23,33 +23,23 @@ namespace EastFive.Api
             IQueryable<TResource>,
             Linq.ISupplyQueryProvider<RequestMessage<TResource>>
     {
-        public RequestMessage(IInvokeApplication invokeApplication, HttpRequestMessage request)
-            : base(new RequestMessageProvideQuery(invokeApplication, request))
+        public RequestMessage(IInvokeApplication invokeApplication)
+            : base(new RequestMessageProvideQuery(invokeApplication))
         {
             this.InvokeApplication = invokeApplication;
-            this.Request = request;
         }
 
-        public RequestMessage(IInvokeApplication invokeApplication, HttpRequestMessage request, Expression expr)
-            : base(new RequestMessageProvideQuery(invokeApplication, request), expr)
+        public RequestMessage(IInvokeApplication invokeApplication, Expression expr)
+            : base(new RequestMessageProvideQuery(invokeApplication), expr)
         {
             this.InvokeApplication = invokeApplication;
-            this.Request = request;
         }
 
         public IInvokeApplication InvokeApplication { get; private set; }
 
-        public HttpRequestMessage Request { get; private set; }
-
         public RequestMessage<TRelatedResource> Related<TRelatedResource>()
         {
-            return new RequestMessage<TRelatedResource>(this.InvokeApplication, this.Request);
-        }
-
-        internal RequestMessage<TResource> SetContent(HttpContent content)
-        {
-            this.Request.Content = content;
-            return this;
+            return new RequestMessage<TRelatedResource>(this.InvokeApplication);
         }
 
         public class RequestMessageProvideQuery :
@@ -57,16 +47,16 @@ namespace EastFive.Api
                 EastFive.Linq.Queryable<TResource,
                     EastFive.Api.RequestMessage<TResource>.RequestMessageProvideQuery>>
         {
-            public RequestMessageProvideQuery(IInvokeApplication invokeApplication, HttpRequestMessage request)
+            public RequestMessageProvideQuery(IInvokeApplication invokeApplication)
                 : base(
                     (queryProvider, type) => (queryProvider is RequestMessage<TResource>)?
                         (queryProvider as RequestMessage<TResource>).From()
                         :
-                        new RequestMessage<TResource>(invokeApplication, request),
+                        new RequestMessage<TResource>(invokeApplication),
                     (queryProvider, expression, type) => (queryProvider is RequestMessage<TResource>) ?
                         (queryProvider as RequestMessage<TResource>).FromExpression(expression)
                         :
-                        new RequestMessage<TResource>(invokeApplication, request, expression))
+                        new RequestMessage<TResource>(invokeApplication, expression))
             {
             }
 
@@ -80,15 +70,13 @@ namespace EastFive.Api
         {
             return new RequestMessage<TResource>(
                   this.InvokeApplication,
-                  this.Request,
                   condition);
         }
 
         internal virtual RequestMessage<TResource> From()
         {
             return new RequestMessage<TResource>(
-                  this.InvokeApplication,
-                  this.Request);
+                  this.InvokeApplication);
         }
 
         public RequestMessage<TResource> ActivateQueryable(QueryProvider<RequestMessage<TResource>> provider, Type type)
@@ -110,7 +98,7 @@ namespace EastFive.Api
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             var invokeApp = IInvokeApplicationAttribute.Instigate(httpApp, request);
-            var requestMessage = Activator.CreateInstance(type, invokeApp, request);
+            var requestMessage = Activator.CreateInstance(type, invokeApp);
             return onSuccess(requestMessage);
         }
     }

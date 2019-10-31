@@ -27,6 +27,7 @@ namespace EastFive.Api
         RequestMessage<TResource> GetRequest<TResource>();
 
         Task<HttpResponseMessage> SendAsync(HttpRequestMessage httpRequest);
+        HttpRequestMessage GetHttpRequest();
     }
 
     public class IInvokeApplicationAttribute : Attribute, IInstigatable
@@ -112,9 +113,9 @@ namespace EastFive.Api
                 return config;
             }
 
-            protected override RequestMessage<TResource> BuildRequest<TResource>(IApplication application, HttpRequestMessage httpRequest)
+            protected override RequestMessage<TResource> BuildRequest<TResource>(IApplication application)
             {
-                return new RequestMessage<TResource>(this, httpRequest);
+                return new RequestMessage<TResource>(this);
             }
 
             public override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage httpRequest)

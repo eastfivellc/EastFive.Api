@@ -59,16 +59,6 @@ namespace EastFive.Api
                 onFailure);
         }
 
-        public RequestMessage<TResource> BindContent<TResource>(RequestMessage<TResource> request,
-            MethodInfo method, ParameterInfo parameter, object contentObject)
-        {
-            var contentJsonString = JsonConvert.SerializeObject(contentObject, new Serialization.Converter());
-            var stream = contentJsonString.ToStream();
-            var content = new StreamContent(stream);
-            content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/xml");
-            return request.SetContent(content);
-        }
-
         private class XmlContent : IParseToken
         {
             private XmlNode node;

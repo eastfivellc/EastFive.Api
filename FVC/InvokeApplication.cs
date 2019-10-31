@@ -52,8 +52,7 @@ namespace EastFive.Api
 
         public abstract IApplication Application { get; }
 
-
-        public virtual RequestMessage<TResource> GetRequest<TResource>()
+        public HttpRequestMessage GetHttpRequest()
         {
             var httpRequest = new HttpRequestMessage();
             var config = new HttpConfiguration();
@@ -66,8 +65,12 @@ namespace EastFive.Api
                 httpRequest.Headers.Add(headerKVP.Key, headerKVP.Value);
 
             httpRequest.RequestUri = this.ServerLocation;
+            return httpRequest;
+        }
 
-            return BuildRequest<TResource>(this.Application, httpRequest);
+        public virtual RequestMessage<TResource> GetRequest<TResource>()
+        {
+            return BuildRequest<TResource>(this.Application);
         }
 
         protected virtual HttpConfiguration ConfigureRoutes(HttpRequestMessage httpRequest, HttpConfiguration config)
@@ -102,12 +105,14 @@ namespace EastFive.Api
             return config;
         }
 
-        protected virtual RequestMessage<TResource> BuildRequest<TResource>(IApplication application, HttpRequestMessage httpRequest)
+        protected virtual RequestMessage<TResource> BuildRequest<TResource>(IApplication application)
         {
-            return new RequestMessage<TResource>(this, httpRequest);
+            return new RequestMessage<TResource>(this);
         }
 
         public abstract Task<HttpResponseMessage> SendAsync(HttpRequestMessage httpRequest);
+
+        
     }
 
     

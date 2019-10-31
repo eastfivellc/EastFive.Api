@@ -127,9 +127,9 @@ namespace EastFive.Api
             }
         }
 
-        protected override RequestMessage<TResource> BuildRequest<TResource>(IApplication application, HttpRequestMessage httpRequest)
+        protected override RequestMessage<TResource> BuildRequest<TResource>(IApplication application)
         {
-            return new RequestMessage<TResource>(this, httpRequest);
+            return new RequestMessage<TResource>(this);
         }
 
         public class ExecuteContext : IExecuteAsync

@@ -12,6 +12,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web.Http;
 
 namespace EastFive.Api
 {
@@ -41,14 +42,15 @@ namespace EastFive.Api
             return queryUrl;
         }
 
-        public static HttpRequestMessage CompileRequest<TResource>(this IQueryable<TResource> urlQuery)
+        public static HttpRequestMessage CompileRequest<TResource>(this IQueryable<TResource> urlQuery,
+            HttpRequestMessage relativeTo = default)
         {
+            var httpRequest = GetHttpRequest();
             var baseUrl = BaseUrl(urlQuery);
+            httpRequest.RequestUri = baseUrl;
 
-            var requestMessage = GetRequestMessage();
-            requestMessage.RequestUri = baseUrl;
             return urlQuery.Compile<HttpRequestMessage, IBuildHttpRequests>(
-                    requestMessage,
+                    httpRequest,
                 (request, methodAttr, method, operand) =>
                 {
                     return methodAttr.MutateRequest(request,
@@ -64,12 +66,19 @@ namespace EastFive.Api
                     throw new ArgumentException($"Cannot compile Method `{method.DeclaringType.FullName}..{method.Name}`");
                 });
 
-            HttpRequestMessage GetRequestMessage()
+            HttpRequestMessage GetHttpRequest()
             {
+                if (!relativeTo.IsDefaultOrNull())
+                    return relativeTo;
+
                 if (urlQuery is RequestMessage<TResource>)
-                    return (urlQuery as RequestMessage<TResource>).Request;
+                    return (urlQuery as RequestMessage<TResource>)
+                        .InvokeApplication
+                        .GetHttpRequest();
+
                 return new HttpRequestMessage();
             }
+
         }
 
 
