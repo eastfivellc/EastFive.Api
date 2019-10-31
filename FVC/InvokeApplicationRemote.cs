@@ -17,8 +17,7 @@ namespace EastFive.Api
         {
         }
 
-        public override async Task<HttpResponseMessage> SendAsync<TResource>(
-            RequestMessage<TResource> requestMessage, HttpRequestMessage httpRequest)
+        public override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage httpRequest)
         {
             using (var client = new HttpClient())
             {

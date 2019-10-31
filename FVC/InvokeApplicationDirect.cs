@@ -26,8 +26,7 @@ namespace EastFive.Api
         private IApplication application;
         public override IApplication Application => application;
 
-        public override Task<HttpResponseMessage> SendAsync<TResource>(
-            RequestMessage<TResource> requestMessage, HttpRequestMessage httpRequest)
+        public override Task<HttpResponseMessage> SendAsync(HttpRequestMessage httpRequest)
         {
             return ControllerHandler.DirectSendAsync(application, httpRequest, 
                 default(CancellationToken),

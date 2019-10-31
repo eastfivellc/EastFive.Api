@@ -224,7 +224,7 @@ namespace EastFive.Api
             application.ExecuteBackgroundResponse<TResource, TResult>(onExecuteBackground);
 
             var httpRequest = request.CompileRequest();
-            var response = await request.InvokeApplication.SendAsync(request, httpRequest);
+            var response = await request.InvokeApplication.SendAsync(httpRequest);
 
             if (!onResponse.IsDefaultOrNull())
                 return onResponse(response);

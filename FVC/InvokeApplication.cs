@@ -107,7 +107,7 @@ namespace EastFive.Api
             return new RequestMessage<TResource>(this, httpRequest);
         }
 
-        public abstract Task<HttpResponseMessage> SendAsync<TResource>(RequestMessage<TResource> requestMessage, HttpRequestMessage httpRequest);
+        public abstract Task<HttpResponseMessage> SendAsync(HttpRequestMessage httpRequest);
     }
 
     

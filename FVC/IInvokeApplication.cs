@@ -26,7 +26,7 @@ namespace EastFive.Api
 
         RequestMessage<TResource> GetRequest<TResource>();
 
-        Task<HttpResponseMessage> SendAsync<TResource>(RequestMessage<TResource> requestMessage, HttpRequestMessage httpRequest);
+        Task<HttpResponseMessage> SendAsync(HttpRequestMessage httpRequest);
     }
 
     public class IInvokeApplicationAttribute : Attribute, IInstigatable
@@ -117,8 +117,7 @@ namespace EastFive.Api
                 return new RequestMessage<TResource>(this, httpRequest);
             }
 
-            public override async Task<HttpResponseMessage> SendAsync<TResource>(
-                RequestMessage<TResource> requestMessage, HttpRequestMessage httpRequest)
+            public override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage httpRequest)
             {
                 using (var client = new HttpClient())
                 {
