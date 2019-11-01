@@ -37,10 +37,11 @@ namespace EastFive.Api
                 .SetValue(scope, request);
             attrType
                 .GetField("parameterInfo", BindingFlags.NonPublic | BindingFlags.Instance)
-                .SetValue(scope, parameterInfo); 
-            attrType
-                 .GetProperty("StatusCode", BindingFlags.Public | BindingFlags.Instance)
-                 .SetValue(scope, StatusCode);
+                .SetValue(scope, parameterInfo);
+            var statusCodeProp = attrType
+                 .GetProperty("StatusCode", BindingFlags.Public | BindingFlags.Instance);
+            if(statusCodeProp.CanWrite)
+                statusCodeProp.SetValue(scope, StatusCode);
 
             return attrType
                 .GetMethods(BindingFlags.Public | BindingFlags.Instance)
