@@ -156,8 +156,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Attributes\HtmlAttributes.cs" />
-    <Compile Include="Attributes\Instigation\InstigateGenericAttribute.cs" />
-    <Compile Include="Attributes\Instigation\HttpGenericDelegateAttribute.cs" />
+    <Compile Include="Instigations\Responses\InstigatableResponseAttribute.cs" />
+    <Compile Include="Instigations\Responses\InstigateGenericAttribute.cs" />
+    <Compile Include="Attributes\Routing\IHandleResponses.cs" />
+    <Compile Include="Instigations\Responses\BodyTypeResponseAttribute.cs" />
+    <Compile Include="Instigations\Responses\BodyResponseAttribute.cs" />
+    <Compile Include="Instigations\Responses\HttpGenericDelegateAttribute.cs" />
     <Compile Include="Attributes\Instigation\IInstigatableGeneric.cs" />
     <Compile Include="Attributes\Manifest\IDocumentResponse.cs" />
     <Compile Include="Attributes\QueryValidation\PropertyAttribute.cs" />
@@ -230,7 +234,7 @@
     <Compile Include="FVC\Routing\IMatchRoute.cs" />
     <Compile Include="FVC\InvokeApplicationExtensions.cs" />
     <Compile Include="FVC\FunctionViewController4Attribute.cs" />
-    <Compile Include="Attributes\Instigation\HttpActionDelegateAttribute.cs" />
+    <Compile Include="Instigations\Responses\HttpActionDelegateAttribute.cs" />
     <Compile Include="FVC\HttpResourceAttribute.cs" />
     <Compile Include="FVC\FunctionViewControllerAttribute.cs" />
     <Compile Include="Attributes\QueryValidation\QueryValidationAttribute.cs" />
@@ -257,11 +261,14 @@
     <Compile Include="InjectableAssemblyResolver.cs" />
     <Compile Include="FVC\Handlers\ControllerHandler.cs" />
     <Compile Include="Attributes\Manifest\IDocumentRoute.cs" />
+    <Compile Include="Instigations\Responses\StatusCodeResponseAttribute.cs" />
     <Compile Include="Instigations\Security\Security.cs" />
     <Compile Include="Instigations\Security\SessionToken.cs" />
     <Compile Include="Razor\GenericReferenceResolver.cs" />
     <Compile Include="Razor\HtmlSupportTemplateBase.cs" />
     <Compile Include="Razor\RazorTemplateManager.cs" />
+    <Compile Include="Razor\ViewPathResolver.cs" />
+    <Compile Include="Razor\ViewRenderer.cs" />
     <Compile Include="Resources\CheckSumRef.cs" />
     <Compile Include="Resources\Exceptions.cs" />
     <Compile Include="Resources\Manifest.cs" />

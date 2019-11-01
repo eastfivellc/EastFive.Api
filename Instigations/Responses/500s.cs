@@ -32,8 +32,8 @@ namespace EastFive.Api
                 {
                     var response = request.CreateResponse(StatusCode);
                     if (why.IsDefaultNullOrEmpty())
-                        return response;
-                    return response.AddReason(why);
+                        return UpdateResponse(parameterInfo, httpApp, request, response); 
+                    return UpdateResponse(parameterInfo, httpApp, request, response.AddReason(why));
                 };
             return onSuccess(responseDelegate);
         }
@@ -56,9 +56,14 @@ namespace EastFive.Api
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             ConfigurationFailureResponse responseDelegate =
-                (configurationValue, message) => request
-                    .CreateResponse(System.Net.HttpStatusCode.ServiceUnavailable)
-                    .AddReason($"`{configurationValue}` not specified in config:{message}");
+                (configurationValue, message) =>
+                {
+                    var response = request
+                        .CreateResponse(System.Net.HttpStatusCode.ServiceUnavailable)
+                        .AddReason($"`{configurationValue}` not specified in config:{message}");
+
+                    return UpdateResponse(parameterInfo, httpApp, request, response);
+                };
             return onSuccess(responseDelegate);
         }
     }

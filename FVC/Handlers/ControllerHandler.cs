@@ -85,7 +85,7 @@ namespace EastFive.Api.Modules
                             (callback, routeHandler) =>
                             {
                                 return (controllerTypeCurrent, httpAppCurrent, requestCurrent, routeNameCurrent) =>
-                                    routeHandler.RouteHandlersAsync(controllerTypeCurrent,
+                                    routeHandler.HandleRouteAsync(controllerTypeCurrent,
                                         httpAppCurrent, requestCurrent, routeNameCurrent,
                                         callback);
                             })

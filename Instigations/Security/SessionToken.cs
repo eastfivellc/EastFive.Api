@@ -1,5 +1,7 @@
 ﻿using BlackBarLabs.Api;
 using EastFive.Extensions;
+using EastFive.Linq;
+using EastFive.Web.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,14 +20,29 @@ namespace EastFive.Api
         public Guid sessionId;
         public Claim[] claims;
         public Guid? accountIdMaybe;
+
+        public static Guid? GetClaimIdMaybe(IEnumerable<Claim> claims,
+            string claimType)
+        {
+            return claims.First(
+                (claim, next) =>
+                {
+                    if (String.Compare(claim.Type, claimType) != 0)
+                        return next();
+                    var accountId = Guid.Parse(claim.Value);
+                    return accountId;
+                },
+                () => default(Guid?));
+        }
     }
+
     public class SessionTokenAttribute : Attribute, IInstigatable
     {
         public Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
-            return EastFive.Web.Configuration.Settings.GetString(AppSettings.ActorIdClaimType,
+            return AppSettings.ActorIdClaimType.ConfigurationString(
                 (accountIdClaimType) =>
                 {
                     return request.GetClaims(

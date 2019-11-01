@@ -14,87 +14,20 @@ using RazorEngine.Templating;
 using EastFive.Linq;
 using EastFive.Extensions;
 using EastFive.Linq.Async;
+
 using Microsoft.ApplicationInsights.DataContracts;
 
 namespace EastFive.Api
 {
-    [ContentTypeResponse(StatusCode = HttpStatusCode.OK)]
+    #region Objects
+
+    [BodyTypeResponse(StatusCode = HttpStatusCode.OK)]
     public delegate HttpResponseMessage ContentTypeResponse<TResource>(object content, string contentType = default(string));
-    public class ContentTypeResponseAttribute : HttpGenericDelegateAttribute
-    {
-        public override string Example => "serialized object";
-
-        [InstigateMethod]
-        public HttpResponseMessage ContentResponse<TResource>(object content, string contentTypeString = default(string))
-        {
-            Type GetType(Type type)
-            {
-                if (type.IsArray)
-                    return GetType(type.GetElementType());
-                return type;
-            }
-
-            return GetType(typeof(TResource))
-                .GetAttributesInterface<IProvideSerialization>()
-                .Select(
-                    serializeAttr =>
-                    {
-                        var quality = request.Headers.Accept
-                            .Where(acceptOption => acceptOption.MediaType.ToLower() == serializeAttr.MediaType.ToLower())
-                            .First(
-                                (acceptOption, next) => acceptOption.Quality.HasValue ? acceptOption.Quality.Value : -1.0,
-                                () => -2.0);
-                        return serializeAttr.PairWithValue(quality);
-                    })
-                .OrderByDescending(kvp => kvp.Value)
-                .First(
-                    (serializerQualityKvp, next) =>
-                    {
-                        var serializationProvider = serializerQualityKvp.Key;
-                        var quality = serializerQualityKvp.Value;
-                        var responseNoContent = request.CreateResponse(this.StatusCode, content);
-                        var customResponse = serializationProvider.Serialize(responseNoContent, httpApp, request, parameterInfo, content);
-                        return customResponse;
-                    },
-                    () =>
-                    {
-                        var response = request.CreateResponse(this.StatusCode, content);
-                        if (!contentTypeString.IsNullOrWhiteSpace())
-                            response.Content.Headers.ContentType = new MediaTypeHeaderValue(contentTypeString);
-                        return response;
-                    });
-        }
-    }
-
-    [ContentResponse(StatusCode = System.Net.HttpStatusCode.OK)]
+    
+    [BodyResponse(StatusCode = System.Net.HttpStatusCode.OK)]
     public delegate HttpResponseMessage ContentResponse(object content, string contentType = default(string));
-    public class ContentResponseAttribute : HttpFuncDelegateAttribute
-    {
-        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
-                HttpRequestMessage request,ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
-        {
-            ContentResponse responseDelegate =
-                (obj, contentType) =>
-                {
-                    var objType = obj.GetType();
-                    if (!objType.ContainsAttributeInterface<IProvideSerialization>())
-                    {
-                        var response = request.CreateResponse(System.Net.HttpStatusCode.OK, obj);
-                        if (!contentType.IsNullOrWhiteSpace())
-                            response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
-                        return response;
-                    }
-                    
-                    var responseNoContent = request.CreateResponse(System.Net.HttpStatusCode.OK, obj);
-                    var serializationProvider = objType.GetAttributesInterface<IProvideSerialization>().Single();
-                    var customResponse = serializationProvider.Serialize(
-                        responseNoContent, httpApp, request, parameterInfo, obj);
-                    return customResponse;
-                };
-            return onSuccess(responseDelegate);
-        }
-    }
+
+    #endregion
 
     #region Data
 
@@ -122,7 +55,7 @@ namespace EastFive.Api
                         {
                             FileName = filename,
                         };
-                return response;
+                return UpdateResponse(parameterInfo, httpApp, request, response);
             };
             return onSuccess(responseDelegate);
         }
@@ -148,12 +81,14 @@ namespace EastFive.Api
                 if (width.HasValue || height.HasValue || fill.HasValue)
                 {
                     var image = System.Drawing.Image.FromStream(new MemoryStream(imageData));
-                    return request.CreateImageResponse(image, width, height, fill, filename);
+                    var unchangedResponse = request.CreateImageResponse(image, width, height, fill, filename);
+                    return UpdateResponse(parameterInfo, httpApp, request, unchangedResponse);
                 }
                 var response = request.CreateResponse(HttpStatusCode.OK);
                 response.Content = new ByteArrayContent(imageData);
                 response.Content.Headers.ContentType = new MediaTypeHeaderValue(String.IsNullOrWhiteSpace(contentType) ? "image/png" : contentType);
-                return response;
+
+                return UpdateResponse(parameterInfo, httpApp, request, response);
             };
             return onSuccess((object)responseDelegate);
         }
@@ -175,9 +110,9 @@ namespace EastFive.Api
             PdfResponse responseDelegate = (pdfData, filename, inline) =>
             {
                 var response = request.CreatePdfResponse(pdfData, filename, inline);
-                return response;
+                return UpdateResponse(parameterInfo, httpApp, request, response);
             };
-            return onSuccess((object)responseDelegate);
+            return onSuccess(responseDelegate);
         }
     }
 
@@ -200,9 +135,9 @@ namespace EastFive.Api
             HtmlResponse responseDelegate = (html) =>
             {
                 var response = request.CreateHtmlResponse(html);
-                return response;
+                return UpdateResponse(parameterInfo, httpApp, request, response);
             };
-            return onSuccess((object)responseDelegate);
+            return onSuccess(responseDelegate);
         }
     }
 
@@ -220,17 +155,20 @@ namespace EastFive.Api
                     try
                     {
                         var parsedView = RazorEngine.Engine.Razor.RunCompile(filePath, null, content);
-                        return request.CreateHtmlResponse(parsedView);
+                        var response = request.CreateHtmlResponse(parsedView);
+                        return UpdateResponse(parameterInfo, httpApp, request, response);
                     }
                     catch (RazorEngine.Templating.TemplateCompilationException ex)
                     {
                         var body = ex.CompilerErrors.Select(error => error.ErrorText).Join(";\n\n");
-                        return request.CreateHtmlResponse(body);
+                        var response = request.CreateHtmlResponse(body); 
+                        return UpdateResponse(parameterInfo, httpApp, request, response);
                     }
                     catch (Exception ex)
                     {
                         var body = $"Could not load template {filePath} due to:[{ex.GetType().FullName}] `{ex.Message}`";
-                        return request.CreateHtmlResponse(body);
+                        var response = request.CreateHtmlResponse(body);
+                        return UpdateResponse(parameterInfo, httpApp, request, response);
                     }
                 };
             return onSuccess(responseDelegate);
@@ -252,54 +190,7 @@ namespace EastFive.Api
                     var parsedView = RazorEngine.Razor.Parse(razorTemplate, content);
                     response.Content = new StringContent(parsedView);
                     response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/html");
-                    return response;
-                };
-            return onSuccess(responseDelegate);
-        }
-    }
-
-    [ViewRenderer()]
-    public delegate string ViewRenderer(string filePath, object content);
-    public class ViewRendererAttribute : HtmlResponseAttribute
-    {
-        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
-                HttpRequestMessage request, ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
-        {
-            ViewRenderer responseDelegate =
-                (filePath, content) =>
-                {
-                    try
-                    {
-                        var parsedView = RazorEngine.Engine.Razor.RunCompile(filePath, null, content);
-                        return parsedView;
-                    }
-                    catch (RazorEngine.Templating.TemplateCompilationException ex)
-                    {
-                        var body = ex.CompilerErrors.Select(error => error.ErrorText).Join(";\n\n");
-                        return body;
-                    }
-                    catch (Exception ex)
-                    {
-                        return $"Could not load template {filePath} due to:[{ex.GetType().FullName}] `{ex.Message}`";
-                    }
-                };
-            return onSuccess(responseDelegate);
-        }
-    }
-
-    [ViewPath]
-    public delegate string ViewPathResolver(string view);
-    public class ViewPathAttribute : HtmlResponseAttribute
-    {
-        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
-                HttpRequestMessage request, ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
-        {
-            ViewPathResolver responseDelegate =
-                (viewPath) =>
-                {
-                    return $"{System.Web.HttpRuntime.AppDomainAppPath}Views\\{viewPath}";
+                    return UpdateResponse(parameterInfo, httpApp, request, response);
                 };
             return onSuccess(responseDelegate);
         }
@@ -322,7 +213,7 @@ namespace EastFive.Api
             XlsxResponse responseDelegate = (xlsxData, filename) =>
             {
                 var response = request.CreateXlsxResponse(xlsxData, filename);
-                return response;
+                return UpdateResponse(parameterInfo, httpApp, request, response);
             };
             return onSuccess((object)responseDelegate);
         }
@@ -343,8 +234,12 @@ namespace EastFive.Api
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             MultipartResponseAsync responseDelegate =
-                (responses) => request.CreateMultipartResponseAsync(responses);
-            return onSuccess((object)responseDelegate);
+                async (responses) =>
+                {
+                    var response = await request.CreateMultipartResponseAsync(responses);
+                    return UpdateResponse(parameterInfo, httpApp, request, response);
+                };
+            return onSuccess(responseDelegate);
         }
     }
 
@@ -361,16 +256,18 @@ namespace EastFive.Api
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             MultipartAcceptArrayResponseAsync responseDelegate =
-                (objects) =>
+                async (objects) =>
                 {
                     if (request.Headers.Accept.Contains(accept => accept.MediaType.ToLower().Contains("xlsx")))
                     {
-                        return request.CreateMultisheetXlsxResponse(
+                        var xlsResponse = request.CreateMultisheetXlsxResponse(
                             new Dictionary<string, string>(),
-                            objects.Cast<BlackBarLabs.Api.ResourceBase>()).AsTask();
+                            objects.Cast<BlackBarLabs.Api.ResourceBase>());
+                        return UpdateResponse(parameterInfo, httpApp, request, xlsResponse);
                     }
                     var responses = objects.Select(obj => request.CreateResponse(System.Net.HttpStatusCode.OK, obj));
-                    return request.CreateMultipartResponseAsync(responses);
+                    var multipart = await request.CreateMultipartResponseAsync(responses);
+                    return UpdateResponse(parameterInfo, httpApp, request, multipart);
                 };
             return onSuccess(responseDelegate);
         }
@@ -390,9 +287,10 @@ namespace EastFive.Api
             if (request.Headers.Accept.Contains(accept => accept.MediaType.ToLower().Contains("xlsx")))
             {
                 var objects = await objectsAsync.ToArrayAsync();
-                return await request.CreateMultisheetXlsxResponse(
+                var xlsMultisheet = request.CreateMultisheetXlsxResponse(
                     new Dictionary<string, string>(),
-                    objects.Cast<BlackBarLabs.Api.ResourceBase>()).AsTask();
+                    objects.Cast<BlackBarLabs.Api.ResourceBase>());
+                return UpdateResponse(parameterInfo, httpApp, request, xlsMultisheet);
             }
 
             var responses = await objectsAsync
@@ -426,7 +324,12 @@ namespace EastFive.Api
                 return false;
             }
 
-            if (!IsMultipart())
+            if (IsMultipart())
+            {
+                var response = await request.CreateMultipartResponseAsync(responses);
+                return UpdateResponse(parameterInfo, httpApp, request, response);
+            }
+
             {
                 var jsonStrings = await responses
                     .Select(v => v.Content.ReadAsStringAsync())
@@ -435,10 +338,8 @@ namespace EastFive.Api
                 var jsonArrayContent = $"[{jsonStrings.Join(",")}]";
                 var response = request.CreateResponse(HttpStatusCode.OK);
                 response.Content = new StringContent(jsonArrayContent, Encoding.UTF8, "application/json");
-                return response;
+                return UpdateResponse(parameterInfo, httpApp, request, response);
             }
-
-            return await request.CreateMultipartResponseAsync(responses);
         }
     }
 

@@ -36,7 +36,8 @@ namespace EastFive.Api
                 return type;
             }
 
-            return request.CreateResponse(this.StatusCode);
+            var response = request.CreateResponse(this.StatusCode);
+            return UpdateResponse(parameterInfo, httpApp, request, response);
         }
     }
 
@@ -72,7 +73,8 @@ namespace EastFive.Api
         [InstigateMethod]
         public HttpResponseMessage ReferencedDocumentNotFound<TResource>()
         {
-            return request.CreateResponse(this.StatusCode);
+            var response = request.CreateResponse(this.StatusCode);
+            return UpdateResponse(parameterInfo, httpApp, request, response);
         }
     }
 
@@ -94,15 +96,17 @@ namespace EastFive.Api
             return problem.MemberInfo(
                 (member) =>
                 {
-                    return request
+                    var response = request
                         .CreateResponse(this.StatusCode)
                         .AddReason($"There are no resources of type `{member.GetMemberType().FullName}` were found.");
+                    return UpdateResponse(parameterInfo, httpApp, request, response);
                 },
                 () =>
                 {
-                    return request
+                    var response = request
                         .CreateResponse(this.StatusCode)
                         .AddReason($"Inform server developer that {problem} is not a member expression.");
+                    return UpdateResponse(parameterInfo, httpApp, request, response);
                 });
         }
     }
@@ -120,7 +124,8 @@ namespace EastFive.Api
         [InstigateMethod]
         public HttpResponseMessage ReferencedDocumentDoesNotExist<TResource>()
         {
-            return request.CreateResponse(this.StatusCode);
+            var response = request.CreateResponse(this.StatusCode);
+            return UpdateResponse(parameterInfo, httpApp, request, response);
         }
     }
 
@@ -140,9 +145,10 @@ namespace EastFive.Api
             AlreadyExistsReferencedResponse dele =
                 (existingId) =>
                 {
-                    return request
+                    var response = request
                         .CreateResponse(StatusCode)
                         .AddReason($"There is already a resource with ID = [{existingId}]");
+                    return UpdateResponse(parameterInfo, httpApp, request, response);
                 };
             return onSuccess((object)dele);
         }
@@ -163,8 +169,9 @@ namespace EastFive.Api
                 {
                     var response = request.CreateResponse(StatusCode);
                     if (why.IsDefaultNullOrEmpty())
-                        return response;
-                    return response.AddReason(why);
+                        return UpdateResponse(parameterInfo, httpApp, request, response);
+
+                    return UpdateResponse(parameterInfo, httpApp, request, response.AddReason(why));
                 };
             return onSuccess(responseDelegate);
         }

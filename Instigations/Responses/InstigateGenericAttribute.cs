@@ -13,7 +13,7 @@ using EastFive.Linq;
 
 namespace EastFive.Api
 {
-    public abstract class InstigateGenericAttribute : Attribute, IInstigatableGeneric
+    public abstract class InstigateGenericAttribute : InstigatableResponseAttribute, IInstigatableGeneric
     {
         public interface IDefineInstigateMethod
         {

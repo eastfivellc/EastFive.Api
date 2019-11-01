@@ -42,7 +42,7 @@ namespace EastFive.Api
                     var response = request.CreateResponse(HttpStatusCode.Accepted, obj);
                     if (!contentType.IsNullOrWhiteSpace())
                         response.Content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
-                    return response;
+                    return UpdateResponse(parameterInfo, httpApp, request, response);
                 };
             return onSuccess(responseDelegate);
         }
@@ -97,9 +97,10 @@ namespace EastFive.Api
                         var response = request.CreateResponse(HttpStatusCode.Accepted);
                         response.Headers.Add("Access-Control-Expose-Headers", "x-backgroundprocess");
                         response.Headers.Add("x-backgroundprocess", urlHelper.GetLocation<Controllers.BackgroundProgressController>(processId).AbsoluteUri);
-                        return response;
+                        return UpdateResponse(parameterInfo, httpApp, request, response);
                     }
-                    return await executionContext.InvokeAsync(v => { });
+                    var responseInvoke = await executionContext.InvokeAsync(v => { });
+                    return UpdateResponse(parameterInfo, httpApp, request, responseInvoke);
                 };
             return onSuccess(responseDelegate);
         }

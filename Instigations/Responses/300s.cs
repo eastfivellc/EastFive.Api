@@ -28,8 +28,12 @@ namespace EastFive.Api
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
-            RedirectResponse responseDelegate = 
-                (redirectLocation) => request.CreateRedirectResponse(redirectLocation);
+            RedirectResponse responseDelegate =
+                (redirectLocation) =>
+                {
+                    var response = request.CreateRedirectResponse(redirectLocation);
+                    return UpdateResponse(parameterInfo, httpApp, request, response);
+                };
             return onSuccess(responseDelegate);
         }
     }

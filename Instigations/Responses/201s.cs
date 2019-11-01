@@ -13,6 +13,7 @@ using EastFive.Linq;
 using EastFive.Extensions;
 using EastFive.Linq.Async;
 using EastFive.Reflection;
+using EastFive.Api.Resources;
 
 using Microsoft.ApplicationInsights.DataContracts;
 
@@ -20,20 +21,16 @@ namespace EastFive.Api
 {
     [StatusCodeResponse(StatusCode = HttpStatusCode.Created)]
     public delegate HttpResponseMessage CreatedResponse();
-    public class StatusCodeResponseAttribute : HttpFuncDelegateAttribute
+    
+    [CreatedBodyResponse(StatusCode = HttpStatusCode.Created)]
+    public delegate HttpResponseMessage CreatedBodyResponse<TResource>(TResource content, string contentType = default);
+    public class CreatedBodyResponseAttribute : BodyTypeResponseAttribute
     {
-        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
-                HttpRequestMessage request, ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
+        public override Response GetResponse(ParameterInfo paramInfo, HttpApplication httpApp)
         {
-            Func<HttpResponseMessage> responseFunc = 
-                () => request.CreateResponse(this.StatusCode);
-            var responseDelegate = responseFunc.MakeDelegate(parameterInfo.ParameterType);
-            return onSuccess(responseDelegate);
+            var response = base.GetResponse(paramInfo, httpApp);
+            response.Example = Parameter.GetTypeName(paramInfo.ParameterType.GenericTypeArguments.First(), httpApp);
+            return response;
         }
     }
-
-    [ContentTypeResponse(StatusCode = HttpStatusCode.Created)]
-    public delegate HttpResponseMessage CreatedBodyResponse<TResource>(object content, string contentType = default);
-    
 }

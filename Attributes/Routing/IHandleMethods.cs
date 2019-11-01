@@ -14,7 +14,7 @@ namespace EastFive.Api
 
     public interface IHandleMethods
     {
-        Task<HttpResponseMessage> RouteHandlersAsync(MethodInfo method,
+        Task<HttpResponseMessage> HandleMethodAsync(MethodInfo method,
             KeyValuePair<ParameterInfo, object>[] queryParameters,
             IApplication httpApp, HttpRequestMessage request,
             MethodHandlingDelegate continueExecution);

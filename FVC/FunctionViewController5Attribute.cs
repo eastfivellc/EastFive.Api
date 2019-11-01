@@ -117,7 +117,7 @@ namespace EastFive.Api
                     (callback, methodHandler) =>
                     {
                         return (methodCurrent, queryParametersCurrent, httpAppCurrent, requestCurrent) =>
-                            methodHandler.RouteHandlersAsync(methodCurrent,
+                            methodHandler.HandleMethodAsync(methodCurrent,
                                 queryParametersCurrent, httpAppCurrent, requestCurrent,
                                 callback);
                     })
