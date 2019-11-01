@@ -45,6 +45,7 @@ namespace EastFive.Api
                         var quality = serializerQualityKvp.Value;
                         var responseNoContent = request.CreateResponse(this.StatusCode, content);
                         var customResponse = serializationProvider.Serialize(responseNoContent, httpApp, request, parameterInfo, content);
+                        customResponse.StatusCode = this.StatusCode;
                         return customResponse;
                     },
                     () =>
@@ -52,6 +53,7 @@ namespace EastFive.Api
                         var response = request.CreateResponse(this.StatusCode, content);
                         if (!contentTypeString.IsNullOrWhiteSpace())
                             response.Content.Headers.ContentType = new MediaTypeHeaderValue(contentTypeString);
+                        response.StatusCode = this.StatusCode;
                         return response;
                     });
             return UpdateResponse(parameterInfo, httpApp, request, responseWithContent);
