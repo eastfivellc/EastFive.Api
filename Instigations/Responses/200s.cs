@@ -22,7 +22,7 @@ namespace EastFive.Api
     #region Objects
 
     [BodyTypeResponse(StatusCode = HttpStatusCode.OK)]
-    public delegate HttpResponseMessage ContentTypeResponse<TResource>(object content, string contentType = default(string));
+    public delegate HttpResponseMessage ContentTypeResponse<TResource>(TResource content, string contentType = default(string));
     
     [BodyResponse(StatusCode = System.Net.HttpStatusCode.OK)]
     public delegate HttpResponseMessage ContentResponse(object content, string contentType = default(string));
