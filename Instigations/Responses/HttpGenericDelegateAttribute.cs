@@ -37,8 +37,11 @@ namespace EastFive.Api
                 .SetValue(scope, request);
             attrType
                 .GetField("parameterInfo", BindingFlags.NonPublic | BindingFlags.Instance)
-                .SetValue(scope, parameterInfo);
-            
+                .SetValue(scope, parameterInfo); 
+            attrType
+                 .GetField("StatusCode", BindingFlags.NonPublic | BindingFlags.Instance)
+                 .SetValue(scope, StatusCode);
+
             return attrType
                 .GetMethods(BindingFlags.Public | BindingFlags.Instance)
                 .Where(method => method.ContainsAttributeInterface<IDefineInstigateMethod>())
