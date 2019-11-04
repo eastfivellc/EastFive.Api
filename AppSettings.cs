@@ -31,6 +31,10 @@ namespace EastFive.Api
             Location = "This value can be found by examining a claims set for the claim with the authoriztion Id on it")]
         public const string ActorIdClaimType = "EastFive.Api.Security.AccountIdClaimType";
         
+        [ConfigKey("Token that, if provided, will always pass Authorization checks. Use with Extreme caution",
+            DeploymentOverrides.Mandatory,
+            DeploymentSecurityConcern = true,
+            Location = "Created from secure entropy")]
         public const string SiteAdminAuthorization = "EastFive.Api.Security.SiteAdminAuthorization";
 
         [ConfigKey("A secret key value that must be provided to access an endpoint with the ApiSecurity attribute set.",
@@ -57,13 +61,5 @@ namespace EastFive.Api
             Location = "Should be dervied from secure random numbers into a GUID.")]
         public const string AuthorizationIdSuperAdmin = "EastFive.Api.AuthorizationIdSuperAdmin";
 
-        public static class ApplicationInsights
-        {
-            [ConfigKey("Application Insights Key.",
-                DeploymentOverrides.Suggested,
-                DeploymentSecurityConcern = false,
-                Location = "Home > Application Insights > {Resource Name} > Dashboard / Instrumentation Key")]
-            public const string InstrumentationKey = "EastFive.Azure.ApplicationInsights.InstrumentationKey";
-        }
     }
 }

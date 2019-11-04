@@ -8,7 +8,6 @@ using System.Text;
 using System.Threading.Tasks;
 
 using Newtonsoft.Json;
-using Microsoft.ApplicationInsights.DataContracts;
 
 using EastFive.Linq;
 using EastFive.Linq.Async;

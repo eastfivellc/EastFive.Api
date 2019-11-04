@@ -5,7 +5,7 @@ using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Linq.Async;
-using Microsoft.ApplicationInsights.DataContracts;
+
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;

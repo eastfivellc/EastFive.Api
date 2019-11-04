@@ -13,8 +13,6 @@ using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Reflection;
-using Microsoft.ApplicationInsights;
-using Microsoft.ApplicationInsights.DataContracts;
 
 namespace EastFive.Api
 {
@@ -82,8 +80,7 @@ namespace EastFive.Api
         }
 
         public object GenerateIntercept<T1, TResult>(object callback,
-                HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
-                RequestTelemetry telemetry)
+                HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo)
         {
             var callbackCast = callback as Func<T1, TResult>;
             Func<T1, TResult> interceptor =
@@ -91,7 +88,6 @@ namespace EastFive.Api
                 {
                     var result = (TResult)callbackCast.DynamicInvoke(v1);
                     return InterceptResult(httpApp, request, parameterInfo,
-                        telemetry,
                         v1, result);
                 };
             var interceptedCallback = interceptor.MakeDelegate(callback.GetType());
@@ -100,22 +96,19 @@ namespace EastFive.Api
 
         protected virtual TResult InterceptResult<T1, TResult>(
                 HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
-                RequestTelemetry telemetry,
                 T1 v1, TResult result)
         {
             return result;
         }
 
         public object GenerateIntercept<T1, T2, TResult>(object callback,
-                HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
-                RequestTelemetry telemetry)
+                HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo)
         {
             var callbackCast = callback as Func<T1, T2, TResult>;
             Func<T1, T2, TResult> interceptor = (v1, v2) =>
             {
                 var result = (TResult)callbackCast.DynamicInvoke(v1);
                 return InterceptResult(httpApp, request, parameterInfo,
-                    telemetry,
                     v1, v2, result);
             };
             var interceptedCallback = interceptor.MakeDelegate(callback.GetType());
@@ -124,22 +117,19 @@ namespace EastFive.Api
 
         protected virtual TResult InterceptResult<T1, T2, TResult>(
                 HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
-                RequestTelemetry telemetry,
                 T1 v1, T2 v2, TResult result)
         {
             return result;
         }
 
         public object GenerateIntercept<T1, T2, T3, TResult>(object callback,
-                HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
-                RequestTelemetry telemetry)
+                HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo)
         {
             var callbackCast = callback as Func<T1, T2, T3, TResult>;
             Func<T1, T2, T3, TResult> interceptor = (v1, v2, v3) =>
             {
                 var result = (TResult)callbackCast.DynamicInvoke(v1);
                 return InterceptResult(httpApp, request, parameterInfo,
-                    telemetry,
                     v1, v2, v3, result);
             };
             var interceptedCallback = interceptor.MakeDelegate(callback.GetType());
@@ -148,7 +138,6 @@ namespace EastFive.Api
 
         protected virtual TResult InterceptResult<T1, T2, T3, TResult>(
                 HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
-                RequestTelemetry telemetry,
                 T1 v1, T2 v2, T3 v3, TResult result)
         {
             return result;
