@@ -6,16 +6,14 @@ using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+
 using BlackBarLabs;
-using BlackBarLabs.Api;
-using BlackBarLabs.Extensions;
 using EastFive.Api.Resources;
 using EastFive.Api.Serialization;
 using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Linq.Async;
-using Microsoft.ApplicationInsights.DataContracts;
 
 namespace EastFive.Api
 {

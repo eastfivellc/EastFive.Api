@@ -8,16 +8,11 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
-using RazorEngine.Templating;
-
 using EastFive.Api.Resources;
 using EastFive.Linq;
 using EastFive.Extensions;
 using EastFive.Linq.Async;
-using System.IO;
-using BlackBarLabs.Extensions;
 using BlackBarLabs.Api;
-using Microsoft.ApplicationInsights.DataContracts;
 
 namespace EastFive.Api
 {

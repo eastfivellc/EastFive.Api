@@ -1,30 +1,23 @@
-﻿using BlackBarLabs.Extensions;
-using EastFive.Collections.Generic;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web;
-using EastFive.Serialization;
-using System.Net.NetworkInformation;
-using EastFive.Extensions;
-using BlackBarLabs.Web;
 using System.Reflection;
-using System.Net.Http;
-using EastFive.Linq;
 using System.Net;
-using BlackBarLabs.Api;
-using BlackBarLabs;
+using System.Net.Http;
 using System.Threading;
 using System.IO;
+
+using EastFive.Serialization;
+using EastFive.Collections.Generic;
+using EastFive.Extensions;
+using EastFive.Linq;
 using EastFive.Linq.Async;
 using EastFive.Api.Serialization;
-using Microsoft.ApplicationInsights.DataContracts;
-using System.Diagnostics;
 using EastFive.Web.Configuration;
-using Microsoft.ApplicationInsights;
 
 namespace EastFive.Api.Modules
 {
@@ -32,8 +25,6 @@ namespace EastFive.Api.Modules
     {
         public const string HeaderStatusName = "X-StatusName";
         public const string HeaderStatusInstance = "X-StatusInstance";
-        public const string TelemetryStatusName = "StatusName";
-        public const string TelemetryStatusInstance = "StatusInstance";
 
         public ControllerHandler(System.Web.Http.HttpConfiguration config)
             : base(config)

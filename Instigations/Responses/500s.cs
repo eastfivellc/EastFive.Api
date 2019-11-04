@@ -13,7 +13,6 @@ using EastFive.Linq;
 using EastFive.Extensions;
 using EastFive.Linq.Async;
 using EastFive.Reflection;
-using Microsoft.ApplicationInsights.DataContracts;
 
 namespace EastFive.Api
 {

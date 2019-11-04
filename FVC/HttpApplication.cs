@@ -16,21 +16,13 @@ using System.Web.Http.Routing;
 using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using System.IO;
-using BlackBarLabs;
 using System.Threading;
 using System.Web.Http;
 using EastFive.Web;
 using EastFive.Linq.Async;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using EastFive.Reflection;
-using RazorEngine.Templating;
-using System.Security;
-using System.Security.Permissions;
 using EastFive.Api.Serialization;
-using System.Net.Http.Headers;
 using System.Xml;
-using Microsoft.ApplicationInsights.DataContracts;
 
 namespace EastFive.Api
 {

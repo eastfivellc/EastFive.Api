@@ -15,7 +15,6 @@ using EastFive.Linq.Async;
 using EastFive.Reflection;
 using EastFive.Api.Resources;
 
-using Microsoft.ApplicationInsights.DataContracts;
 
 namespace EastFive.Api
 {

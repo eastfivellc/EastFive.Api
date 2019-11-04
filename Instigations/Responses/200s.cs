@@ -15,8 +15,6 @@ using EastFive.Linq;
 using EastFive.Extensions;
 using EastFive.Linq.Async;
 
-using Microsoft.ApplicationInsights.DataContracts;
-
 namespace EastFive.Api
 {
     #region Objects

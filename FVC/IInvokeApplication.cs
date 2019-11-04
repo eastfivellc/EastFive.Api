@@ -9,7 +9,6 @@ using System.Web.Http;
 using EastFive;
 using EastFive.Extensions;
 using EastFive.Linq;
-using Microsoft.ApplicationInsights.DataContracts;
 
 namespace EastFive.Api
 {
