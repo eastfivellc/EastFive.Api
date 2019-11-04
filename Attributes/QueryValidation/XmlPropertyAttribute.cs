@@ -26,7 +26,7 @@ namespace EastFive.Api
 
         public string NSUri { get; set; }
 
-        public async Task<TResult> ParseContentDelegateAsync<TResult>(XmlDocument xmlDoc, string rawContent,
+        public TResult ParseContentDelegate<TResult>(XmlDocument xmlDoc, string rawContent,
                 ParameterInfo parameterInfo, IApplication httpApp, HttpRequestMessage request,
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure)

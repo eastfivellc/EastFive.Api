@@ -1602,9 +1602,9 @@ namespace EastFive.Api
                 catch (Exception ex)
                 {
                     ParseContentDelegateAsync<TParseResult> exceptionParser =
-                        async (app, request, paramInfo, onFound, onFailure) =>
+                        (app, request, paramInfo, onFound, onFailure) =>
                         {
-                            return onFailure(ex.Message);
+                            return onFailure(ex.Message).AsTask();
                         };
                     return await onParsedContentValues(exceptionParser, exceptionKeys);
                 }
@@ -1614,10 +1614,11 @@ namespace EastFive.Api
                     {
                         return paramInfo
                             .GetAttributeInterface<IBindXmlApiValue>()
-                            .ParseContentDelegateAsync(xmldoc, contentString,
+                            .ParseContentDelegate(xmldoc, contentString,
                                 paramInfo, app, request,
                                 onFound,
-                                onFailure);
+                                onFailure)
+                            .AsTask();
                     };
                 return await onParsedContentValues(parser, new string[] { });
             }

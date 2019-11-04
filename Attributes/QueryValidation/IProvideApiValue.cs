@@ -31,7 +31,7 @@ namespace EastFive.Api
 
     public interface IBindXmlApiValue
     {
-        Task<TResult> ParseContentDelegateAsync<TResult>(
+        TResult ParseContentDelegate<TResult>(
             XmlDocument xmlDoc, string rawContent,
             ParameterInfo parameterInfo,
             IApplication httpApp, HttpRequestMessage request,
