@@ -918,10 +918,17 @@ namespace EastFive.Api
                     typeof(double),
                     (httpApp, token, onParsed, onNotConvertable) =>
                     {
-                        var intStringValue = token.ReadString();
-                        if (double.TryParse(intStringValue, out double intValue))
-                            return onParsed(intValue);
-                        return onNotConvertable($"Failed to convert {intStringValue} to `{typeof(double).FullName}`.");
+                        if(token.IsString)
+                        {
+                            var intStringValue = token.ReadString();
+                            if (double.TryParse(intStringValue, out double doubleValue))
+                                return onParsed(doubleValue);
+                            return onNotConvertable($"Failed to convert {intStringValue} to `{typeof(double).FullName}`.");
+                        }
+                        {
+                            var doubleValue = token.ReadObject<double>();
+                            return onParsed(doubleValue);
+                        }
                     }
                 },
                 {

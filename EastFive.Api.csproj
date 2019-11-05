@@ -153,6 +153,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Attributes\HtmlAttributes.cs" />
+    <Compile Include="Attributes\Routing\IHandleExceptions.cs" />
     <Compile Include="Instigations\Responses\InstigatableResponseAttribute.cs" />
     <Compile Include="Instigations\Responses\InstigateGenericAttribute.cs" />
     <Compile Include="Attributes\Routing\IHandleResponses.cs" />

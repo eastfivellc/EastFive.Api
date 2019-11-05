@@ -59,6 +59,12 @@ namespace EastFive.Api.Serialization
                     var value = valueInt.ToString();
                     return value;
                 }
+                if (reader.TokenType == JsonToken.Float)
+                {
+                    var valueDouble = (double)reader.Value;
+                    var value = valueDouble.ToString();
+                    return value;
+                }
                 if (reader.TokenType == JsonToken.Date)
                 {
                     var valueDate = (DateTime)reader.Value;

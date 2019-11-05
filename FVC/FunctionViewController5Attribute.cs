@@ -174,15 +174,33 @@ namespace EastFive.Api
                         }
                         catch (Exception ex)
                         {
-                            if (ex is IHttpResponseMessageException)
-                            {
-                                var httpResponseMessageException = ex as IHttpResponseMessageException;
-                                return httpResponseMessageException.CreateResponseAsync(
-                                    httpApp, request, queryParameterOptions,
-                                    method, methodParameters);
-                            }
-                            // TODO: Only do this in a development environment
-                            return request.CreateResponse(HttpStatusCode.InternalServerError, ex.StackTrace).AddReason(ex.Message);
+                            return await httpApp.GetType()
+                                .GetAttributesInterface<IHandleExceptions>(true, true)
+                                .Aggregate<IHandleExceptions, HandleExceptionDelegate>(
+                                    (exFinal, methodFinal, queryParametersFinal, httpAppFinal, requestFinal) =>
+                                    {
+                                        if (ex is IHttpResponseMessageException)
+                                        {
+                                            var httpResponseMessageException = ex as IHttpResponseMessageException;
+                                            return httpResponseMessageException.CreateResponseAsync(
+                                                httpApp, request, queryParameterOptions,
+                                                method, methodParameters).AsTask();
+                                        }
+
+                                        return request
+                                            .CreateResponse(HttpStatusCode.InternalServerError)
+                                            .AddReason(ex.Message)
+                                            .AsTask();
+                                    },
+                                    (callback, methodHandler) =>
+                                    {
+                                        return (exCurrent, methodCurrent, queryParametersCurrent, httpAppCurrent, requestCurrent) =>
+                                            methodHandler.HandleExceptionAsync(exCurrent, methodCurrent,
+                                            queryParametersCurrent, httpAppCurrent, requestCurrent,
+                                            callback);
+                                    })
+                                .Invoke(ex, method, queryParameters, httpApp, request);
+                            
                         }
 
                     });
