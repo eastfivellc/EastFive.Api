@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web.Http;
 
 using EastFive.Api.Modules;
 using EastFive.Extensions;
@@ -17,19 +15,22 @@ namespace EastFive.Api
     [InvokeApplicationDirect.Instigate]
     public class InvokeApplicationDirect : InvokeApplication
     {
-        public InvokeApplicationDirect(IApplication application, Uri serverUrl, string apiRouteName) 
+        public InvokeApplicationDirect(IApplication application, Uri serverUrl, string apiRouteName, System.Threading.CancellationToken token) 
             : base(serverUrl, apiRouteName)
         {
             this.application = application;
+            this.token = token;
         }
 
-        private IApplication application;
+        private readonly IApplication application;
+        private readonly System.Threading.CancellationToken token;
+
         public override IApplication Application => application;
 
         public override Task<HttpResponseMessage> SendAsync(HttpRequestMessage httpRequest)
         {
             return ControllerHandler.DirectSendAsync(application, httpRequest, 
-                default(CancellationToken),
+                token,
                 (requestBack, token) =>
                 {
                     throw new Exception();
@@ -66,12 +67,9 @@ namespace EastFive.Api
                         return "api";
                     return directories.First();
                 }
-                var instance = new InvokeApplicationDirect(httpApp, request.RequestUri, GetApiPrefix());
+                var instance = new InvokeApplicationDirect(httpApp, request.RequestUri, GetApiPrefix(), default(CancellationToken));
                 return onSuccess(instance);
             }
         }
-
     }
-
-    
 }
