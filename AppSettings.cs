@@ -61,5 +61,11 @@ namespace EastFive.Api
             Location = "Should be dervied from secure random numbers into a GUID.")]
         public const string AuthorizationIdSuperAdmin = "EastFive.Api.AuthorizationIdSuperAdmin";
 
+        [ConfigKey("Secure token for creating access tokens.",
+            DeploymentOverrides.Optional,
+            DeploymentSecurityConcern = false,
+            Location = "Created from secure enthropy")]
+        public const string AccessTokenSecret = "EastFive.Api.AccessTokenSecret";
+
     }
 }

@@ -1,4 +1,5 @@
 ﻿using BlackBarLabs.Extensions;
+using EastFive.Api.Bindings;
 using EastFive.Api.Resources;
 using EastFive.Api.Serialization;
 using EastFive.Collections.Generic;
@@ -88,29 +89,25 @@ namespace EastFive.Api
             return isMethodMatch;
         }
 
-        public async Task<RouteMatch> IsRouteMatch(
+        public RouteMatch IsRouteMatch(
             MethodInfo method, HttpRequestMessage request, IApplication httpApp,
-            IEnumerable<string> bodyKeys, CastDelegate<SelectParameterResult> fetchBodyParam)
+            IEnumerable<string> bodyKeys, CastDelegate fetchBodyParam)
         {
             var fileNameCastDelegate = GetFileNameCastDelegate(request, httpApp, out string [] pathKeys);
             var fetchQueryParam = GetQueryCastDelegate(request, httpApp, out string [] queryKeys);
-            var parametersCastResults = await method
+            var parametersCastResults = method
                 .GetParameters()
                 .Where(param => param.ContainsAttributeInterface<IBindApiValue>())
                 .Select(
                     (param) =>
                     {
                         var castValue = param.GetAttributeInterface<IBindApiValue>();
-                        return castValue.TryCastAsync(httpApp, request, method, param,
+                        return castValue.TryCast(httpApp, request, method, param,
                             fetchQueryParam,
                             fetchBodyParam,
-                            fileNameCastDelegate,
-                            this.MatchFileParameter, 
-                            this.MatchAllQueryParameters, 
-                            this.MatchAllBodyParameters);
+                            fileNameCastDelegate);
                     })
-                .AsyncEnumerable()
-                .ToArrayAsync();
+                .ToArray();
 
             var failedValidations = parametersCastResults
                 .Where(pcr => !pcr.valid)
@@ -131,16 +128,16 @@ namespace EastFive.Api
                         };
                     }
 
-                    var parametersWithValues = parametersCastResults
-                        .Select(parametersCastResult =>
-                            parametersCastResult.parameterInfo.PairWithValue(parametersCastResult.value))
-                        .ToArray();
+                    //var parametersWithValues = parametersCastResults
+                    //    .Select(parametersCastResult =>
+                    //        parametersCastResult.parameterInfo.PairWithValue(parametersCastResult.value))
+                    //    .ToArray();
 
                     return new RouteMatch
                     {
                         isValid = true,
                         method = method,
-                        parametersWithValues = parametersWithValues,
+                        parametersWithValues = parametersCastResults,
                     };
                 },
                 (extraFileParams, extraQueryParams, extraBodyParams) =>
@@ -157,7 +154,7 @@ namespace EastFive.Api
                 });
         }
 
-        protected virtual CastDelegate<SelectParameterResult> GetFileNameCastDelegate(
+        protected virtual CastDelegate GetFileNameCastDelegate(
             HttpRequestMessage request, IApplication httpApp, out string [] pathKeys)
         {
             var path = request.RequestUri.Segments
@@ -166,22 +163,20 @@ namespace EastFive.Api
                 .Where(pathPart => !pathPart.IsNullOrWhiteSpace())
                 .ToArray();
             pathKeys = path.Skip(2).ToArray();
-            CastDelegate<SelectParameterResult> fileNameCastDelegate =
+            CastDelegate fileNameCastDelegate =
                 (paramInfo, onParsed, onFailure) =>
                 {
                     if (path.Length < 3)
-                        return onFailure("No URI filename value provided.").AsTask();
-                    return httpApp
-                        .Bind(paramInfo.ParameterType,
-                                new QueryParamTokenParser(path[2]),
+                        return onFailure("No URI filename value provided.");
+                    return paramInfo
+                        .Bind(path[2], httpApp,
                             v => onParsed(v),
-                            (why) => onFailure(why))
-                        .AsTask();
+                            (why) => onFailure(why));
                 };
             return fileNameCastDelegate;
         }
 
-        protected virtual CastDelegate<SelectParameterResult> GetQueryCastDelegate(
+        protected virtual CastDelegate GetQueryCastDelegate(
             HttpRequestMessage request, IApplication httpApp, out string[] queryKeys)
         {
             var queryParameters = request.RequestUri.ParseQuery()
@@ -191,7 +186,7 @@ namespace EastFive.Api
             queryKeys = queryParameters.SelectKeys().ToArray();
 
             var queryParameterCollections = GetCollectionParameters(httpApp, queryParameters).ToDictionary();
-            CastDelegate<SelectParameterResult> queryCastDelegate =
+            CastDelegate queryCastDelegate =
                 (paramInfo, onParsed, onFailure) =>
                 {
                     var queryKey = paramInfo
@@ -202,20 +197,17 @@ namespace EastFive.Api
                     if (!queryParameters.ContainsKey(queryKey))
                     {
                         if (!queryParameterCollections.ContainsKey(queryKey))
-                            return onFailure($"Missing query parameter `{queryKey}`").AsTask();
+                            return onFailure($"Missing query parameter `{queryKey}`");
                         return queryParameterCollections[queryKey](
                                 type,
                                 vs => onParsed(vs),
-                                why => onFailure(why))
-                            .AsTask();
+                                why => onFailure(why));
                     }
                     var queryValueString = queryParameters[queryKey];
-                    var queryValue = new QueryParamTokenParser(queryValueString);
-                    return httpApp
-                        .Bind(type, queryValue,
+                    return paramInfo
+                        .Bind(queryValueString, httpApp,
                             v => onParsed(v),
-                            (why) => onFailure(why))
-                        .AsTask();
+                            (why) => onFailure(why));
                 };
             return queryCastDelegate;
         }
@@ -250,8 +242,8 @@ namespace EastFive.Api
                                 index = kvp.Key,
                                 key = kvp.Value,
                                 fetchValue = (type, onSuccess, onFailure) =>
-                                    httpApp
-                                        .Bind(type, new QueryParamTokenParser(param.Value),
+                                    type
+                                        .Bind(param.Value, httpApp,
                                             v => onSuccess(v),
                                             why => onFailure(why))
                                         .AsTask(),

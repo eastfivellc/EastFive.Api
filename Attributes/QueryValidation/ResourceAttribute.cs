@@ -22,21 +22,18 @@ namespace EastFive.Api
             return default;
         }
 
-        public Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
+        public SelectParameterResult TryCast(IApplication httpApp,
             HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
-            CastDelegate<SelectParameterResult> fetchQueryParam,
-            CastDelegate<SelectParameterResult> fetchBodyParam,
-            CastDelegate<SelectParameterResult> fetchDefaultParam,
-            bool matchAllPathParameters,
-            bool matchAllQueryParameters,
-            bool matchAllBodyParameters)
+            CastDelegate fetchQueryParam,
+            CastDelegate fetchBodyParam,
+            CastDelegate fetchDefaultParam)
         {
             return fetchBodyParam(parameterRequiringValidation,
                 (value) => SelectParameterResult.Body(value, string.Empty, parameterRequiringValidation),
                 (why) => SelectParameterResult.FailureBody(why, string.Empty, parameterRequiringValidation));
         }
 
-        public async Task<TResult> ParseContentDelegateAsync<TResult>(JObject contentJObject,
+        public TResult ParseContentDelegate<TResult>(JObject contentJObject,
                 string contentString, BindConvert bindConvert, ParameterInfo parameterInfo, 
                 IApplication httpApp, HttpRequestMessage request,
             Func<object, TResult> onParsed,
@@ -50,7 +47,7 @@ namespace EastFive.Api
             }
             catch (Exception ex)
             {
-                return await onFailure(ex.Message).AsTask();
+                return onFailure(ex.Message);
             }
         }
     }

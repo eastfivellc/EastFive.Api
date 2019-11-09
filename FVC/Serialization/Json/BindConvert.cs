@@ -1,4 +1,5 @@
-﻿using EastFive.Collections.Generic;
+﻿using EastFive.Api.Bindings;
+using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -16,138 +17,6 @@ namespace EastFive.Api.Serialization
     {
         HttpApplication application;
 
-        private class JsonReaderTokenParser : IParseToken
-        {
-            private JsonReader reader;
-
-            public JsonReaderTokenParser(JsonReader reader)
-            {
-                this.reader = reader;
-            }
-
-
-            public bool IsString
-            {
-                get
-                {
-                    if (reader.TokenType == JsonToken.String)
-                        return true;
-                    //if (reader.TokenType == JsonToken.Boolean)
-                    //    return true;
-                    //if (reader.TokenType == JsonToken.Null)
-                    //    return true;
-                    return false;
-                }
-            }
-
-            public string ReadString()
-            {
-                if (reader.TokenType == JsonToken.String)
-                {
-                    var value = (string)reader.Value;
-                    return value;
-                }
-                if (reader.TokenType == JsonToken.Boolean)
-                {
-                    var valueBool = (bool)reader.Value;
-                    var value = valueBool.ToString();
-                    return value;
-                }
-                if (reader.TokenType == JsonToken.Integer)
-                {
-                    var valueInt = (long)reader.Value;
-                    var value = valueInt.ToString();
-                    return value;
-                }
-                if (reader.TokenType == JsonToken.Float)
-                {
-                    var valueDouble = (double)reader.Value;
-                    var value = valueDouble.ToString();
-                    return value;
-                }
-                if (reader.TokenType == JsonToken.Date)
-                {
-                    var valueDate = (DateTime)reader.Value;
-                    var value = valueDate.ToString();
-                    return value;
-                }
-                if (reader.TokenType == JsonToken.Null)
-                {
-                    return (string)null;
-                }
-                if (reader.TokenType == JsonToken.StartArray)
-                {
-                    return (string)null;
-                }
-                throw new Exception($"BindConvert does not handle token type: {reader.TokenType}");
-            }
-
-            public T ReadObject<T>()
-            {
-                var token = JToken.Load(reader);
-                if (token is JValue)
-                {
-                    return token.Value<T>();
-                }
-
-                return token.ToObject<T>();
-            }
-
-
-            public object ReadObject()
-            {
-                var token = JToken.Load(reader);
-                if (token is JValue)
-                {
-                    if (token.Type == JTokenType.Boolean)
-                        return token.Value<bool>();
-                    if (token.Type == JTokenType.Bytes)
-                        return token.Value<byte[]>();
-                    if (token.Type == JTokenType.Date)
-                        return token.Value<DateTime>();
-                    if (token.Type == JTokenType.Float)
-                        return token.Value<float>();
-                    if (token.Type == JTokenType.Guid)
-                        return token.Value<Guid>();
-                    if (token.Type == JTokenType.Integer)
-                        return token.Value<int>();
-                    if (token.Type == JTokenType.None)
-                        return null;
-                    if (token.Type == JTokenType.Null)
-                        return null;
-                    if (token.Type == JTokenType.String)
-                        return token.Value<string>();
-                    if (token.Type == JTokenType.Uri)
-                        return token.Value<Uri>();
-                }
-                return token.ToObject<object>();
-            }
-
-            public IParseToken[] ReadArray()
-            {
-                var token = JToken.Load(reader);
-                var tokenParser = new JsonTokenParser(token);
-                return tokenParser.ReadArray();
-            }
-
-            public IDictionary<string, IParseToken> ReadDictionary()
-            {
-                var token = JToken.Load(reader);
-                var tokenParser = new JsonTokenParser(token);
-                return tokenParser.ReadDictionary();
-            }
-
-            public byte[] ReadBytes()
-            {
-                throw new NotImplementedException();
-            }
-
-            public Stream ReadStream()
-            {
-                throw new NotImplementedException();
-            }
-        }
-
         public BindConvert(HttpApplication httpApplication)
         {
             this.application = httpApplication;
@@ -155,16 +24,46 @@ namespace EastFive.Api.Serialization
 
         public override bool CanConvert(Type objectType)
         {
+            // These will convert full objects, not just refs
+            //if (type.IsSubClassOfGeneric(typeof(IReferenceable)))
+            //    return true;
+            //if (type.IsSubClassOfGeneric(typeof(IReferenceableOptional)))
+            //    return true;
+
+            if (objectType.IsSubClassOfGeneric(typeof(IRef<>)))
+                return true;
+
             if (objectType.IsSubClassOfGeneric(typeof(IRefs<>)))
                 return true;
+
             if (objectType.IsSubClassOfGeneric(typeof(IRefOptional<>)))
                 return true;
-            return this.application.CanBind(objectType);
+
+            if (objectType.IsAssignableFrom(typeof(Guid)))
+                return true;
+
+            if (objectType == typeof(double))
+                return true;
+
+            if (objectType == typeof(decimal))
+                return true;
+
+            // Newtonsoft struggles with Nullable<T> where T : struct
+            if (objectType.IsNullable())
+                return true;
+
+            if (objectType.IsAssignableFrom(typeof(IDictionary<,>)))
+                return true;
+
+            if (objectType.IsSubclassOf(typeof(Type)))
+                return true;
+
+            return false;
         }
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
-            return this.application.Bind(objectType, new JsonReaderTokenParser(reader),
+            return objectType.Bind(reader, this.application,
                 v => v,
                 (why) => existingValue);
         }
@@ -172,75 +71,6 @@ namespace EastFive.Api.Serialization
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {
             throw new NotImplementedException("BindConvert cannot write values.");
-        }
-    }
-
-    public class MultipartContentTokenParser : IParseToken
-    {
-        private byte[] contents;
-        private string fileNameMaybe;
-        private HttpContent file;
-
-        public class MemoryStreamForFile : MemoryStream
-        {
-            public MemoryStreamForFile(byte[] buffer) : base(buffer) { }
-            public string FileName { get; set; }
-        }
-
-        public MultipartContentTokenParser(HttpContent file, byte[] contents, string fileNameMaybe)
-        {
-            this.file = file;
-            this.contents = contents;
-            this.fileNameMaybe = fileNameMaybe;
-        }
-
-        public IParseToken[] ReadArray()
-        {
-            throw new NotImplementedException();
-        }
-
-        public byte[] ReadBytes()
-        {
-            return contents;
-        }
-
-        public IDictionary<string, IParseToken> ReadDictionary()
-        {
-            throw new NotImplementedException();
-        }
-
-        public T ReadObject<T>()
-        {
-            if (typeof(HttpContent) == typeof(T))
-            {
-                return (T)((object)this.file);
-            }
-            //if (typeof(ByteArrayContent) == typeof(T))
-            //{
-            //    if(this.file is ByteArrayContent)
-            //        return (T)((object)this.file);
-            //    var byteArrayContent = new ByteArrayContent(this.file.)
-            //    {
-            //        Headers
-            //    }
-            //}
-            throw new NotImplementedException();
-        }
-        public object ReadObject()
-        {
-            throw new NotImplementedException();
-        }
-
-        public Stream ReadStream()
-        {
-            return new MemoryStreamForFile(contents)
-            { FileName = fileNameMaybe };
-        }
-
-        public bool IsString => true;
-        public string ReadString()
-        {
-            return System.Text.Encoding.UTF8.GetString(contents);
         }
     }
 

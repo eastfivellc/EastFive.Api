@@ -20,8 +20,8 @@ namespace EastFive.Api
 {
     public class FunctionViewController6Attribute : FunctionViewController5Attribute
     {
-        public override async Task<HttpResponseMessage> CreateResponseAsync(Type controllerType,
-            IApplication httpApp, HttpRequestMessage request, string routeName)
+        protected override IEnumerable<MethodInfo> GetHttpMethods(Type controllerType,
+            IApplication httpApp, HttpRequestMessage request)
         {
             var matchingActionMethods = controllerType
                 .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
@@ -33,73 +33,7 @@ namespace EastFive.Api
                         var routeMatcher = method.GetAttributesInterface<IMatchRoute>().Single();
                         return routeMatcher.IsMethodMatch(method, request, httpApp);
                     });
-
-            if (!matchingActionMethods.Any())
-                return request.CreateResponse(HttpStatusCode.NotImplemented);
-
-            return await httpApp.ParseContentValuesAsync<SelectParameterResult, HttpResponseMessage>(request.Content,
-                async (bodyParser, bodyValues) =>
-                {
-                    CastDelegate<SelectParameterResult> bodyCastDelegate =
-                        (parameterInfo, onParsed, onFailure) =>
-                        {
-                            return bodyParser(parameterInfo,
-                                    httpApp, request,
-                                value =>
-                                {
-                                    var parsedResult = onParsed(value);
-                                    return parsedResult;
-                                },
-                                (why) => onFailure(why));
-                        };
-
-                    var evaluatedMethods = matchingActionMethods
-                        .Select(
-                            method =>
-                            {
-                                var routeMatcher = method.GetAttributesInterface<IMatchRoute>().Single();
-                                return routeMatcher.IsRouteMatch(method, request, httpApp,
-                                    bodyValues, bodyCastDelegate);
-                            })
-                        .AsyncEnumerable();
-
-                    var validMethods = evaluatedMethods
-                        .Where(methodCast => methodCast.isValid);
-
-                    return await await validMethods
-                        .FirstAsync(
-                            (methodCast) =>
-                            {
-                                return InvokeValidatedMethodAsync(httpApp, request, methodCast.method,
-                                    methodCast.parametersWithValues);
-                            },
-                            () =>
-                            {
-                                return Issues(evaluatedMethods);
-                            });
-
-                    async Task<HttpResponseMessage> Issues(IEnumerableAsync<RouteMatch> methodsCasts)
-                    {
-                        var reasonStrings = await methodsCasts
-                            .Select(
-                                methodCast =>
-                                {
-                                    var errorMessage = methodCast.ErrorMessage;
-                                    return errorMessage;
-                                })
-                            .ToArrayAsync();
-                        if (!reasonStrings.Any())
-                        {
-                            return request
-                                .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
-                                .AddReason("No methods that implement Action");
-                        }
-                        var content = reasonStrings.Join(";");
-                        return request
-                            .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
-                            .AddReason(content);
-                    }
-                });
+            return matchingActionMethods;
         }
 
         public override Route GetRoute(Type type, HttpApplication httpApp)

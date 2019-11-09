@@ -154,13 +154,26 @@
   <ItemGroup>
     <Compile Include="Attributes\HtmlAttributes.cs" />
     <Compile Include="Attributes\Routing\IHandleExceptions.cs" />
+    <Compile Include="Bindings\BindingExtensions.cs" />
+    <Compile Include="Bindings\ContentHandlers\MimeMultipartContentParserAttribute.cs" />
+    <Compile Include="Bindings\ContentHandlers\IParseContent.cs" />
+    <Compile Include="Bindings\ContentHandlers\FormDataParserAttribute.cs" />
+    <Compile Include="Bindings\ContentHandlers\XmlContentParserAttribute.cs" />
+    <Compile Include="Bindings\ContentHandlers\JsonContentParserAttribute.cs" />
+    <Compile Include="Bindings\IBindApiParameter.cs" />
+    <Compile Include="Bindings\IBindApiValue.cs" />
+    <Compile Include="Bindings\IBindQueryApiValue.cs" />
+    <Compile Include="Bindings\IValidateHttpRequest.cs" />
+    <Compile Include="Bindings\Property.cs" />
+    <Compile Include="Bindings\StandardJTokenBindingsAttribute.cs" />
+    <Compile Include="Bindings\StandardStringBindingsAttribute.cs" />
     <Compile Include="Instigations\Responses\InstigatableResponseAttribute.cs" />
     <Compile Include="Instigations\Responses\InstigateGenericAttribute.cs" />
     <Compile Include="Attributes\Routing\IHandleResponses.cs" />
     <Compile Include="Instigations\Responses\BodyTypeResponseAttribute.cs" />
     <Compile Include="Instigations\Responses\BodyResponseAttribute.cs" />
     <Compile Include="Instigations\Responses\HttpGenericDelegateAttribute.cs" />
-    <Compile Include="Attributes\Instigation\IInstigatableGeneric.cs" />
+    <Compile Include="Instigations\IInstigatableGeneric.cs" />
     <Compile Include="Attributes\Manifest\IDocumentResponse.cs" />
     <Compile Include="Attributes\QueryValidation\PropertyAttribute.cs" />
     <Compile Include="Attributes\QueryValidation\PropertyOptionalAttribute.cs" />
@@ -177,7 +190,7 @@
     <Compile Include="Controllers\ApiValidations.cs" />
     <Compile Include="Controllers\BackgroundProgressController.cs" />
     <Compile Include="Controllers\BaseController.cs" />
-    <Compile Include="Controllers\Instigations.cs" />
+    <Compile Include="Bindings\Bindings.cs" />
     <Compile Include="Extensions\ClaimsExtensions.cs" />
     <Compile Include="Extensions\HttpConfigurationExtensions.cs" />
     <Compile Include="Extensions\HttpHeaderExtensions.cs" />
@@ -198,10 +211,9 @@
     <Compile Include="Extensions\UriExtensions.cs" />
     <Compile Include="Extensions\WebUrnExtensions.cs" />
     <Compile Include="Extensions\ValidationExtensions.cs" />
-    <Compile Include="Attributes\ApiIdAttribute.cs" />
     <Compile Include="Attributes\ExtensionAttribute.cs" />
     <Compile Include="Attributes\IApiResources.cs" />
-    <Compile Include="Attributes\Instigation\IInstigatable.cs" />
+    <Compile Include="Instigations\IInstigatable.cs" />
     <Compile Include="Attributes\QueryValidation\AuthorizationAttribute.cs" />
     <Compile Include="Attributes\QueryValidation\IBuildHttpRequests.cs" />
     <Compile Include="Attributes\QueryValidation\ResourceAttribute.cs" />
@@ -261,6 +273,7 @@
     <Compile Include="Attributes\Manifest\IDocumentRoute.cs" />
     <Compile Include="Instigations\Responses\StatusCodeResponseAttribute.cs" />
     <Compile Include="Instigations\Security\Security.cs" />
+    <Compile Include="Instigations\Security\AccessToken.cs" />
     <Compile Include="Instigations\Security\SessionToken.cs" />
     <Compile Include="Razor\GenericReferenceResolver.cs" />
     <Compile Include="Razor\HtmlSupportTemplateBase.cs" />

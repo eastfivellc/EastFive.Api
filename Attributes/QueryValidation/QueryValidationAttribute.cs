@@ -24,17 +24,14 @@ namespace EastFive.Api
     {
         public virtual string Name { get; set; }
 
-        public virtual async Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
+        public virtual SelectParameterResult TryCast(IApplication httpApp,
                 HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
-                Api.CastDelegate<SelectParameterResult> fetchQueryParam,
-                Api.CastDelegate<SelectParameterResult> fetchBodyParam,
-                Api.CastDelegate<SelectParameterResult> fetchPathParam,
-            bool matchAllPathParameters,
-            bool matchAllQueryParameters,
-            bool matchAllBodyParameters)
+            CastDelegate fetchQueryParam,
+            CastDelegate fetchBodyParam,
+            CastDelegate fetchPathParam)
         {
             var key = GetKey(parameterRequiringValidation);
-            var fileResult = await fetchPathParam(parameterRequiringValidation,
+            var fileResult = fetchPathParam(parameterRequiringValidation,
                 (v) =>
                 {
                     return SelectParameterResult.File(v, key, parameterRequiringValidation);
@@ -46,7 +43,7 @@ namespace EastFive.Api
             if (fileResult.valid)
                 return fileResult;
 
-            var queryResult = await fetchQueryParam(parameterRequiringValidation,
+            var queryResult = fetchQueryParam(parameterRequiringValidation,
                 (v) =>
                 {
                     if(fileResult.valid)
@@ -66,7 +63,7 @@ namespace EastFive.Api
             if (queryResult.valid)
                 return queryResult;
 
-            return await fetchBodyParam(parameterRequiringValidation,
+            return fetchBodyParam(parameterRequiringValidation,
                 (v) =>
                 {
                     return SelectParameterResult.Body(v, key, parameterRequiringValidation);
@@ -92,18 +89,15 @@ namespace EastFive.Api
     {
         public bool CheckFileName { get; set; }
 
-        public override async Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
+        public override SelectParameterResult TryCast(IApplication httpApp,
                 HttpRequestMessage request, MethodInfo method,
                 ParameterInfo parameterRequiringValidation,
-                CastDelegate<SelectParameterResult> fetchQueryParam,
-                CastDelegate<SelectParameterResult> fetchBodyParam,
-                CastDelegate<SelectParameterResult> fetchDefaultParam,
-            bool matchAllPathParameters,
-            bool matchAllQueryParameters,
-            bool matchAllBodyParameters)
+                CastDelegate fetchQueryParam,
+                CastDelegate fetchBodyParam,
+                CastDelegate fetchDefaultParam)
         {
             var key = this.GetKey(parameterRequiringValidation);
-            var queryResult = await fetchQueryParam(parameterRequiringValidation,
+            var queryResult = fetchQueryParam(parameterRequiringValidation,
                 (v) =>
                 {
                     return SelectParameterResult.Query(v, key, parameterRequiringValidation);
@@ -116,7 +110,7 @@ namespace EastFive.Api
             if (!CheckFileName)
                 return queryResult;
 
-            return await fetchDefaultParam(parameterRequiringValidation,
+            return fetchDefaultParam(parameterRequiringValidation,
                 (v) =>
                 {
                     return SelectParameterResult.File(v, key, parameterRequiringValidation);
@@ -147,20 +141,16 @@ namespace EastFive.Api
 
     public class OptionalQueryParameterAttribute : QueryParameterAttribute
     {
-        public async override Task<SelectParameterResult> TryCastAsync(IApplication httpApp, 
+        public override SelectParameterResult TryCast(IApplication httpApp, 
                 HttpRequestMessage request, MethodInfo method,
                 ParameterInfo parameterRequiringValidation, 
-                CastDelegate<SelectParameterResult> fetchQueryParam, 
-                CastDelegate<SelectParameterResult> fetchBodyParam, 
-                CastDelegate<SelectParameterResult> fetchDefaultParam,
-            bool matchAllPathParameters,
-            bool matchAllQueryParameters,
-            bool matchAllBodyParameters)
+                CastDelegate fetchQueryParam, 
+                CastDelegate fetchBodyParam, 
+                CastDelegate fetchDefaultParam)
         {
-            var baseValue = await base.TryCastAsync(httpApp, request, method,
+            var baseValue = base.TryCast(httpApp, request, method,
                 parameterRequiringValidation,
-                fetchQueryParam, fetchBodyParam, fetchDefaultParam,
-                matchAllPathParameters, matchAllQueryParameters, matchAllBodyParameters);
+                fetchQueryParam, fetchBodyParam, fetchDefaultParam);
             if (baseValue.valid)
                 return baseValue;
 
@@ -204,20 +194,17 @@ namespace EastFive.Api
             set => base.Name = value;
         }
 
-        public async override Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
+        public override SelectParameterResult TryCast(IApplication httpApp,
                 HttpRequestMessage request, MethodInfo method,
                 ParameterInfo parameterRequiringValidation,
-                CastDelegate<SelectParameterResult> fetchQueryParam,
-                CastDelegate<SelectParameterResult> fetchBodyParam,
-                CastDelegate<SelectParameterResult> fetchDefaultParam,
-            bool matchAllPathParameters,
-            bool matchAllQueryParameters,
-            bool matchAllBodyParameters)
+                CastDelegate fetchQueryParam,
+                CastDelegate fetchBodyParam,
+                CastDelegate fetchDefaultParam)
         {
             base.CheckFileName = true;
-            return await base.TryCastAsync(httpApp, request, method,
-                parameterRequiringValidation, fetchQueryParam, fetchBodyParam, fetchDefaultParam,
-                matchAllPathParameters, matchAllQueryParameters, matchAllBodyParameters);
+            return base.TryCast(httpApp, request, method,
+                parameterRequiringValidation, 
+                fetchQueryParam, fetchBodyParam, fetchDefaultParam);
         }
 
         public override Parameter GetParameter(ParameterInfo paramInfo, HttpApplication httpApp)
@@ -230,15 +217,12 @@ namespace EastFive.Api
 
     public class HashedFileAttribute : QueryValidationAttribute, IDocumentParameter
     {
-        public override Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
+        public override SelectParameterResult TryCast(IApplication httpApp,
                 HttpRequestMessage request, MethodInfo method,
                 ParameterInfo parameterRequiringValidation,
-                CastDelegate<SelectParameterResult> fetchQueryParam,
-                CastDelegate<SelectParameterResult> fetchBodyParam,
-                CastDelegate<SelectParameterResult> fetchDefaultParam,
-            bool matchAllPathParameters,
-            bool matchAllQueryParameters,
-            bool matchAllBodyParameters)
+                CastDelegate fetchQueryParam,
+                CastDelegate fetchBodyParam,
+                CastDelegate fetchDefaultParam)
         {
             var key = this.GetKey(parameterRequiringValidation);
             return request.RequestUri
@@ -252,8 +236,7 @@ namespace EastFive.Api
                         return SelectParameterResult.File(instance, key, parameterRequiringValidation);
                     },
                     onInvalid:(why) => SelectParameterResult
-                        .FailureFile(why, key, parameterRequiringValidation))
-                .AsTask();
+                        .FailureFile(why, key, parameterRequiringValidation));
         }
 
         public virtual Parameter GetParameter(ParameterInfo paramInfo, HttpApplication httpApp)
@@ -273,14 +256,11 @@ namespace EastFive.Api
     {
         public string Content { get; set; }
 
-        public override Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
+        public override SelectParameterResult TryCast(IApplication httpApp,
             HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
-            CastDelegate<SelectParameterResult> fetchQueryParam,
-            CastDelegate<SelectParameterResult> fetchBodyParam,
-            CastDelegate<SelectParameterResult> fetchDefaultParam,
-            bool matchAllPathParameters,
-            bool matchAllQueryParameters,
-            bool matchAllBodyParameters)
+            CastDelegate fetchQueryParam,
+            CastDelegate fetchBodyParam,
+            CastDelegate fetchDefaultParam)
         {
             var bindType = parameterRequiringValidation.ParameterType;
             if(typeof(System.Net.Http.Headers.MediaTypeHeaderValue) == bindType)
@@ -295,7 +275,7 @@ namespace EastFive.Api
                         key = Content,
                         parameterInfo = parameterRequiringValidation,
                         value = request.Content.Headers.ContentType.MediaType,
-                    }.AsTask();
+                    };
                 throw new NotImplementedException();
                 //return await fetchBodyParam(
                 //    new ParameterInfo() { ParameterType = typeof(HttpContent) },
@@ -341,7 +321,7 @@ namespace EastFive.Api
                             parameterInfo = parameterRequiringValidation,
                             valid = false,
                             failure = "AcceptLanguage is not a content header.",
-                        }.AsTask();
+                        };
                     return new SelectParameterResult
                     {
                         valid = true,
@@ -351,7 +331,7 @@ namespace EastFive.Api
                         key = default,
                         parameterInfo = parameterRequiringValidation,
                         value = request.Headers.AcceptLanguage,
-                    }.AsTask();
+                    };
                 }
             }
             return new SelectParameterResult
@@ -362,7 +342,7 @@ namespace EastFive.Api
                 parameterInfo = parameterRequiringValidation,
                 valid = false,
                 failure = $"No header binding for type `{bindType.FullName}`.",
-            }.AsTask();
+            };
         }
     }
 
@@ -375,14 +355,12 @@ namespace EastFive.Api
             return "__accept-header__";
         }
 
-        public async Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
-            HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
-            CastDelegate<SelectParameterResult> fetchQueryParam,
-            CastDelegate<SelectParameterResult> fetchBodyParam,
-            CastDelegate<SelectParameterResult> fetchDefaultParam,
-            bool matchAllPathParameters,
-            bool matchAllQueryParameters,
-            bool matchAllBodyParameters)
+        public SelectParameterResult TryCast(IApplication httpApp,
+                HttpRequestMessage request, MethodInfo method, 
+                ParameterInfo parameterRequiringValidation,
+            CastDelegate fetchQueryParam,
+            CastDelegate fetchBodyParam,
+            CastDelegate fetchDefaultParam)
         {
             var bindType = parameterRequiringValidation.ParameterType;
             if (typeof(MediaTypeWithQualityHeaderValue) == bindType)
@@ -454,14 +432,12 @@ namespace EastFive.Api
 
     public class HeaderLogAttribute : QueryValidationAttribute
     {
-        public override Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
-            HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
-            CastDelegate<SelectParameterResult> fetchQueryParam,
-            CastDelegate<SelectParameterResult> fetchBodyParam,
-            CastDelegate<SelectParameterResult> fetchDefaultParam,
-            bool matchAllPathParameters,
-            bool matchAllQueryParameters,
-            bool matchAllBodyParameters)
+        public override SelectParameterResult TryCast(IApplication httpApp,
+                HttpRequestMessage request, MethodInfo method,
+                ParameterInfo parameterRequiringValidation,
+            CastDelegate fetchQueryParam,
+            CastDelegate fetchBodyParam,
+            CastDelegate fetchDefaultParam)
         {
             var logger = httpApp.Logger;
             return new SelectParameterResult
@@ -473,7 +449,7 @@ namespace EastFive.Api
                 fromFile = false,
                 parameterInfo = parameterRequiringValidation,
                 valid = true,
-            }.AsTask();
+            };
         }
     }
 

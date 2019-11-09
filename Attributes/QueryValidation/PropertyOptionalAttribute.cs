@@ -11,19 +11,15 @@ namespace EastFive.Api
 {
     public class PropertyOptionalAttribute : PropertyAttribute
     {
-        public async override Task<SelectParameterResult> TryCastAsync(
+        public override SelectParameterResult TryCast(
                 IApplication httpApp, HttpRequestMessage request, MethodInfo method,
                 ParameterInfo parameterRequiringValidation,
-                CastDelegate<SelectParameterResult> fetchQueryParam,
-                CastDelegate<SelectParameterResult> fetchBodyParam,
-                CastDelegate<SelectParameterResult> fetchDefaultParam,
-            bool matchAllPathParameters,
-            bool matchAllQueryParameters,
-            bool matchAllBodyParameters)
+                CastDelegate fetchQueryParam,
+                CastDelegate fetchBodyParam,
+                CastDelegate fetchDefaultParam)
         {
-            var baseValue = await base.TryCastAsync(httpApp, request, method,
-                parameterRequiringValidation, fetchQueryParam, fetchBodyParam, fetchDefaultParam,
-                matchAllPathParameters, matchAllQueryParameters, matchAllBodyParameters);
+            var baseValue = base.TryCast(httpApp, request, method,
+                parameterRequiringValidation, fetchQueryParam, fetchBodyParam, fetchDefaultParam);
             if (baseValue.valid)
                 return baseValue;
 

@@ -1,4 +1,5 @@
-﻿using EastFive.Api.Resources;
+﻿using EastFive.Api.Bindings;
+using EastFive.Api.Resources;
 using EastFive.Extensions;
 using Newtonsoft.Json.Linq;
 using System;
@@ -15,20 +16,16 @@ namespace EastFive.Api
     public class PropertyAttribute : QueryValidationAttribute,
         IDocumentParameter, IBindJsonApiValue
     {
-        public override Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
+        public override SelectParameterResult TryCast(IApplication httpApp,
                 HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
-                CastDelegate<SelectParameterResult> fetchQueryParam,
-                CastDelegate<SelectParameterResult> fetchBodyParam,
-                CastDelegate<SelectParameterResult> fetchDefaultParam,
-            bool matchAllPathParameters,
-            bool matchAllQueryParameters,
-            bool matchAllBodyParameters)
+                CastDelegate fetchQueryParam,
+                CastDelegate fetchBodyParam,
+                CastDelegate fetchDefaultParam)
         {
             var name = this.GetKey(parameterRequiringValidation);
             return fetchBodyParam(parameterRequiringValidation,
                 vCasted => SelectParameterResult.Body(vCasted, name, parameterRequiringValidation),
                 why => SelectParameterResult.FailureBody(why, name, parameterRequiringValidation));
-
         }
 
         public virtual TResult Convert<TResult>(HttpApplication httpApp, Type type, object value,
@@ -120,7 +117,7 @@ namespace EastFive.Api
 
                 if (typeof(Type).GUID == type.GUID)
                 {
-                    return httpApp.GetResourceType(valueString,
+                    return HttpApplication.GetResourceType(valueString,
                             (typeInstance) => onCasted(typeInstance),
                             () => valueString.GetClrType(
                                 typeInstance => onCasted(typeInstance),
@@ -180,7 +177,7 @@ namespace EastFive.Api
             };
         }
 
-        public Task<TResult> ParseContentDelegateAsync<TResult>(JObject contentJObject,
+        public TResult ParseContentDelegate<TResult>(JObject contentJObject,
                 string contentString, Serialization.BindConvert bindConvert,
                 ParameterInfo paramInfo,
                 IApplication httpApp, HttpRequestMessage request,
@@ -188,18 +185,17 @@ namespace EastFive.Api
             Func<string, TResult> onFailure)
         {
             var key = this.GetKey(paramInfo);
-            var type = paramInfo.ParameterType;
-            return ParseJsonContentDelegateAsync(contentJObject,
+            return ParseJsonContentDelegate(contentJObject,
                     contentString, bindConvert,
-                    key, type,
+                    key, paramInfo,
                     httpApp, request,
                 onParsed,
                 onFailure);
         }
 
-        public static async Task<TResult> ParseJsonContentDelegateAsync<TResult>(JObject contentJObject,
+        public static TResult ParseJsonContentDelegate<TResult>(JObject contentJObject,
                 string contentString, Serialization.BindConvert bindConvert,
-                string key, Type type,
+                string key, ParameterInfo paramInfo,
                 IApplication httpApp, HttpRequestMessage request,
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure)
@@ -209,7 +205,7 @@ namespace EastFive.Api
                 try
                 {
                     var rootObject = Newtonsoft.Json.JsonConvert.DeserializeObject(
-                        contentString, type, bindConvert);
+                        contentString, paramInfo.ParameterType, bindConvert);
                     return onParsed(rootObject);
                 }
                 catch (Exception ex)
@@ -219,12 +215,12 @@ namespace EastFive.Api
             }
 
             if (!contentJObject.TryGetValue(key, out JToken valueToken))
-                return await onFailure($"Key[{key}] was not found in JSON").AsTask();
+                return onFailure($"Key[{key}] was not found in JSON");
 
             try
             {
                 var tokenParser = new Serialization.JsonTokenParser(valueToken);
-                return httpApp.Bind(type, tokenParser,
+                return paramInfo.Bind(valueToken, httpApp,
                     obj => onParsed(obj),
                     (why) =>
                     {
@@ -233,7 +229,7 @@ namespace EastFive.Api
                             try
                             {
                                 var value = Newtonsoft.Json.JsonConvert.DeserializeObject(
-                                    valueToken.ToString(), type, bindConvert);
+                                    valueToken.ToString(), paramInfo.ParameterType, bindConvert);
                                 return onParsed(value);
                             }
                             catch (Newtonsoft.Json.JsonSerializationException)

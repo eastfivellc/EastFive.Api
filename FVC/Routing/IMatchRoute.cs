@@ -13,9 +13,9 @@ namespace EastFive.Api
     {
         bool IsMethodMatch(MethodInfo method, HttpRequestMessage request, IApplication httpApp);
         
-        Task<RouteMatch> IsRouteMatch(
+        RouteMatch IsRouteMatch(
             MethodInfo method, HttpRequestMessage request, IApplication httpApp,
-            IEnumerable<string> bodyKeys, CastDelegate<SelectParameterResult> fetchBodyParam);
+            IEnumerable<string> bodyKeys, CastDelegate fetchBodyParam);
     }
 
     public struct RouteMatch
@@ -26,7 +26,7 @@ namespace EastFive.Api
         public string[] extraQueryParams;
         public string[] extraFileParams;
         public SelectParameterResult[] failedValidations;
-        internal KeyValuePair<ParameterInfo, object>[] parametersWithValues;
+        internal SelectParameterResult[] parametersWithValues;
 
         public string ErrorMessage
         {

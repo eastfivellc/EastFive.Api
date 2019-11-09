@@ -1,4 +1,5 @@
-﻿using EastFive.Api.Serialization;
+﻿using EastFive.Api.Bindings;
+using EastFive.Api.Serialization;
 using EastFive.Extensions;
 using System;
 using System.Collections.Generic;
@@ -37,7 +38,7 @@ namespace EastFive.Api
             return isMethodMatch;
         }
 
-        protected override CastDelegate<SelectParameterResult> GetFileNameCastDelegate(
+        protected override CastDelegate GetFileNameCastDelegate(
             HttpRequestMessage request, IApplication httpApp, out string[] pathKeys)
         {
             var path = request.RequestUri.Segments
@@ -46,17 +47,15 @@ namespace EastFive.Api
                 .Where(pathPart => !pathPart.IsNullOrWhiteSpace())
                 .ToArray();
             pathKeys = path.Skip(3).ToArray();
-            CastDelegate<SelectParameterResult> fileNameCastDelegate =
+            CastDelegate fileNameCastDelegate =
                 (paramInfo, onParsed, onFailure) =>
                 {
                     if (path.Length < 4)
-                        return onFailure("No URI filename value provided.").AsTask();
-                    return httpApp
-                        .Bind(paramInfo.ParameterType,
-                                new QueryParamTokenParser(path[3]),
+                        return onFailure("No URI filename value provided.");
+                    return paramInfo
+                        .Bind(path[3], httpApp,
                             v => onParsed(v),
-                            (why) => onFailure(why))
-                        .AsTask();
+                            (why) => onFailure(why));
                 };
             return fileNameCastDelegate;
         }

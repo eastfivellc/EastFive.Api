@@ -17,6 +17,7 @@ using EastFive.Serialization;
 using EastFive.Api.Serialization;
 using System.IO;
 using EastFive.Collections.Generic;
+using EastFive.Api.Bindings;
 
 namespace EastFive.Api
 {
@@ -53,8 +54,7 @@ namespace EastFive.Api
                         .AsArray());
             }
 
-            return httpApp.Bind(parameterInfo.ParameterType,
-                new XmlContent(node),
+            return parameterInfo.Bind(node, httpApp,
                 onParsed,
                 onFailure);
         }

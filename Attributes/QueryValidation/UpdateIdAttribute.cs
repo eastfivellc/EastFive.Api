@@ -36,7 +36,7 @@ namespace EastFive.Api
             };
         }
 
-        public Task<TResult> ParseContentDelegateAsync<TResult>(JObject contentJObject,
+        public TResult ParseContentDelegate<TResult>(JObject contentJObject,
                 string contentString, Serialization.BindConvert bindConvert,
                 ParameterInfo paramInfo,
                 IApplication httpApp, HttpRequestMessage request,
@@ -44,10 +44,9 @@ namespace EastFive.Api
             Func<string, TResult> onFailure)
         {
             var key = this.GetKey(paramInfo);
-            var type = paramInfo.ParameterType;
-            return PropertyAttribute.ParseJsonContentDelegateAsync(contentJObject,
+            return PropertyAttribute.ParseJsonContentDelegate(contentJObject,
                     contentString, bindConvert,
-                    key, type,
+                    key, paramInfo,
                     httpApp, request,
                 onParsed,
                 onFailure);

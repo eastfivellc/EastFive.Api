@@ -37,13 +37,6 @@ namespace EastFive.Api
             Func<Type, TResult> onMethodsIdentified,
             Func<TResult> onKeyNotFound);
 
-        TResult Bind<TResult>(Type type, Serialization.IParseToken content,
-            Func<object, TResult> onParsed,
-            Func<string, TResult> onDidNotBind);
-
-        Task<TResult> ParseContentValuesAsync<TParseResult, TResult>(HttpContent content,
-            Func<ParseContentDelegateAsync<TParseResult>, string[], Task<TResult>> onParsedContentValues);
-
         Task<HttpResponseMessage> Instigate(HttpRequestMessage request, ParameterInfo methodParameter,
             Func<object, Task<HttpResponseMessage>> onInstigated);
 

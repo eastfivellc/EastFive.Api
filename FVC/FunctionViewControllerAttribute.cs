@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 using BlackBarLabs;
+using EastFive.Api.Bindings;
 using EastFive.Api.Resources;
 using EastFive.Api.Serialization;
 using EastFive.Collections.Generic;
@@ -136,7 +137,7 @@ namespace EastFive.Api
                 .ToDictionary();
 
             var queryParameterCollections = GetCollectionParameters(httpApp, queryParameters).ToDictionary();
-            CastDelegate<SelectParameterResult> queryCastDelegate =
+            CastDelegate queryCastDelegate =
                 (paramInfo, onParsed, onFailure) =>
                 {
                     var queryKey = paramInfo
@@ -147,65 +148,75 @@ namespace EastFive.Api
                     if (!queryParameters.ContainsKey(queryKey))
                     {
                         if (!queryParameterCollections.ContainsKey(queryKey))
-                            return onFailure($"Missing query parameter `{queryKey}`").AsTask();
+                            return onFailure($"Missing query parameter `{queryKey}`");
                         return queryParameterCollections[queryKey](
                                 type,
                                 vs => onParsed(vs),
-                                why => onFailure(why))
-                            .AsTask();
+                                why => onFailure(why));
                     }
                     var queryValueString = queryParameters[queryKey];
                     var queryValue = new QueryParamTokenParser(queryValueString);
-                    return httpApp
-                        .Bind(type, queryValue,
+                    return paramInfo
+                        .Bind(queryValueString, httpApp,
                             v => onParsed(v),
-                            (why) => onFailure(why))
-                        .AsTask();
+                            (why) => onFailure(why));
                 };
 
             #endregion
 
             #region Get file name from URI (optional part between the controller name and the query)
 
-            CastDelegate<SelectParameterResult> fileNameCastDelegate =
+            CastDelegate fileNameCastDelegate =
                 (paramInfo, onParsed, onFailure) =>
                 {
                     if (!fileNameParams.Any())
-                        return onFailure("No URI filename value provided.").AsTask();
+                        return onFailure("No URI filename value provided.");
                     var type = paramInfo.ParameterType;
-                    return httpApp
-                        .Bind(type, new QueryParamTokenParser(fileNameParams.First()),
+                    return paramInfo
+                        .Bind(fileNameParams.First(), httpApp,
                             v => onParsed(v),
-                            (why) => onFailure(why))
-                        .AsTask();
+                            (why) => onFailure(why));
                 };
 
             #endregion
 
-            return await httpApp.ParseContentValuesAsync<SelectParameterResult, HttpResponseMessage>(request.Content,
-                async (bodyParser, bodyValues) =>
-                {
-                    CastDelegate<SelectParameterResult> bodyCastDelegate =
-                        (parameterInfo, onParsed, onFailure) =>
-                        {
-                            return bodyParser(parameterInfo, httpApp, request,
-                                value =>
-                                {
-                                    var parsedResult = onParsed(value);
-                                    return parsedResult;
-                                },
-                                (why) => onFailure(why));
-                        };
-                    return await GetResponseAsync(methods,
-                        queryCastDelegate,
-                        bodyCastDelegate,
-                        fileNameCastDelegate,
-                        httpApp, request,
-                        queryParameters.SelectKeys(),
-                        bodyValues,
-                        fileNameParams.Any());
-                });
-
+            return await httpApp.GetType()
+                .GetAttributesInterface<IParseContent>(true, true)
+                .Where(contentParser => contentParser.DoesParse(request))
+                .First(
+                    (contentParser, next) =>
+                    {
+                        return contentParser.ParseContentValuesAsync(httpApp, request,
+                            (bodyCastDelegate, bodyValues) => GetResponseAsync(methods,
+                                queryCastDelegate,
+                                bodyCastDelegate,
+                                fileNameCastDelegate,
+                                httpApp, request,
+                                queryParameters.SelectKeys(),
+                                bodyValues,
+                                fileNameParams.Any()));
+                    },
+                    () =>
+                    {
+                        var mediaType = request.Content.Headers.IsDefaultOrNull() ?
+                           string.Empty
+                           :
+                           request.Content.Headers.ContentType.IsDefaultOrNull() ?
+                               string.Empty
+                               :
+                               request.Content.Headers.ContentType.MediaType;
+                        CastDelegate parser =
+                            (paramInfo, onParsed, onFailure) => onFailure(
+                                $"Could not parse content of type {mediaType}");
+                        return GetResponseAsync(methods,
+                            queryCastDelegate,
+                            parser,
+                            fileNameCastDelegate,
+                            httpApp, request,
+                            queryParameters.SelectKeys(),
+                            new string[] { },
+                            fileNameParams.Any());
+                    });
         }
 
         #region Generate collection parameters
@@ -251,8 +262,7 @@ namespace EastFive.Api
                                 index = kvp.Key,
                                 key = kvp.Value,
                                 fetchValue = (type, onSuccess, onFailure) =>
-                                    httpApp
-                                        .Bind(type, new QueryParamTokenParser(param.Value),
+                                    type.Bind(param.Value, httpApp,
                                             v => onSuccess(v),
                                             why => onFailure(why))
                                         .AsTask(),
@@ -392,30 +402,29 @@ namespace EastFive.Api
         }
 
         public static async Task<HttpResponseMessage> GetResponseAsync(MethodInfo[] methods,
-            CastDelegate<SelectParameterResult> fetchQueryParam,
-            CastDelegate<SelectParameterResult> fetchBodyParam,
-            CastDelegate<SelectParameterResult> fetchNameParam,
+            CastDelegate fetchQueryParam,
+            CastDelegate fetchBodyParam,
+            CastDelegate fetchNameParam,
             IApplication httpApp, HttpRequestMessage request,
             IEnumerable<string> queryKeys, IEnumerable<string> bodyKeys, bool hasFileParam)
         {
             var methodsForConsideration = methods
                 .Select(
-                    async (method) =>
+                    (method) =>
                     {
-                        var parametersCastResults = await method
+                        var parametersCastResults = method
                             .GetParameters()
                             .Where(param => param.ContainsAttributeInterface<IBindApiValue>())
                             .Select(
                                 (param) =>
                                 {
                                     var castValue = param.GetAttributeInterface<IBindApiValue>();
-                                    return castValue.TryCastAsync(httpApp, request, method, param,
+                                    return castValue.TryCast(httpApp, request, method, param,
                                             fetchQueryParam,
                                             fetchBodyParam,
-                                            fetchNameParam,
-                                            false, false, false);
+                                            fetchNameParam);
                                 })
-                            .WhenAllAsync();
+                            .ToArray();
 
                         var failedValidations = parametersCastResults
                             .Where(pcr => !pcr.valid)
@@ -456,34 +465,33 @@ namespace EastFive.Api
                                     extraBodyParams = extraParams,
                                 };
                             });
-                    })
-                .AsyncEnumerable();
+                    });
             //var debugConsider = await methodsForConsideration.ToArrayAsync();
             var validMethods = methodsForConsideration
                 .Where(methodCast => methodCast.valid);
             //var debug = await validMethods.ToArrayAsync();
-            return await await validMethods
-                .FirstAsync(
-                    (methodCast) =>
+            return await validMethods
+                .First(
+                    (methodCast, next) =>
                     {
                         return InvokeValidatedMethod(httpApp, request, 
                                 methodCast.method, methodCast.parametersWithValues);
                     },
                     () =>
                     {
-                        return Issues(methodsForConsideration);
+                        return Issues(methodsForConsideration).AsTask();
                     });
 
-            async Task<HttpResponseMessage> Issues(IEnumerableAsync<MethodCast> methodsCasts)
+            HttpResponseMessage Issues(IEnumerable<MethodCast> methodsCasts)
             {
-                var reasonStrings = await methodsCasts
+                var reasonStrings = methodsCasts
                     .Select(
                         methodCast =>
                         {
                             var errorMessage = methodCast.ErrorMessage;
                             return errorMessage;
                         })
-                    .ToArrayAsync();
+                    .ToArray();
                 if (!reasonStrings.Any())
                 {
                     return request
@@ -553,7 +561,8 @@ namespace EastFive.Api
             KeyValuePair<ParameterInfo, object>[] queryParameters)
         {
             var queryParameterOptions = queryParameters.ToDictionary(kvp => kvp.Key.Name, kvp => kvp.Value);
-            return method.GetParameters()
+            return method
+                .GetParameters()
                 .SelectReduce(
                     async (methodParameter, next) =>
                     {

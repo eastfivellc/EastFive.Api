@@ -48,18 +48,4 @@ namespace EastFive.Api.Controllers
         }
     }
 
-    public struct WebIdAny
-    {
-
-    }
-
-    public struct WebIdNone
-    {
-
-    }
-
-    public struct WebIdNot
-    {
-        public Guid notUUID;
-    }
 }

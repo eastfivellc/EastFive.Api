@@ -1,6 +1,4 @@
-﻿using BlackBarLabs.Api;
-using BlackBarLabs.Extensions;
-using EastFive.Api.Serialization;
+﻿using EastFive.Api.Serialization;
 using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using EastFive.Linq;
@@ -23,6 +21,45 @@ namespace EastFive.Api
         public override async Task<HttpResponseMessage> CreateResponseAsync(Type controllerType,
             IApplication httpApp, HttpRequestMessage request, string routeName)
         {
+            var matchingActionMethods = GetHttpMethods(controllerType, httpApp, request);
+            if (!matchingActionMethods.Any())
+                return request.CreateResponse(HttpStatusCode.NotImplemented);
+
+            return await httpApp.GetType()
+                .GetAttributesInterface<IParseContent>(true, true)
+                .Where(contentParser => contentParser.DoesParse(request))
+                .First(
+                    (contentParser, next) =>
+                    {
+                        return contentParser.ParseContentValuesAsync(httpApp, request,
+                            (bodyCastDelegate, bodyValues) =>
+                                InvokeMethod(
+                                    matchingActionMethods,
+                                    httpApp, request,
+                                    bodyCastDelegate, bodyValues));
+                    },
+                    () =>
+                    {
+                        var mediaType = request.Content.Headers.IsDefaultOrNull() ?
+                           string.Empty
+                           :
+                           request.Content.Headers.ContentType.IsDefaultOrNull() ?
+                               string.Empty
+                               :
+                               request.Content.Headers.ContentType.MediaType;
+                        CastDelegate parser =
+                            (paramInfo, onParsed, onFailure) => onFailure(
+                                $"Could not parse content of type {mediaType}");
+                        return InvokeMethod(
+                            matchingActionMethods,
+                            httpApp, request,
+                            parser, new string[] { });
+                    });
+        }
+
+        protected virtual IEnumerable<MethodInfo> GetHttpMethods(Type controllerType,
+            IApplication httpApp, HttpRequestMessage request)
+        {
             var matchingActionMethods = controllerType
                 .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
                 .Where(method => method.ContainsAttributeInterface<IMatchRoute>(true))
@@ -32,74 +69,93 @@ namespace EastFive.Api
                         var routeMatcher = method.GetAttributesInterface<IMatchRoute>().Single();
                         return routeMatcher.IsMethodMatch(method, request, httpApp);
                     });
+            return matchingActionMethods;
+        }
 
-            if (!matchingActionMethods.Any())
-                return request.CreateResponse(HttpStatusCode.NotImplemented);
-
-            return await httpApp.ParseContentValuesAsync<SelectParameterResult, HttpResponseMessage>(request.Content,
-                async (bodyParser, bodyValues) =>
-                {
-                    CastDelegate<SelectParameterResult> bodyCastDelegate =
-                        (paramInfo, onParsed, onFailure) =>
-                        {
-                            return bodyParser(paramInfo, httpApp, request,
-                                value =>
-                                {
-                                    var parsedResult = onParsed(value);
-                                    return parsedResult;
-                                },
-                                (why) => onFailure(why));
-                        };
-
-                    //var debugConsider = await methodsForConsideration.ToArrayAsync();
-                    var evaluatedMethods = matchingActionMethods
-                        .Select(
-                            method =>
-                            {
-                                var routeMatcher = method.GetAttributesInterface<IMatchRoute>().Single();
-                                return routeMatcher.IsRouteMatch(method, request, httpApp,
-                                    bodyValues, bodyCastDelegate);
-                            })
-                        .AsyncEnumerable();
-
-                    var validMethods = evaluatedMethods
-                        .Where(methodCast => methodCast.isValid);
-
-                    //var debug = await evaluatedMethods.ToArrayAsync();
-                    return await await validMethods
-                        .FirstAsync(
-                            (methodCast) =>
-                            {
-                                return InvokeValidatedMethodAsync(httpApp, request, methodCast.method,
-                                    methodCast.parametersWithValues);
-                            },
-                            () =>
-                            {
-                                return Issues(evaluatedMethods);
-                            });
-
-                    async Task<HttpResponseMessage> Issues(IEnumerableAsync<RouteMatch> methodsCasts)
+        protected virtual async Task<HttpResponseMessage> InvokeMethod(
+            IEnumerable<MethodInfo> matchingActionMethods,
+            IApplication httpApp, HttpRequestMessage request,
+            CastDelegate bodyCastDelegate, string[] bodyValues)
+        {
+            var evaluatedMethods = matchingActionMethods
+                .Select(
+                    method =>
                     {
-                        var reasonStrings = await methodsCasts
-                            .Select(
-                                methodCast =>
+                        var routeMatcher = method.GetAttributesInterface<IMatchRoute>().Single();
+                        return routeMatcher.IsRouteMatch(method, request, httpApp,
+                            bodyValues, bodyCastDelegate);
+                    });
+
+            var validMethods = evaluatedMethods
+                .Where(methodCast => methodCast.isValid);
+
+            return await validMethods
+                .First(
+                    (methodCast, next) =>
+                    {
+                        return methodCast.parametersWithValues
+                            .Aggregate<SelectParameterResult, ValidateHttpDelegate>(
+                                (parameterSelection, methodFinal, httpAppFinal, requestFinal) =>
                                 {
-                                    var errorMessage = methodCast.ErrorMessage;
-                                    return errorMessage;
+                                    return InvokeValidatedMethodAsync(
+                                        httpAppFinal, requestFinal, methodFinal,
+                                        parameterSelection);
+                                },
+                                (callback, parameterSelection) =>
+                                {
+                                    ValidateHttpDelegate boundCallback =
+                                        (parametersSelected, methodCurrent, httpAppCurrent, requestCurrent) =>
+                                        {
+                                            var paramKvp = parameterSelection.parameterInfo
+                                                .PairWithValue(parameterSelection.value);
+                                            var updatedParameters = parametersSelected
+                                                .Append(paramKvp)
+                                                .ToArray();
+                                            return callback(updatedParameters, methodCurrent, httpAppCurrent, requestCurrent);
+                                        };
+                                    var validators = parameterSelection.parameterInfo.ParameterType
+                                        .GetAttributesInterface<IValidateHttpRequest>(true, true);
+                                    if (!validators.Any())
+                                        return boundCallback;
+                                    var validator = validators.First();
+                                    return (parametersSelected, methodCurrent, httpAppCurrent, requestCurrent) =>
+                                    {
+                                        return validator.ValidateRequest(parameterSelection,
+                                            methodCurrent,
+                                            httpAppCurrent, requestCurrent,
+                                            boundCallback);
+                                    };
                                 })
-                            .ToArrayAsync();
-                        if (!reasonStrings.Any())
+                            .Invoke(
+                                new KeyValuePair<ParameterInfo, object>[] { },
+                                methodCast.method, httpApp, request);
+                    },
+                    () =>
+                    {
+                        return Issues(evaluatedMethods).AsTask();
+                    });
+
+            HttpResponseMessage Issues(IEnumerable<RouteMatch> methodsCasts)
+            {
+                var reasonStrings = methodsCasts
+                    .Select(
+                        methodCast =>
                         {
-                            return request
-                                .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
-                                .AddReason("No methods that implement Action");
-                        }
-                        var content = reasonStrings.Join(";");
-                        return request
-                            .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
-                            .AddReason(content);
-                    }
-                });
+                            var errorMessage = methodCast.ErrorMessage;
+                            return errorMessage;
+                        })
+                    .ToArray();
+                if (!reasonStrings.Any())
+                {
+                    return request
+                        .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
+                        .AddReason("No methods that implement Action");
+                }
+                var content = reasonStrings.Join(";");
+                return request
+                    .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
+                    .AddReason(content);
+            }
         }
 
         protected static Task<HttpResponseMessage> InvokeValidatedMethodAsync(
@@ -133,6 +189,19 @@ namespace EastFive.Api
                 .SelectReduce(
                     async (methodParameter, next) =>
                     {
+                        var instigationAttrs = methodParameter.ParameterType.GetAttributesInterface<IInstigatable>();
+                        if (instigationAttrs.Any())
+                        {
+                            var instigationAttr = instigationAttrs.First();
+                            return await instigationAttr.Instigate(httpApp as HttpApplication, request, methodParameter,
+                                async (v) =>
+                                {
+                                    if (queryParameterOptions.ContainsKey(methodParameter.Name))
+                                        return await next(queryParameterOptions[methodParameter.Name]);
+                                    return await next(v);
+                                });
+                        }
+
                         if (queryParameterOptions.ContainsKey(methodParameter.Name))
                             return await next(queryParameterOptions[methodParameter.Name]);
 

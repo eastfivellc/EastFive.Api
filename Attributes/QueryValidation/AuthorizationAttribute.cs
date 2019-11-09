@@ -1,6 +1,7 @@
 ﻿using BlackBarLabs.Api;
 using EastFive.Extensions;
 using EastFive.Linq;
+using EastFive.Web.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,21 +15,17 @@ namespace EastFive.Api
 {
     public class AuthorizationAttribute : System.Attribute, IBindApiValue
     {
-        public virtual Task<SelectParameterResult> TryCastAsync(IApplication httpApp,
+        public virtual SelectParameterResult TryCast(IApplication httpApp,
                 HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
-                Api.CastDelegate<SelectParameterResult> fetchQueryParam,
-                Api.CastDelegate<SelectParameterResult> fetchBodyParam,
-                Api.CastDelegate<SelectParameterResult> fetchDefaultParam,
-            bool matchAllPathParameters,
-            bool matchAllQueryParameters,
-            bool matchAllBodyParameters)
+                Api.CastDelegate fetchQueryParam,
+                Api.CastDelegate fetchBodyParam,
+                Api.CastDelegate fetchDefaultParam)
         {
             return request.GetClaims(
                 (claimsEnumerable) =>
                 {
                     var claims = claimsEnumerable.ToArray();
-                    return EastFive.Web.Configuration.Settings.GetString(
-                            EastFive.Api.AppSettings.ActorIdClaimType,
+                    return AppSettings.ActorIdClaimType.ConfigurationString(
                         (accountIdClaimType) =>
                         {
                             return claims
@@ -63,7 +60,7 @@ namespace EastFive.Api
                 },
                 () => SelectParameterResult.FailureHeader("Authentication header not set.",
                     "Authentication", parameterRequiringValidation),
-                (why) => SelectParameterResult.FailureHeader(why, "Authentication", parameterRequiringValidation)).AsTask();
+                (why) => SelectParameterResult.FailureHeader(why, "Authentication", parameterRequiringValidation));
         }
 
         public virtual string GetKey(ParameterInfo paramInfo)
