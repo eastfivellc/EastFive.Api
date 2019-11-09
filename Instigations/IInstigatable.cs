@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace EastFive.Api
@@ -11,7 +12,8 @@ namespace EastFive.Api
     public interface IInstigatable
     {
         Task<HttpResponseMessage> Instigate(
-                HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
+                HttpApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken,
+                ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess);
     }
 }

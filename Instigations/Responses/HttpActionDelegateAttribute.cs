@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using BlackBarLabs.Extensions;
 using EastFive.Api.Modules;
@@ -28,7 +29,8 @@ namespace EastFive.Api
         public virtual string Example { get; set; }
 
         public virtual Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
-                HttpRequestMessage request, ParameterInfo parameterInfo,
+                HttpRequestMessage request, CancellationToken cancellationToken,
+                ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             return InstigateInternal(httpApp, request, parameterInfo,

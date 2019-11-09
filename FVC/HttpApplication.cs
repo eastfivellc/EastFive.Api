@@ -775,14 +775,16 @@ namespace EastFive.Api
             instigators[type] = instigator;
         }
 
-        public Task<HttpResponseMessage> Instigate(HttpRequestMessage request, ParameterInfo methodParameter,
+        public Task<HttpResponseMessage> Instigate(HttpRequestMessage request,
+                 CancellationToken cancellationToken, ParameterInfo methodParameter,
             Func<object, Task<HttpResponseMessage>> onInstigated)
         {
             var instigationAttrs = methodParameter.ParameterType.GetAttributesInterface<IInstigatable>();
             if (instigationAttrs.Any())
             {
                 var instigationAttr = instigationAttrs.First();
-                return instigationAttr.Instigate(this, request, methodParameter,
+                return instigationAttr.Instigate(this,
+                    request, cancellationToken, methodParameter,
                     (v) => onInstigated(v));
             }
 
@@ -793,6 +795,9 @@ namespace EastFive.Api
                 return instigationAttr.InstigatorDelegateGeneric(methodParameter.ParameterType, this, request, methodParameter,
                     (v) => onInstigated(v));
             }
+
+            if(methodParameter.ParameterType.IsSubClassOfGeneric(typeof(CancellationToken)))
+                return onInstigated(cancellationToken);
 
             if (this.instigators.ContainsKey(methodParameter.ParameterType))
                 return this.instigators[methodParameter.ParameterType](this, request, methodParameter,

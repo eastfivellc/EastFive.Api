@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Security.Claims;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 using EastFive.Extensions;
@@ -27,7 +28,8 @@ namespace EastFive.Api
     public class AccessTokenAccountAttribute : Attribute, IInstigatable
     {
         public Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
-                HttpRequestMessage request, ParameterInfo parameterInfo,
+                HttpRequestMessage request, CancellationToken cancellationToken, 
+                ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             return request.RequestUri.ValidateAccessTokenAccount(

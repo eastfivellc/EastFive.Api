@@ -69,8 +69,9 @@ namespace EastFive.Api.Modules
                             async (controllerTypeFinal, httpAppFinal, requestFinal, routeNameFinal) =>
                             {
                                 var invokeResource = controllerType.GetAttributesInterface<IInvokeResource>().First();
-                                var response = await invokeResource.CreateResponseAsync(
-                                    controllerTypeFinal, httpAppFinal, requestFinal, routeNameFinal);
+                                var response = await invokeResource.CreateResponseAsync(controllerTypeFinal, 
+                                    httpAppFinal, requestFinal, cancellationToken, 
+                                    routeNameFinal);
                                 return response;
                             },
                             (callback, routeHandler) =>

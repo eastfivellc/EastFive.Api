@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace EastFive.Api
@@ -37,7 +38,9 @@ namespace EastFive.Api
             Func<Type, TResult> onMethodsIdentified,
             Func<TResult> onKeyNotFound);
 
-        Task<HttpResponseMessage> Instigate(HttpRequestMessage request, ParameterInfo methodParameter,
+        Task<HttpResponseMessage> Instigate(HttpRequestMessage request, 
+                CancellationToken cancellationToken,
+                ParameterInfo methodParameter,
             Func<object, Task<HttpResponseMessage>> onInstigated);
 
     }

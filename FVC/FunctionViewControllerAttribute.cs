@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 using BlackBarLabs;
@@ -78,7 +79,8 @@ namespace EastFive.Api
         }
 
         public virtual async Task<HttpResponseMessage> CreateResponseAsync(Type controllerType,
-            IApplication httpApp, HttpRequestMessage request, string routeName)
+            IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken,
+            string routeName)
         {
             var path = request.RequestUri.Segments
                 .Skip(1)
@@ -97,7 +99,9 @@ namespace EastFive.Api
                 {
                     var actionHttpMethod = matchingActionKeys.First();
                     var matchingActionMethods = possibleHttpMethods[actionHttpMethod];
-                    return await CreateResponseAsync(httpApp, request, routeName, matchingActionMethods);
+                    return await CreateResponseAsync(httpApp,
+                        request, cancellationToken,
+                        routeName, matchingActionMethods);
                 }
             }
 
@@ -111,7 +115,9 @@ namespace EastFive.Api
             var httpMethod = matchingKey.First();
             var matchingMethods = possibleHttpMethods[httpMethod];
 
-            return await CreateResponseAsync(httpApp, request, routeName, matchingMethods);
+            return await CreateResponseAsync(httpApp,
+                request, cancellationToken,
+                routeName, matchingMethods);
         }
 
         #region Invoke correct method
@@ -119,7 +125,7 @@ namespace EastFive.Api
         public delegate TResult ParseContentDelegate<TResult>(Type type, Func<object, TResult> onParsed, Func<string, TResult> onFailure);
 
         private static async Task<HttpResponseMessage> CreateResponseAsync(IApplication httpApp,
-            HttpRequestMessage request, string controllerName, MethodInfo[] methods)
+            HttpRequestMessage request, CancellationToken cancellationToken, string controllerName, MethodInfo[] methods)
         {
             #region setup query parameter casting
 
@@ -191,7 +197,7 @@ namespace EastFive.Api
                                 queryCastDelegate,
                                 bodyCastDelegate,
                                 fileNameCastDelegate,
-                                httpApp, request,
+                                httpApp, request, cancellationToken,
                                 queryParameters.SelectKeys(),
                                 bodyValues,
                                 fileNameParams.Any()));
@@ -212,7 +218,7 @@ namespace EastFive.Api
                             queryCastDelegate,
                             parser,
                             fileNameCastDelegate,
-                            httpApp, request,
+                            httpApp, request, cancellationToken,
                             queryParameters.SelectKeys(),
                             new string[] { },
                             fileNameParams.Any());
@@ -405,7 +411,7 @@ namespace EastFive.Api
             CastDelegate fetchQueryParam,
             CastDelegate fetchBodyParam,
             CastDelegate fetchNameParam,
-            IApplication httpApp, HttpRequestMessage request,
+            IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken,
             IEnumerable<string> queryKeys, IEnumerable<string> bodyKeys, bool hasFileParam)
         {
             var methodsForConsideration = methods
@@ -474,7 +480,7 @@ namespace EastFive.Api
                 .First(
                     (methodCast, next) =>
                     {
-                        return InvokeValidatedMethod(httpApp, request, 
+                        return InvokeValidatedMethod(httpApp, request, cancellationToken,
                                 methodCast.method, methodCast.parametersWithValues);
                     },
                     () =>
@@ -557,7 +563,8 @@ namespace EastFive.Api
                 () => throw new ArgumentException("method", $"Method {method.DeclaringType.FullName}..{method.Name}(...) does not have an HttpVerbAttribute."));
         }
 
-        private static Task<HttpResponseMessage> InvokeValidatedMethod(IApplication httpApp, HttpRequestMessage request, MethodInfo method,
+        private static Task<HttpResponseMessage> InvokeValidatedMethod(IApplication httpApp,
+                HttpRequestMessage request, CancellationToken cancellationToken, MethodInfo method,
             KeyValuePair<ParameterInfo, object>[] queryParameters)
         {
             var queryParameterOptions = queryParameters.ToDictionary(kvp => kvp.Key.Name, kvp => kvp.Value);
@@ -569,7 +576,7 @@ namespace EastFive.Api
                         if (queryParameterOptions.ContainsKey(methodParameter.Name))
                             return await next(queryParameterOptions[methodParameter.Name]);
 
-                        return await httpApp.Instigate(request, methodParameter,
+                        return await httpApp.Instigate(request, cancellationToken, methodParameter,
                             v => next(v));
                     },
                     async (object[] methodParameters) =>

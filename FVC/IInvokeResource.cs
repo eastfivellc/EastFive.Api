@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace EastFive.Api
@@ -17,7 +18,8 @@ namespace EastFive.Api
         Type Resource { get; }
 
         Task<HttpResponseMessage> CreateResponseAsync(Type controllerType, 
-            IApplication httpApp, HttpRequestMessage request, string routeName);
+            IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken,
+            string routeName);
     }
 
     public interface IInvokeExtensions

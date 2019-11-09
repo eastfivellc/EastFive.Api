@@ -12,6 +12,7 @@ using System.Net;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace EastFive.Api
@@ -19,7 +20,8 @@ namespace EastFive.Api
     public class FunctionViewController5Attribute : FunctionViewController4Attribute
     {
         public override async Task<HttpResponseMessage> CreateResponseAsync(Type controllerType,
-            IApplication httpApp, HttpRequestMessage request, string routeName)
+            IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken,
+            string routeName)
         {
             var matchingActionMethods = GetHttpMethods(controllerType, httpApp, request);
             if (!matchingActionMethods.Any())
@@ -35,7 +37,7 @@ namespace EastFive.Api
                             (bodyCastDelegate, bodyValues) =>
                                 InvokeMethod(
                                     matchingActionMethods,
-                                    httpApp, request,
+                                    httpApp, request, cancellationToken,
                                     bodyCastDelegate, bodyValues));
                     },
                     () =>
@@ -52,7 +54,7 @@ namespace EastFive.Api
                                 $"Could not parse content of type {mediaType}");
                         return InvokeMethod(
                             matchingActionMethods,
-                            httpApp, request,
+                            httpApp, request, cancellationToken,
                             parser, new string[] { });
                     });
         }
@@ -74,7 +76,7 @@ namespace EastFive.Api
 
         protected virtual async Task<HttpResponseMessage> InvokeMethod(
             IEnumerable<MethodInfo> matchingActionMethods,
-            IApplication httpApp, HttpRequestMessage request,
+            IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken,
             CastDelegate bodyCastDelegate, string[] bodyValues)
         {
             var evaluatedMethods = matchingActionMethods
@@ -98,7 +100,8 @@ namespace EastFive.Api
                                 (parameterSelection, methodFinal, httpAppFinal, requestFinal) =>
                                 {
                                     return InvokeValidatedMethodAsync(
-                                        httpAppFinal, requestFinal, methodFinal,
+                                        httpAppFinal, requestFinal, cancellationToken,
+                                        methodFinal,
                                         parameterSelection);
                                 },
                                 (callback, parameterSelection) =>
@@ -159,7 +162,8 @@ namespace EastFive.Api
         }
 
         protected static Task<HttpResponseMessage> InvokeValidatedMethodAsync(
-            IApplication httpApp, HttpRequestMessage request, MethodInfo method,
+            IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken,
+            MethodInfo method,
             KeyValuePair<ParameterInfo, object>[] queryParameters)
         {
             return httpApp.GetType()
@@ -167,7 +171,7 @@ namespace EastFive.Api
                 .Aggregate<IHandleMethods, MethodHandlingDelegate>(
                     (methodFinal, queryParametersFinal, httpAppFinal, requestFinal) =>
                     {
-                        var response = InvokeHandledMethodAsync(httpApp, request, method, queryParameters);
+                        var response = InvokeHandledMethodAsync(httpApp, request, cancellationToken, method, queryParameters);
                         return response;
                     },
                     (callback, methodHandler) =>
@@ -181,7 +185,8 @@ namespace EastFive.Api
         }
 
         protected static Task<HttpResponseMessage> InvokeHandledMethodAsync(
-            IApplication httpApp, HttpRequestMessage request, MethodInfo method,
+            IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken,
+            MethodInfo method,
             KeyValuePair<ParameterInfo, object>[] queryParameters)
         {
             var queryParameterOptions = queryParameters.ToDictionary(kvp => kvp.Key.Name, kvp => kvp.Value);
@@ -193,7 +198,9 @@ namespace EastFive.Api
                         if (instigationAttrs.Any())
                         {
                             var instigationAttr = instigationAttrs.First();
-                            return await instigationAttr.Instigate(httpApp as HttpApplication, request, methodParameter,
+                            return await instigationAttr.Instigate(httpApp as HttpApplication,
+                                    request, cancellationToken,
+                                    methodParameter,
                                 async (v) =>
                                 {
                                     if (queryParameterOptions.ContainsKey(methodParameter.Name))
@@ -205,7 +212,7 @@ namespace EastFive.Api
                         if (queryParameterOptions.ContainsKey(methodParameter.Name))
                             return await next(queryParameterOptions[methodParameter.Name]);
 
-                        return await httpApp.Instigate(request, methodParameter,
+                        return await httpApp.Instigate(request, cancellationToken, methodParameter,
                             v => next(v));
                     },
                     async (object[] methodParameters) =>
