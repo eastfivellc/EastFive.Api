@@ -25,8 +25,15 @@ namespace EastFive.Api
         public string token;
     }
 
-    public class AccessTokenAccountAttribute : Attribute, IInstigatable
+    public class AccessTokenAccountAttribute : Attribute, IInstigatable, IBindApiParameter<string>
     {
+        public TResult Bind<TResult>(Type type, string content,
+            Func<object, TResult> onParsed, 
+            Func<string, TResult> onDidNotBind)
+        {
+            return onParsed(default(AccessTokenAccount));
+        }
+
         public Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
                 HttpRequestMessage request, CancellationToken cancellationToken, 
                 ParameterInfo parameterInfo,
