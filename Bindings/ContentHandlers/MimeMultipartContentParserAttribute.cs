@@ -112,7 +112,7 @@ namespace EastFive.Api
                 var content = tokenReader.ReadObject<ByteArrayContent>();
                 return onParsed((object)content);
             }
-            return paramInfo.Bind(tokenReader, httpApp,
+            return httpApp.Bind(tokenReader, paramInfo,
                 (value) =>
                 {
                     return onParsed(value);

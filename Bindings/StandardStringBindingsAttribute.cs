@@ -20,16 +20,19 @@ namespace EastFive.Api.Bindings
 
         public TResult Bind<TResult>(Type type, string content,
             Func<object, TResult> onParsed,
-            Func<string, TResult> onDidNotBind)
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure)
         {
-            return BindDirect<TResult>(type, content,
+            return BindDirect(type, content,
                 onParsed,
-                onDidNotBind);
+                onDidNotBind,
+                onBindingFailure);
         }
  
         public static TResult BindDirect<TResult>(Type type, string content, 
-            Func<object, TResult> onParsed, 
-            Func<string, TResult> onNotConvertable)
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure)
         {
             if (type == typeof(string))
             {
@@ -40,7 +43,7 @@ namespace EastFive.Api.Bindings
             {
                 if (Guid.TryParse(content, out Guid stringGuidValue))
                     return onParsed(stringGuidValue);
-                return onNotConvertable($"Failed to convert `{content}` to type `{typeof(Guid).FullName}`.");
+                return onBindingFailure($"Failed to convert `{content}` to type `{typeof(Guid).FullName}`.");
             }
             if (type == typeof(Guid[]))
             {
@@ -49,6 +52,7 @@ namespace EastFive.Api.Bindings
                     .Select(
                         token => BindDirect(typeof(Guid), token,
                                     guid => guid,
+                                    (why) => default(Guid),
                                     (why) => default(Guid)))
                     .Cast<Guid>()
                     .ToArray();
@@ -58,31 +62,31 @@ namespace EastFive.Api.Bindings
             {
                 if (DateTime.TryParse(content, out DateTime dateValue))
                     return onParsed(dateValue);
-                return onNotConvertable($"Failed to convert {content} to `{typeof(DateTime).FullName}`.");
+                return onDidNotBind($"Failed to convert {content} to `{typeof(DateTime).FullName}`.");
             }
             if (type == typeof(DateTimeOffset))
             {
                 if (DateTimeOffset.TryParse(content, out DateTimeOffset dateValue))
                     return onParsed(dateValue);
-                return onNotConvertable($"Failed to convert {content} to `{typeof(DateTimeOffset).FullName}`.");
+                return onDidNotBind($"Failed to convert {content} to `{typeof(DateTimeOffset).FullName}`.");
             }
             if (type == typeof(int))
             {
                 if (int.TryParse(content, out int intValue))
                     return onParsed(intValue);
-                return onNotConvertable($"Failed to convert {content} to `{typeof(int).FullName}`.");
+                return onBindingFailure($"Failed to convert {content} to `{typeof(int).FullName}`.");
             }
             if (type == typeof(double))
             {
                 if (double.TryParse(content, out double doubleValue))
                     return onParsed(doubleValue);
-                return onNotConvertable($"Failed to convert {content} to `{typeof(double).FullName}`.");
+                return onBindingFailure($"Failed to convert {content} to `{typeof(double).FullName}`.");
             }
             if (type == typeof(decimal))
             {
                 if (decimal.TryParse(content, out decimal decimalValue))
                     return onParsed(decimalValue);
-                return onNotConvertable($"Failed to convert {content} to `{typeof(decimal).FullName}`.");
+                return onBindingFailure($"Failed to convert {content} to `{typeof(decimal).FullName}`.");
             }
             if (type == typeof(bool))
             {
@@ -102,13 +106,13 @@ namespace EastFive.Api.Bindings
                 if (bool.TryParse(content, out bool boolValue))
                     return onParsed(boolValue);
 
-                return onNotConvertable($"Failed to convert {content} to `{typeof(bool).FullName}`.");
+                return onDidNotBind($"Failed to convert {content} to `{typeof(bool).FullName}`.");
             }
             if (type == typeof(Uri))
             {
                 if (Uri.TryCreate(content, UriKind.RelativeOrAbsolute, out Uri uriValue))
                     return onParsed(uriValue);
-                return onNotConvertable($"Failed to convert {content} to `{typeof(Uri).FullName}`.");
+                return onBindingFailure($"Failed to convert {content} to `{typeof(Uri).FullName}`.");
             }
             if (type == typeof(Type))
             {
@@ -116,18 +120,19 @@ namespace EastFive.Api.Bindings
                     (typeInstance) => onParsed(typeInstance),
                     () => content.GetClrType(
                         typeInstance => onParsed(typeInstance),
-                        () => onNotConvertable(
+                        () => onDidNotBind(
                             $"`{content}` is not a recognizable resource type or CLR type.")));
             }
             if (type == typeof(Stream))
             {
-                BindDirect(typeof(byte[]), content,
+                return BindDirect(typeof(byte[]), content,
                     byteArrayValueObj =>
                     {
                         var byteArrayValue = (byte[])byteArrayValueObj;
                         return onParsed(new MemoryStream(byteArrayValue));
                     },
-                    onNotConvertable);
+                    onDidNotBind,
+                    onBindingFailure);
             }
             if (type == typeof(byte[]))
             {
@@ -138,13 +143,13 @@ namespace EastFive.Api.Bindings
                 }
                 catch (Exception ex)
                 {
-                    return onNotConvertable($"Failed to convert {content} to `{typeof(byte[]).FullName}` as base64 string:{ex.Message}.");
+                    return onDidNotBind($"Failed to convert {content} to `{typeof(byte[]).FullName}` as base64 string:{ex.Message}.");
                 }
             }
             if (type == typeof(WebId))
             {
                 if (!Guid.TryParse(content, out Guid guidValue))
-                    return onNotConvertable($"Could not convert `{content}` to GUID");
+                    return onBindingFailure($"Could not convert `{content}` to GUID");
                 var webIdObj = (object)new WebId() { UUID = guidValue };
                 return onParsed(webIdObj);
             }
@@ -152,13 +157,13 @@ namespace EastFive.Api.Bindings
             {
                 if (String.Compare(content.ToLower(), "false") == 0)
                     return onParsed(new Controllers.DateTimeEmpty());
-                return onNotConvertable($"Failed to convert {content} to `{typeof(Controllers.DateTimeEmpty).FullName}`.");
+                return onBindingFailure($"Failed to convert {content} to `{typeof(Controllers.DateTimeEmpty).FullName}`.");
             }
             if (type == typeof(Controllers.DateTimeQuery))
             {
                 if (DateTime.TryParse(content, out DateTime startEnd))
                     return onParsed(new Controllers.DateTimeQuery(startEnd, startEnd));
-                return onNotConvertable($"Failed to convert {content} to `{typeof(Controllers.DateTimeQuery).FullName}`.");
+                return onBindingFailure($"Failed to convert {content} to `{typeof(Controllers.DateTimeQuery).FullName}`.");
             }
             if (type == typeof(object))
             {
@@ -168,14 +173,15 @@ namespace EastFive.Api.Bindings
 
             if (type.IsSubClassOfGeneric(typeof(IRef<>)))
                 return BindDirect(typeof(Guid), content,
-                            (id) =>
-                            {
-                                var resourceType = type.GenericTypeArguments.First();
-                                var instantiatableType = typeof(EastFive.Ref<>).MakeGenericType(resourceType);
-                                var instance = Activator.CreateInstance(instantiatableType, new object[] { id });
-                                return onParsed(instance);
-                            },
-                            (why) => onNotConvertable(why));
+                    (id) =>
+                    {
+                        var resourceType = type.GenericTypeArguments.First();
+                        var instantiatableType = typeof(EastFive.Ref<>).MakeGenericType(resourceType);
+                        var instance = Activator.CreateInstance(instantiatableType, new object[] { id });
+                        return onParsed(instance);
+                    },
+                    onDidNotBind,
+                    (why) => onBindingFailure(why));
 
             if (type.IsSubClassOfGeneric(typeof(IRefOptional<>)))
             {
@@ -202,6 +208,7 @@ namespace EastFive.Api.Bindings
                         var refInst = Activator.CreateInstance(refOptionalType, new object[] { v });
                         return onParsed(refInst);
                     },
+                    (why) => emptyOptional(),
                     (why) => emptyOptional());
             }
             if (type.IsSubClassOfGeneric(typeof(IRefs<>)))
@@ -214,19 +221,20 @@ namespace EastFive.Api.Bindings
                         var instance = Activator.CreateInstance(instantiatableType, new object[] { ids });
                         return onParsed(instance);
                     },
-                    (why) => onNotConvertable(why));
+                    onDidNotBind,
+                    (why) => onBindingFailure(why));
             }
             if (type.IsSubClassOfGeneric(typeof(Nullable<>)))
             {
                 var underlyingType = type.GetNullableUnderlyingType();
-                var refInstance = BindDirect(underlyingType, content,
+                return BindDirect(underlyingType, content,
                     (nonNullable) =>
                     {
                         var nullable = nonNullable.AsNullable();
-                        return nullable;
+                        return onParsed(nullable);
                     },
-                    (why) => type.GetDefault());
-                return onParsed(refInstance);
+                    (why) => onParsed(type.GetDefault()),
+                    (why) => onParsed(type.GetDefault()));
             }
 
             if (type.IsEnum)
@@ -239,12 +247,12 @@ namespace EastFive.Api.Bindings
                 catch (Exception)
                 {
                     var validValues = Enum.GetNames(type).Join(", ");
-                    return onNotConvertable($"Value `{content}` is not a valid value for `{type.FullName}.` Valid values are [{validValues}].");
+                    return onDidNotBind($"Value `{content}` is not a valid value for `{type.FullName}.` Valid values are [{validValues}].");
                 }
                 return onParsed(value);
             }
 
-            return onNotConvertable($"No binding for type `{type.FullName}` active in server.");
+            return onDidNotBind($"No binding for type `{type.FullName}` provided by {typeof(StandardStringBindingsAttribute).FullName}.");
         }
 
     }

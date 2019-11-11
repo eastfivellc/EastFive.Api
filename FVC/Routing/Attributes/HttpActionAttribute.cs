@@ -52,8 +52,7 @@ namespace EastFive.Api
                 {
                     if (path.Length < 4)
                         return onFailure("No URI filename value provided.");
-                    return paramInfo
-                        .Bind(path[3], httpApp,
+                    return httpApp.Bind(path[3], paramInfo,
                             v => onParsed(v),
                             (why) => onFailure(why));
                 };

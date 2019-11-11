@@ -39,8 +39,7 @@ namespace EastFive.Api
                         .GetKey(paramInfo);
                     if (!optionalFormData.ContainsKey(key))
                         return onFailure("Key not found");
-                    return paramInfo
-                        .Bind(optionalFormData[key], httpApp,
+                    return httpApp.Bind(optionalFormData[key], paramInfo,
                             (value) => onParsed(value),
                             (why) => onFailure(why));
                 };

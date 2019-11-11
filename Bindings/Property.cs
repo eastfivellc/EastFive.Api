@@ -20,7 +20,10 @@ namespace EastFive.Api
             IBindApiParameter<JToken>,
             IBindApiParameter<JsonReader>
     {
-        public TResult Bind<TResult>(Type type, JToken content, Func<object, TResult> onParsed, Func<string, TResult> onDidNotBind)
+        public TResult Bind<TResult>(Type type, JToken content,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure)
         {
             var innerType = type.GetGenericArguments().First();
             return (TResult) typeof(PropertyJsonBinderAttribute)
@@ -29,7 +32,10 @@ namespace EastFive.Api
                 .Invoke(null, new object[] { type, content, onParsed, onDidNotBind });
         }
 
-        public static TResult BindType<T, TResult>(Type type, JToken content, Func<object, TResult> onParsed, Func<string, TResult> onDidNotBind)
+        public static TResult BindType<T, TResult>(Type type, JToken content, 
+            Func<object, TResult> onParsed, 
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure)
         {
             var innerType = typeof(T);
             return StandardJTokenBindingsAttribute.BindDirect(innerType, content,
@@ -42,10 +48,14 @@ namespace EastFive.Api
                     };
                     return onParsed(prop);
                 },
-                onDidNotBind);
+                onDidNotBind,
+                onBindingFailure);
         }
 
-        public TResult Bind<TResult>(Type type, JsonReader content, Func<object, TResult> onParsed, Func<string, TResult> onDidNotBind)
+        public TResult Bind<TResult>(Type type, JsonReader content,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure)
         {
             throw new NotImplementedException();
         }

@@ -54,7 +54,7 @@ namespace EastFive.Api
                         .AsArray());
             }
 
-            return parameterInfo.Bind(node, httpApp,
+            return httpApp.Bind(node, parameterInfo,
                 onParsed,
                 onFailure);
         }

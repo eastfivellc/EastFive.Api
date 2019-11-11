@@ -220,7 +220,7 @@ namespace EastFive.Api
             try
             {
                 var tokenParser = new Serialization.JsonTokenParser(valueToken);
-                return paramInfo.Bind(valueToken, httpApp,
+                return httpApp.Bind(valueToken, paramInfo,
                     obj => onParsed(obj),
                     (why) =>
                     {

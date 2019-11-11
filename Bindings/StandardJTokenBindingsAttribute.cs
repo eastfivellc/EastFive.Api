@@ -23,14 +23,19 @@ namespace EastFive.Api.Bindings
     {
         public TResult Bind<TResult>(Type type, JToken content,
             Func<object, TResult> onParsed,
-            Func<string, TResult> onDidNotBind)
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure)
         {
-            return BindDirect(type, content, onParsed, onDidNotBind);
+            return BindDirect(type, content,
+                onParsed,
+                onDidNotBind, 
+                onBindingFailure);
         }
 
         public static TResult BindDirect<TResult>(Type type, JToken content, 
             Func<object, TResult> onParsed,
-            Func<string, TResult> onDidNotBind)
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure)
         {
             if(type.IsAssignableFrom(typeof(Guid)))
             {
@@ -44,14 +49,14 @@ namespace EastFive.Api.Bindings
                     var stringValue = content.Value<string>();
                     if(Guid.TryParse(stringValue, out Guid guidValue))
                         return onParsed(guidValue);
-                    return onDidNotBind($"Cannot convert `{stringValue}` to Guid.");
+                    return onBindingFailure($"Cannot convert `{stringValue}` to Guid.");
                 }
                 var webId = ReadObject<WebId>(content);
                 if (webId.IsDefaultOrNull())
-                    return onDidNotBind("Null value for GUID.");
+                    return onBindingFailure("Null value for GUID.");
                 var guidValueMaybe = webId.ToGuid();
                 if (!guidValueMaybe.HasValue)
-                    return onDidNotBind("Null WebId cannot be converted to a Guid.");
+                    return onBindingFailure("Null WebId cannot be converted to a Guid.");
                 var webIdGuidValue = guidValueMaybe.Value;
                 return onParsed(webIdGuidValue);
             }
@@ -71,7 +76,8 @@ namespace EastFive.Api.Bindings
                     return StandardStringBindingsAttribute.BindDirect(type,
                             content.Value<string>(),
                         onParsed,
-                        onDidNotBind);
+                        onDidNotBind,
+                        onBindingFailure);
                 }
                 if (content.Type == JTokenType.Array)
                 {
@@ -79,6 +85,7 @@ namespace EastFive.Api.Bindings
                         .Select(
                             token => BindDirect(typeof(Guid), token,
                                 guid => (Guid?)((Guid)guid),
+                                (why) => default(Guid?),
                                 (why) => default(Guid?)))
                         .SelectWhereHasValue()
                         .ToArray();
@@ -104,7 +111,10 @@ namespace EastFive.Api.Bindings
                 if (content.Type == JTokenType.String)
                 {
                     var stringValue = content.Value<string>();
-                    return StandardStringBindingsAttribute.BindDirect(type, stringValue, onParsed, onDidNotBind);
+                    return StandardStringBindingsAttribute.BindDirect(type, stringValue,
+                        onParsed, 
+                        onDidNotBind,
+                        onBindingFailure);
                 }
                 return onDidNotBind($"Cannot convert `{content.Type}` to  {typeof(double).FullName}");
             }
@@ -126,7 +136,10 @@ namespace EastFive.Api.Bindings
                 if (content.Type == JTokenType.String)
                 {
                     var stringValue = content.Value<string>();
-                    return StandardStringBindingsAttribute.BindDirect(type, stringValue, onParsed, onDidNotBind);
+                    return StandardStringBindingsAttribute.BindDirect(type, stringValue, 
+                        onParsed,
+                        onDidNotBind, 
+                        onBindingFailure);
                 }
                 return onDidNotBind($"Cannot convert `{content.Type}` to  {typeof(decimal).FullName}");
             }
@@ -140,7 +153,8 @@ namespace EastFive.Api.Bindings
                         var nullableV = v.AsNullable();
                         return onParsed(nullableV);
                     },
-                    onDidNotBind);
+                    (why) => onParsed(type.GetDefault()),
+                    (why) => onParsed(type.GetDefault()));
             }
 
             if (type.IsAssignableFrom(typeof(IDictionary<,>)))
@@ -156,7 +170,7 @@ namespace EastFive.Api.Bindings
                 {
                     var keyToken = kvpToken.Key;
                     var valueToken = kvpToken.Value;
-                    var result = StandardStringBindingsAttribute.BindDirect(keyType, keyToken,
+                    string result = StandardStringBindingsAttribute.BindDirect(keyType, keyToken,
                         keyValue =>
                         {
                             return BindDirect(valueType, valueToken,
@@ -166,8 +180,10 @@ namespace EastFive.Api.Bindings
                                         new object[] { keyValue, valueValue });
                                     return string.Empty;
                                 },
+                                (why) => why,
                                 (why) => why);
                         },
+                        (why) => why,
                         (why) => why);
                 }
 
@@ -188,20 +204,13 @@ namespace EastFive.Api.Bindings
                 return onParsed(value);
             }
 
-            var binders = type.GetAttributesInterface<IBindApiParameter<JToken>>(inherit: true);
-            if (binders.Any())
-            {
-                return binders.First().Bind(type, content,
-                    onParsed,
-                    onDidNotBind);
-            }
-
             if (content.Type == JTokenType.String)
             {
                 return StandardStringBindingsAttribute.BindDirect(type,
                         content.Value<string>(),
                     onParsed,
-                    onDidNotBind);
+                    onDidNotBind,
+                    onBindingFailure);
             }
 
             if (content.Type == JTokenType.Null)
@@ -321,43 +330,9 @@ namespace EastFive.Api.Bindings
 
         public TResult Bind<TResult>(Type objectType, JsonReader reader, 
             Func<object, TResult> onParsed,
-            Func<string, TResult> onDidNotBind)
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure)
         {
-            Guid GetGuid()
-            {
-                if (reader.TokenType == JsonToken.String)
-                {
-                    var guidString = reader.Value as string;
-                    return Guid.Parse(guidString);
-                }
-                throw new Exception();
-            }
-
-            Guid? GetGuidMaybe()
-            {
-                if (reader.TokenType == JsonToken.Null)
-                    return default(Guid?);
-                return GetGuid();
-            }
-
-            Guid[] GetGuids()
-            {
-                if (reader.TokenType == JsonToken.Null)
-                    return new Guid[] { };
-
-                IEnumerable<Guid> Enumerate()
-                {
-                    while (reader.TokenType != JsonToken.EndArray)
-                    {
-                        if (!reader.Read())
-                            yield break;
-                        var guidStr = reader.ReadAsString();
-                        yield return Guid.Parse(guidStr);
-                    }
-                }
-                return Enumerate().ToArray();
-            }
-
             if (objectType.IsSubClassOfGeneric(typeof(IRef<>)))
             {
                 var id = GetGuid();
@@ -404,10 +379,12 @@ namespace EastFive.Api.Bindings
                         {
                             var valueValue = Bind(dictionaryValueType, reader,
                                 v => v,
+                                why => dictionaryValueType.GetDefault(),
                                 why => dictionaryValueType.GetDefault());
                             addMethod.Invoke(instance, new object[] { keyValue, valueValue });
                             return instance;
                         },
+                        (why) => instance,
                         (why) => instance);
                     
                 } while (reader.Read());
@@ -427,6 +404,7 @@ namespace EastFive.Api.Bindings
             {
                 return Bind(objectType.GetNullableUnderlyingType(), reader,
                     obj => onParsed(obj.AsNullable()),
+                    (why) => onParsed(objectType.GetDefault()),
                     (why) => onParsed(objectType.GetDefault()));
             }
 
@@ -434,7 +412,44 @@ namespace EastFive.Api.Bindings
             var token = JToken.ReadFrom(reader);
             return Bind(objectType, token,
                 onParsed,
-                onDidNotBind);
+                onDidNotBind,
+                onBindingFailure);
+
+
+            Guid GetGuid()
+            {
+                if (reader.TokenType == JsonToken.String)
+                {
+                    var guidString = reader.Value as string;
+                    return Guid.Parse(guidString);
+                }
+                throw new Exception();
+            }
+
+            Guid? GetGuidMaybe()
+            {
+                if (reader.TokenType == JsonToken.Null)
+                    return default(Guid?);
+                return GetGuid();
+            }
+
+            Guid[] GetGuids()
+            {
+                if (reader.TokenType == JsonToken.Null)
+                    return new Guid[] { };
+
+                IEnumerable<Guid> Enumerate()
+                {
+                    while (reader.TokenType != JsonToken.EndArray)
+                    {
+                        if (!reader.Read())
+                            yield break;
+                        var guidStr = reader.ReadAsString();
+                        yield return Guid.Parse(guidStr);
+                    }
+                }
+                return Enumerate().ToArray();
+            }
         }
     }
 }

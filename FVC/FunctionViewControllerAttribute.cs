@@ -162,8 +162,7 @@ namespace EastFive.Api
                     }
                     var queryValueString = queryParameters[queryKey];
                     var queryValue = new QueryParamTokenParser(queryValueString);
-                    return paramInfo
-                        .Bind(queryValueString, httpApp,
+                    return httpApp.Bind(queryValueString, paramInfo,
                             v => onParsed(v),
                             (why) => onFailure(why));
                 };
@@ -178,10 +177,9 @@ namespace EastFive.Api
                     if (!fileNameParams.Any())
                         return onFailure("No URI filename value provided.");
                     var type = paramInfo.ParameterType;
-                    return paramInfo
-                        .Bind(fileNameParams.First(), httpApp,
-                            v => onParsed(v),
-                            (why) => onFailure(why));
+                    return httpApp.Bind(fileNameParams.First(), paramInfo,
+                        v => onParsed(v),
+                        (why) => onFailure(why));
                 };
 
             #endregion
@@ -268,7 +266,7 @@ namespace EastFive.Api
                                 index = kvp.Key,
                                 key = kvp.Value,
                                 fetchValue = (type, onSuccess, onFailure) =>
-                                    type.Bind(param.Value, httpApp,
+                                    httpApp.Bind(param.Value, type,
                                             v => onSuccess(v),
                                             why => onFailure(why))
                                         .AsTask(),

@@ -63,7 +63,7 @@ namespace EastFive.Api.Serialization
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
-            return objectType.Bind(reader, this.application,
+            return this.application.Bind(reader, objectType,
                 v => v,
                 (why) => existingValue);
         }

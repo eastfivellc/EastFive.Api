@@ -10,6 +10,7 @@ namespace EastFive.Api
     {
         TResult Bind<TResult>(Type type, TProvider content,
             Func<object, TResult> onParsed,
-            Func<string, TResult> onDidNotBind);
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure);
     }
 }

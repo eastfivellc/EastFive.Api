@@ -29,7 +29,8 @@ namespace EastFive.Api
     {
         public TResult Bind<TResult>(Type type, string content,
             Func<object, TResult> onParsed, 
-            Func<string, TResult> onDidNotBind)
+            Func<string, TResult> onDidNotBind, 
+            Func<string, TResult> onBindingFailure)
         {
             return onParsed(default(AccessTokenAccount));
         }

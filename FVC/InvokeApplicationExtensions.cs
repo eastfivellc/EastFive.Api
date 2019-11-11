@@ -157,9 +157,12 @@ namespace EastFive.Api
                 throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{requestQuery.GetType().FullName}`", "query");
             var requestMessageQuery = requestQuery as RequestMessage<TResource>;
 
-            var condition = Expression.Call(
-                typeof(ResourceQueryExtensions), "HttpPost", new Type[] { typeof(TResource) },
-                requestQuery.Expression, Expression.Constant(actionName), Expression.Constant(headers));
+            var methodInfo = typeof(InvokeApplicationExtensions)
+                .GetMethod("HttpAction", BindingFlags.Static | BindingFlags.Public)
+                .MakeGenericMethod(typeof(TResource));
+            var resourceExpr = Expression.Constant(actionName, typeof(string));
+            var headersExpr = Expression.Constant(headers, typeof(System.Net.Http.Headers.HttpRequestHeaders));
+            var condition = Expression.Call(methodInfo, requestQuery.Expression, resourceExpr, headersExpr);
 
             var requestMessageNewQuery = requestMessageQuery.FromExpression(condition);
             return requestMessageNewQuery;
@@ -173,7 +176,7 @@ namespace EastFive.Api
                 var headers = (System.Net.Http.Headers.HttpRequestHeaders)arguments[1].Resolve();
                 request.RequestUri = request.RequestUri.AppendToPath(actionName);
 
-                foreach (var header in headers)
+                foreach (var header in headers.NullToEmpty())
                 {
                     request.Headers.Add(header.Key, header.Value);
                 }
