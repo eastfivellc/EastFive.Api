@@ -17,8 +17,7 @@ namespace EastFive.Api
     }
 
     public class PropertyJsonBinderAttribute : Attribute,
-            IBindApiParameter<JToken>,
-            IBindApiParameter<JsonReader>
+            IBindApiParameter<JToken>
     {
         public TResult Bind<TResult>(Type type, JToken content,
             Func<object, TResult> onParsed,
@@ -29,7 +28,7 @@ namespace EastFive.Api
             return (TResult) typeof(PropertyJsonBinderAttribute)
                 .GetMethod("BindType", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
                 .MakeGenericMethod(new Type[] { innerType, typeof(TResult) })
-                .Invoke(null, new object[] { type, content, onParsed, onDidNotBind });
+                .Invoke(null, new object[] { type, content, onParsed, onDidNotBind, onBindingFailure });
         }
 
         public static TResult BindType<T, TResult>(Type type, JToken content, 
