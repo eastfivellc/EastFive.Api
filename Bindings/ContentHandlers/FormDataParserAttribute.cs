@@ -19,6 +19,8 @@ namespace EastFive.Api
     {
         public bool DoesParse(HttpRequestMessage request)
         {
+            if (request.Content.IsDefaultOrNull())
+                return false;
             return request.Content.IsFormData();
         }
 

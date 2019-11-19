@@ -81,7 +81,6 @@ namespace EastFive.Api
 
         }
 
-
         private static Uri BaseUrl<TResource>(IQueryable<TResource> urlQuery)
         {
             var serverUrl = GetServerUrl();
