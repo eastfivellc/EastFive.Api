@@ -69,6 +69,7 @@ namespace EastFive.Api
             var requestMessageNewQuery = requestMessageQuery.FromExpression(condition);
             return requestMessageNewQuery;
         }
+
         public class HttpPostRequestBuilderAttribute : Attribute, IBuildHttpRequests
         {
             public HttpRequestMessage MutateRequest(HttpRequestMessage request, MethodInfo method, Expression[] arguments)
@@ -136,10 +137,63 @@ namespace EastFive.Api
 
         #endregion
 
+        #region PUT
+
+        [HttpPutRequestBuilder]
+        public static IQueryable<TResource> HttpPut<TResource>(this IQueryable<TResource> requestQuery,
+            TResource resource,
+            System.Net.Http.Headers.HttpRequestHeaders headers = default)
+        {
+            if (!typeof(RequestMessage<TResource>).IsAssignableFrom(requestQuery.GetType()))
+                throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{requestQuery.GetType().FullName}`", "query");
+            var requestMessageQuery = requestQuery as RequestMessage<TResource>;
+
+            var methodInfo = typeof(InvokeApplicationExtensions)
+                .GetMethod("HttpPatch", BindingFlags.Static | BindingFlags.Public)
+                .MakeGenericMethod(typeof(TResource));
+            var resourceExpr = Expression.Constant(resource, typeof(TResource));
+            var headersExpr = Expression.Constant(headers, typeof(System.Net.Http.Headers.HttpRequestHeaders));
+            var condition = Expression.Call(methodInfo, requestQuery.Expression, resourceExpr, headersExpr);
+
+            var requestMessageNewQuery = requestMessageQuery.FromExpression(condition);
+            return requestMessageNewQuery;
+        }
+
+        public class HttpPutRequestBuilderAttribute : Attribute, IBuildHttpRequests
+        {
+            public HttpRequestMessage MutateRequest(HttpRequestMessage request, MethodInfo method, Expression[] arguments)
+            {
+                request.Method = HttpMethod.Put;
+                var resource = arguments[0].Resolve();
+                var headers = (System.Net.Http.Headers.HttpRequestHeaders)arguments[1].Resolve();
+
+                var contentJsonString = JsonConvert.SerializeObject(resource, new Serialization.Converter());
+                request.Content = new StreamContent(contentJsonString.ToStream());
+                request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+                foreach (var header in headers.NullToEmpty())
+                {
+                    request.Headers.Add(header.Key, header.Value);
+                }
+                return request;
+            }
+        }
+
+        #endregion
+
         #region DELETE
 
         [HttpMethodRequestBuilder(Method = "Delete")]
         public static IQueryable<TResource> HttpDelete<TResource>(this IQueryable<TResource> requestQuery)
+        {
+            return requestQuery;
+        }
+
+        #endregion
+
+        #region OPTIONS
+
+        [HttpMethodRequestBuilder(Method = "Options")]
+        public static IQueryable<TResource> HttpOptions<TResource>(this IQueryable<TResource> requestQuery)
         {
             return requestQuery;
         }
@@ -185,6 +239,14 @@ namespace EastFive.Api
         }
 
         #endregion
+
+        public static async Task<HttpResponseMessage> SendAsync<TResource>(this IQueryable<TResource> requestQuery)
+        {
+            var request = (requestQuery as RequestMessage<TResource>);
+            var httpRequest = request.CompileRequest();
+            var response = await request.InvokeApplication.SendAsync(httpRequest);
+            return response;
+        }
 
         public static async Task<TResult> MethodAsync<TResource, TResult>(this IQueryable<TResource> requestQuery,
             Func<TResource, TResult> onContent = default,

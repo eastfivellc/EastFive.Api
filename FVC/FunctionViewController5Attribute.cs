@@ -42,6 +42,16 @@ namespace EastFive.Api
                     },
                     () =>
                     {
+                        if(request.Content.IsDefaultOrNull())
+                        {
+                            CastDelegate parserEmpty =
+                                (paramInfo, onParsed, onFailure) => onFailure(
+                                    $"Request did not contain any content.");
+                            return InvokeMethod(
+                                matchingActionMethods,
+                                httpApp, request, cancellationToken,
+                                parserEmpty, new string[] { });
+                        }
                         var mediaType = request.Content.Headers.IsDefaultOrNull() ?
                            string.Empty
                            :
