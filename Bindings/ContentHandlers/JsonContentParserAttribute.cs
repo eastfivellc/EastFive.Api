@@ -54,10 +54,25 @@ namespace EastFive.Api
                 return await onParsedContentValues(emptyParser, exceptionKeys);
             }
             var bindConvert = new BindConvert(httpApp as HttpApplication);
-            JObject contentJObject;
             try
             {
-                contentJObject = Newtonsoft.Json.Linq.JObject.Parse(contentString);
+                var contentJObject = Newtonsoft.Json.Linq.JObject.Parse(contentString);
+                CastDelegate parser =
+                    (paramInfo, onParsed, onFailure) =>
+                    {
+                        return paramInfo
+                            .GetAttributeInterface<IBindJsonApiValue>()
+                            .ParseContentDelegate(contentJObject,
+                                    contentString, bindConvert,
+                                    paramInfo, httpApp, request,
+                                onParsed,
+                                onFailure);
+                    };
+                var keys = contentJObject
+                        .Properties()
+                        .Select(jProperty => jProperty.Name)
+                        .ToArray();
+                return await onParsedContentValues(parser, keys);
             }
             catch (Exception ex)
             {
@@ -68,22 +83,6 @@ namespace EastFive.Api
                     };
                 return await onParsedContentValues(exceptionParser, exceptionKeys);
             }
-            CastDelegate parser =
-                (paramInfo, onParsed, onFailure) =>
-                {
-                    return paramInfo
-                        .GetAttributeInterface<IBindJsonApiValue>()
-                        .ParseContentDelegate(contentJObject,
-                                contentString, bindConvert,
-                                paramInfo, httpApp, request,
-                            onParsed,
-                            onFailure);
-                };
-            var keys = contentJObject
-                    .Properties()
-                    .Select(jProperty => jProperty.Name)
-                    .ToArray();
-            return await onParsedContentValues(parser, keys);
         }
     }
 }

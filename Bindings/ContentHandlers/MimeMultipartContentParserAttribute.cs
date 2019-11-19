@@ -4,7 +4,7 @@ using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using EastFive.Linq.Async;
 using EastFive.Web;
-using Newtonsoft.Json.Linq;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -17,6 +17,15 @@ using System.Xml;
 
 namespace EastFive.Api
 {
+    public interface IBindMultipartApiValue
+    {
+        TResult ParseContentDelegate<TResult>(IDictionary<string, MultipartContentTokenParser> content,
+                ParameterInfo parameterInfo,
+                IApplication httpApp, HttpRequestMessage request,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onFailure);
+    }
+
     public class MimeMultipartContentParserAttribute : Attribute, IParseContent
     {
         public bool DoesParse(HttpRequestMessage request)
@@ -73,120 +82,84 @@ namespace EastFive.Api
             CastDelegate parser =
                 (paramInfo, onParsed, onFailure) =>
                 {
-                    var key = paramInfo
-                                .GetAttributeInterface<IBindApiValue>()
-                                .GetKey(paramInfo);
-                    var type = paramInfo.ParameterType;
-                    if (contentsLookup.ContainsKey(key))
-                        return ContentToType(httpApp, paramInfo, contentsLookup[key],
+                    return paramInfo
+                        .GetAttributeInterface<IBindMultipartApiValue>(true)
+                        .ParseContentDelegate(contentsLookup,
+                                paramInfo, httpApp, request,
                             onParsed,
                             onFailure);
-                    return onFailure("Key not found");
                 };
             return await onParsedContentValues(parser, contentsLookup.SelectKeys().ToArray());
         }
 
-        private TResult ContentToType<TResult>(IApplication httpApp, ParameterInfo paramInfo,
-            MultipartContentTokenParser tokenReader,
-            Func<object, TResult> onParsed,
-            Func<string, TResult> onFailure)
+    }
+
+    public class MultipartContentTokenParser : IParseToken
+    {
+        private byte[] contents;
+        private string fileNameMaybe;
+        private HttpContent file;
+
+        public class MemoryStreamForFile : MemoryStream
         {
-            var type = paramInfo.ParameterType;
-            if (type.IsAssignableFrom(typeof(Stream)))
-            {
-                var streamValue = tokenReader.ReadStream();
-                return onParsed((object)streamValue);
-            }
-            if (type.IsAssignableFrom(typeof(byte[])))
-            {
-                var byteArrayValue = tokenReader.ReadBytes();
-                return onParsed((object)byteArrayValue);
-            }
-            if (type.IsAssignableFrom(typeof(HttpContent)))
-            {
-                var content = tokenReader.ReadObject<HttpContent>();
-                return onParsed((object)content);
-            }
-            if (type.IsAssignableFrom(typeof(ByteArrayContent)))
-            {
-                var content = tokenReader.ReadObject<ByteArrayContent>();
-                return onParsed((object)content);
-            }
-            return httpApp.Bind(tokenReader, paramInfo,
-                (value) =>
-                {
-                    return onParsed(value);
-                },
-                why => onFailure(why));
+            public MemoryStreamForFile(byte[] buffer) : base(buffer) { }
+            public string FileName { get; set; }
         }
 
-        private class MultipartContentTokenParser : IParseToken
+        public MultipartContentTokenParser(HttpContent file, byte[] contents, string fileNameMaybe)
         {
-            private byte[] contents;
-            private string fileNameMaybe;
-            private HttpContent file;
+            this.file = file;
+            this.contents = contents;
+            this.fileNameMaybe = fileNameMaybe;
+        }
 
-            public class MemoryStreamForFile : MemoryStream
-            {
-                public MemoryStreamForFile(byte[] buffer) : base(buffer) { }
-                public string FileName { get; set; }
-            }
+        public IParseToken[] ReadArray()
+        {
+            throw new NotImplementedException();
+        }
 
-            public MultipartContentTokenParser(HttpContent file, byte[] contents, string fileNameMaybe)
-            {
-                this.file = file;
-                this.contents = contents;
-                this.fileNameMaybe = fileNameMaybe;
-            }
+        public byte[] ReadBytes()
+        {
+            return contents;
+        }
 
-            public IParseToken[] ReadArray()
-            {
-                throw new NotImplementedException();
-            }
+        public IDictionary<string, IParseToken> ReadDictionary()
+        {
+            throw new NotImplementedException();
+        }
 
-            public byte[] ReadBytes()
+        public T ReadObject<T>()
+        {
+            if (typeof(HttpContent) == typeof(T))
             {
-                return contents;
+                return (T)((object)this.file);
             }
+            //if (typeof(ByteArrayContent) == typeof(T))
+            //{
+            //    if(this.file is ByteArrayContent)
+            //        return (T)((object)this.file);
+            //    var byteArrayContent = new ByteArrayContent(this.file.)
+            //    {
+            //        Headers
+            //    }
+            //}
+            throw new NotImplementedException();
+        }
+        public object ReadObject()
+        {
+            throw new NotImplementedException();
+        }
 
-            public IDictionary<string, IParseToken> ReadDictionary()
-            {
-                throw new NotImplementedException();
-            }
+        public Stream ReadStream()
+        {
+            return new MemoryStreamForFile(contents)
+            { FileName = fileNameMaybe };
+        }
 
-            public T ReadObject<T>()
-            {
-                if (typeof(HttpContent) == typeof(T))
-                {
-                    return (T)((object)this.file);
-                }
-                //if (typeof(ByteArrayContent) == typeof(T))
-                //{
-                //    if(this.file is ByteArrayContent)
-                //        return (T)((object)this.file);
-                //    var byteArrayContent = new ByteArrayContent(this.file.)
-                //    {
-                //        Headers
-                //    }
-                //}
-                throw new NotImplementedException();
-            }
-            public object ReadObject()
-            {
-                throw new NotImplementedException();
-            }
-
-            public Stream ReadStream()
-            {
-                return new MemoryStreamForFile(contents)
-                { FileName = fileNameMaybe };
-            }
-
-            public bool IsString => true;
-            public string ReadString()
-            {
-                return System.Text.Encoding.UTF8.GetString(contents);
-            }
+        public bool IsString => true;
+        public string ReadString()
+        {
+            return System.Text.Encoding.UTF8.GetString(contents);
         }
     }
 }

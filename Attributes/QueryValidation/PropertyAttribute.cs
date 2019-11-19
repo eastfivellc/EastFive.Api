@@ -4,6 +4,7 @@ using EastFive.Extensions;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
@@ -14,7 +15,7 @@ using System.Xml;
 namespace EastFive.Api
 {
     public class PropertyAttribute : QueryValidationAttribute,
-        IDocumentParameter, IBindJsonApiValue
+        IDocumentParameter, IBindJsonApiValue, IBindMultipartApiValue
     {
         public override SelectParameterResult TryCast(IApplication httpApp,
                 HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
@@ -200,26 +201,12 @@ namespace EastFive.Api
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure)
         {
-            if (key.IsNullOrWhiteSpace() || key == ".")
-            {
-                try
-                {
-                    var rootObject = Newtonsoft.Json.JsonConvert.DeserializeObject(
-                        contentString, paramInfo.ParameterType, bindConvert);
-                    return onParsed(rootObject);
-                }
-                catch (Exception ex)
-                {
-                    return onFailure(ex.Message);
-                }
-            }
-
             if (!contentJObject.TryGetValue(key, out JToken valueToken))
                 return onFailure($"Key[{key}] was not found in JSON");
 
             try
             {
-                var tokenParser = new Serialization.JsonTokenParser(valueToken);
+                //var tokenParser = new Serialization.JsonTokenParser(valueToken);
                 return httpApp.Bind(valueToken, paramInfo,
                     obj => onParsed(obj),
                     (why) =>
@@ -244,6 +231,56 @@ namespace EastFive.Api
             {
                 return onFailure(ex.Message);
             }
+        }
+
+        public TResult ParseContentDelegate<TResult>(IDictionary<string, MultipartContentTokenParser> contentsLookup,
+                ParameterInfo parameterInfo, IApplication httpApp, HttpRequestMessage request,
+            Func<object, TResult> onParsed, 
+            Func<string, TResult> onFailure)
+        {
+            var key = this.GetKey(parameterInfo);
+            var type = parameterInfo.ParameterType;
+            if (!contentsLookup.ContainsKey(key))
+                return onFailure("Key not found");
+
+            return ContentToType(httpApp, parameterInfo, contentsLookup[key],
+                    onParsed,
+                    onFailure);
+        }
+
+        internal static TResult ContentToType<TResult>(IApplication httpApp, ParameterInfo paramInfo,
+            MultipartContentTokenParser tokenReader,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onFailure)
+        {
+            var type = paramInfo.ParameterType;
+            if (type.IsAssignableFrom(typeof(Stream)))
+            {
+                var streamValue = tokenReader.ReadStream();
+                return onParsed((object)streamValue);
+            }
+            if (type.IsAssignableFrom(typeof(byte[])))
+            {
+                var byteArrayValue = tokenReader.ReadBytes();
+                return onParsed((object)byteArrayValue);
+            }
+            if (type.IsAssignableFrom(typeof(HttpContent)))
+            {
+                var content = tokenReader.ReadObject<HttpContent>();
+                return onParsed((object)content);
+            }
+            if (type.IsAssignableFrom(typeof(ByteArrayContent)))
+            {
+                var content = tokenReader.ReadObject<ByteArrayContent>();
+                return onParsed((object)content);
+            }
+            var strValue = tokenReader.ReadString();
+            return httpApp.Bind(strValue, paramInfo,
+                (value) =>
+                {
+                    return onParsed(value);
+                },
+                why => onFailure(why));
         }
     }
 }

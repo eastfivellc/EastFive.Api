@@ -4,6 +4,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -24,13 +25,20 @@ namespace EastFive.Api
             Func<string, TResult> onDidNotBind,
             Func<string, TResult> onBindingFailure)
         {
+            BindTypeDelegate<int,int> d = PropertyJsonBinderAttribute.BindType<int,int>;
+
             var innerType = type.GetGenericArguments().First();
-            return (TResult) typeof(PropertyJsonBinderAttribute)
-                .GetMethod("BindType", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+            return (TResult) //typeof(PropertyJsonBinderAttribute)
+                             //.GetMethod("BindType", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+                d.Method.GetGenericMethodDefinition()
                 .MakeGenericMethod(new Type[] { innerType, typeof(TResult) })
                 .Invoke(null, new object[] { type, content, onParsed, onDidNotBind, onBindingFailure });
         }
 
+        private delegate TResult BindTypeDelegate<T, TResult>(Type type, JToken content,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure);
         public static TResult BindType<T, TResult>(Type type, JToken content, 
             Func<object, TResult> onParsed, 
             Func<string, TResult> onDidNotBind,

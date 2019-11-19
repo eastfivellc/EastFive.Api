@@ -61,6 +61,37 @@ namespace EastFive.Api.Bindings
                 return onParsed(webIdGuidValue);
             }
 
+            if (type.IsSubClassOfGeneric(typeof(IRef<>)))
+            {
+                var activatableType = typeof(Ref<>).MakeGenericType(type.GenericTypeArguments);
+                if (content.Type == JTokenType.Guid)
+                {
+                    var guidValue = content.Value<Guid>();
+                    var iref = Activator.CreateInstance(activatableType, guidValue);
+                    return onParsed(iref);
+                }
+                if (content.Type == JTokenType.String)
+                {
+                    return StandardStringBindingsAttribute.BindDirect(type,
+                            content.Value<string>(),
+                        onParsed,
+                        onDidNotBind,
+                        onBindingFailure);
+                }
+                if (content.Type == JTokenType.Object)
+                {
+                    var objectContent = (content as JObject);
+                    if (objectContent.TryGetValue("uuid", StringComparison.OrdinalIgnoreCase, out JToken idContent))
+                        return BindDirect(type, idContent, onParsed, onDidNotBind, onBindingFailure);
+                    var guidStr = objectContent.ToString();
+                    return StandardStringBindingsAttribute.BindDirect(type,
+                            guidStr,
+                        onParsed,
+                        onDidNotBind,
+                        onBindingFailure);
+                }
+            }
+
             if (type.IsSubClassOfGeneric(typeof(IRefs<>)))
             {
                 var activatableType = typeof(Refs<>).MakeGenericType(type.GenericTypeArguments);
@@ -144,7 +175,31 @@ namespace EastFive.Api.Bindings
                 return onDidNotBind($"Cannot convert `{content.Type}` to  {typeof(decimal).FullName}");
             }
 
-            if(type.IsNullable())
+            if (type == typeof(DateTime))
+            {
+                if (content.Type == JTokenType.Date)
+                {
+                    var dateValue = content.Value<DateTime>();
+                    return onParsed(dateValue);
+                }
+                if (content.Type == JTokenType.Integer)
+                {
+                    var intValue = content.Value<long>();
+                    var dateValue = new DateTime(intValue);
+                    return onParsed(dateValue);
+                }
+                if (content.Type == JTokenType.String)
+                {
+                    var stringValue = content.Value<string>();
+                    return StandardStringBindingsAttribute.BindDirect(type, stringValue,
+                        onParsed,
+                        onDidNotBind,
+                        onBindingFailure);
+                }
+                return onDidNotBind($"Cannot convert `{content.Type}` to  {typeof(DateTime).FullName}");
+            }
+
+            if (type.IsNullable())
             {
                 var nullableT = type.GetNullableUnderlyingType();
                 return BindDirect(nullableT, content,
@@ -335,26 +390,37 @@ namespace EastFive.Api.Bindings
         {
             if (objectType.IsSubClassOfGeneric(typeof(IRef<>)))
             {
-                var id = GetGuid();
-                var refType = typeof(Ref<>).MakeGenericType(objectType.GenericTypeArguments);
-                var value = Activator.CreateInstance(refType, id);
-                return onParsed(value);
+                return GetGuid(
+                    (id) =>
+                    {
+                        var refType = typeof(Ref<>).MakeGenericType(objectType.GenericTypeArguments);
+                        var value = Activator.CreateInstance(refType, id);
+                        return onParsed(value);
+                    },
+                    onDidNotBind,
+                    onBindingFailure);
             }
 
             if (objectType.IsSubClassOfGeneric(typeof(IRefOptional<>)))
             {
-                var id = GetGuidMaybe();
-                var refType = typeof(RefOptional<>).MakeGenericType(objectType.GenericTypeArguments);
-                var value = Activator.CreateInstance(refType, id);
-                return onParsed(value);
+                return GetGuidMaybe(
+                    id =>
+                    {
+                        var refType = typeof(RefOptional<>).MakeGenericType(objectType.GenericTypeArguments);
+                        var value = Activator.CreateInstance(refType, id);
+                        return onParsed(value);
+                    });
             }
 
             if (objectType.IsSubClassOfGeneric(typeof(IRefs<>)))
             {
-                var ids = GetGuids();
-                var refType = typeof(Refs<>).MakeGenericType(objectType.GenericTypeArguments);
-                var value = Activator.CreateInstance(refType, ids);
-                return onParsed(value);
+                return GetGuids(
+                    ids =>
+                    {
+                        var refType = typeof(Refs<>).MakeGenericType(objectType.GenericTypeArguments);
+                        var value = Activator.CreateInstance(refType, ids);
+                        return onParsed(value);
+                    });
             }
 
             if (objectType.IsSubClassOfGeneric(typeof(IDictionary<,>)))
@@ -402,7 +468,10 @@ namespace EastFive.Api.Bindings
             
             if(objectType.IsNullable())
             {
-                return Bind(objectType.GetNullableUnderlyingType(), reader,
+                var underlyingType = objectType.GetNullableUnderlyingType();
+                if (reader.TokenType == JsonToken.Null)
+                    return onParsed(objectType.GetDefault());
+                return Bind(underlyingType, reader,
                     obj => onParsed(obj.AsNullable()),
                     (why) => onParsed(objectType.GetDefault()),
                     (why) => onParsed(objectType.GetDefault()));
@@ -410,45 +479,106 @@ namespace EastFive.Api.Bindings
 
             // As a last ditch effort, see if the JToken deserialization will work.
             var token = JToken.ReadFrom(reader);
-            return Bind(objectType, token,
+            return BindDirect(objectType, token,
                 onParsed,
                 onDidNotBind,
                 onBindingFailure);
 
 
-            Guid GetGuid()
+            TR GetGuid<TR>(
+                Func<Guid, TR> onGot,
+                Func<string, TR> onIgnored,
+                Func<string, TR> onFailed)
             {
                 if (reader.TokenType == JsonToken.String)
                 {
                     var guidString = reader.Value as string;
-                    return Guid.Parse(guidString);
+                    var guid = Guid.Parse(guidString);
+                    return onGot(guid);
                 }
-                throw new Exception();
-            }
-
-            Guid? GetGuidMaybe()
-            {
-                if (reader.TokenType == JsonToken.Null)
-                    return default(Guid?);
-                return GetGuid();
-            }
-
-            Guid[] GetGuids()
-            {
-                if (reader.TokenType == JsonToken.Null)
-                    return new Guid[] { };
-
-                IEnumerable<Guid> Enumerate()
+                if (reader.TokenType == JsonToken.StartObject)
                 {
-                    while (reader.TokenType != JsonToken.EndArray)
-                    {
-                        if (!reader.Read())
-                            yield break;
-                        var guidStr = reader.ReadAsString();
-                        yield return Guid.Parse(guidStr);
-                    }
+                    if (!reader.Read())
+                        return onIgnored("Empty object");
+                    return GetGuid(
+                        guid =>
+                        {
+                            while (reader.TokenType != JsonToken.EndObject)
+                            {
+                                if (!reader.Read())
+                                    break;
+                            }
+                            return onGot(guid);
+                        },
+                        onIgnored,
+                        onFailed);
                 }
-                return Enumerate().ToArray();
+                if (reader.TokenType == JsonToken.PropertyName)
+                {
+                    var propertyName = reader.Value as string;
+                    if (!reader.Read())
+                        return onFailed("Property did not have value.");
+                    if (propertyName.ToLower() == "uuid")
+                        return GetGuid(onGot, onIgnored, onFailed);
+                    if (!reader.Read())
+                        return onIgnored("'uuid' Property not found.");
+                    return GetGuid(onGot, onIgnored, onFailed);
+                }
+                return onFailed($"Cannot decode token of type `{reader.TokenType}` to UUID.");
+            }
+
+            TResult GetGuidMaybe(Func<Guid?, TResult> callback)
+            {
+                if (reader.TokenType == JsonToken.Null)
+                    return callback(default(Guid?));
+                return GetGuid(
+                    (x) => callback(x),
+                    onDidNotBind,
+                    onBindingFailure);
+            }
+
+            TResult GetGuids(Func<Guid[], TResult> onGot)
+            {
+                if (reader.TokenType == JsonToken.Null)
+                    return onGot(new Guid[] { });
+
+                if (reader.TokenType == JsonToken.StartArray)
+                {
+                    var list = new List<Guid>();
+                    while (reader.Read())
+                    {
+                        if (reader.TokenType == JsonToken.EndArray)
+                            break;
+
+                        var result = GetGuid(
+                            g => new
+                            {
+                                why = string.Empty,
+                                g = g.AsOptional(),
+                                success = true,
+                            },
+                            why => new
+                            {
+                                why = why,
+                                g = default(Guid?),
+                                success = true,
+                            },
+                            why => new
+                            {
+                                why = why,
+                                g = default(Guid?),
+                                success = false,
+                            });
+
+                        if (!result.success)
+                            return onBindingFailure(result.why);
+                        if (result.g.HasValue)
+                            list.Add(result.g.Value);
+                    }
+                    return onGot(list.ToArray());
+                }
+
+                return onBindingFailure($"Cannot decode token of type `{reader.TokenType}` to {objectType.FullName}.");
             }
         }
     }
