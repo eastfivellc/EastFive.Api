@@ -199,6 +199,30 @@ namespace EastFive.Api.Bindings
                 return onDidNotBind($"Cannot convert `{content.Type}` to  {typeof(DateTime).FullName}");
             }
 
+            if (type == typeof(bool))
+            {
+                if (content.Type == JTokenType.Boolean)
+                {
+                    var boolValue = content.Value<bool>();
+                    return onParsed(boolValue);
+                }
+                if (content.Type == JTokenType.Integer)
+                {
+                    var intValue = content.Value<int>();
+                    var boolValue = intValue != 0;
+                    return onParsed(boolValue);
+                }
+                if (content.Type == JTokenType.String)
+                {
+                    var stringValue = content.Value<string>();
+                    return StandardStringBindingsAttribute.BindDirect(type, stringValue,
+                        onParsed,
+                        onDidNotBind,
+                        onBindingFailure);
+                }
+                return onDidNotBind($"Cannot convert `{content.Type}` to  {typeof(bool).FullName}");
+            }
+
             if (type.IsNullable())
             {
                 var nullableT = type.GetNullableUnderlyingType();
@@ -465,8 +489,8 @@ namespace EastFive.Api.Bindings
                     return onParsed(value);
                 }
             }
-            
-            if(objectType.IsNullable())
+
+            if (objectType.IsNullable())
             {
                 var underlyingType = objectType.GetNullableUnderlyingType();
                 if (reader.TokenType == JsonToken.Null)
