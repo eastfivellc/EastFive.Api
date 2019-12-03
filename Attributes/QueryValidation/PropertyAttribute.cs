@@ -269,6 +269,12 @@ namespace EastFive.Api
                 var content = tokenReader.ReadObject<HttpContent>();
                 return onParsed((object)content);
             }
+            if (type.IsAssignableFrom(typeof(System.Net.Http.Headers.ContentDispositionHeaderValue)))
+            {
+                var content = tokenReader.ReadObject<HttpContent>();
+                var header = content.Headers.ContentDisposition;
+                return onParsed((object)header);
+            }
             if (type.IsAssignableFrom(typeof(ByteArrayContent)))
             {
                 var content = tokenReader.ReadObject<ByteArrayContent>();
