@@ -799,7 +799,7 @@ namespace EastFive.Api
             if(methodParameter.ParameterType.IsSubClassOfGeneric(typeof(CancellationToken)))
                 return onInstigated(cancellationToken);
 
-            if (this.instigators.ContainsKey(methodParameter.ParameterType))
+            if (methodParameter.ParameterType.IsAssignableFrom(typeof(CancellationToken)))
                 return this.instigators[methodParameter.ParameterType](this, request, methodParameter,
                     (v) => onInstigated(v));
 
