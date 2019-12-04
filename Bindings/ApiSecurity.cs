@@ -14,6 +14,7 @@ namespace EastFive.Api.Controllers
     [ApiSecurity]
     public struct ApiSecurity
     {
+        public string key;
     }
 
     public class ApiSecurityAttribute : Attribute, IInstigatable, IBindApiParameter<string>
@@ -23,7 +24,10 @@ namespace EastFive.Api.Controllers
             Func<string, TResult> onDidNotBind,
             Func<string, TResult> onBindingFailure)
         {
-            return onParsed(default(ApiSecurity));
+            return onParsed(new Controllers.ApiSecurity 
+            { 
+                key = content,
+            });
         }
 
         public Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
@@ -36,7 +40,10 @@ namespace EastFive.Api.Controllers
                 {
                     var queryParams = request.RequestUri.ParseQueryString();
                     if (queryParams["ApiKeySecurity"] == authorizedApiKey)
-                        return onSuccess(new Controllers.ApiSecurity());
+                        return onSuccess(new Controllers.ApiSecurity
+                        { 
+                            key = queryParams["ApiKeySecurity"],
+                        });
 
                     if (request.Headers.IsDefaultOrNull())
                         return request.CreateResponse(HttpStatusCode.Unauthorized).AsTask();
@@ -44,9 +51,15 @@ namespace EastFive.Api.Controllers
                         return request.CreateResponse(HttpStatusCode.Unauthorized).AsTask();
 
                     if (request.Headers.Authorization.Parameter == authorizedApiKey)
-                        return onSuccess(new Controllers.ApiSecurity());
+                        return onSuccess(new Controllers.ApiSecurity 
+                        { 
+                            key = request.Headers.Authorization.Parameter,
+                        });
                     if (request.Headers.Authorization.Scheme == authorizedApiKey)
-                        return onSuccess(new Controllers.ApiSecurity());
+                        return onSuccess(new Controllers.ApiSecurity
+                        {
+                            key = request.Headers.Authorization.Scheme,
+                        });
 
                     return request.CreateResponse(HttpStatusCode.Unauthorized).AsTask();
                 },
