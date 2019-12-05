@@ -211,10 +211,7 @@ namespace EastFive.Api
                             return await instigationAttr.Instigate(httpApp as HttpApplication,
                                     request, cancellationToken,
                                     methodParameter,
-                                (v) =>
-                                {
-                                    return  next(v);
-                                });
+                                next);
                         }
 
                         if (queryParameterOptions.ContainsKey(methodParameter.Name))
