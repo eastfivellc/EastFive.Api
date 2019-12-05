@@ -796,10 +796,13 @@ namespace EastFive.Api
                     (v) => onInstigated(v));
             }
 
-            if(methodParameter.ParameterType.IsSubClassOfGeneric(typeof(CancellationToken)))
+            if(methodParameter.ParameterType.IsAssignableFrom(typeof(CancellationToken)))
                 return onInstigated(cancellationToken);
 
-            if (methodParameter.ParameterType.IsAssignableFrom(typeof(CancellationToken)))
+            if (methodParameter.ParameterType.IsAssignableFrom(typeof(HttpRequestMessage)))
+                return onInstigated(request);
+
+            if (this.instigators.ContainsKey(methodParameter.ParameterType))
                 return this.instigators[methodParameter.ParameterType](this, request, methodParameter,
                     (v) => onInstigated(v));
 

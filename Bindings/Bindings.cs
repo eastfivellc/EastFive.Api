@@ -8,12 +8,6 @@ using System.Threading.Tasks;
 
 namespace EastFive.Api.Controllers
 {
-    
-    public struct ApiSecurity
-    {
-
-    }
-
     public struct ContentBytes
     {
         public byte [] content;
