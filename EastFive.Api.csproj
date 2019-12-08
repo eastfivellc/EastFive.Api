@@ -277,6 +277,7 @@
     <Compile Include="Instigations\Security\Security.cs" />
     <Compile Include="Instigations\Security\AccessToken.cs" />
     <Compile Include="Instigations\Security\SessionToken.cs" />
+    <Compile Include="Meta\Route.cs" />
     <Compile Include="Razor\GenericReferenceResolver.cs" />
     <Compile Include="Razor\HtmlSupportTemplateBase.cs" />
     <Compile Include="Razor\RazorTemplateManager.cs" />
@@ -284,10 +285,10 @@
     <Compile Include="Razor\ViewRenderer.cs" />
     <Compile Include="Resources\CheckSumRef.cs" />
     <Compile Include="Resources\Exceptions.cs" />
-    <Compile Include="Resources\Manifest.cs" />
-    <Compile Include="Resources\Manifest\Method.cs" />
-    <Compile Include="Resources\Manifest\Parameter.cs" />
-    <Compile Include="Resources\Manifest\Property.cs" />
+    <Compile Include="Meta\Manifest.cs" />
+    <Compile Include="Meta\Manifest\Method.cs" />
+    <Compile Include="Meta\Manifest\Parameter.cs" />
+    <Compile Include="Meta\Manifest\Property.cs" />
     <Compile Include="Resources\MultipartResponse.cs" />
     <Compile Include="Resources\OptionsResource.cs" />
     <Compile Include="Resources\Queries\IntQuery.cs" />
