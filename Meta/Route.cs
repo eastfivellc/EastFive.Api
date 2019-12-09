@@ -12,8 +12,20 @@ using Newtonsoft.Json;
 
 namespace EastFive.Api.Resources
 {
+
+    [FunctionViewController6(Route = "ManifestRoute")]
     public class Route
     {
+        [EastFive.Api.HttpGet]
+        public static HttpResponseMessage FindAsync(
+                HttpApplication httpApp, HttpRequestMessage request,
+            ContentTypeResponse<Route[]> onContent)
+        {
+            var lookups = httpApp.GetResources();
+            var manifest = new EastFive.Api.Resources.Manifest(lookups, httpApp);
+            return onContent(manifest.Routes);
+        }
+
         public Route(string name, KeyValuePair<HttpMethod, MethodInfo[]>[] methods,
             HttpApplication httpApp)
         {
