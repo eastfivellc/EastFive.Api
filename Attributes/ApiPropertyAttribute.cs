@@ -50,6 +50,8 @@ namespace EastFive.Api
             var options = new KeyValuePair<string, string>[] { };
             return new Property()
             {
+                IsIdentfier = member.ContainsAttributeInterface<IIdentifyResource>(),
+                IsTitle = member.ContainsAttributeInterface<ITitleResource>(),
                 Name = name,
                 Description = description,
                 Options = options,

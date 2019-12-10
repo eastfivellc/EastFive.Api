@@ -12,23 +12,31 @@ using Newtonsoft.Json;
 
 namespace EastFive.Api.Resources
 {
-
     [FunctionViewController6(Route = "ManifestRoute")]
     public class Route
     {
+        public string Name { get; set; }
+
+        public Method[] Methods { get; set; }
+
+        public Property[] Properties { get; set; }
+
+        public bool IsEntryPoint { get; set; }
+
         [EastFive.Api.HttpGet]
         public static HttpResponseMessage FindAsync(
                 HttpApplication httpApp, HttpRequestMessage request,
             ContentTypeResponse<Route[]> onContent)
         {
             var lookups = httpApp.GetResources();
-            var manifest = new EastFive.Api.Resources.Manifest(lookups, httpApp);
+            var manifest = new Manifest(lookups, httpApp);
             return onContent(manifest.Routes);
         }
 
-        public Route(string name, KeyValuePair<HttpMethod, MethodInfo[]>[] methods,
+        public Route(Type type, string name, KeyValuePair<HttpMethod, MethodInfo[]>[] methods,
             HttpApplication httpApp)
         {
+            this.IsEntryPoint = type.ContainsAttributeInterface<IDisplayEntryPoint>();
             this.Name = name;
             this.Methods = methods
                 .SelectMany(kvp => kvp.Value.Select(m => m.PairWithKey(kvp.Key)))
@@ -53,9 +61,10 @@ namespace EastFive.Api.Resources
                     () => new Property[] { });
         }
 
-        public Route(string name, MethodInfo[] methods, MemberInfo[] properties,
+        public Route(Type type, string name, MethodInfo[] methods, MemberInfo[] properties,
             HttpApplication httpApp)
         {
+            this.IsEntryPoint = type.ContainsAttributeInterface<IDisplayEntryPoint>();
             this.Name = name;
             this.Methods = methods
                 .Where(method => method.ContainsAttributeInterface<IDocumentMethod>())
@@ -74,10 +83,5 @@ namespace EastFive.Api.Resources
                 .ToArray();
         }
 
-        public string Name { get; set; }
-
-        public Method[] Methods { get; set; }
-
-        public Property[] Properties { get; set; }
     }
 }

@@ -631,7 +631,7 @@ namespace EastFive.Api
         public virtual Route GetRoute(Type type, HttpApplication httpApp)
         {
             var methods = PossibleHttpMethods(type, httpApp).ToArray();
-            return new Route(this.Route, methods, httpApp);
+            return new Route(type, this.Route, methods, httpApp);
         }
     }
 }

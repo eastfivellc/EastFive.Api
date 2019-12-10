@@ -169,6 +169,7 @@
     <Compile Include="Bindings\Property.cs" />
     <Compile Include="Bindings\StandardJTokenBindingsAttribute.cs" />
     <Compile Include="Bindings\StandardStringBindingsAttribute.cs" />
+    <Compile Include="FVC\Handlers\CorsHandler.cs" />
     <Compile Include="Instigations\Responses\InstigatableResponseAttribute.cs" />
     <Compile Include="Instigations\Responses\InstigateGenericAttribute.cs" />
     <Compile Include="Attributes\Routing\IHandleResponses.cs" />
@@ -176,7 +177,7 @@
     <Compile Include="Instigations\Responses\BodyResponseAttribute.cs" />
     <Compile Include="Instigations\Responses\HttpGenericDelegateAttribute.cs" />
     <Compile Include="Instigations\IInstigatableGeneric.cs" />
-    <Compile Include="Attributes\Manifest\IDocumentResponse.cs" />
+    <Compile Include="Meta\Manifest\IDocumentResponse.cs" />
     <Compile Include="Attributes\QueryValidation\PropertyAttribute.cs" />
     <Compile Include="Attributes\QueryValidation\PropertyOptionalAttribute.cs" />
     <Compile Include="Attributes\QueryValidation\UpdateIdAttribute.cs" />
@@ -272,12 +273,14 @@
     <Compile Include="HttpActionResult.cs" />
     <Compile Include="InjectableAssemblyResolver.cs" />
     <Compile Include="FVC\Handlers\ControllerHandler.cs" />
-    <Compile Include="Attributes\Manifest\IDocumentRoute.cs" />
+    <Compile Include="Meta\Manifest\IDisplayEntryPoint.cs" />
+    <Compile Include="Meta\Manifest\IDocumentRoute.cs" />
     <Compile Include="Instigations\Responses\StatusCodeResponseAttribute.cs" />
     <Compile Include="Instigations\Security\Security.cs" />
     <Compile Include="Instigations\Security\AccessToken.cs" />
     <Compile Include="Instigations\Security\SessionToken.cs" />
-    <Compile Include="Meta\Route.cs" />
+    <Compile Include="Meta\Manifest\ResourceIdentifier.cs" />
+    <Compile Include="Meta\Manifest\Route.cs" />
     <Compile Include="Razor\GenericReferenceResolver.cs" />
     <Compile Include="Razor\HtmlSupportTemplateBase.cs" />
     <Compile Include="Razor\RazorTemplateManager.cs" />

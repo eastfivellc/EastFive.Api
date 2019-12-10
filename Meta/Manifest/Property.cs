@@ -22,6 +22,8 @@ namespace EastFive.Api.Resources
 
         public Property(MemberInfo member, HttpApplication httpApp)
         {
+            this.IsIdentfier = member.ContainsAttributeInterface<IIdentifyResource>();
+            this.IsTitle = member.ContainsAttributeInterface<ITitleResource>();
             this.Name = member.GetCustomAttribute<JsonPropertyAttribute, string>(
                 (attr) => attr.PropertyName.HasBlackSpace() ? attr.PropertyName : member.Name,
                 () => member.Name);
@@ -40,5 +42,9 @@ namespace EastFive.Api.Resources
         public KeyValuePair<string, string>[] Options { get; set; }
 
         public string Type { get; set; }
+
+        public bool IsTitle { get; set; }
+
+        public bool IsIdentfier { get; set; }
     }
 }
