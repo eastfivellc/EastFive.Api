@@ -6,6 +6,7 @@ using EastFive.Web;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
@@ -15,6 +16,15 @@ using System.Xml;
 
 namespace EastFive.Api
 {
+    public interface IBindFormDataApiValue
+    {
+        TResult ParseContentDelegate<TResult>(NameValueCollection formData,
+                ParameterInfo parameterInfo,
+                IApplication httpApp, HttpRequestMessage request,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onFailure);
+    }
+
     public class FormDataParserAttribute : Attribute, IParseContent
     {
         public bool DoesParse(HttpRequestMessage request)
@@ -31,34 +41,22 @@ namespace EastFive.Api
                 string[],
                 Task<HttpResponseMessage>> onParsedContentValues)
         {
-            var formDataTokens = await ParseOptionalFormDataAsync(request.Content);
-            var optionalFormData = formDataTokens.ToDictionary();
+            var content = request.Content;
+            var formData = await content.ReadAsFormDataAsync();
+
+            var parameters = formData.AllKeys;
             CastDelegate parser =
                 (paramInfo, onParsed, onFailure) =>
                 {
-                    var key = paramInfo
-                        .GetAttributeInterface<IBindApiValue>()
-                        .GetKey(paramInfo);
-                    if (!optionalFormData.ContainsKey(key))
-                        return onFailure("Key not found");
-                    return httpApp.Bind(optionalFormData[key], paramInfo,
-                            (value) => onParsed(value),
-                            (why) => onFailure(why));
+                    return paramInfo
+                        .GetAttributeInterface<IBindFormDataApiValue>()
+                        .ParseContentDelegate(formData, 
+                                paramInfo, httpApp, request,
+                            onParsed,
+                            onFailure);
                 };
             return await onParsedContentValues(parser,
-                optionalFormData.SelectKeys().ToArray());
-        }
-
-        private static async Task<KeyValuePair<string, IParseToken>[]> ParseOptionalFormDataAsync(HttpContent content)
-        {
-            var formData = await content.ReadAsFormDataAsync();
-
-            var parameters = formData.AllKeys
-                .Select(key => key.PairWithValue<string, IParseToken>(
-                    new FormDataTokenParser(formData[key])))
-                .ToArray();
-
-            return (parameters);
+                parameters.ToArray());
         }
     }
 }
