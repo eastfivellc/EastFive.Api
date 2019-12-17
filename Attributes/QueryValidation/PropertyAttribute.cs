@@ -4,6 +4,7 @@ using EastFive.Extensions;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -15,7 +16,7 @@ using System.Xml;
 namespace EastFive.Api
 {
     public class PropertyAttribute : QueryValidationAttribute,
-        IDocumentParameter, IBindJsonApiValue, IBindMultipartApiValue
+        IDocumentParameter, IBindJsonApiValue, IBindMultipartApiValue, IBindFormDataApiValue
     {
         public override SelectParameterResult TryCast(IApplication httpApp,
                 HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
@@ -249,6 +250,29 @@ namespace EastFive.Api
                     onFailure);
         }
 
+        public TResult ParseContentDelegate<TResult>(NameValueCollection formData, 
+                ParameterInfo parameterInfo, IApplication httpApp, HttpRequestMessage request,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onFailure)
+        {
+            var key = this.GetKey(parameterInfo);
+            var type = parameterInfo.ParameterType;
+
+            if (formData.IsDefaultOrNull())
+                return onFailure("No form data provided");
+
+            if (!formData.AllKeys.Contains(key))
+                return onFailure("Key not found");
+
+            var strValue = formData[key];
+            return httpApp.Bind(strValue, parameterInfo,
+                (value) =>
+                {
+                    return onParsed(value);
+                },
+                why => onFailure(why));
+        }
+
         internal static TResult ContentToType<TResult>(IApplication httpApp, ParameterInfo paramInfo,
             MultipartContentTokenParser tokenReader,
             Func<object, TResult> onParsed,
@@ -289,5 +313,6 @@ namespace EastFive.Api
                 },
                 why => onFailure(why));
         }
+
     }
 }
