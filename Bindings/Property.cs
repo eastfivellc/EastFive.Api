@@ -39,6 +39,7 @@ namespace EastFive.Api
             Func<object, TResult> onParsed,
             Func<string, TResult> onDidNotBind,
             Func<string, TResult> onBindingFailure);
+
         public static TResult BindType<T, TResult>(Type type, JToken content, 
             Func<object, TResult> onParsed, 
             Func<string, TResult> onDidNotBind,

@@ -34,8 +34,8 @@ namespace EastFive.Api
                 if (parameterType.IsSubClassOfGeneric(typeof(IRefOptional<>)))
                 {
                     var refType = parameterType.GenericTypeArguments.First();
-                    var parameterTypeGeneric = typeof(RefOptional<>).MakeGenericType(new Type[] { refType });
-                    return Activator.CreateInstance(parameterTypeGeneric, new object[] { });
+                    var parameterTypeGeneric = RefOptionalHelper.CreateEmpty(refType);
+                    return parameterTypeGeneric;
                 }
 
                 if (parameterType.IsSubClassOfGeneric(typeof(IRefs<>)))

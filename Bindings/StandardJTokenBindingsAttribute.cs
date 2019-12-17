@@ -90,6 +90,38 @@ namespace EastFive.Api.Bindings
                         onDidNotBind,
                         onBindingFailure);
                 }
+                if (content.Type == JTokenType.Null)
+                    return onBindingFailure("Value was null.");
+            }
+
+            if (type.IsSubClassOfGeneric(typeof(IRefOptional<>)))
+            {
+                if (content.Type == JTokenType.Guid)
+                {
+                    var guidValue = content.Value<Guid>();
+                    var activatableType = typeof(IRefOptional<>).MakeGenericType(type.GenericTypeArguments);
+                    var iref = Activator.CreateInstance(activatableType, guidValue);
+                    return onParsed(iref);
+                }
+                if (content.Type == JTokenType.Object)
+                {
+                    var objectContent = (content as JObject);
+                    if (objectContent.TryGetValue("uuid", StringComparison.OrdinalIgnoreCase, out JToken idContent))
+                        return BindDirect(type, idContent, onParsed, onDidNotBind, onBindingFailure);
+                    var guidStr = objectContent.ToString();
+                    return StandardStringBindingsAttribute.BindDirect(type,
+                            guidStr,
+                        onParsed,
+                        onDidNotBind,
+                        onBindingFailure);
+                }
+                if (content.Type == JTokenType.Null)
+                {
+                    var irefOptional = RefOptionalHelper.CreateEmpty(type.GenericTypeArguments.First());
+                    return onParsed(irefOptional);
+                }
+                // Standard string binding fallback at end of function will work for this case
+                // if (content.Type == JTokenType.String)
             }
 
             if (type.IsSubClassOfGeneric(typeof(IRefs<>)))
@@ -316,11 +348,25 @@ namespace EastFive.Api.Bindings
                     onBindingFailure);
             }
 
-            if (content.Type == JTokenType.Null)
-            {
-                var defaultValue = type.GetDefault();
-                return onParsed(defaultValue);
-            }
+            //if (content.Type == JTokenType.Object || content.Type == JTokenType.Array)
+            //{
+            //    try
+            //    {
+            //        var value = Newtonsoft.Json.JsonConvert.DeserializeObject(
+            //            content.ToString(), type, bindConvert);
+            //        return onParsed(value);
+            //    }
+            //    catch (Newtonsoft.Json.JsonSerializationException)
+            //    {
+            //        throw;
+            //    }
+            //}
+
+            //if (content.Type == JTokenType.Null)
+            //{
+            //    var defaultValue = type.GetDefault();
+            //    return onParsed(defaultValue);
+            //}
 
             return onDidNotBind($"Could not find binding for type {type.FullName}");
         }
@@ -338,9 +384,8 @@ namespace EastFive.Api.Bindings
             return valueToken.Value<T>();
         }
 
-        public static object ReadObject(JToken valueToken)
+        public static object ReadObject(JToken token)
         {
-            var token = valueToken;
             if (token is JValue)
             {
                 if (token.Type == JTokenType.Boolean)
@@ -454,8 +499,13 @@ namespace EastFive.Api.Bindings
                 return GetGuidMaybe(
                     id =>
                     {
+                        if(!id.HasValue)
+                        {
+                            var emptyValue = RefOptionalHelper.CreateEmpty(objectType.GenericTypeArguments.First());
+                            return onParsed(emptyValue);
+                        }
                         var refType = typeof(RefOptional<>).MakeGenericType(objectType.GenericTypeArguments);
-                        var value = Activator.CreateInstance(refType, id);
+                        var value = Activator.CreateInstance(refType, id.Value);
                         return onParsed(value);
                     });
             }

@@ -186,11 +186,10 @@ namespace EastFive.Api.Bindings
             if (type.IsSubClassOfGeneric(typeof(IRefOptional<>)))
             {
                 var referredType = type.GenericTypeArguments.First();
-                var refOptionalType = typeof(RefOptional<>).MakeGenericType(referredType);
 
                 TResult emptyOptional()
                 {
-                    var refInst = Activator.CreateInstance(refOptionalType, new object[] { });
+                    var refInst = RefOptionalHelper.CreateEmpty(referredType);
                     return onParsed(refInst);
                 };
 
@@ -205,6 +204,7 @@ namespace EastFive.Api.Bindings
                 return BindDirect(refType, content,
                     (v) =>
                     {
+                        var refOptionalType = typeof(RefOptional<>).MakeGenericType(referredType);
                         var refInst = Activator.CreateInstance(refOptionalType, new object[] { v });
                         return onParsed(refInst);
                     },

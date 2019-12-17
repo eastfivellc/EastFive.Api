@@ -202,6 +202,21 @@ namespace EastFive.Api
                     },
                     () =>
                     {
+                        if (request.Content.IsDefaultOrNull())
+                        {
+                            CastDelegate parserEmpty =
+                                (paramInfo, onParsed, onFailure) => onFailure(
+                                    $"Request did not contain any content.");
+
+                            return GetResponseAsync(methods,
+                                queryCastDelegate,
+                                parserEmpty,
+                                fileNameCastDelegate,
+                                httpApp, request, cancellationToken,
+                                queryParameters.SelectKeys(),
+                                new string[] { },
+                                fileNameParams.Any());
+                        }
                         var mediaType = request.Content.Headers.IsDefaultOrNull() ?
                            string.Empty
                            :
@@ -212,6 +227,7 @@ namespace EastFive.Api
                         CastDelegate parser =
                             (paramInfo, onParsed, onFailure) => onFailure(
                                 $"Could not parse content of type {mediaType}");
+
                         return GetResponseAsync(methods,
                             queryCastDelegate,
                             parser,

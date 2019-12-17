@@ -188,56 +188,61 @@ namespace EastFive.Api
         {
             public Uri BindUrlQueryValue(Uri url, MethodInfo method, Expression[] arguments)
             {
-                return arguments
-                    .Zip(
-                        method.GetParameters(),
-                        (arg, paramInfo) =>
-                        {
-                            KeyValuePair<string, object> Evaluate(Expression expr)
-                            {
-                                if (expr is UnaryExpression)
-                                {
-                                    var argUnary = expr as UnaryExpression;
-                                    return Evaluate(argUnary.Operand);
-                                }
-                                if (expr is Expression<Func<object>>)
-                                {
-                                    var paramExpr = expr as Expression<Func<object>>;
-                                    return Evaluate(paramExpr.Body);
-                                }
-                                if(expr is MemberExpression)
-                                {
-                                    var memberExpr = expr as MemberExpression;
-                                    var paramName = memberExpr.Member.Name;
-                                    var paramValue = arg.Resolve();
-                                    return paramName.PairWithValue(paramValue);
-                                }
-                                if (expr is BinaryExpression)
-                                {
-                                    var memberExpr = expr as BinaryExpression;
-                                    if (memberExpr.Left is ConstantExpression)
-                                    {
-                                        var left = memberExpr.Left as ConstantExpression;
-                                        var paramName = left.Type == typeof(string)?
-                                            left.Value as string
-                                            :
-                                            (string)left.Resolve();
-                                        var paramValue = memberExpr.Right.Resolve();
-                                        return paramName.PairWithValue(paramValue);
-                                    }
-                                }
-                                {
-                                    var paramValue = expr.Resolve();
-                                    return paramInfo.Name.PairWithValue(paramValue);
-                                }
-                            }
-                            return Evaluate(arg);
-                        })
-                    .Aggregate(url,
-                        (urlAggr, kvp) =>
-                        {
-                            return urlAggr.AddQueryParameter(kvp.Key, kvp.Value.ToString());
-                        });
+                var key = (string)arguments[0].Resolve();
+                var value = (string)arguments[1].Resolve();
+
+                return url.AddQueryParameter(key, value);
+
+                //return arguments
+                //    .Zip(
+                //        method.GetParameters(),
+                //        (arg, paramInfo) =>
+                //        {
+                //            KeyValuePair<string, object> Evaluate(Expression expr)
+                //            {
+                //                if (expr is UnaryExpression)
+                //                {
+                //                    var argUnary = expr as UnaryExpression;
+                //                    return Evaluate(argUnary.Operand);
+                //                }
+                //                if (expr is Expression<Func<object>>)
+                //                {
+                //                    var paramExpr = expr as Expression<Func<object>>;
+                //                    return Evaluate(paramExpr.Body);
+                //                }
+                //                if(expr is MemberExpression)
+                //                {
+                //                    var memberExpr = expr as MemberExpression;
+                //                    var paramName = memberExpr.Member.Name;
+                //                    var paramValue = arg.Resolve();
+                //                    return paramName.PairWithValue(paramValue);
+                //                }
+                //                if (expr is BinaryExpression)
+                //                {
+                //                    var memberExpr = expr as BinaryExpression;
+                //                    if (memberExpr.Left is ConstantExpression)
+                //                    {
+                //                        var left = memberExpr.Left as ConstantExpression;
+                //                        var paramName = left.Type == typeof(string)?
+                //                            left.Value as string
+                //                            :
+                //                            (string)left.Resolve();
+                //                        var paramValue = memberExpr.Right.Resolve();
+                //                        return paramName.PairWithValue(paramValue);
+                //                    }
+                //                }
+                //                {
+                //                    var paramValue = expr.Resolve();
+                //                    return paramInfo.Name.PairWithValue(paramValue);
+                //                }
+                //            }
+                //            return Evaluate(arg);
+                //        })
+                //    .Aggregate(url,
+                //        (urlAggr, kvp) =>
+                //        {
+                //            return urlAggr.AddQueryParameter(kvp.Key, kvp.Value.ToString());
+                //        });
             }
 
             public HttpRequestMessage MutateRequest(HttpRequestMessage request,
@@ -249,35 +254,37 @@ namespace EastFive.Api
         }
 
         [QueryParamQuery]
-        public static IQueryable<TResource> QueryParam<TResource>(this IQueryable<TResource> query, Expression<Func<object>> paramExpr)
+        public static IQueryable<TResource> QueryParam<TResource>(this IQueryable<TResource> query, string key, string value)
             where TResource : IReferenceable
         {
             if (!typeof(RequestMessage<TResource>).IsAssignableFrom(query.GetType()))
                 throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{query.GetType().FullName}`", "query");
             var requestMessageQuery = query as RequestMessage<TResource>;
 
-            var condition = Expression.Call(
-                typeof(ResourceQueryExtensions), "QueryParam", new Type[] { typeof(TResource) },
-                query.Expression, paramExpr);
+            var methodInfo = typeof(ResourceQueryExtensions)
+                .GetMethod("QueryParam", BindingFlags.Static | BindingFlags.Public)
+                .MakeGenericMethod(typeof(TResource));
+            var condition = Expression.Call(methodInfo, query.Expression, 
+                Expression.Constant(key), Expression.Constant(value));
 
             var requestMessageNewQuery = requestMessageQuery.FromExpression(condition);
             return requestMessageNewQuery;
         }
 
-        [QueryParamQuery]
-        public static IQueryable<TResource> QueryParam<TResource>(this IQueryable<TResource> query, Expression<bool> paramExpr)
-            where TResource : IReferenceable
-        {
-            if (!typeof(RequestMessage<TResource>).IsAssignableFrom(query.GetType()))
-                throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{query.GetType().FullName}`", "query");
-            var requestMessageQuery = query as RequestMessage<TResource>;
+        //[QueryParamQuery]
+        //public static IQueryable<TResource> QueryParam<TResource>(this IQueryable<TResource> query, Expression<bool> paramExpr)
+        //    where TResource : IReferenceable
+        //{
+        //    if (!typeof(RequestMessage<TResource>).IsAssignableFrom(query.GetType()))
+        //        throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{query.GetType().FullName}`", "query");
+        //    var requestMessageQuery = query as RequestMessage<TResource>;
 
-            var condition = Expression.Call(
-                typeof(ResourceQueryExtensions), "QueryParam", new Type[] { typeof(TResource) },
-                query.Expression, paramExpr);
+        //    var condition = Expression.Call(
+        //        typeof(ResourceQueryExtensions), "QueryParam", new Type[] { typeof(TResource) },
+        //        query.Expression, paramExpr);
 
-            var requestMessageNewQuery = requestMessageQuery.FromExpression(condition);
-            return requestMessageNewQuery;
-        }
+        //    var requestMessageNewQuery = requestMessageQuery.FromExpression(condition);
+        //    return requestMessageNewQuery;
+        //}
     }
 }

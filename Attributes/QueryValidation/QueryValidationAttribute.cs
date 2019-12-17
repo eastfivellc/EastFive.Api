@@ -163,9 +163,9 @@ namespace EastFive.Api
             {
                 if (parameterRequiringValidation.ParameterType.IsSubClassOfGeneric(typeof(IRefOptional<>)))
                 {
-                    var instanceType = typeof(RefOptional<>).MakeGenericType(
-                        parameterRequiringValidation.ParameterType.GenericTypeArguments);
-                    return Activator.CreateInstance(instanceType, new object[] { });
+                    var instance = RefOptionalHelper.CreateEmpty(
+                        parameterRequiringValidation.ParameterType.GenericTypeArguments.First());
+                    return instance;
                 }
 
                 return parameterRequiringValidation.ParameterType.GetDefault();

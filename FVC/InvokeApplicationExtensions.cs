@@ -23,6 +23,7 @@ using EastFive.Linq.Expressions;
 using BlackBarLabs.Extensions;
 using BlackBarLabs.Api;
 using EastFive.Linq.Async;
+using EastFive.Api.Serialization;
 
 namespace EastFive.Api
 {
@@ -33,7 +34,17 @@ namespace EastFive.Api
         [HttpMethodRequestBuilder(Method = "Get")]
         public static IQueryable<TResource> HttpGet<TResource>(this IQueryable<TResource> requestQuery)
         {
-            return requestQuery;
+            if (!typeof(RequestMessage<TResource>).IsAssignableFrom(requestQuery.GetType()))
+                throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{requestQuery.GetType().FullName}`", "query");
+            var requestMessageQuery = requestQuery as RequestMessage<TResource>;
+
+            var methodInfo = typeof(InvokeApplicationExtensions)
+                .GetMethod("HttpGet", BindingFlags.Static | BindingFlags.Public)
+                .MakeGenericMethod(typeof(TResource));
+            var condition = Expression.Call(methodInfo, requestQuery.Expression);
+
+            var requestMessageNewQuery = requestMessageQuery.FromExpression(condition);
+            return requestMessageNewQuery;
         }
         public class HttpMethodRequestBuilderAttribute : Attribute, IBuildHttpRequests
         {
@@ -53,7 +64,7 @@ namespace EastFive.Api
         [HttpPostRequestBuilder]
         public static IQueryable<TResource> HttpPost<TResource>(this IQueryable<TResource> requestQuery,
             TResource resource,
-            System.Net.Http.Headers.HttpRequestHeaders headers = default)
+            KeyValuePair<string, string>[] headers = default)
         {
             if (!typeof(RequestMessage<TResource>).IsAssignableFrom(requestQuery.GetType()))
                 throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{requestQuery.GetType().FullName}`", "query");
@@ -63,7 +74,7 @@ namespace EastFive.Api
                 .GetMethod("HttpPost", BindingFlags.Static | BindingFlags.Public)
                 .MakeGenericMethod(typeof(TResource));
             var resourceExpr = Expression.Constant(resource, typeof(TResource));
-            var headersExpr = Expression.Constant(headers, typeof(System.Net.Http.Headers.HttpRequestHeaders));
+            var headersExpr = Expression.Constant(headers, typeof(KeyValuePair<string, string>[]));
             var condition = Expression.Call(methodInfo, requestQuery.Expression, resourceExpr, headersExpr);
 
             var requestMessageNewQuery = requestMessageQuery.FromExpression(condition);
@@ -76,7 +87,7 @@ namespace EastFive.Api
             {
                 request.Method = HttpMethod.Post;
                 var resource = arguments[0].Resolve();
-                var headers = (System.Net.Http.Headers.HttpRequestHeaders)arguments[1].Resolve();
+                var headers = (KeyValuePair<string, string>[])arguments[1].Resolve();
 
                 var contentJsonString = JsonConvert.SerializeObject(resource, new Serialization.Converter());
                 request.Content = new StreamContent(contentJsonString.ToStream());
@@ -185,7 +196,17 @@ namespace EastFive.Api
         [HttpMethodRequestBuilder(Method = "Delete")]
         public static IQueryable<TResource> HttpDelete<TResource>(this IQueryable<TResource> requestQuery)
         {
-            return requestQuery;
+            if (!typeof(RequestMessage<TResource>).IsAssignableFrom(requestQuery.GetType()))
+                throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{requestQuery.GetType().FullName}`", "query");
+            var requestMessageQuery = requestQuery as RequestMessage<TResource>;
+
+            var methodInfo = typeof(InvokeApplicationExtensions)
+                .GetMethod("HttpDelete", BindingFlags.Static | BindingFlags.Public)
+                .MakeGenericMethod(typeof(TResource));
+            var condition = Expression.Call(methodInfo, requestQuery.Expression);
+
+            var requestMessageNewQuery = requestMessageQuery.FromExpression(condition);
+            return requestMessageNewQuery;
         }
 
         #endregion
@@ -256,6 +277,7 @@ namespace EastFive.Api
             Func<byte[], string, TResult> onXls = default,
             Func<TResult> onCreated = default,
             Func<TResource, string, TResult> onCreatedBody = default,
+            Func<TResult> onNoContent = default,
             Func<TResult> onUpdated = default,
 
             Func<Uri, TResult> onRedirect = default,
@@ -272,38 +294,99 @@ namespace EastFive.Api
             Func<HttpResponseMessage, TResult> onResponse = default,
             Func<HttpStatusCode, TResult> onNotOverriddenResponse = default)
         {
+            var httpRequest = requestQuery.CompileRequest();
             var request = (requestQuery as RequestMessage<TResource>);
-            var application = request.InvokeApplication.Application;
-            application.CreatedResponse<TResource, TResult>(onCreated);
-            application.CreatedBodyResponse<TResource, TResult>(onCreatedBody);
-            application.BadRequestResponse<TResource, TResult>(onBadRequest);
-            application.AlreadyExistsResponse<TResource, TResult>(onExists);
-            application.RefNotFoundTypeResponse(onRefDoesNotExistsType);
-            application.RedirectResponse<TResource, TResult>(onRedirect);
-            application.NotImplementedResponse<TResource, TResult>(onNotImplemented);
+            var response = await request.InvokeApplication.SendAsync(httpRequest);
 
-            if (!onContent.IsDefaultOrNull())
+            var application = request.InvokeApplication.Application as HttpApplication;
+
+            if (response.StatusCode == HttpStatusCode.OK)
             {
-                application.ContentResponse(onContent);
-                application.ContentTypeResponse<TResource, TResult>((body, contentType) => onContent(body));
+                if (!response.Content.IsDefaultOrNull())
+                {
+                    if (!onContent.IsDefaultOrNull())
+                        return onContent(
+                            await response.ParseContentAsync<TResource>(application));
+
+                    if (!onContents.IsDefaultOrNull())
+                        return onContents(
+                            await response.ParseContentAsync<TResource[]>(application));
+
+                    if (!onContentObjects.IsDefaultOrNull())
+                        return onContentObjects(
+                            await response.ParseContentAsync<object[]>(application));
+                }
             }
-            application.MultipartContentResponse(onContents);
-            if(!onContentObjects.IsDefaultOrNull())
-                application.MultipartContentObjectResponse<TResource, TResult>(onContentObjects);
-            application.NotFoundResponse<TResource, TResult>(onNotFound);
+
+            if (response.StatusCode == HttpStatusCode.Created)
+            {
+                if(!response.Content.IsDefaultOrNull())
+                    if (!onCreatedBody.IsDefaultOrNull())
+                        return onCreatedBody(
+                            await response.ParseContentAsync<TResource>(application),
+                            response.Content.Headers.ContentType.MediaType);
+
+                if (!onCreated.IsDefaultOrNull())
+                    return onCreated();
+            }
+
+            if (response.StatusCode == HttpStatusCode.NoContent)
+            {
+                if (!onNoContent.IsDefaultOrNull())
+                    return onNoContent();
+
+                if (!onUpdated.IsDefaultOrNull())
+                    return onUpdated();
+            }
+
+            if (response.StatusCode == HttpStatusCode.Redirect)
+            {
+                if (!onRedirect.IsDefaultOrNull())
+                    return onRedirect(response.Headers.Location);
+            }
+
+            if (response.StatusCode == HttpStatusCode.BadRequest)
+            {
+                if (!onBadRequest.IsDefaultOrNull())
+                    return onBadRequest();
+            }
+
+            if (response.StatusCode == HttpStatusCode.Conflict)
+            {
+                if (!onExists.IsDefaultOrNull())
+                {
+                    if(response.Headers.Contains("X-Something"))
+                        application.AlreadyExistsResponse<TResource, TResult>(onExists);
+                }
+
+                if (!onFailure.IsDefaultOrNull())
+                    return onFailure(response.ReasonPhrase);
+            }
+
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                if(!onNotFound.IsDefaultOrNull())
+                    return onNotFound();
+            }
+
+            if (response.StatusCode == HttpStatusCode.NotImplemented)
+            {
+                if (!onNotImplemented.IsDefaultOrNull())
+                    return onNotImplemented();
+            }
+
+            if (!onResponse.IsDefaultOrNull())
+                return onResponse(response);
+            
+            application.RefNotFoundTypeResponse(onRefDoesNotExistsType);
+
             application.HtmlResponse<TResource, TResult>(onHtml);
             application.XlsResponse<TResource, TResult>(onXls);
 
-            application.NoContentResponse<TResource, TResult>(onUpdated);
             application.UnauthorizedResponse<TResource, TResult>(onUnauthorized);
             application.GeneralConflictResponse<TResource, TResult>(onFailure);
             application.ExecuteBackgroundResponse<TResource, TResult>(onExecuteBackground);
 
-            var httpRequest = request.CompileRequest();
-            var response = await request.InvokeApplication.SendAsync(httpRequest);
-
-            if (!onResponse.IsDefaultOrNull())
-                return onResponse(response);
 
             if (response is IDidNotOverride)
                 (response as IDidNotOverride).OnFailure();
@@ -322,6 +405,13 @@ namespace EastFive.Api
             var msg = $"Failed to override response with status code `{response.StatusCode}` for {typeof(TResource).FullName}" +
                 $"\nResponse:{response.ReasonPhrase}";
             throw new Exception(msg);
+        }
+
+        public static async Task<TResource> ParseContentAsync<TResource>(this HttpResponseMessage message, HttpApplication httpApp)
+        {
+            var json = await message.Content.ReadAsStringAsync();
+            var converter = new BindConvert(httpApp);
+            return JsonConvert.DeserializeObject<TResource>(json, converter);
         }
 
         public static Task<TResult> GetAsync<TResource, TResult>(this IQueryable<TResource> requestQuery,
@@ -372,11 +462,12 @@ namespace EastFive.Api
         /// <returns></returns>
         /// <remarks>Response hooks are only called if the method is actually invoked. Responses from the framework are not trapped.</remarks>
         public static Task<TResult> PostAsync<TResource, TResult>(this IQueryable<TResource> requestQuery,
-                TResource resource,
+                TResource resource, KeyValuePair<string, string>[] headers = default,
             Func<TResult> onCreated = default,
             Func<TResource, string, TResult> onCreatedBody = default,
             Func<TResult> onBadRequest = default,
-            Func<TResult> onExists = default,
+            Func<TResult> onExists = default, 
+            Func<string, TResult> onFailure = default,
             Func<Type, TResult> onRefDoesNotExistsType = default,
             Func<Uri, TResult> onRedirect = default,
             Func<TResult> onNotImplemented = default,
@@ -384,7 +475,7 @@ namespace EastFive.Api
             Func<HttpStatusCode, TResult> onNotOverriddenResponse = default)
         {
             return requestQuery
-                .HttpPost(resource)
+                .HttpPost(resource, headers:headers)
                 .MethodAsync<TResource, TResult>(
                     onCreated: onCreated,
                     onCreatedBody: onCreatedBody,
@@ -392,6 +483,7 @@ namespace EastFive.Api
                     onExists: onExists,
                     onRefDoesNotExistsType: onRefDoesNotExistsType,
                     onRedirect: onRedirect,
+                    onFailure:onFailure,
                     onNotImplemented: onNotImplemented,
                     onExecuteBackground: onExecuteBackground,
                     onNotOverriddenResponse: onNotOverriddenResponse);
@@ -435,6 +527,7 @@ namespace EastFive.Api
                     onUpdated: onNoContent,
                     onContent: onContent,
                     onContents: onContents,
+                    onNoContent: onNoContent,
                     onBadRequest: onBadRequest,
                     onNotFound: onNotFound,
                     onRefDoesNotExistsType: onRefDoesNotExistsType,

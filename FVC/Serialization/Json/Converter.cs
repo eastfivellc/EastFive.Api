@@ -87,6 +87,10 @@ namespace EastFive.Api.Serialization
                 if (objectType.IsSubClassOfGeneric(typeof(IRefOptional<>)))
                 {
                     var id = GetGuidMaybe();
+
+                    if (id == null)
+                        return RefOptionalHelper.CreateEmpty(objectType.GenericTypeArguments.First());
+
                     var refType = typeof(RefOptional<>).MakeGenericType(objectType.GenericTypeArguments);
                     return Activator.CreateInstance(refType, id);
                 }

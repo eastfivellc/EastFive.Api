@@ -211,6 +211,7 @@ namespace EastFive.Api
                     obj => onParsed(obj),
                     (why) =>
                     {
+                        // TODO: Get BindConvert to StandardJTokenBindingAttribute
                         if (valueToken.Type == JTokenType.Object || valueToken.Type == JTokenType.Array)
                         {
                             try
