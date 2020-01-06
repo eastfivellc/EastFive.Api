@@ -14,6 +14,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Reflection;
 using EastFive.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
 
 namespace EastFive.Api.Bindings
 {
@@ -32,12 +34,12 @@ namespace EastFive.Api.Bindings
                 onBindingFailure);
         }
 
-        public static TResult BindDirect<TResult>(Type type, JToken content, 
+        public static TResult BindDirect<TResult>(Type type, JToken content,
             Func<object, TResult> onParsed,
             Func<string, TResult> onDidNotBind,
             Func<string, TResult> onBindingFailure)
         {
-            if(type.IsAssignableFrom(typeof(Guid)))
+            if (type.IsAssignableFrom(typeof(Guid)))
             {
                 if (content.Type == JTokenType.Guid)
                 {
@@ -47,7 +49,7 @@ namespace EastFive.Api.Bindings
                 if (content.Type == JTokenType.String)
                 {
                     var stringValue = content.Value<string>();
-                    if(Guid.TryParse(stringValue, out Guid guidValue))
+                    if (Guid.TryParse(stringValue, out Guid guidValue))
                         return onParsed(guidValue);
                     return onBindingFailure($"Cannot convert `{stringValue}` to Guid.");
                 }
@@ -152,7 +154,7 @@ namespace EastFive.Api.Bindings
                                 (why) => default(Guid?)))
                         .SelectWhereHasValue()
                         .ToArray();
-                    
+
                     var irefs = Activator.CreateInstance(activatableType, guids);
                     return onParsed(irefs);
                 }
@@ -184,7 +186,7 @@ namespace EastFive.Api.Bindings
 
             if (type == typeof(double))
             {
-                if(content.Type == JTokenType.Float)
+                if (content.Type == JTokenType.Float)
                 {
                     var floatValue = content.Value<double>();
                     return onParsed(floatValue);
@@ -199,7 +201,7 @@ namespace EastFive.Api.Bindings
                 {
                     var stringValue = content.Value<string>();
                     return StandardStringBindingsAttribute.BindDirect(type, stringValue,
-                        onParsed, 
+                        onParsed,
                         onDidNotBind,
                         onBindingFailure);
                 }
@@ -223,9 +225,9 @@ namespace EastFive.Api.Bindings
                 if (content.Type == JTokenType.String)
                 {
                     var stringValue = content.Value<string>();
-                    return StandardStringBindingsAttribute.BindDirect(type, stringValue, 
+                    return StandardStringBindingsAttribute.BindDirect(type, stringValue,
                         onParsed,
-                        onDidNotBind, 
+                        onDidNotBind,
                         onBindingFailure);
                 }
                 return onDidNotBind($"Cannot convert `{content.Type}` to  {typeof(decimal).FullName}");
@@ -275,6 +277,31 @@ namespace EastFive.Api.Bindings
                         onParsed,
                         onDidNotBind,
                         onBindingFailure);
+                }
+                return onDidNotBind($"Cannot convert `{content.Type}` to  {typeof(bool).FullName}");
+            }
+
+            if (type == typeof(HttpContent) || type.IsSubclassOf(typeof(HttpContent)))
+            {
+                if (content.Type == JTokenType.String)
+                {
+                    var contentEncodedBase64String = content.Value<string>();
+                    return contentEncodedBase64String.MatchRegexInvoke(
+                        "data:(?<contentType>[^;]+);base64,(?<base64Data>.+)",
+                        (contentType, base64Data) => base64Data.PairWithValue(contentType),
+                        types => types.First(
+                            (ct, next) =>
+                            {
+                                var base64EncodedData = ct.Key;
+                                var data = base64EncodedData.FromBase64String();
+                                var contentType = ct.Value;
+                                var httpContent = new ByteArrayContent(data);
+                                httpContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+                                return onParsed(httpContent);
+                            },
+                            () => onBindingFailure(
+                                $"Could not decode JSON Binary prefix:{contentEncodedBase64String.Substring(0, 25)}")));
+                    
                 }
                 return onDidNotBind($"Cannot convert `{content.Type}` to  {typeof(bool).FullName}");
             }

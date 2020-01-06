@@ -1,9 +1,4 @@
 ﻿using EastFive.Web;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EastFive.Api
 {
@@ -67,5 +62,10 @@ namespace EastFive.Api
             Location = "Created from secure enthropy")]
         public const string AccessTokenSecret = "EastFive.Api.AccessTokenSecret";
 
+        [ConfigKey("Enable E5 Cors handlers.",
+            DeploymentOverrides.Optional,
+            DeploymentSecurityConcern = false,
+            Location = "Configuration based on desired behavior")]
+        public const string CorsCorrection = "EastFive.Api.CorsCorrection";
     }
 }

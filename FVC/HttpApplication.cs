@@ -23,6 +23,8 @@ using EastFive.Linq.Async;
 using Newtonsoft.Json.Linq;
 using EastFive.Api.Serialization;
 using System.Xml;
+using System.Diagnostics;
+using EastFive.Analytics;
 
 namespace EastFive.Api
 {
@@ -449,17 +451,23 @@ namespace EastFive.Api
         {
             var limitedAssemblyQuery = this.GetType()
                 .GetAttributesInterface<IApiResources>(inherit: true, multiple: true);
+            Func<Assembly, bool> shouldCheckAssembly =
+                (assembly) =>
+                {
+                    return limitedAssemblyQuery
+                        .First(
+                            (limitedAssembly, next) =>
+                            {
+                                if (limitedAssembly.ShouldCheckAssembly(assembly))
+                                    return true;
+                                return next();
+                            },
+                            () => false);
+                };
+
             var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies()
                 .Where(assembly => (!assembly.GlobalAssemblyCache))
-                .Where(assembly => limitedAssemblyQuery
-                    .First(
-                        (q, n) =>
-                        {
-                            if (q.ShouldCheckAssembly(assembly))
-                                return true;
-                            return n();
-                        },
-                        () => false))
+                .Where(shouldCheckAssembly)
                 .ToArray();
 
             lock (lookupLock)
@@ -468,15 +476,7 @@ namespace EastFive.Api
                 {
                     if (args.LoadedAssembly.GlobalAssemblyCache)
                         return;
-                    var check = limitedAssemblyQuery
-                        .First(
-                            (q, n) =>
-                            {
-                                if (q.ShouldCheckAssembly(args.LoadedAssembly))
-                                    return true;
-                                return n();
-                            },
-                            () => false);
+                    var check = shouldCheckAssembly(args.LoadedAssembly);
                     if (!check)
                         return;
                     lock (lookupLock)
@@ -758,7 +758,20 @@ namespace EastFive.Api
 
                 {
                     typeof(Analytics.ILogger),
-                    (httpApp, request, paramInfo, success) => success(httpApp.Logger)
+                    async (httpApp, request, paramInfo, success) =>
+                    {
+                        if(!request.Headers.Contains("X-Diagnostics"))
+                            return await success(httpApp.Logger);
+                        request.IsAuthorizedFor("X-Diagnostics");
+                        var timer = new Stopwatch();
+                        timer.Start();
+                        var logger = new Analytics.CaptureLog(httpApp.Logger, timer);
+                        var response = await success(logger);
+                        logger.Trace("Response concluded.");
+                        var responseString = logger.Dump();
+                        response.Content = new StringContent(responseString, Encoding.UTF8, "text/text");
+                        return response;
+                    }
                 },
 
                 #endregion

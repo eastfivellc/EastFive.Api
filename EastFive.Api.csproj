@@ -154,6 +154,7 @@
   <ItemGroup>
     <Compile Include="Attributes\HtmlAttributes.cs" />
     <Compile Include="Attributes\QueryValidation\FileNameAttribute.cs" />
+    <Compile Include="Attributes\QueryValidation\HeaderAttribute.cs" />
     <Compile Include="Attributes\Routing\IHandleExceptions.cs" />
     <Compile Include="Bindings\ApiSecurity.cs" />
     <Compile Include="Bindings\BindingExtensions.cs" />

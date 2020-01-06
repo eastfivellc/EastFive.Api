@@ -157,6 +157,33 @@ namespace EastFive.Api
             return multipartResponse;
         }
 
+        public static bool IsAuthorizedFor(this HttpRequestMessage request,
+            string claimType)
+        {
+            if (request.IsDefaultOrNull())
+                return false;
+            if (request.Headers.IsDefaultOrNull())
+                return false;
+            if (request.Headers.Authorization.IsDefaultOrNull())
+                return false;
+            var jwtString = request.Headers.Authorization.ToString();
+            if (jwtString.IsNullOrWhiteSpace())
+                return false;
+            return jwtString.GetClaimsJwtString(
+                claims =>
+                {
+                    return claims.First(
+                        (claim, next) =>
+                        {
+                            if (String.Compare(claim.Type, claimType) == 0)
+                                return true;
+                            return next();
+                        },
+                        () => false);
+                },
+                (why) => false);
+        }
+
         public static TResult GetClaimsFromAuthorizationHeader<TResult>(this AuthenticationHeaderValue header,
             Func<IEnumerable<Claim>, TResult> success,
             Func<TResult> authorizationNotSet,

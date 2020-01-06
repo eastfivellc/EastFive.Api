@@ -10,6 +10,7 @@ using EastFive.Linq.Expressions;
 using System.Net.Http;
 using BlackBarLabs.Extensions;
 using EastFive.Extensions;
+using EastFive.Linq;
 
 namespace EastFive.Api
 {
@@ -179,8 +180,35 @@ namespace EastFive.Api
         public static IQueryable<TResource> ById<TResource>(this IQueryable<TResource> query, IRef<TResource> resourceRef)
             where TResource : IReferenceable
         {
-            var resourceId = resourceRef.id;
-            return query.ById(resourceId);
+            if (!typeof(RequestMessage<TResource>).IsAssignableFrom(query.GetType()))
+                throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{query.GetType().FullName}`", "query");
+            var requestMessageQuery = query as RequestMessage<TResource>;
+
+            var condition = Expression.Call(
+                typeof(ResourceQueryExtensions), "ById", new Type[] { typeof(TResource) },
+                query.Expression, Expression.Constant(resourceRef.id));
+
+            var requestMessageNewQuery = requestMessageQuery.FromExpression(condition);
+            return requestMessageNewQuery;
+        }
+
+        [MutateIdQuery]
+        public static IQueryable<TResource> ById<TResource>(this IQueryable<TResource> query, IRefOptional<TResource> resourceRef)
+            where TResource : IReferenceable
+        {
+            if (!resourceRef.HasValue)
+                return query;
+
+            if (!typeof(IComposibleQuery<TResource>).IsAssignableFrom(query.GetType()))
+                throw new ArgumentException($"Query must be of type `{typeof(IComposibleQuery<TResource>).FullName}` not `{query.GetType().FullName}`", "query");
+            var composibleQuery = query as IComposibleQuery<TResource>;
+
+            var condition = Expression.Call(
+                typeof(ResourceQueryExtensions), "ById", new Type[] { typeof(TResource) },
+                query.Expression, Expression.Constant(resourceRef.id.Value));
+
+            var requestMessageNewQuery = composibleQuery.FromExpression(condition);
+            return requestMessageNewQuery;
         }
 
         [AttributeUsage(AttributeTargets.Method)]

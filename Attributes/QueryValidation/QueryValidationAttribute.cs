@@ -37,7 +37,7 @@ namespace EastFive.Api
                     return SelectParameterResult.File(v, key, parameterRequiringValidation);
                 },
                 (whyQuery) => SelectParameterResult.FailureFile(
-                    $"Could not create value in file.", 
+                    $"Could not create value in file.",
                     key, parameterRequiringValidation));
 
             if (fileResult.valid)
@@ -46,7 +46,7 @@ namespace EastFive.Api
             var queryResult = fetchQueryParam(parameterRequiringValidation,
                 (v) =>
                 {
-                    if(fileResult.valid)
+                    if (fileResult.valid)
                     {
                         fileResult.fromQuery = true;
                         return fileResult;
@@ -82,7 +82,7 @@ namespace EastFive.Api
                 return this.Name;
             return paramInfo.Name;
         }
-        
+
     }
 
     public class QueryParameterAttribute : QueryValidationAttribute, IDocumentParameter
@@ -141,11 +141,11 @@ namespace EastFive.Api
 
     public class OptionalQueryParameterAttribute : QueryParameterAttribute
     {
-        public override SelectParameterResult TryCast(IApplication httpApp, 
+        public override SelectParameterResult TryCast(IApplication httpApp,
                 HttpRequestMessage request, MethodInfo method,
-                ParameterInfo parameterRequiringValidation, 
-                CastDelegate fetchQueryParam, 
-                CastDelegate fetchBodyParam, 
+                ParameterInfo parameterRequiringValidation,
+                CastDelegate fetchQueryParam,
+                CastDelegate fetchBodyParam,
                 CastDelegate fetchDefaultParam)
         {
             var baseValue = base.TryCast(httpApp, request, method,
@@ -203,7 +203,7 @@ namespace EastFive.Api
         {
             base.CheckFileName = true;
             return base.TryCast(httpApp, request, method,
-                parameterRequiringValidation, 
+                parameterRequiringValidation,
                 fetchQueryParam, fetchBodyParam, fetchDefaultParam);
         }
 
@@ -227,16 +227,16 @@ namespace EastFive.Api
             var key = this.GetKey(parameterRequiringValidation);
             return request.RequestUri
                 .VerifyParametersHash(
-                    onValid:(id, paramsHash) =>
-                    {
-                        var resourceType = parameterRequiringValidation
-                            .ParameterType.GenericTypeArguments.First();
-                        var instantiatableType = typeof(CheckSumRef<>).MakeGenericType(resourceType);
-                        var instance = Activator.CreateInstance(instantiatableType, new object[] { id, paramsHash });
-                        return SelectParameterResult.File(instance, key, parameterRequiringValidation);
-                    },
-                    onInvalid:(why) => SelectParameterResult
-                        .FailureFile(why, key, parameterRequiringValidation));
+                    onValid: (id, paramsHash) =>
+                     {
+                         var resourceType = parameterRequiringValidation
+                             .ParameterType.GenericTypeArguments.First();
+                         var instantiatableType = typeof(CheckSumRef<>).MakeGenericType(resourceType);
+                         var instance = Activator.CreateInstance(instantiatableType, new object[] { id, paramsHash });
+                         return SelectParameterResult.File(instance, key, parameterRequiringValidation);
+                     },
+                    onInvalid: (why) => SelectParameterResult
+                         .FailureFile(why, key, parameterRequiringValidation));
         }
 
         public virtual Parameter GetParameter(ParameterInfo paramInfo, HttpApplication httpApp)
@@ -248,100 +248,6 @@ namespace EastFive.Api
                 Required = true,
                 Type = $"Hashed({Parameter.GetTypeName(paramInfo.ParameterType.GenericTypeArguments.First(), httpApp)})",
                 Where = "QUERY",
-            };
-        }
-    }
-
-    public class HeaderAttribute : QueryValidationAttribute
-    {
-        public string Content { get; set; }
-
-        public override SelectParameterResult TryCast(IApplication httpApp,
-            HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
-            CastDelegate fetchQueryParam,
-            CastDelegate fetchBodyParam,
-            CastDelegate fetchDefaultParam)
-        {
-            var bindType = parameterRequiringValidation.ParameterType;
-            if(typeof(System.Net.Http.Headers.MediaTypeHeaderValue) == bindType)
-            {
-                if(Content.IsNullOrWhiteSpace())
-                    return new SelectParameterResult
-                    {
-                        valid = true,
-                        fromBody = false,
-                        fromQuery = false,
-                        fromFile = false,
-                        key = Content,
-                        parameterInfo = parameterRequiringValidation,
-                        value = request.Content.Headers.ContentType.MediaType,
-                    };
-                throw new NotImplementedException();
-                //return await fetchBodyParam(
-                //    new ParameterInfo() { ParameterType = typeof(HttpContent) },
-                //    (parts) =>
-                //    {
-                //        var content = parts as HttpContent;
-                //        return new SelectParameterResult
-                //        {
-                //            valid = true,
-                //            fromBody = false,
-                //            fromQuery = false,
-                //            fromFile = false,
-                //            key = Content,
-                //            parameterInfo = parameterRequiringValidation,
-                //            value = content.Headers.ContentType,
-                //        };
-                //    },
-                //    (why) =>
-                //    {
-                //        return new SelectParameterResult
-                //        {
-                //            fromBody = false,
-                //            key = "",
-                //            fromQuery = false,
-                //            fromFile = false,
-                //            parameterInfo = parameterRequiringValidation,
-                //            valid = false,
-                //            failure = why, // $"Cannot extract MediaTypeHeaderValue from non-multipart request.",
-                //        };
-                //    });
-            }
-            if (bindType.IsSubClassOfGeneric(typeof(HttpHeaderValueCollection<>)))
-            {
-                if (bindType.GenericTypeArguments.First() == typeof(StringWithQualityHeaderValue))
-                {
-                    if (Content.HasBlackSpace())
-                        return new SelectParameterResult
-                        {
-                            key = "",
-                            fromQuery = false,
-                            fromBody = false,
-                            fromFile = false,
-                            parameterInfo = parameterRequiringValidation,
-                            valid = false,
-                            failure = "AcceptLanguage is not a content header.",
-                        };
-                    return new SelectParameterResult
-                    {
-                        valid = true,
-                        fromBody = false,
-                        fromQuery = false,
-                        fromFile = false,
-                        key = default,
-                        parameterInfo = parameterRequiringValidation,
-                        value = request.Headers.AcceptLanguage,
-                    };
-                }
-            }
-            return new SelectParameterResult
-            {
-                fromBody = false,
-                key = "",
-                fromQuery = false,
-                parameterInfo = parameterRequiringValidation,
-                valid = false,
-                failure = $"No header binding for type `{bindType.FullName}`.",
             };
         }
     }

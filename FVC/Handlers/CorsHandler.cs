@@ -1,4 +1,5 @@
 ﻿using EastFive.Extensions;
+using EastFive.Web.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,7 +15,12 @@ namespace EastFive.Api
             IApplication httpApp, HttpRequestMessage request, 
             string routeName, RouteHandlingDelegate continueExecution)
         {
-            Func < Task < HttpResponseMessage >> skip = () => continueExecution(controllerType, httpApp, request, routeName);
+            Func<Task<HttpResponseMessage>> skip = 
+                () => continueExecution(controllerType, httpApp, request, routeName);
+            
+            if(!AppSettings.CorsCorrection.ConfigurationBoolean(s =>s, (why) => false))
+                return skip();
+
             if (request.Method.Method.ToLower() != HttpMethod.Options.Method.ToLower())
                 return skip();
 
@@ -22,8 +28,10 @@ namespace EastFive.Api
                 return skip();
 
             var response = request.CreateResponse(System.Net.HttpStatusCode.OK);
-            //response.Headers.Add("Access-Control-Allow-Origin", "*");
-            response.Headers.Add("Access-Control-Allow-Headers", "*");
+            if (!response.Headers.Contains("Access-Control-Allow-Origin"))
+                response.Headers.Add("Access-Control-Allow-Origin", "*");
+            if (!response.Headers.Contains("Access-Control-Allow-Headers"))
+                response.Headers.Add("Access-Control-Allow-Headers", "*");
             return response.AsTask();
         }
     }

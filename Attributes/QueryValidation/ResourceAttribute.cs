@@ -41,6 +41,7 @@ namespace EastFive.Api
         {
             try
             {
+                var issue = parameterInfo.ParameterType.GetMembers().ToArray();
                 var rootObject = Newtonsoft.Json.JsonConvert.DeserializeObject(
                     contentString, parameterInfo.ParameterType, bindConvert);
                 return onParsed(rootObject);
