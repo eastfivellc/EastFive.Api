@@ -18,7 +18,7 @@ namespace EastFive.Api
             Func<Task<HttpResponseMessage>> skip = 
                 () => continueExecution(controllerType, httpApp, request, routeName);
             
-            if(!AppSettings.CorsCorrection.ConfigurationBoolean(s =>s, (why) => false))
+            if(!AppSettings.CorsCorrection.ConfigurationBoolean(s =>s, onNotSpecified:() => false))
                 return skip();
 
             if (request.Method.Method.ToLower() != HttpMethod.Options.Method.ToLower())
