@@ -76,8 +76,12 @@ namespace EastFive.Api
                                 return (string)content;
                             }
 
-                            if (typeof(Guid).IsAssignableFrom(memberType) ||
-                                memberType.IsSubClassOfGeneric(typeof(IReferenceable)))
+                            if (typeof(Guid).IsAssignableFrom(memberType))
+                            {
+                                var contentId = (Guid)content;
+                                return contentId.ToString();
+                            }
+                            if(memberType.IsSubClassOfGeneric(typeof(IReferenceable)))
                             {
                                 if (content.IsDefaultOrNull())
                                     return string.Empty;
@@ -89,7 +93,13 @@ namespace EastFive.Api
                                 }
                             }
 
-                            if(typeof(Type) == memberType)
+                            if (typeof(DateTime).IsAssignableFrom(memberType))
+                            {
+                                var contentDate = (DateTime)content;
+                                return contentDate.ToString();
+                            }
+
+                            if (typeof(Type) == memberType)
                             {
                                 return (content as Type).GetCustomAttributes<FunctionViewControllerAttribute>()
                                     .First().ContentType;

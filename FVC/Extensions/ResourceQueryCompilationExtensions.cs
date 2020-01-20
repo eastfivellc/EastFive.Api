@@ -24,17 +24,17 @@ namespace EastFive.Api
 
             var queryUrl = urlQuery.Compile<Uri, IBuildUrls>(
                     baseUrl,
-                (url, attr, method, operand) =>
+                (url, attr, method, methodArguments) =>
                 {
-                    var updatedUrl = attr.BindUrlQueryValue(url, method, operand);
+                    var updatedUrl = attr.BindUrlQueryValue(url, method, methodArguments);
                     return updatedUrl;
                 },
-                (url, method, operand) =>
+                (url, method, methodArguments) =>
                 {
                     if (method.Name == "Where")
                     {
                         var x = new ResourceQueryExtensions.BinaryComparisonQueryAttribute();
-                        return x.BindUrlQueryValue(url, method, operand);
+                        return x.BindUrlQueryValue(url, method, methodArguments);
                     }
                     throw new ArgumentException($"Cannot compile Method `{method.DeclaringType.FullName}..{method.Name}`");
                 });
@@ -51,17 +51,17 @@ namespace EastFive.Api
 
             return urlQuery.Compile<HttpRequestMessage, IBuildHttpRequests>(
                     httpRequest,
-                (request, methodAttr, method, operand) =>
+                (request, methodAttr, method, methodArguments) =>
                 {
                     return methodAttr.MutateRequest(request,
-                        method, operand);
+                        method, methodArguments);
                 },
-                (request, method, operand) =>
+                (request, method, methodArguments) =>
                 {
                     if (method.Name == "Where")
                     {
                         var x = new ResourceQueryExtensions.BinaryComparisonQueryAttribute();
-                        return x.MutateRequest(request, method, operand);
+                        return x.MutateRequest(request, method, methodArguments);
                     }
                     throw new ArgumentException($"Cannot compile Method `{method.DeclaringType.FullName}..{method.Name}`");
                 });
