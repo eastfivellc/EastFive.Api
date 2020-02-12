@@ -672,6 +672,8 @@ namespace EastFive.Api
 
         #region Instigators - Concrete
 
+        public const string DiagnosticsLogProperty = "X-Diagnostics-Log";
+
         protected Dictionary<Type, InstigatorDelegate> instigators =
             new Dictionary<Type, InstigatorDelegate>()
             {
@@ -764,14 +766,14 @@ namespace EastFive.Api
                     {
                         if(!request.Headers.Contains("X-Diagnostics"))
                             return await success(httpApp.Logger);
-                        request.IsAuthorizedFor("X-Diagnostics");
                         var timer = new Stopwatch();
                         timer.Start();
                         var logger = new Analytics.CaptureLog(httpApp.Logger, timer);
                         var response = await success(logger);
                         logger.Trace("Response concluded.");
-                        var responseString = logger.Dump();
-                        response.Content = new StringContent(responseString, Encoding.UTF8, "text/text");
+                        var diagnosticsLog = logger.Dump();
+                        response.RequestMessage.Properties.Add(DiagnosticsLogProperty, diagnosticsLog);
+                        // response.Content = new StringContent(responseString, Encoding.UTF8, "text/text");
                         return response;
                     }
                 },
