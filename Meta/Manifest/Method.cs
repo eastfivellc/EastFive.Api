@@ -9,15 +9,16 @@ namespace EastFive.Api.Resources
 {
     public interface IDocumentMethod
     {
-        Method GetMethod(MethodInfo method, HttpApplication httpApp);
+        Method GetMethod(Route route, MethodInfo method, HttpApplication httpApp);
     }
 
     public class Method
     {
-        public Method(string httpMethod, MethodInfo methodInfo, HttpApplication httpApp)
+        public Method(string httpMethod, MethodInfo methodInfo, Uri path, HttpApplication httpApp)
         {
             this.HttpMethod = httpMethod;
             this.Name = methodInfo.Name;
+            this.Path = path;
             this.Description = methodInfo.GetCustomAttribute<System.ComponentModel.DescriptionAttribute, string>(
                 (attr) => attr.Description,
                 () => string.Empty);
@@ -58,6 +59,8 @@ namespace EastFive.Api.Resources
         public string HttpMethod { get; set; }
 
         public string Name { get; set; }
+
+        public Uri Path { get; set; }
 
         public string Description { get; set; }
 

@@ -21,18 +21,31 @@ namespace EastFive.Api
             if(!AppSettings.CorsCorrection.ConfigurationBoolean(s =>s, onNotSpecified:() => false))
                 return skip();
 
-            if (request.Method.Method.ToLower() != HttpMethod.Options.Method.ToLower())
-                return skip();
+            return GetDecoratedResponse();
 
-            if (!request.Headers.Contains("Access-Control-Request-Headers"))
-                return skip();
+            Task<HttpResponseMessage> GetResponse()
+            {
+                if (request.Method.Method.ToLower() != HttpMethod.Options.Method.ToLower())
+                    return skip();
 
-            var response = request.CreateResponse(System.Net.HttpStatusCode.OK);
-            if (!response.Headers.Contains("Access-Control-Allow-Origin"))
-                response.Headers.Add("Access-Control-Allow-Origin", "*");
-            if (!response.Headers.Contains("Access-Control-Allow-Headers"))
-                response.Headers.Add("Access-Control-Allow-Headers", "*");
-            return response.AsTask();
+                if (!request.Headers.Contains("Access-Control-Request-Headers"))
+                    return skip();
+
+                var response = request.CreateResponse(System.Net.HttpStatusCode.OK);
+                return response.AsTask();
+            }
+
+            async Task<HttpResponseMessage> GetDecoratedResponse()
+            {
+                var response = await GetResponse();
+                if (!response.Headers.Contains("Access-Control-Allow-Origin"))
+                    response.Headers.Add("Access-Control-Allow-Origin", "*");
+                if (!response.Headers.Contains("Access-Control-Allow-Headers"))
+                    response.Headers.Add("Access-Control-Allow-Headers", "*");
+                if (!response.Headers.Contains("Access-Control-Allow-Methods"))
+                    response.Headers.Add("Access-Control-Allow-Methods", "*");
+                return response;
+            }
         }
     }
 }

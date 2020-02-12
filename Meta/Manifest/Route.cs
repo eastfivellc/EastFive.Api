@@ -40,7 +40,21 @@ namespace EastFive.Api.Resources
             this.Name = name;
             this.Methods = methods
                 .SelectMany(kvp => kvp.Value.Select(m => m.PairWithKey(kvp.Key)))
-                .Select(verb => new Method(verb.Key.Method, verb.Value, httpApp)).ToArray();
+                .Select(
+                    verb =>
+                    {
+                        return verb.Value
+                            .GetAttributesInterface<IDocumentMethod>()
+                            .First(
+                                (methodDoc, next) => methodDoc.GetMethod(this, verb.Value, httpApp),
+                                () =>
+                                {
+                                    var path = new Uri($"/api/{name}", UriKind.Relative);
+                                    return new Method(verb.Key.Method, verb.Value,
+                                        path, httpApp);
+                                });
+                    })
+                .ToArray();
             this.Properties = methods
                 .First(
                     (methodKvp, next) =>
@@ -72,7 +86,7 @@ namespace EastFive.Api.Resources
                     method =>
                     {
                         var docMethod = method.GetAttributesInterface<IDocumentMethod>().First();
-                        return docMethod.GetMethod(method, httpApp);
+                        return docMethod.GetMethod(this, method, httpApp);
                     })
                 .ToArray();
             this.Properties = properties

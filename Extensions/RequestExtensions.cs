@@ -184,6 +184,36 @@ namespace EastFive.Api
                 (why) => false);
         }
 
+        public static bool IsAuthorizedFor(this HttpRequestMessage request,
+            Uri claimType, string claimValue)
+        {
+            if (request.IsDefaultOrNull())
+                return false;
+            if (request.Headers.IsDefaultOrNull())
+                return false;
+            if (request.Headers.Authorization.IsDefaultOrNull())
+                return false;
+            var jwtString = request.Headers.Authorization.ToString();
+            if (jwtString.IsNullOrWhiteSpace())
+                return false;
+            return jwtString.GetClaimsJwtString(
+                claims =>
+                {
+                    return claims.First(
+                        (claim, next) =>
+                        {
+                            if (String.Compare(claim.Type, claimType.OriginalString) == 0)
+                            {
+                                if(claim.Value.Split(','.AsArray()).Contains(claimValue))
+                                    return true;
+                            }
+                            return next();
+                        },
+                        () => false);
+                },
+                (why) => false);
+        }
+
         public static TResult GetClaimsFromAuthorizationHeader<TResult>(this AuthenticationHeaderValue header,
             Func<IEnumerable<Claim>, TResult> success,
             Func<TResult> authorizationNotSet,
@@ -321,7 +351,7 @@ namespace EastFive.Api
                     var claims = claimsEnumerable.ToArray();
                     //var accountIdClaimType =
                     //    ConfigurationManager.AppSettings[sessionIdClaimTypeConfigurationSetting];
-                    var sessionIdClaimType = BlackBarLabs.Security.ClaimIds.Session;
+                    var sessionIdClaimType =  Auth.ClaimEnableSessionAttribute.Type;
                     var result = claims.GetSessionIdAsync(
                         request, sessionIdClaimType,
                         (sessionId) => success(sessionId, claims));

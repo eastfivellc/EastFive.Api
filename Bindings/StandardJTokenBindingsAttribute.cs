@@ -83,8 +83,10 @@ namespace EastFive.Api.Bindings
                 if (content.Type == JTokenType.Object)
                 {
                     var objectContent = (content as JObject);
-                    if (objectContent.TryGetValue("uuid", StringComparison.OrdinalIgnoreCase, out JToken idContent))
-                        return BindDirect(type, idContent, onParsed, onDidNotBind, onBindingFailure);
+                    if (objectContent.TryGetValue("uuid", StringComparison.OrdinalIgnoreCase, out JToken idContentUuid))
+                        return BindDirect(type, idContentUuid, onParsed, onDidNotBind, onBindingFailure);
+                    if (objectContent.TryGetValue("id", StringComparison.OrdinalIgnoreCase, out JToken idContentId))
+                        return BindDirect(type, idContentId, onParsed, onDidNotBind, onBindingFailure);
                     var guidStr = objectContent.ToString();
                     return StandardStringBindingsAttribute.BindDirect(type,
                             guidStr,
@@ -644,6 +646,8 @@ namespace EastFive.Api.Bindings
                     if (!reader.Read())
                         return onFailed("Property did not have value.");
                     if (propertyName.ToLower() == "uuid")
+                        return GetGuid(onGot, onIgnored, onFailed);
+                    if (propertyName.ToLower() == "id")
                         return GetGuid(onGot, onIgnored, onFailed);
                     if (!reader.Read())
                         return onIgnored("'uuid' Property not found.");

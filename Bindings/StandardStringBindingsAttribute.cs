@@ -62,6 +62,12 @@ namespace EastFive.Api.Bindings
             {
                 if (DateTime.TryParse(content, out DateTime dateValue))
                     return onParsed(dateValue);
+                if (content.HasBlackSpace())
+                {
+                    var decodedContent = System.Net.WebUtility.UrlDecode(content);
+                    if (DateTime.TryParse(decodedContent, out DateTime dateValueDecoded))
+                        return onParsed(dateValueDecoded);
+                }
                 return onDidNotBind($"Failed to convert {content} to `{typeof(DateTime).FullName}`.");
             }
             if (type == typeof(DateTimeOffset))

@@ -44,20 +44,18 @@ namespace EastFive.Api
                 ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
-            return AppSettings.ActorIdClaimType.ConfigurationString(
-                (accountIdClaimType) =>
+            var accountIdClaimType = Auth.ClaimEnableActorAttribute.Type;
+            return request.GetClaims(
+                (claimsEnumerable) =>
                 {
-                    return request.GetClaims(
-                        (claimsEnumerable) =>
+                    var claims = claimsEnumerable.ToArray();
+                    return claims.GetAccountIdMaybe(
+                            request, accountIdClaimType,
+                        (accountIdMaybe) =>
                         {
-                            var claims = claimsEnumerable.ToArray();
-                            return claims.GetAccountIdMaybe(
-                                    request, accountIdClaimType,
-                                (accountIdMaybe) =>
-                                {
-                                    var sessionIdClaimType = BlackBarLabs.Security.ClaimIds.Session;
-                                    return claims.GetSessionIdAsync(
-                                        request, sessionIdClaimType,
+                            var sessionIdClaimType = Auth.ClaimEnableSessionAttribute.Type;
+                            return claims.GetSessionIdAsync(
+                                            request, sessionIdClaimType,
                                         (sessionId) =>
                                         {
                                             var token = new SessionToken
@@ -68,19 +66,16 @@ namespace EastFive.Api
                                             };
                                             return onSuccess(token);
                                         });
-                                });
-                        },
-                        () => request
-                            .CreateResponse(HttpStatusCode.Unauthorized)
-                            .AddReason("Authorization header not set.")
-                            .AsTask(),
-                        (why) => request
-                            .CreateResponse(HttpStatusCode.Unauthorized)
-                            .AddReason(why)
-                            .AsTask());
+                        });
                 },
-                (why) => request.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).AsTask());
-
+                () => request
+                    .CreateResponse(HttpStatusCode.Unauthorized)
+                    .AddReason("Authorization header not set.")
+                    .AsTask(),
+                (why) => request
+                    .CreateResponse(HttpStatusCode.Unauthorized)
+                    .AddReason(why)
+                    .AsTask());
         }
     }
 }
