@@ -55,10 +55,24 @@ namespace EastFive.Api.Serialization
                 return true;
             if (objectType.IsSubClassOfGeneric(typeof(IDictionary<,>)))
             {
-                if (objectType.GetGenericArguments().Any(arg => CanConvert(arg)))
+                var shouldConvertDict = objectType
+                    .GetGenericArguments()
+                    .Any(ShouldConvertDictionaryType);
+                if (shouldConvertDict)
                     return true;
             }
             if (objectType.IsSubclassOf(typeof(Type)))
+                return true;
+            return false;
+        }
+
+        protected bool ShouldConvertDictionaryType(Type arg)
+        {
+            if (CanConvert(arg))
+                return true;
+            if (arg.ContainsCustomAttribute<IProvideSerialization>(true))
+                return true;
+            if (arg == typeof(object))
                 return true;
             return false;
         }
@@ -128,6 +142,7 @@ namespace EastFive.Api.Serialization
                 return;
 
             }
+
             if (value is IReferenceable)
             {
                 var id = (value as IReferenceable).id;
@@ -135,6 +150,7 @@ namespace EastFive.Api.Serialization
                 //writer.WriteValue(id);
                 return;
             }
+
             if (value is IReferences)
             {
                 writer.WriteStartArray();
@@ -150,6 +166,7 @@ namespace EastFive.Api.Serialization
                 writer.WriteEndArray();
                 return;
             }
+
             if (value is IReferenceableOptional)
             {
                 var id = (value as IReferenceableOptional).id;
@@ -157,11 +174,13 @@ namespace EastFive.Api.Serialization
                 //writer.WriteValue(id);
                 return;
             }
+
             if(value == null)
             {
                 writer.WriteNull();
                 return;
             }
+
             var valueType = value.GetType();
             if (valueType.IsSubClassOfGeneric(typeof(IDictionary<,>)))
             {
@@ -176,7 +195,8 @@ namespace EastFive.Api.Serialization
                     writer.WritePropertyName(propertyName);
 
                     var valueValue = kvpObj.Value;
-                    if (this.CanConvert(valueType.GenericTypeArguments.Last()))
+                    var valueValueType = valueType.GenericTypeArguments.Last();
+                    if (this.ShouldConvertDictionaryType(valueValueType))
                     {
                         WriteJson(writer, valueValue, serializer);
                         continue;
@@ -186,6 +206,7 @@ namespace EastFive.Api.Serialization
                 writer.WriteEndObject();
                 return;
             }
+
             if (value is Type)
             {
                 var typeValue = (value as Type);
@@ -200,6 +221,8 @@ namespace EastFive.Api.Serialization
                 writer.WriteValue(stringType);
                 return;
             }
+
+            serializer.Serialize(writer, value);
         }
     }
 }
