@@ -14,9 +14,10 @@ namespace EastFive.Api
 
     public interface IValidateHttpRequest
     {
-        Task<HttpResponseMessage> ValidateRequest(SelectParameterResult parameterSelection, 
+        Task<HttpResponseMessage> ValidateRequest(
+            KeyValuePair<ParameterInfo, object>[] parameterSelection, 
             MethodInfo methodCurrent, 
-            IApplication httpAppCurrent, HttpRequestMessage requestCurrent,
-            ValidateHttpDelegate boundCallback);
+            IApplication httpApp, HttpRequestMessage request,
+            ValidateHttpDelegate bound);
     }
 }

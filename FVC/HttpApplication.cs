@@ -33,6 +33,8 @@ namespace EastFive.Api
     [FormDataParser]
     [MimeMultipartContentParser]
     [ApiResources(NameSpacePrefixes = "EastFive.Api,EastFive.Web")]
+    [Auth.ClaimEnableSession]
+    [Auth.ClaimEnableActor]
     public class HttpApplication : System.Web.HttpApplication, IApplication
     {
         public virtual string Namespace
@@ -692,7 +694,7 @@ namespace EastFive.Api
                                                 request, accountIdClaimType,
                                             (accountIdMaybe) =>
                                             {
-                                                var sessionIdClaimType = BlackBarLabs.Security.ClaimIds.Session;
+                                                var sessionIdClaimType = Auth.ClaimEnableSessionAttribute.Type;
                                                 return claims.GetSessionIdAsync(
                                                     request, sessionIdClaimType,
                                                     (sessionId) =>

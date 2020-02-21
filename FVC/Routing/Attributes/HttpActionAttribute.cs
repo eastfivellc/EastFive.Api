@@ -1,4 +1,5 @@
 ﻿using EastFive.Api.Bindings;
+using EastFive.Api.Resources;
 using EastFive.Api.Serialization;
 using EastFive.Extensions;
 using System;
@@ -57,6 +58,12 @@ namespace EastFive.Api
                             (why) => onFailure(why));
                 };
             return fileNameCastDelegate;
+        }
+
+        public override Method GetMethod(Route route, MethodInfo methodInfo, HttpApplication httpApp)
+        {
+            var path = new Uri($"/api/{route.Name}/{Action}", UriKind.Relative);
+            return new Method(this.Method, methodInfo, path, httpApp);
         }
     }
 }

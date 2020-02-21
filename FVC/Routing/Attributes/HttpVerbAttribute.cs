@@ -375,9 +375,10 @@ namespace EastFive.Api
             return noExtraParameters();
         }
 
-        public Method GetMethod(MethodInfo methodInfo, HttpApplication httpApp)
+        public virtual Method GetMethod(Route route, MethodInfo methodInfo, HttpApplication httpApp)
         {
-            return new Method(this.Method, methodInfo, httpApp);
+            var path = new Uri($"/api/{route.Name}", UriKind.Relative);
+            return new Method(this.Method, methodInfo, path, httpApp);
         }
     }
 }

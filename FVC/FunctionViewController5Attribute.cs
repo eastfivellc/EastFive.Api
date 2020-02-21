@@ -107,12 +107,31 @@ namespace EastFive.Api
                     {
                         return methodCast.parametersWithValues
                             .Aggregate<SelectParameterResult, ValidateHttpDelegate>(
-                                (parameterSelection, methodFinal, httpAppFinal, requestFinal) =>
+                                (parameterSelectionUnvalidated, methodFinalUnvalidated, httpAppFinalUnvalidated, requestFinalUnvalidated) =>
                                 {
-                                    return InvokeValidatedMethodAsync(
-                                        httpAppFinal, requestFinal, cancellationToken,
-                                        methodFinal,
-                                        parameterSelection);
+                                    return methodFinalUnvalidated
+                                        .GetAttributesInterface<IValidateHttpRequest>(true, true)
+                                        .Aggregate<IValidateHttpRequest, ValidateHttpDelegate>(
+                                            (parameterSelection, methodFinal, httpAppFinal, requestFinal) =>
+                                            {
+                                                return InvokeValidatedMethodAsync(
+                                                    httpAppFinal, requestFinal, cancellationToken,
+                                                    methodFinal,
+                                                    parameterSelection);
+                                            },
+                                            (callback, validator) =>
+                                            {
+                                                return (parametersSelected, methodCurrent, httpAppCurrent, requestCurrent) =>
+                                                {
+                                                    return validator.ValidateRequest(parametersSelected,
+                                                        methodCurrent,
+                                                        httpAppCurrent, requestCurrent,
+                                                        callback);
+                                                };
+                                            })
+                                        .Invoke(
+                                            parameterSelectionUnvalidated,
+                                            methodFinalUnvalidated, httpAppFinalUnvalidated, requestFinalUnvalidated);
                                 },
                                 (callback, parameterSelection) =>
                                 {
@@ -133,7 +152,7 @@ namespace EastFive.Api
                                     var validator = validators.First();
                                     return (parametersSelected, methodCurrent, httpAppCurrent, requestCurrent) =>
                                     {
-                                        return validator.ValidateRequest(parameterSelection,
+                                        return validator.ValidateRequest(parametersSelected,
                                             methodCurrent,
                                             httpAppCurrent, requestCurrent,
                                             boundCallback);
