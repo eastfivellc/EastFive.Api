@@ -16,4 +16,14 @@ namespace EastFive.Api
                 ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess);
     }
+
+    public interface IInstigate
+    {
+        bool CanInstigate(ParameterInfo parameterInfo);
+
+        Task<HttpResponseMessage> Instigate(
+                HttpApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken,
+                ParameterInfo parameterInfo,
+            Func<object, Task<HttpResponseMessage>> onSuccess);
+    }
 }

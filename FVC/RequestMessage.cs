@@ -10,6 +10,7 @@ using System.Linq.Expressions;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace EastFive.Api
@@ -29,7 +30,7 @@ namespace EastFive.Api
             this.InvokeApplication = invokeApplication;
         }
 
-        public RequestMessage(IInvokeApplication invokeApplication, Expression expr)
+        private RequestMessage(IInvokeApplication invokeApplication, Expression expr)
             : base(new RequestMessageProvideQuery(invokeApplication), expr)
         {
             this.InvokeApplication = invokeApplication;
@@ -94,12 +95,32 @@ namespace EastFive.Api
     public class RequestMessageAttribute : Attribute, IInstigatableGeneric
     {
         public virtual Task<HttpResponseMessage> InstigatorDelegateGeneric(Type type,
-            HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
+                HttpApplication httpApp, HttpRequestMessage request, 
+                CancellationToken cancellationToken, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
-            var invokeApp = IInvokeApplicationAttribute.Instigate(httpApp, request);
-            var requestMessage = Activator.CreateInstance(type, invokeApp);
-            return onSuccess(requestMessage);
+            return type
+                .GetConstructors(BindingFlags.Public | BindingFlags.Instance)
+                .First()
+                .GetParameters()
+                .Aggregate<ParameterInfo, Func<object [], Task<HttpResponseMessage>>>(
+                    (invocationParameterValues) =>
+                    {
+                        var requestMessage = Activator.CreateInstance(type, invocationParameterValues);
+                        return onSuccess(requestMessage);
+                    },
+                    (next, invocationParameterInfo) =>
+                    {
+                        return (previousParams) =>
+                        {
+                            return httpApp.Instigate(request, cancellationToken, invocationParameterInfo,
+                                (invocationParameterValue) =>
+                                {
+                                    return next(previousParams.Prepend(invocationParameterValue).ToArray());
+                                });
+                        };
+                    })
+                .Invoke(new object[] { });
         }
     }
 }

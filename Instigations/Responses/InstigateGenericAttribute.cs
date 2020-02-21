@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 using EastFive.Api.Resources;
@@ -30,7 +31,8 @@ namespace EastFive.Api
         protected ParameterInfo parameterInfo;
 
         public virtual Task<HttpResponseMessage> InstigatorDelegateGeneric(Type type,
-            HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
+                HttpApplication httpApp, HttpRequestMessage request, 
+                CancellationToken cancellationToken, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             var scope = CreateScope(type, httpApp, request, parameterInfo);

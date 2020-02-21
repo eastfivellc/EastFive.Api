@@ -52,7 +52,7 @@ namespace EastFive.Api
 
         public abstract IApplication Application { get; }
 
-        public HttpRequestMessage GetHttpRequest()
+        public virtual HttpRequestMessage GetHttpRequest()
         {
             var httpRequest = new HttpRequestMessage();
             var config = new HttpConfiguration();

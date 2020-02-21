@@ -32,7 +32,7 @@ namespace EastFive.Api
 
     public class IInvokeApplicationAttribute : Attribute, IInstigatable
     {
-        public Task<HttpResponseMessage> Instigate(HttpApplication httpApp, 
+        public virtual Task<HttpResponseMessage> Instigate(HttpApplication httpApp, 
                 HttpRequestMessage request, CancellationToken cancellationToken, 
                 ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
@@ -43,45 +43,47 @@ namespace EastFive.Api
 
         public static IInvokeApplication Instigate(HttpApplication httpApp, HttpRequestMessage request)
         {
-            string GetApiPrefix()
-            {
-                try
-                {
-                    return request.RequestUri.AbsolutePath.Trim('/'.AsArray()).Split('/'.AsArray()).First();
-                }
-                catch (Exception)
-                {
-
-                }
-                var routeData = request.GetRouteData();
-                if (routeData.IsDefaultOrNull())
-                    return "api";
-                var route = routeData.Route;
-                if (route.IsDefaultOrNull())
-                    return "api";
-                var routeTemplate = route.RouteTemplate;
-                if (routeTemplate.IsNullOrWhiteSpace())
-                    return "api";
-                var directories = routeTemplate.Split('/'.AsArray());
-                if (!directories.AnyNullSafe())
-                    return "api";
-                return directories.First();
-            }
-            Uri GetServerLocation()
-            {
-                if (request.RequestUri.IsDefaultOrNull())
-                    return new Uri("http://example.com");
-
-                var hostUrlString = request.RequestUri.GetLeftPart(UriPartial.Authority);
-                return new Uri(hostUrlString);
-            }
-            var apiPrefix = GetApiPrefix();
-            var serverLocation = GetServerLocation();
+            var apiPrefix = GetApiPrefix(request);
+            var serverLocation = GetServerLocation(request);
             var instance = new InvokeApplicationFromRequest(httpApp, request, serverLocation, apiPrefix);
             return instance;
         }
 
-        private class InvokeApplicationFromRequest : InvokeApplication
+        static protected Uri GetServerLocation(HttpRequestMessage request)
+        {
+            if (request.RequestUri.IsDefaultOrNull())
+                return new Uri("http://example.com");
+
+            var hostUrlString = request.RequestUri.GetLeftPart(UriPartial.Authority);
+            return new Uri(hostUrlString);
+        }
+
+        static protected string GetApiPrefix(HttpRequestMessage request)
+        {
+            try
+            {
+                return request.RequestUri.AbsolutePath.Trim('/'.AsArray()).Split('/'.AsArray()).First();
+            }
+            catch (Exception)
+            {
+
+            }
+            var routeData = request.GetRouteData();
+            if (routeData.IsDefaultOrNull())
+                return "api";
+            var route = routeData.Route;
+            if (route.IsDefaultOrNull())
+                return "api";
+            var routeTemplate = route.RouteTemplate;
+            if (routeTemplate.IsNullOrWhiteSpace())
+                return "api";
+            var directories = routeTemplate.Split('/'.AsArray());
+            if (!directories.AnyNullSafe())
+                return "api";
+            return directories.First();
+        }
+
+        protected class InvokeApplicationFromRequest : InvokeApplication
         {
             private HttpApplication httpApp;
             private HttpRequestMessage request;
@@ -123,9 +125,16 @@ namespace EastFive.Api
             {
                 using (var client = new HttpClient())
                 {
-                    var response = await client.SendAsync(request);
+                    var response = await client.SendAsync(httpRequest);
                     return response;
                 }
+            }
+
+            public override HttpRequestMessage GetHttpRequest()
+            {
+                var requestMsg = base.GetHttpRequest();
+                requestMsg.Headers.Referrer = this.request.RequestUri;
+                return requestMsg;
             }
         }
     }

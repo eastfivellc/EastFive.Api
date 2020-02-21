@@ -204,21 +204,11 @@ namespace EastFive.Api
                 .SelectReduce(
                     async (methodParameter, next) =>
                     {
-                        var instigationAttrs = methodParameter.ParameterType.GetAttributesInterface<IInstigatable>();
-                        if (instigationAttrs.Any())
-                        {
-                            var instigationAttr = instigationAttrs.First();
-                            return await instigationAttr.Instigate(httpApp as HttpApplication,
-                                    request, cancellationToken,
-                                    methodParameter,
-                                next);
-                        }
-
                         if (queryParameterOptions.ContainsKey(methodParameter.Name))
                             return await next(queryParameterOptions[methodParameter.Name]);
 
                         return await httpApp.Instigate(request, cancellationToken, methodParameter,
-                            v => next(v));
+                            next);
                     },
                     async (object[] methodParameters) =>
                     {

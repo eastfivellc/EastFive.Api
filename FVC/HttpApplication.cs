@@ -794,20 +794,47 @@ namespace EastFive.Api
                  CancellationToken cancellationToken, ParameterInfo methodParameter,
             Func<object, Task<HttpResponseMessage>> onInstigated)
         {
+            #region Check for app level override 
+
+            var instigationAttrsApp = this.GetType()
+                .GetAttributesInterface<IInstigate>()
+                .Where(instigator => instigator.CanInstigate(methodParameter));
+            if (instigationAttrsApp.Any())
+            {
+                var instigationAttr = instigationAttrsApp.First();
+                return instigationAttr.Instigate(this,
+                        request, cancellationToken, methodParameter,
+                    onInstigated);
+            }
+
+            var instigationGenericAttrsApp = this.GetType()
+                .GetAttributesInterface<IInstigateGeneric>()
+                .Where(instigator => instigator.CanInstigate(methodParameter));
+            if (instigationGenericAttrsApp.Any())
+            {
+                var instigationAttr = instigationGenericAttrsApp.First();
+                return instigationAttr.InstigatorDelegateGeneric(methodParameter.ParameterType, this,
+                        request, cancellationToken, methodParameter,
+                    (v) => onInstigated(v));
+            }
+
+            #endregion
+
             var instigationAttrs = methodParameter.ParameterType.GetAttributesInterface<IInstigatable>();
             if (instigationAttrs.Any())
             {
                 var instigationAttr = instigationAttrs.First();
                 return instigationAttr.Instigate(this,
-                    request, cancellationToken, methodParameter,
-                    (v) => onInstigated(v));
+                        request, cancellationToken, methodParameter,
+                    onInstigated);
             }
 
             var instigationGenericAttrs = methodParameter.ParameterType.GetAttributesInterface<IInstigatableGeneric>();
             if (instigationGenericAttrs.Any())
             {
                 var instigationAttr = instigationGenericAttrs.First();
-                return instigationAttr.InstigatorDelegateGeneric(methodParameter.ParameterType, this, request, methodParameter,
+                return instigationAttr.InstigatorDelegateGeneric(methodParameter.ParameterType, this,
+                        request, cancellationToken, methodParameter,
                     (v) => onInstigated(v));
             }
 
