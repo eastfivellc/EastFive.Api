@@ -29,11 +29,11 @@ namespace EastFive.Api.Auth
             HttpRequestMessage request,
             ValidateHttpDelegate boundCallback)
         {
-            if (!request.IsAuthorizedFor(ClaimType, ClaimValue))
-                return request
-                    .CreateResponse(System.Net.HttpStatusCode.Unauthorized)
-                    .AddReason($"{method.DeclaringType.FullName}..{method.Name} requires claim `{ClaimType}`=`{this.ClaimValue}`")
-                    .AsTask();
+            //if (!request.IsAuthorizedFor(ClaimType, ClaimValue))
+            //    return request
+            //        .CreateResponse(System.Net.HttpStatusCode.Unauthorized)
+            //        .AddReason($"{method.DeclaringType.FullName}..{method.Name} requires claim `{ClaimType}`=`{this.ClaimValue}`")
+            //        .AsTask();
             return boundCallback(parameterSelection, method, httpApp, request);
         }
     }

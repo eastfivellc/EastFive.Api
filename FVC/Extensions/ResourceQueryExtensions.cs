@@ -96,6 +96,8 @@ namespace EastFive.Api
                             if (typeof(DateTime).IsAssignableFrom(memberType))
                             {
                                 var contentDate = (DateTime)content;
+                                if(contentDate.Hour == 0 && contentDate.Minute == 0 && contentDate.Second == 0)
+                                    return contentDate.ToString("yyyy-MM-dd");
                                 return contentDate.ToString();
                             }
 
