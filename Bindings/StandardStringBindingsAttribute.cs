@@ -116,7 +116,7 @@ namespace EastFive.Api.Bindings
             }
             if (type == typeof(Uri))
             {
-                if (Uri.TryCreate(content, UriKind.RelativeOrAbsolute, out Uri uriValue))
+                if (Uri.TryCreate(content.Trim('"'.AsArray()), UriKind.RelativeOrAbsolute, out Uri uriValue))
                     return onParsed(uriValue);
                 return onBindingFailure($"Failed to convert {content} to `{typeof(Uri).FullName}`.");
             }

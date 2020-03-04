@@ -447,6 +447,7 @@ namespace EastFive.Api
         private static IDictionary<string, Type> resourceNameControllerLookup;
         private static IDictionary<Type, string> resourceTypeRouteLookup; // TODO: Delete after creating IDocumentParameter
         private static IDictionary<Type, Type> resourceTypeControllerLookup;
+        public static IDictionary<Type, ConfigAttribute> configurationTypes;
         private static object lookupLock = new object();
 
         private void LocateControllers()
@@ -641,6 +642,21 @@ namespace EastFive.Api
                             contentTypeLookup.Merge(
                                 kvps,
                                 (k, v1, v2) => v2).ToDictionary());
+
+                var newConfigurationTypes = types
+                    .Where(type => type.ContainsCustomAttribute<ConfigAttribute>())
+                    .Select(
+                        (type) =>
+                        {
+                            var attr = type.GetCustomAttribute<ConfigAttribute>();
+                            return type.PairWithValue(attr);
+                        });
+
+                configurationTypes = configurationTypes
+                    .NullToEmpty()
+                    .Concat(newConfigurationTypes)
+                    .Distinct(ct => ct.Key.FullName)
+                    .ToDictionary();
             }
             catch (System.Reflection.ReflectionTypeLoadException ex)
             {
