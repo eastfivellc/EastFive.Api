@@ -59,6 +59,40 @@ namespace EastFive.Api
         }
     }
 
+    [TextResponse]
+    public delegate HttpResponseMessage TextResponse(string content, Encoding encoding = default,
+        string filename = default, string contentType = default, bool? inline = default);
+    public class TextResponseAttribute : HttpFuncDelegateAttribute
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override string Example => "Text";
+
+        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+                HttpRequestMessage request, ParameterInfo parameterInfo,
+            Func<object, Task<HttpResponseMessage>> onSuccess)
+        {
+            TextResponse responseDelegate = (content, encoding, filename, contentType, inline) =>
+            {
+                var response = request.CreateResponse(HttpStatusCode.OK);
+                response.Content = encoding.IsDefaultOrNull()?
+                    new StringContent(content)
+                    :
+                    new StringContent(content, encoding);
+                if (contentType.HasBlackSpace())
+                    response.Content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+                if (inline.HasValue)
+                    response.Content.Headers.ContentDisposition =
+                        new ContentDispositionHeaderValue(inline.Value ? "inline" : "attachment")
+                        {
+                            FileName = filename,
+                        };
+                return UpdateResponse(parameterInfo, httpApp, request, response);
+            };
+            return onSuccess(responseDelegate);
+        }
+    }
+
     [ImageResponse]
     public delegate HttpResponseMessage ImageResponse(byte[] bytes,
         int? width, int? height, bool? fill,
