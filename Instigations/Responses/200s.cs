@@ -148,6 +148,39 @@ namespace EastFive.Api
         }
     }
 
+    [SvgResponse]
+    public delegate HttpResponseMessage SvgResponse(string content, Encoding encoding = default,
+        string filename = default, bool? inline = default);
+    public class SvgResponseAttribute : HttpFuncDelegateAttribute
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override string Example => "<svg></svg>";
+
+        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+                HttpRequestMessage request, ParameterInfo parameterInfo,
+            Func<object, Task<HttpResponseMessage>> onSuccess)
+        {
+            SvgResponse responseDelegate = (content, encoding, filename, inline) =>
+            {
+                var response = request.CreateResponse(HttpStatusCode.OK);
+                response.Content = encoding.IsDefaultOrNull() ?
+                    new StringContent(content)
+                    :
+                    new StringContent(content, encoding);
+                response.Content.Headers.ContentType = new MediaTypeHeaderValue("image/svg+xml");
+                if (inline.HasValue)
+                    response.Content.Headers.ContentDisposition =
+                        new ContentDispositionHeaderValue(inline.Value ? "inline" : "attachment")
+                        {
+                            FileName = filename,
+                        };
+                return UpdateResponse(parameterInfo, httpApp, request, response);
+            };
+            return onSuccess(responseDelegate);
+        }
+    }
+
     #endregion
 
     #region HTML
