@@ -22,7 +22,7 @@ namespace EastFive.Api
     {
         public override HttpStatusCode StatusCode => HttpStatusCode.InternalServerError;
 
-        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
@@ -50,7 +50,7 @@ namespace EastFive.Api
     {
         public override HttpStatusCode StatusCode => HttpStatusCode.ServiceUnavailable;
 
-        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {

@@ -125,7 +125,8 @@ namespace EastFive.Api
         public delegate TResult ParseContentDelegate<TResult>(Type type, Func<object, TResult> onParsed, Func<string, TResult> onFailure);
 
         private static async Task<HttpResponseMessage> CreateResponseAsync(IApplication httpApp,
-            HttpRequestMessage request, CancellationToken cancellationToken, string controllerName, MethodInfo[] methods)
+            HttpRequestMessage request, CancellationToken cancellationToken,
+            string controllerName, MethodInfo[] methods)
         {
             #region setup query parameter casting
 
@@ -648,6 +649,11 @@ namespace EastFive.Api
         {
             var methods = PossibleHttpMethods(type, httpApp).ToArray();
             return new Route(type, this.Route, methods, httpApp);
+        }
+
+        public bool DoesHandleRequest()
+        {
+            return false;
         }
     }
 }

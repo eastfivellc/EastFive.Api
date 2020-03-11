@@ -13,7 +13,7 @@ namespace EastFive.Api
     public delegate string ViewRenderer(string filePath, object content);
     public class ViewRendererAttribute : HtmlResponseAttribute
     {
-        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {

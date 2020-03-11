@@ -11,7 +11,7 @@ namespace EastFive.Api
 {
     public class StatusCodeResponseAttribute : HttpFuncDelegateAttribute
     {
-        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {

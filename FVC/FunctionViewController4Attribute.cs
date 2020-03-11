@@ -14,8 +14,8 @@ namespace EastFive.Api
     {
         public string MediaType => "application/json";
 
-        public HttpResponseMessage Serialize(HttpResponseMessage response, 
-            HttpApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo, object obj)
+        public HttpResponseMessage Serialize(HttpResponseMessage response,
+            IApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo, object obj)
         {
             var converter = new Serialization.ExtrudeConvert(httpApp, request);
             var jsonObj = Newtonsoft.Json.JsonConvert.SerializeObject(obj,

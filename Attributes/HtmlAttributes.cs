@@ -23,8 +23,8 @@ namespace EastFive.Api
 
         public string ContentType => MediaType;
 
-        public HttpResponseMessage Serialize(HttpResponseMessage response, 
-            HttpApplication httpApp, HttpRequestMessage request, 
+        public HttpResponseMessage Serialize(HttpResponseMessage response,
+            IApplication httpApp, HttpRequestMessage request, 
             ParameterInfo paramInfo, object obj)
         {
             var contentType = this.MediaType;

@@ -95,7 +95,7 @@ namespace EastFive.Api
     public class RequestMessageAttribute : Attribute, IInstigatableGeneric
     {
         public virtual Task<HttpResponseMessage> InstigatorDelegateGeneric(Type type,
-                HttpApplication httpApp, HttpRequestMessage request, 
+                IApplication httpApp, HttpRequestMessage request, 
                 CancellationToken cancellationToken, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {

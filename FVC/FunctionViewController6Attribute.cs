@@ -50,5 +50,9 @@ namespace EastFive.Api
                 httpApp);
         }
 
+        public bool DoesHandleRequest()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

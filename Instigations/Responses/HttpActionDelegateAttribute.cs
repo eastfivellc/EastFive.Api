@@ -28,7 +28,7 @@ namespace EastFive.Api
 
         public virtual string Example { get; set; }
 
-        public virtual Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
+        public virtual Task<HttpResponseMessage> Instigate(IApplication httpApp,
                 HttpRequestMessage request, CancellationToken cancellationToken,
                 ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
@@ -56,7 +56,7 @@ namespace EastFive.Api
                 });
         }
 
-        public abstract Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+        public abstract Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess);
 

@@ -506,48 +506,49 @@ namespace EastFive.Api
             Func<HttpResponseMessage, TResult> onComplete)
             where TResource : ResourceBase
         {
-            var response = request.CreateResponsesBackground(urlHelper,
-                (updateProgress) =>
-                {
-                    var propertyOrder = typeof(TResource)
-                        .GetProperties()
-                        .OrderBy(propInfo =>
-                            propInfo.GetCustomAttribute(
-                                (SheetColumnAttribute sheetColumn) => sheetColumn.GetSortValue(propInfo),
-                                () => propInfo.Name));
+            throw new NotImplementedException();
+            //var response = request.CreateResponsesBackground(urlHelper,
+            //    (updateProgress) =>
+            //    {
+            //        var propertyOrder = typeof(TResource)
+            //            .GetProperties()
+            //            .OrderBy(propInfo =>
+            //                propInfo.GetCustomAttribute(
+            //                    (SheetColumnAttribute sheetColumn) => sheetColumn.GetSortValue(propInfo),
+            //                    () => propInfo.Name));
 
-                    return rows
-                        .Select(
-                            async (row) =>
-                            {
-                                var resource = propertyOrder
-                                    .Aggregate(Activator.CreateInstance<TResource>(),
-                                        (aggr, property, index) =>
-                                        {
-                                            var value = row.Length > index ?
-                                                row[index] : default(string);
-                                            TryCastFromXlsSerialization(property, value,
-                                                (valueCasted) =>
-                                                {
-                                                    property.SetValue(aggr, valueCasted);
-                                                    return true;
-                                                },
-                                                () => false);
-                                            return aggr;
-                                        });
-                                if (resource.Id.IsEmpty())
-                                {
-                                    resource.Id = Guid.NewGuid();
-                                    var postResponse = await executePost(resource, customValues);
-                                    return updateProgress(postResponse);
-                                }
-                                var putResponse = await executePut(resource, customValues);
-                                return updateProgress(putResponse);
-                            })
-                       .WhenAllAsync(10);
-                },
-                rows.Length);
-            return onComplete(response);
+            //        return rows
+            //            .Select(
+            //                async (row) =>
+            //                {
+            //                    var resource = propertyOrder
+            //                        .Aggregate(Activator.CreateInstance<TResource>(),
+            //                            (aggr, property, index) =>
+            //                            {
+            //                                var value = row.Length > index ?
+            //                                    row[index] : default(string);
+            //                                TryCastFromXlsSerialization(property, value,
+            //                                    (valueCasted) =>
+            //                                    {
+            //                                        property.SetValue(aggr, valueCasted);
+            //                                        return true;
+            //                                    },
+            //                                    () => false);
+            //                                return aggr;
+            //                            });
+            //                    if (resource.Id.IsEmpty())
+            //                    {
+            //                        resource.Id = Guid.NewGuid();
+            //                        var postResponse = await executePost(resource, customValues);
+            //                        return updateProgress(postResponse);
+            //                    }
+            //                    var putResponse = await executePut(resource, customValues);
+            //                    return updateProgress(putResponse);
+            //                })
+            //           .WhenAllAsync(10);
+            //    },
+            //    rows.Length);
+            //return onComplete(response);
         }
 
         public static TResult ParseXlsx<TResult>(this HttpRequestMessage request,

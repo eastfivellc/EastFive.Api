@@ -20,6 +20,8 @@ namespace EastFive.Api
         Task<HttpResponseMessage> CreateResponseAsync(Type controllerType, 
             IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken,
             string routeName);
+
+        bool DoesHandleRequest();
     }
 
     public interface IInvokeExtensions
