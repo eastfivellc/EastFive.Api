@@ -35,7 +35,7 @@ namespace EastFive.Api
             return onParsed(default(AccessTokenAccount));
         }
 
-        public Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
+        public Task<HttpResponseMessage> Instigate(IApplication httpApp,
                 HttpRequestMessage request, CancellationToken cancellationToken, 
                 ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)

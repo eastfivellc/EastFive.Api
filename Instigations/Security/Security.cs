@@ -18,7 +18,7 @@ namespace EastFive.Api
 
     public class SecurityAttribute : Attribute, IInstigatable
     {
-        public Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
+        public Task<HttpResponseMessage> Instigate(IApplication httpApp,
                 HttpRequestMessage request, CancellationToken cancellationToken,
                 ParameterInfo parameterInfo, 
             Func<object, Task<HttpResponseMessage>> onSuccess)

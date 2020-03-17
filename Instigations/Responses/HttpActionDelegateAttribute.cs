@@ -28,12 +28,12 @@ namespace EastFive.Api
 
         public virtual string Example { get; set; }
 
-        public virtual Task<HttpResponseMessage> Instigate(HttpApplication httpApp,
+        public virtual Task<HttpResponseMessage> Instigate(IApplication httpApp,
                 HttpRequestMessage request, CancellationToken cancellationToken,
                 ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
-            return InstigateInternal(httpApp, request, parameterInfo,
+            return InstigateInternal(httpApp as HttpApplication, request, parameterInfo,
                 callback =>
                 {
                     //var callbackType = callback.GetType();

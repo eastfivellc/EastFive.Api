@@ -32,7 +32,7 @@ namespace EastFive.Api
 
     public class IInvokeApplicationAttribute : Attribute, IInstigatable
     {
-        public virtual Task<HttpResponseMessage> Instigate(HttpApplication httpApp, 
+        public virtual Task<HttpResponseMessage> Instigate(IApplication httpApp, 
                 HttpRequestMessage request, CancellationToken cancellationToken, 
                 ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
@@ -41,11 +41,11 @@ namespace EastFive.Api
             return onSuccess(instance);
         }
 
-        public static IInvokeApplication Instigate(HttpApplication httpApp, HttpRequestMessage request)
+        public static IInvokeApplication Instigate(IApplication httpApp, HttpRequestMessage request)
         {
             var apiPrefix = GetApiPrefix(request);
             var serverLocation = GetServerLocation(request);
-            var instance = new InvokeApplicationFromRequest(httpApp, request, serverLocation, apiPrefix);
+            var instance = new InvokeApplicationFromRequest(httpApp as HttpApplication, request, serverLocation, apiPrefix);
             return instance;
         }
 
@@ -85,14 +85,14 @@ namespace EastFive.Api
 
         protected class InvokeApplicationFromRequest : InvokeApplication
         {
-            private HttpApplication httpApp;
+            private IApplication httpApp;
             private HttpRequestMessage request;
 
             //private string[] apiRoute;
 
             public override IApplication Application => httpApp;
 
-            public InvokeApplicationFromRequest(HttpApplication httpApp, HttpRequestMessage request,
+            public InvokeApplicationFromRequest(IApplication httpApp, HttpRequestMessage request,
                     Uri serverLocation, string apiPrefix) : base(serverLocation, apiPrefix)
             {
                 this.httpApp = httpApp;
@@ -112,7 +112,7 @@ namespace EastFive.Api
 
             protected override HttpConfiguration ConfigureRoutes(HttpRequestMessage httpRequest, HttpConfiguration config)
             {
-                httpApp.DefaultApiRoute(config);
+                (httpApp as HttpApplication).DefaultApiRoute(config);
                 return config;
             }
 
