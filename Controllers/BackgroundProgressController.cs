@@ -51,7 +51,7 @@ namespace EastFive.Api.Controllers
 
         private static ConcurrentDictionary<Guid, Process> processes = new ConcurrentDictionary<Guid, Process>();
 
-        public IHttpActionResult Get([FromUri]BackgroundProgressQuery query)
+        public IHttpActionResult Get(BackgroundProgressQuery query)
         {
             return this.ActionResult(() =>query.ParseAsync(this.Request,
                 (q) => GetProgressAsync(q.Id.ParamSingle(), this.Request),

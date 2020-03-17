@@ -9,13 +9,13 @@ using System.Threading.Tasks;
 namespace EastFive.Api
 {
     public delegate HttpResponseMessage ResponseHandlingDelegate(ParameterInfo parameterInfo,
-            HttpApplication httpApp, HttpRequestMessage request,
+            IApplication httpApp, HttpRequestMessage request,
             HttpResponseMessage response);
 
     public interface IHandleResponses
     {
         HttpResponseMessage HandleResponse(ParameterInfo parameterInfo,
-            HttpApplication httpApp, HttpRequestMessage request,
+            IApplication httpApp, HttpRequestMessage request,
             HttpResponseMessage response,
             ResponseHandlingDelegate continueExecution);
     }

@@ -16,11 +16,11 @@ namespace EastFive.Api.Serialization
 {
     public class ExtrudeConvert : Newtonsoft.Json.JsonConverter
     {
-        HttpApplication application;
+        IApplication application;
         UrlHelper urlHelper;
         bool useWebIds;
 
-        public ExtrudeConvert(HttpApplication httpApplication, HttpRequestMessage request)
+        public ExtrudeConvert(IApplication httpApplication, HttpRequestMessage request)
         {
             var urlHelper = request.GetUrlHelper();
             var useWebIds = request.Headers.Accept.Contains(
@@ -129,7 +129,7 @@ namespace EastFive.Api.Serialization
                     if (fvcAttrContentType.HasBlackSpace())
                         contentType = fvcAttrContentType;
                 }
-                var applicationNamespace = application.Namespace;
+                var applicationNamespace = "application"; // application.Namespace;
                 var urnString = $"urn:{contentType}:{applicationNamespace}:{key}";
                 writer.WritePropertyName("urn");
                 writer.WriteValue(urnString);

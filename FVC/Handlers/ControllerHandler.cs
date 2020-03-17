@@ -68,7 +68,7 @@ namespace EastFive.Api.Modules
                         .Aggregate<IHandleRoutes, RouteHandlingDelegate>(
                             async (controllerTypeFinal, httpAppFinal, requestFinal, routeNameFinal) =>
                             {
-                                var invokeResource = controllerType.GetAttributesInterface<IInvokeResource>().First();
+                                var invokeResource = controllerTypeFinal.GetAttributesInterface<IInvokeResource>().First();
                                 var response = await invokeResource.CreateResponseAsync(controllerTypeFinal, 
                                     httpAppFinal, requestFinal, cancellationToken, 
                                     routeNameFinal);
@@ -82,7 +82,6 @@ namespace EastFive.Api.Modules
                                         callback);
                             })
                         .Invoke(controllerType, httpApp, request, routeName);
-                    
                 },
                 () => continuation(request, cancellationToken));
         }

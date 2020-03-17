@@ -56,7 +56,7 @@ namespace EastFive.Api
                 });
         }
 
-        public abstract Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+        public abstract Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess);
 

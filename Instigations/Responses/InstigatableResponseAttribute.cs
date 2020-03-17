@@ -12,7 +12,7 @@ namespace EastFive.Api
     public class InstigatableResponseAttribute : Attribute
     {
         protected HttpResponseMessage UpdateResponse(ParameterInfo parameterInfo,
-            HttpApplication httpApp, HttpRequestMessage request,
+            IApplication httpApp, HttpRequestMessage request,
             HttpResponseMessage response)
         {
             response.Headers.Add(ControllerHandler.HeaderStatusName, parameterInfo.ParameterType.FullName);

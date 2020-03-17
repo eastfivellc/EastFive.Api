@@ -112,7 +112,11 @@ namespace EastFive.Api
 
             protected override HttpConfiguration ConfigureRoutes(HttpRequestMessage httpRequest, HttpConfiguration config)
             {
-                (httpApp as HttpApplication).DefaultApiRoute(config);
+                config.Routes.MapHttpRoute(
+                    name: "DefaultApi",
+                    routeTemplate: "api/{controller}/{id}",
+                    defaults: new { id = RouteParameter.Optional }
+                );
                 return config;
             }
 

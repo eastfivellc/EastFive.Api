@@ -27,7 +27,7 @@ namespace EastFive.Api
 
         public override string Example => "serialized object";
 
-        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
@@ -58,7 +58,7 @@ namespace EastFive.Api
 
         public override string Example => "serialized object";
 
-        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {

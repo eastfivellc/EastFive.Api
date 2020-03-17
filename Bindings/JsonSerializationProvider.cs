@@ -16,7 +16,7 @@ namespace EastFive.Api
         public string ContentType => MediaType;
 
         public virtual HttpResponseMessage Serialize(HttpResponseMessage response,
-            HttpApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo, object obj)
+            IApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo, object obj)
         {
             var converter = new Serialization.ExtrudeConvert(httpApp, request);
             var jsonObj = Newtonsoft.Json.JsonConvert.SerializeObject(obj,
@@ -32,7 +32,7 @@ namespace EastFive.Api
     public class JsonSerializationDictionarySafeProviderAttribute : JsonSerializationProviderAttribute
     {
         public override HttpResponseMessage Serialize(HttpResponseMessage response,
-            HttpApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo, object obj)
+            IApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo, object obj)
         {
             var converter = new Serialization.ExtrudeDictionarySafeConvert(httpApp, request);
             var jsonObj = Newtonsoft.Json.JsonConvert.SerializeObject(obj,

@@ -12,7 +12,7 @@ namespace EastFive.Api
     public interface IInstigatableGeneric
     {
         Task<HttpResponseMessage> InstigatorDelegateGeneric(
-            Type type, HttpApplication httpApp, HttpRequestMessage request,
+            Type type, IApplication httpApp, HttpRequestMessage request,
             CancellationToken cancellationToken,
             ParameterInfo parameterInfo,
         Func<object, Task<HttpResponseMessage>> onSuccess);
@@ -23,7 +23,7 @@ namespace EastFive.Api
         bool CanInstigate(ParameterInfo parameterInfo);
 
         Task<HttpResponseMessage> InstigatorDelegateGeneric(
-            Type type, HttpApplication httpApp, HttpRequestMessage request,
+            Type type, IApplication httpApp, HttpRequestMessage request,
             CancellationToken cancellationToken, 
             ParameterInfo parameterInfo,
         Func<object, Task<HttpResponseMessage>> onSuccess);

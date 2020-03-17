@@ -22,7 +22,7 @@ namespace EastFive.Api
     {
         public override HttpStatusCode StatusCode => HttpStatusCode.Redirect;
 
-        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {

@@ -838,6 +838,8 @@ namespace EastFive.Api
 
             #endregion
 
+            #region Type attributes for instigation
+
             var instigationAttrs = methodParameter.ParameterType.GetAttributesInterface<IInstigatable>();
             if (instigationAttrs.Any())
             {
@@ -856,11 +858,17 @@ namespace EastFive.Api
                     (v) => onInstigated(v));
             }
 
-            if(methodParameter.ParameterType.IsAssignableFrom(typeof(CancellationToken)))
+            #endregion
+
+            #region Context types
+
+            if (methodParameter.ParameterType.IsAssignableFrom(typeof(CancellationToken)))
                 return onInstigated(cancellationToken);
 
             if (methodParameter.ParameterType.IsAssignableFrom(typeof(HttpRequestMessage)))
                 return onInstigated(request);
+
+            #endregion
 
             if (this.instigators.ContainsKey(methodParameter.ParameterType))
                 return this.instigators[methodParameter.ParameterType](this, request, methodParameter,

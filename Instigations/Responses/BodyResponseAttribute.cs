@@ -10,7 +10,7 @@ namespace EastFive.Api
 {
     public class BodyResponseAttribute : HttpFuncDelegateAttribute
     {
-        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
@@ -25,7 +25,7 @@ namespace EastFive.Api
         }
 
         private HttpResponseMessage GetResponse(object obj, string contentType,
-            HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo)
+            IApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo)
         {
             var objType = obj.GetType();
             if (!objType.ContainsAttributeInterface<IProvideSerialization>())

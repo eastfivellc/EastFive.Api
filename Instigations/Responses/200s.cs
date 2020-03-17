@@ -37,7 +37,7 @@ namespace EastFive.Api
 
         public override string Example => "Raw data (byte [])";
 
-        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
@@ -68,7 +68,7 @@ namespace EastFive.Api
 
         public override string Example => "Text";
 
-        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
@@ -103,7 +103,7 @@ namespace EastFive.Api
 
         public override string Example => "Raw data (byte [])";
 
-        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
@@ -135,13 +135,46 @@ namespace EastFive.Api
 
         public override string Example => "PDF File data";
 
-        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
             PdfResponse responseDelegate = (pdfData, filename, inline) =>
             {
                 var response = request.CreatePdfResponse(pdfData, filename, inline);
+                return UpdateResponse(parameterInfo, httpApp, request, response);
+            };
+            return onSuccess(responseDelegate);
+        }
+    }
+
+    [SvgResponse]
+    public delegate HttpResponseMessage SvgResponse(string content, Encoding encoding = default,
+        string filename = default, bool? inline = default);
+    public class SvgResponseAttribute : HttpFuncDelegateAttribute
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override string Example => "<svg></svg>";
+
+        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
+                HttpRequestMessage request, ParameterInfo parameterInfo,
+            Func<object, Task<HttpResponseMessage>> onSuccess)
+        {
+            SvgResponse responseDelegate = (content, encoding, filename, inline) =>
+            {
+                var response = request.CreateResponse(HttpStatusCode.OK);
+                response.Content = encoding.IsDefaultOrNull() ?
+                    new StringContent(content)
+                    :
+                    new StringContent(content, encoding);
+                response.Content.Headers.ContentType = new MediaTypeHeaderValue("image/svg+xml");
+                if (inline.HasValue)
+                    response.Content.Headers.ContentDisposition =
+                        new ContentDispositionHeaderValue(inline.Value ? "inline" : "attachment")
+                        {
+                            FileName = filename,
+                        };
                 return UpdateResponse(parameterInfo, httpApp, request, response);
             };
             return onSuccess(responseDelegate);
@@ -160,7 +193,7 @@ namespace EastFive.Api
 
         public override string Example => "<html><head></head><body>Hello World</body></html>";
 
-        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
@@ -177,7 +210,7 @@ namespace EastFive.Api
     public delegate HttpResponseMessage ViewFileResponse(string viewPath, object content);
     public class ViewFileResponseAttribute : HtmlResponseAttribute
     {
-        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
@@ -211,7 +244,7 @@ namespace EastFive.Api
     public delegate HttpResponseMessage ViewStringResponse(string view, object content);
     public class ViewStringResponseAttribute : HtmlResponseAttribute
     {
-        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
@@ -238,7 +271,7 @@ namespace EastFive.Api
 
         public override string Example => "<xml></xml>";
 
-        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
@@ -261,7 +294,7 @@ namespace EastFive.Api
 
         public override string Example => "[]";
 
-        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
@@ -283,7 +316,7 @@ namespace EastFive.Api
 
         public override string Example => "[]";
 
-        public override Task<HttpResponseMessage> InstigateInternal(HttpApplication httpApp,
+        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
                 HttpRequestMessage request, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {

@@ -31,7 +31,7 @@ namespace EastFive.Api
         protected ParameterInfo parameterInfo;
 
         public virtual Task<HttpResponseMessage> InstigatorDelegateGeneric(Type type,
-                HttpApplication httpApp, HttpRequestMessage request, 
+                IApplication httpApp, HttpRequestMessage request, 
                 CancellationToken cancellationToken, ParameterInfo parameterInfo,
             Func<object, Task<HttpResponseMessage>> onSuccess)
         {
@@ -53,8 +53,8 @@ namespace EastFive.Api
                     });
         }
 
-        protected virtual object CreateScope(Type type, 
-            HttpApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo)
+        protected virtual object CreateScope(Type type,
+            IApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo)
         {
             var attrType = this.GetType();
             var scope = Activator.CreateInstance(attrType);

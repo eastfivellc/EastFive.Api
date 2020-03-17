@@ -16,9 +16,9 @@ namespace EastFive.Api
     public class UrlBuilder : IBuildUrls
     {
         private UrlHelper urlHelper;
-        private HttpApplication httpApp;
+        private IApplication httpApp;
 
-        public UrlBuilder(HttpRequestMessage request, HttpApplication httpApp)
+        public UrlBuilder(HttpRequestMessage request, IApplication httpApp)
         {
             this.httpApp = httpApp;
             this.urlHelper = new UrlHelper(request);
@@ -38,9 +38,9 @@ namespace EastFive.Api
         private class RenderableQueryProvider : IQueryProvider
         {
             private UrlHelper urlHelper;
-            private HttpApplication httpApp;
+            private IApplication httpApp;
 
-            public RenderableQueryProvider(UrlHelper urlHelper, HttpApplication httpApp)
+            public RenderableQueryProvider(UrlHelper urlHelper, IApplication httpApp)
             {
                 this.httpApp = httpApp;
                 this.urlHelper = urlHelper;
@@ -161,9 +161,9 @@ namespace EastFive.Api
         internal class QueryTranslator : ExpressionVisitor
         {
             List<KeyValuePair<string, string>> queryParams;
-            HttpApplication application;
+            IApplication application;
 
-            internal QueryTranslator(HttpApplication application)
+            internal QueryTranslator(IApplication application)
             {
                 this.application = application;
             }

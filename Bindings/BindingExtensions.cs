@@ -58,7 +58,13 @@ namespace EastFive.Api.Bindings
                             },
                             onFailureToBind);
                     },
-                    () => onFailureToBind($"{application.GetType().FullName} does not have binding attributes"));
+                    () =>
+                    {
+                        return type.Bind(provider,
+                                    onParsed,
+                                    onFailureToBind);
+                    });
+                    //() => onFailureToBind($"{application.GetType().FullName} does not have binding attributes"));
         }
 
         public static TResult Bind<TProvider, TResult>(this ParameterInfo parameter,
