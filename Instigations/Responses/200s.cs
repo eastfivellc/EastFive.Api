@@ -327,7 +327,7 @@ namespace EastFive.Api
                     {
                         var xlsResponse = request.CreateMultisheetXlsxResponse(
                             new Dictionary<string, string>(),
-                            objects.Cast<BlackBarLabs.Api.ResourceBase>());
+                            objects.Cast<IReferenceable>());
                         return UpdateResponse(parameterInfo, httpApp, request, xlsResponse);
                     }
                     var responses = objects.Select(obj => request.CreateResponse(System.Net.HttpStatusCode.OK, obj));
@@ -354,7 +354,7 @@ namespace EastFive.Api
                 var objects = await objectsAsync.ToArrayAsync();
                 var xlsMultisheet = request.CreateMultisheetXlsxResponse(
                     new Dictionary<string, string>(),
-                    objects.Cast<BlackBarLabs.Api.ResourceBase>());
+                    objects.Cast<IReferenceable>());
                 return UpdateResponse(parameterInfo, httpApp, request, xlsMultisheet);
             }
 

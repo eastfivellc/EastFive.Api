@@ -68,19 +68,7 @@ namespace EastFive.Api
             {
 
             }
-            var routeData = request.GetRouteData();
-            if (routeData.IsDefaultOrNull())
-                return "api";
-            var route = routeData.Route;
-            if (route.IsDefaultOrNull())
-                return "api";
-            var routeTemplate = route.RouteTemplate;
-            if (routeTemplate.IsNullOrWhiteSpace())
-                return "api";
-            var directories = routeTemplate.Split('/'.AsArray());
-            if (!directories.AnyNullSafe())
-                return "api";
-            return directories.First();
+            return "api";
         }
 
         protected class InvokeApplicationFromRequest : InvokeApplication
@@ -110,15 +98,15 @@ namespace EastFive.Api
                 //    .ToArray();
             }
 
-            protected override HttpConfiguration ConfigureRoutes(HttpRequestMessage httpRequest, HttpConfiguration config)
-            {
-                config.Routes.MapHttpRoute(
-                    name: "DefaultApi",
-                    routeTemplate: "api/{controller}/{id}",
-                    defaults: new { id = RouteParameter.Optional }
-                );
-                return config;
-            }
+            //protected override HttpConfiguration ConfigureRoutes(HttpRequestMessage httpRequest, HttpConfiguration config)
+            //{
+            //    config.Routes.MapHttpRoute(
+            //        name: "DefaultApi",
+            //        routeTemplate: "api/{controller}/{id}",
+            //        defaults: new { id = RouteParameter.Optional }
+            //    );
+            //    return config;
+            //}
 
             protected override RequestMessage<TResource> BuildRequest<TResource>(IApplication application)
             {

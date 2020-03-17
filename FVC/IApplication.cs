@@ -23,14 +23,22 @@ namespace EastFive.Api
         Func<object, TResult> onParsed,
         Func<string, TResult> onFailure);
 
+
+    public delegate Task StoreMonitoringDelegate(Guid monitorRecordId, Guid authenticationId, DateTime when, string method, string controllerName, string queryString);
+
     public interface IApplication //: IInvokeApplication
     {
         EastFive.Analytics.ILogger Logger { get; }
 
         IEnumerable<MethodInfo> GetExtensionMethods(Type controllerType);
+
         object CastResourceProperty(object value, Type propertyType);
 
         void SetInstigator(Type type, InstigatorDelegate instigator, bool clear = false);
+
+        TResult DoesStoreMonitoring<TResult>(
+            Func<StoreMonitoringDelegate, TResult> onMonitorUsingThisCallback,
+            Func<TResult> onNoMonitoring);
 
         void SetInstigatorGeneric(Type type, InstigatorDelegateGeneric instigator, bool clear = true);
 
@@ -43,5 +51,7 @@ namespace EastFive.Api
                 ParameterInfo methodParameter,
             Func<object, Task<HttpResponseMessage>> onInstigated);
 
+
     }
+
 }

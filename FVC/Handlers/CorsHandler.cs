@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -12,11 +13,13 @@ namespace EastFive.Api
     public class CorsHandlerAttribute : Attribute, IHandleRoutes
     {
         public Task<HttpResponseMessage> HandleRouteAsync(Type controllerType,
-            IApplication httpApp, HttpRequestMessage request, 
-            string routeName, RouteHandlingDelegate continueExecution)
+            IApplication httpApp, HttpRequestMessage request,
+            RouteData routeData, MethodInfo[] extensionMethods, 
+            RouteHandlingDelegate continueExecution)
         {
             Func<Task<HttpResponseMessage>> skip = 
-                () => continueExecution(controllerType, httpApp, request, routeName);
+                () => continueExecution(controllerType, httpApp, request,
+                    routeData, extensionMethods);
             
             if(!AppSettings.CorsCorrection.ConfigurationBoolean(s =>s, onNotSpecified:() => false))
                 return skip();

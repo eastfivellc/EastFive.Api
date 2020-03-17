@@ -5,8 +5,10 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using EastFive.Extensions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Primitives;
 
 namespace EastFive.Api.Core
@@ -14,8 +16,9 @@ namespace EastFive.Api.Core
     public static class Extensions
     {
         public static IApplicationBuilder UseFVCRouting(
-            this IApplicationBuilder builder, IApplication app)
+            this IApplicationBuilder builder, IApplication app, IConfiguration configuration)
         {
+            EastFive.Web.Configuration.ConfigurationExtensions.Initialize(configuration);
             return builder.UseMiddleware<Middleware>(app);
         }
 
@@ -48,7 +51,10 @@ namespace EastFive.Api.Core
             => msg.Set(m => m.Method = new HttpMethod(req.Method));
 
         private static HttpRequestMessage SetHeaders(this HttpRequestMessage msg, HttpRequest req)
-            => req.Headers.Aggregate(msg, (acc, h) => acc.Set(m => m.Headers.TryAddWithoutValidation(h.Key, h.Value.AsEnumerable())));
+            => req.Headers
+                .Aggregate(msg,
+                    (acc, h) => acc.Set(
+                        m => m.Headers.TryAddWithoutValidation(h.Key, h.Value.Select(s => s)).AsEnumerable()));
 
         private static HttpRequestMessage SetContent(this HttpRequestMessage msg, HttpRequest req)
             => msg.Set(m => m.Content = new StreamContent(req.Body));
@@ -92,6 +98,8 @@ namespace EastFive.Api.Core
 
         private static async Task<HttpResponse> SetBodyAsync(this HttpResponse resp, HttpResponseMessage msg)
         {
+            if (msg.Content.IsDefaultOrNull())
+                return resp;
             using (var stream = await msg.Content.ReadAsStreamAsync())
             using (var reader = new StreamReader(stream))
             {
@@ -102,7 +110,9 @@ namespace EastFive.Api.Core
         }
 
         private static HttpResponse SetContentType(this HttpResponse resp, HttpResponseMessage msg)
-            => resp.Set(r => r.ContentType = msg.Content.Headers.GetValues("Content-Type").Single(), applyIf: msg.Content.Headers.Contains("Content-Type"));
+            => resp.Set(
+                r => r.ContentType = msg.Content.Headers.GetValues("Content-Type").Single(),
+                applyIf: (!msg.Content.IsDefaultOrNull()) && msg.Content.Headers.Contains("Content-Type"));
 
         private static HttpResponse Set(this HttpResponse msg, Action<HttpResponse> config, bool applyIf = true)
         {

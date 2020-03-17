@@ -23,12 +23,12 @@ namespace EastFive.Api.Modules
 {
     public abstract class ApplicationHandler : System.Net.Http.DelegatingHandler
     {
-        protected System.Web.Http.HttpConfiguration config;
+        protected IApplication application;
         private string applicationProperty = Guid.NewGuid().ToString("N");
 
-        public ApplicationHandler(System.Web.Http.HttpConfiguration config)
+        public ApplicationHandler(IApplication application)
         {
-            this.config = config;
+            this.application = application;
         }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -43,17 +43,12 @@ namespace EastFive.Api.Modules
             if (request.Properties.ContainsKey(applicationProperty))
                 // TODO: Log event here.
                 return base.SendAsync(request, cancellationToken);
-
-            return request.GetApplication(
-                httpApp =>
-                {
-                    // add applicationProperty as a property to identify this method has already been called.
-                    request.Properties.Add(applicationProperty, httpApp);
-                    return SendAsync(httpApp, request, cancellationToken,
-                        (requestBase, cancellationTokenBase) =>
-                            base.SendAsync(requestBase, cancellationTokenBase));
-                },
-                () => base.SendAsync(request, cancellationToken));
+            
+            // add applicationProperty as a property to identify this method has already been called.
+            request.Properties.Add(applicationProperty, this.application);
+            return SendAsync(this.application, request, cancellationToken,
+                (requestBase, cancellationTokenBase) =>
+                    base.SendAsync(requestBase, cancellationTokenBase));
         }
 
         /// <summary>
@@ -65,7 +60,7 @@ namespace EastFive.Api.Modules
         /// <param name="continuation">In the event that the given application handler does not handle this request,
         /// this allows other handlers (SPA, Content, MVC, etc) to attempt to manage the request.</param>
         /// <returns></returns>
-        protected abstract Task<HttpResponseMessage> SendAsync(HttpApplication httpApp,
+        protected abstract Task<HttpResponseMessage> SendAsync(IApplication httpApp,
             HttpRequestMessage request, CancellationToken cancellationToken, 
             Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> continuation);
     }

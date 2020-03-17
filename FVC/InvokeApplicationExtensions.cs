@@ -7,7 +7,6 @@ using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Web.Http;
-using System.Web.Http.Routing;
 using System.Threading;
 
 using Newtonsoft.Json;
@@ -21,7 +20,6 @@ using EastFive.Extensions;
 using EastFive.Api.Controllers;
 using EastFive.Linq.Expressions;
 using BlackBarLabs.Extensions;
-using BlackBarLabs.Api;
 using EastFive.Linq.Async;
 using EastFive.Api.Serialization;
 

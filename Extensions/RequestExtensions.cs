@@ -19,49 +19,12 @@ using EastFive.Extensions;
 using EastFive.Web;
 using BlackBarLabs.Api;
 using EastFive.Linq.Async;
+using EastFive.Web.Configuration;
 
 namespace EastFive.Api
 {
     public static class RequestExtensions
     {
-        public static TResult GetApplication<TResult>(this HttpRequestMessage request,
-            Func<HttpApplication, TResult> onAvailable,
-            Func<TResult> onNotAvailable)
-        {
-            if (!request.Properties.ContainsKey("MS_HttpContext")) //  Maybe someday this will be in System.Web.Http.Hosting.HttpPropertyKeys.
-                return onNotAvailable();
-
-            var httpAppCore = ((System.Web.HttpContextWrapper)request.Properties["MS_HttpContext"]).ApplicationInstance;
-            if (!(httpAppCore is HttpApplication))
-                return onNotAvailable();
-            var httpApp = httpAppCore as HttpApplication;
-            return onAvailable(httpApp);
-        }
-
-        public static async Task<IHttpActionResult> GetPossibleMultipartResponseAsync<TResource>(this HttpRequestMessage request,
-            IEnumerable<TResource> query,
-            Func<TResource, Task<HttpResponseMessage>> singlepart,
-            Func<HttpActionDelegate> ifEmpty = default(Func<HttpActionDelegate>))
-        {
-            if ((!query.Any()) && (!ifEmpty.IsDefaultOrNull()))
-            {
-                return ifEmpty().ToActionResult();
-            }
-
-            var queryTasks = query.Select(resource => singlepart(resource));
-            var queryResponses = await Task.WhenAll(queryTasks);
-            if (queryResponses.Length == 1)
-                return queryResponses[0].ToActionResult();
-
-            return await request.CreateMultipartActionAsync(queryResponses);
-        }
-
-        public static async Task<IHttpActionResult> CreateMultipartActionAsync(this HttpRequestMessage request,
-            IEnumerable<HttpResponseMessage> contents)
-        {
-            return (await request.CreateMultipartResponseAsync(contents)).ToActionResult();
-        }
-
         public static async Task<HttpResponseMessage> CreateMultipartResponseAsync(this HttpRequestMessage request,
             IEnumerable<HttpResponseMessage> contents)
         {
@@ -242,29 +205,30 @@ namespace EastFive.Api
                 {
                     //var siteAdminAuthorization = CloudConfigurationManager.GetSetting(
                     //    EastFive.Api.AppSettings.SiteAdminAuthorization);
-                    var siteAdminAuthorization = ConfigurationContext.Instance.AppSettings[
-                        EastFive.Api.AppSettings.SiteAdminAuthorization];
-
-                    if (string.IsNullOrEmpty(siteAdminAuthorization))
-                        return failure(why); //TODO - log if this is not set?
-
-                    if (String.Compare(siteAdminAuthorization, jwtString, false) != 0)
-                        return failure(why);
-
-                    return EastFive.Web.Configuration.Settings.GetString(
-                        EastFive.Api.AppSettings.ActorIdClaimType,
-                        (actorIdClaimType) =>
+                    return EastFive.Api.AppSettings.SiteAdminAuthorization.ConfigurationString(
+                        siteAdminAuthorization =>
                         {
+                            if (string.IsNullOrEmpty(siteAdminAuthorization))
+                                return failure(why); //TODO - log if this is not set?
+
+                            if (String.Compare(siteAdminAuthorization, jwtString, false) != 0)
+                                return failure(why);
+
                             return EastFive.Web.Configuration.Settings.GetString(
-                                EastFive.Api.AppSettings.ActorIdSuperAdmin,
-                                (actorIdSuperAdmin) =>
+                                EastFive.Api.AppSettings.ActorIdClaimType,
+                                (actorIdClaimType) =>
                                 {
-                                    var claim = new Claim(actorIdClaimType, actorIdSuperAdmin);
-                                    return success(claim.AsArray());
+                                    return EastFive.Web.Configuration.Settings.GetString(
+                                        EastFive.Api.AppSettings.ActorIdSuperAdmin,
+                                        (actorIdSuperAdmin) =>
+                                        {
+                                            var claim = new Claim(actorIdClaimType, actorIdSuperAdmin);
+                                            return success(claim.AsArray());
+                                        },
+                                        failure);
                                 },
                                 failure);
-                        },
-                        failure);
+                        });
                 },
                 issuerConfigSetting,
                 validationKeyConfigSetting);
@@ -413,11 +377,10 @@ namespace EastFive.Api
             var accountIdClaimTypeConfigurationSetting =
                 EastFive.Api.AppSettings.ActorIdClaimType;
 
-            var maybeBearer = request.GetQueryNameValuePairs().Where(qP => qP.Key.ToLower() == "bearer").ToArray();
-            if (maybeBearer.Length == 0)
+            if(!request.RequestUri.TryGetQueryParam("bearer", out string bearer))
                 return onNoBearerParameterFound();
 
-            var foundClaims = maybeBearer[0].Value.GetClaimsFromJwtToken(
+            var foundClaims = bearer.GetClaimsFromJwtToken(
                 claims =>
                 {
                     var accountIdClaimType =

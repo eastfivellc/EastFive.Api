@@ -65,35 +65,6 @@ namespace EastFive.Api
             ExecuteBackgroundResponseAsync responseDelegate =
                 async (executionContext) =>
                 {
-                    bool shouldRunInBackground()
-                    {
-                        if (executionContext.ForceBackground)
-                            return true;
-
-                        if (request.Headers.Accept.Contains(mediaType => mediaType.MediaType.ToLower().Contains("background")))
-                            return true;
-
-                        return false;
-                    }
-
-                    if (shouldRunInBackground())
-                    {
-                        var urlHelper = request.GetUrlHelper();
-                        var processId = Controllers.BackgroundProgressController.CreateProcess(
-                            async updateCallback =>
-                            {
-                                var completion = await executionContext.InvokeAsync(
-                                    v =>
-                                    {
-                                        updateCallback(v);
-                                    });
-                                return completion;
-                            }, 1.0);
-                        var response = request.CreateResponse(HttpStatusCode.Accepted);
-                        response.Headers.Add("Access-Control-Expose-Headers", "x-backgroundprocess");
-                        response.Headers.Add("x-backgroundprocess", urlHelper.GetLocation<Controllers.BackgroundProgressController>(processId).AbsoluteUri);
-                        return UpdateResponse(parameterInfo, httpApp, request, response);
-                    }
                     var responseInvoke = await executionContext.InvokeAsync(v => { });
                     return UpdateResponse(parameterInfo, httpApp, request, responseInvoke);
                 };

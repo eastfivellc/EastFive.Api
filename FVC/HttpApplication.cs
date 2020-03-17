@@ -8,11 +8,12 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 
+using Microsoft.AspNetCore.Mvc.Routing;
+
 using EastFive.Linq;
 using BlackBarLabs.Api;
 using BlackBarLabs.Extensions;
 using BlackBarLabs.Api.Resources;
-using System.Web.Http.Routing;
 using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using System.IO;
@@ -28,6 +29,17 @@ using EastFive.Analytics;
 
 namespace EastFive.Api
 {
+    public interface IApiApplication : IApplication
+    {
+        Type[] GetResources();
+
+        string GetResourceMime(Type type);
+
+        string GetResourceName(Type type);
+
+        IEnumerableAsync<T> InstantiateAll<T>();
+    }
+
     [JsonContentParser]
     [XmlContentParser]
     [FormDataParser]
@@ -35,7 +47,7 @@ namespace EastFive.Api
     [ApiResources(NameSpacePrefixes = "EastFive.Api,EastFive.Web")]
     [Auth.ClaimEnableSession]
     [Auth.ClaimEnableActor]
-    public class HttpApplication : System.Web.HttpApplication, IApplication
+    public class HttpApplication : IApiApplication, IDisposable
     {
         public virtual string Namespace
         {
@@ -54,10 +66,9 @@ namespace EastFive.Api
             this.initialization = InitializeAsync();
         }
 
-        public override void Dispose()
+        public void Dispose()
         {
             Dispose(true);
-            base.Dispose();
         }
 
         protected virtual void Dispose(bool disposing)
@@ -122,8 +133,6 @@ namespace EastFive.Api
             get => new Analytics.ConsoleLogger();
         }
 
-        public delegate Task StoreMonitoringDelegate(Guid monitorRecordId, Guid authenticationId, DateTime when, string method, string controllerName, string queryString);
-
         public virtual TResult DoesStoreMonitoring<TResult>(
             Func<StoreMonitoringDelegate, TResult> onMonitorUsingThisCallback,
             Func<TResult> onNoMonitoring)
@@ -137,9 +146,7 @@ namespace EastFive.Api
 
         public void Application_Start()
         {
-            System.Web.Mvc.AreaRegistration.RegisterAllAreas();
             ApplicationStart();
-            GlobalConfiguration.Configure(this.Configure);
             Registration();
             SetupRazorEngine(string.Empty);
         }
@@ -152,25 +159,6 @@ namespace EastFive.Api
 
         protected virtual void Registration()
         {
-        }
-
-        protected virtual void Configure(HttpConfiguration config)
-        {
-            config.MapHttpAttributeRoutes();
-
-            DefaultApiRoute(config);
-
-            config.MessageHandlers.Add(new Modules.ControllerHandler(config));
-            config.MessageHandlers.Add(new Modules.MonitoringHandler(config));
-        }
-
-        public IHttpRoute DefaultApiRoute(HttpConfiguration config)
-        {
-            return config.Routes.MapHttpRoute(
-                name: "DefaultApi",
-                routeTemplate: "api/{controller}/{id}",
-                defaults: new { id = RouteParameter.Optional }
-            );
         }
 
         #endregion
@@ -559,10 +547,7 @@ namespace EastFive.Api
                                     .IfThen(attrType.Key.Route.IsNullOrWhiteSpace(),
                                         (route) =>
                                         {
-                                            var routeType = attrType.Key.Resource.IsDefaultOrNull() ?
-                                                attrType.Value.Name
-                                                :
-                                                attrType.Key.Resource.Name;
+                                            var routeType = attrType.Value.Name;
                                             return routeType;
                                         })
                                     .ToLower()
@@ -583,10 +568,7 @@ namespace EastFive.Api
                                 {
                                     if (!attrType.Key.ContentType.IsNullOrWhiteSpace())
                                         return attrType.Key.ContentType;
-                                    var routeType = attrType.Key.Resource.IsDefaultOrNull() ?
-                                        attrType.Value
-                                        :
-                                        attrType.Key.Resource;
+                                    var routeType = attrType.Value;
                                     return $"x-application/{routeType.Name}";
                                 }
                             }))
@@ -603,10 +585,7 @@ namespace EastFive.Api
                                     .IfThen(attrType.Key.Route.IsNullOrWhiteSpace(),
                                         (route) =>
                                         {
-                                            var routeType = attrType.Key.Resource.IsDefaultOrNull() ?
-                                                attrType.Value.Name
-                                                :
-                                                attrType.Key.Resource.Name;
+                                            var routeType = attrType.Value.Name;
                                             return routeType;
                                         })
                                     .ToLower()
@@ -615,18 +594,16 @@ namespace EastFive.Api
                     .Distinct(kvp => kvp.Key.FullName)
                     .ToDictionary();
 
-                resourceTypeControllerLookup = functionViewControllerAttributesAndTypes
-                    .FlatMap(
-                        (attrType, next, skip) =>
+                var kvps = functionViewControllerAttributesAndTypes
+                    .Select(
+                        (attrType) =>
                         {
-                            if (attrType.Key.Resource.IsDefaultOrNull())
-                                return skip();
-                            return next(attrType.Key.Resource.PairWithValue(attrType.Value));
-                        },
-                        (IEnumerable<KeyValuePair<Type, Type>> kvps) =>
-                            resourceTypeControllerLookup.Merge(
-                                kvps,
-                                (k, v1, v2) => v2).ToDictionary());
+                            return attrType.Value.PairWithValue(attrType.Value);
+                        });
+                resourceTypeControllerLookup = resourceTypeControllerLookup
+                    .Merge(kvps,
+                        (k, v1, v2) => v2)
+                    .ToDictionary();
 
                 contentTypeLookup = functionViewControllerAttributesAndTypes
                     .FlatMap(
@@ -634,9 +611,7 @@ namespace EastFive.Api
                         {
                             if (attrType.Key.ContentType.IsNullOrWhiteSpace())
                                 return skip();
-                            if (attrType.Key.Resource.IsDefaultOrNull())
-                                return skip();
-                            return next(attrType.Key.ContentType.PairWithKey(attrType.Key.Resource));
+                            return next(attrType.Key.ContentType.PairWithKey(attrType.Value));
                         },
                         (IEnumerable<KeyValuePair<Type, string>> kvps) =>
                             contentTypeLookup.Merge(
@@ -763,9 +738,9 @@ namespace EastFive.Api
                 #region MVC System Objects
 
                 {
-                    typeof(System.Web.Http.Routing.UrlHelper),
+                    typeof(UrlHelper),
                     (httpApp, request, paramInfo, success) => success(
-                        new System.Web.Http.Routing.UrlHelper(request))
+                        new UrlHelper(new Microsoft.AspNetCore.Mvc.ActionContext()))
                 },
                 {
                     typeof(HttpRequestMessage),

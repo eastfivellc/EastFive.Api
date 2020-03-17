@@ -8,7 +8,7 @@ namespace EastFive.Api.Auth
 {
     public class ClaimEnableSessionAttribute : Attribute, IDeclareClaim
     {
-        public const string Type = Microsoft.IdentityModel.Claims.ClaimTypes.PPID;
+        public const string Type = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/privatepersonalidentifier"; // System.Security.Claims.ClaimTypes.PPID;
 
         public Uri ClaimType => new Uri(Type);
 

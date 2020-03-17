@@ -8,7 +8,7 @@ namespace EastFive.Api.Auth
 {
     public class ClaimEnableActorAttribute : Attribute, IDeclareClaim
     {
-        public const string Type = Microsoft.IdentityModel.Claims.ClaimTypes.Actor;
+        public const string Type = System.Security.Claims.ClaimTypes.Actor;
 
         public Uri ClaimType => new Uri(Type);
 

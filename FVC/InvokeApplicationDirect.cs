@@ -46,27 +46,7 @@ namespace EastFive.Api
             {
                 string GetApiPrefix()
                 {
-                    try
-                    {
-                        return request.RequestUri.AbsolutePath.Trim('/'.AsArray()).Split('/'.AsArray()).First();
-                    }
-                    catch (Exception)
-                    {
-
-                    }
-                    var routeData = request.GetRouteData();
-                    if (routeData.IsDefaultOrNull())
-                        return "api";
-                    var route = routeData.Route;
-                    if (route.IsDefaultOrNull())
-                        return "api";
-                    var routeTemplate = route.RouteTemplate;
-                    if (routeTemplate.IsNullOrWhiteSpace())
-                        return "api";
-                    var directories = routeTemplate.Split('/'.AsArray());
-                    if (!directories.AnyNullSafe())
-                        return "api";
-                    return directories.First();
+                    return "api";
                 }
                 var instance = new InvokeApplicationDirect(httpApp, request.RequestUri, GetApiPrefix(), default(CancellationToken));
                 return onSuccess(instance);

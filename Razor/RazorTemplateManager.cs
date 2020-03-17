@@ -11,6 +11,8 @@ namespace EastFive.Api.Razor
 {
     public class RazorTemplateManager : ITemplateManager
     {
+        public static string systemPath = Environment.CurrentDirectory;
+
         private IDictionary<string, ITemplateSource> templateCache;
         private string givenRootDirectory;
 
@@ -26,17 +28,6 @@ namespace EastFive.Api.Razor
                 return templateCache[key.Name];
 
             string template = key.Name.TrimStart(new char[] { '\\', '~', '/' });
-
-            //Have to catch the error when using this via Azure Function
-            var systemPath = string.Empty;
-            try
-            {
-                systemPath = System.Web.HttpRuntime.AppDomainAppPath;
-            }
-            catch
-            {
-                systemPath = Environment.CurrentDirectory;
-            }
 
             var viewsFile = new FileInfo($"{systemPath}\\Views\\{template}");
             if (viewsFile.Exists)

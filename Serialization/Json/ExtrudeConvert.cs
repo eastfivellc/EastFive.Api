@@ -4,7 +4,8 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-using System.Web.Http.Routing;
+
+using Microsoft.AspNetCore.Mvc.Routing;
 
 using Newtonsoft.Json;
 
@@ -16,33 +17,12 @@ namespace EastFive.Api.Serialization
 {
     public class ExtrudeConvert : Newtonsoft.Json.JsonConverter
     {
-        IApplication application;
-        UrlHelper urlHelper;
-        bool useWebIds;
+        public ExtrudeConvert()
+        {
+        }
 
         public ExtrudeConvert(IApplication httpApplication, HttpRequestMessage request)
         {
-            var urlHelper = request.GetUrlHelper();
-            var useWebIds = request.Headers.Accept.Contains(
-                header =>
-                {
-                    if (header.MediaType.ToLower() != "application/json")
-                        return false;
-                    var requestWebId = header.Parameters.Contains(
-                        nhv =>
-                        {
-                            if (nhv.Name.ToLower() != "id")
-                                return false;
-                            if (nhv.Value.ToLower() == "webid")
-                                return true;
-                            return false;
-                        });
-                    return requestWebId;
-                });
-
-            this.application = httpApplication;
-            this.urlHelper = urlHelper;
-            this.useWebIds = useWebIds;
         }
 
         public override bool CanConvert(Type objectType)
@@ -93,54 +73,7 @@ namespace EastFive.Api.Serialization
                 }
 
                 var id = idMaybe.Value;
-                if (!useWebIds)
-                {
-                    writer.WriteValue(id);
-                    return;
-                }
-
-                // The webID could be created and then serialized, etc. 
-                // or.... it can just be writen inline here.
-
-                writer.WriteStartObject();
-                var key = id.ToString();
-                writer.WritePropertyName("key");
-                writer.WriteValue(key);
-
-                var uuid = id;
-                writer.WritePropertyName("uuid");
-                writer.WriteValue(uuid);
-
-                var valueIdType = value.GetType();
-                if (!valueIdType.IsGenericType)
-                {
-                    writer.WriteEndObject();
-                    return;
-                }
-
-                // TODO: Handle dictionary, etc
-                var refType = valueIdType.GetGenericArguments().First();
-                var webId = urlHelper.GetWebId(refType, id);
-
-                var contentType = $"x-application/x-{refType.Name.ToLower()}";
-                if (refType.ContainsCustomAttribute<FunctionViewControllerAttribute>(true))
-                {
-                    var fvcAttrContentType = refType.GetCustomAttribute<FunctionViewControllerAttribute>().ContentType;
-                    if (fvcAttrContentType.HasBlackSpace())
-                        contentType = fvcAttrContentType;
-                }
-                var applicationNamespace = "application"; // application.Namespace;
-                var urnString = $"urn:{contentType}:{applicationNamespace}:{key}";
-                writer.WritePropertyName("urn");
-                writer.WriteValue(urnString);
-
-                var source = urlHelper.GetLocationWithId(refType, id);
-                writer.WritePropertyName("source");
-                writer.WriteValue(source.AbsoluteUri);
-                writer.WriteEndObject();
-
-                return;
-
+                writer.WriteValue(id);
             }
 
             if (value is IReferenceable)

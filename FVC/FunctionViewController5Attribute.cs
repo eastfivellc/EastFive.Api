@@ -1,11 +1,4 @@
-﻿using EastFive.Api.Serialization;
-using EastFive.Collections.Generic;
-using EastFive.Extensions;
-using EastFive.Linq;
-using EastFive.Linq.Async;
-
-using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -15,15 +8,24 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Newtonsoft.Json;
+
+using EastFive.Api.Serialization;
+using EastFive.Collections.Generic;
+using EastFive.Extensions;
+using EastFive.Linq;
+using EastFive.Linq.Async;
+
 namespace EastFive.Api
 {
     public class FunctionViewController5Attribute : FunctionViewController4Attribute
     {
         public override async Task<HttpResponseMessage> CreateResponseAsync(Type controllerType,
             IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken,
-            string routeName)
+            RouteData pathParameters, MethodInfo[] extensionMethods)
         {
-            var matchingActionMethods = GetHttpMethods(controllerType, httpApp, request);
+            var matchingActionMethods = GetHttpMethods(controllerType,
+                httpApp, request, extensionMethods);
             if (!matchingActionMethods.Any())
                 return request.CreateResponse(HttpStatusCode.NotImplemented);
 
@@ -70,7 +72,7 @@ namespace EastFive.Api
         }
 
         protected virtual IEnumerable<MethodInfo> GetHttpMethods(Type controllerType,
-            IApplication httpApp, HttpRequestMessage request)
+            IApplication httpApp, HttpRequestMessage request, MethodInfo[] extensionMethods)
         {
             var matchingActionMethods = controllerType
                 .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)

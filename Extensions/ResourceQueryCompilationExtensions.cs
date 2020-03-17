@@ -101,18 +101,7 @@ namespace EastFive.Api
 
             string GetRoutePrefix()
             {
-                var routePrefixes = typeof(TResource)
-                    .GetCustomAttributes<System.Web.Http.RoutePrefixAttribute>()
-                    .Select(routePrefix => routePrefix.Prefix);
-                if (routePrefixes.Any())
-                    return routePrefixes.First();
-
-                if (urlQuery is RequestMessage<TResource>)
-                {
-                    var requestMessage = urlQuery as RequestMessage<TResource>;
-                    return requestMessage.InvokeApplication.ApiRouteName;
-                }
-                throw new ArgumentException("Could not determine value for route prefix.");
+                return "api";
             }
 
             string GetControllerName()

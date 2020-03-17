@@ -18,19 +18,17 @@ using System.Net;
 using BlackBarLabs.Api;
 using BlackBarLabs;
 using System.Threading;
-using System.Web.Http.Routing;
-using System.Web.Http.Controllers;
 
 namespace EastFive.Api.Modules
 {
     public class MonitoringHandler : ApplicationHandler
     {
-        public MonitoringHandler(System.Web.Http.HttpConfiguration config)
+        public MonitoringHandler(IApplication config)
             : base(config)
         {
         }
 
-        private Task<HttpResponseMessage> StoreMonitoringInfoAndFireRequestAsync(HttpApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken, Guid authenticationId,
+        private Task<HttpResponseMessage> StoreMonitoringInfoAndFireRequestAsync(IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken, Guid authenticationId,
             Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> continuation)
         {
             return GetControllerNameAndId(request, 
@@ -54,7 +52,7 @@ namespace EastFive.Api.Modules
                 ()=> continuation(request, cancellationToken));
         }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpApplication httpApplication, HttpRequestMessage request, CancellationToken cancellationToken,
+        protected override Task<HttpResponseMessage> SendAsync(IApplication httpApplication, HttpRequestMessage request, CancellationToken cancellationToken,
             Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> continuation)
         {
             return request.GetActorIdClaimsFromBearerParamAsync(
@@ -103,8 +101,8 @@ namespace EastFive.Api.Modules
 
         private string GetParamInfo(HttpRequestMessage request, string iden)
         {
-            var queryParams = request.GetQueryNameValuePairs();
-            var queryElements = queryParams.Select(qP => $"{qP.Key}:{qP.Value}");
+            var queryParams = request.RequestUri.ParseQueryString();
+            var queryElements = queryParams.AllKeys.Select(qP => $"{qP}:{queryParams[qP]}");
 
             if (!iden.IsNullOrWhiteSpace())
                 queryElements = queryElements.Concat(new[] { $"Id:{iden}" });

@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Web.Http.Routing;
-using BlackBarLabs.Extensions;
 using System.Web;
 using BlackBarLabs.Api.Resources;
 using System.Threading.Tasks;
@@ -17,6 +15,7 @@ using System.Net.Http;
 using EastFive.Collections.Generic;
 using EastFive.Linq.Expressions;
 using Newtonsoft.Json;
+using Microsoft.AspNetCore.Mvc.Routing;
 
 namespace EastFive.Api
 {
@@ -34,7 +33,7 @@ namespace EastFive.Api
 
         public static Uri GetLocation<TResource>(this UrlHelper url,
             Expression<Action<TResource>> param1,
-            EastFive.Api.HttpApplication application,
+            IApiApplication application,
             string routeName = "DefaultApi")
         {
             return url.GetLocation(
@@ -46,7 +45,7 @@ namespace EastFive.Api
         public static Uri GetLocation<TResource>(this UrlHelper url,
             Expression<Action<TResource>> param1,
             Expression<Action<TResource>> param2,
-            EastFive.Api.HttpApplication application,
+            IApiApplication application,
             string routeName = "DefaultApi")
         {
             return url.GetLocation(
@@ -57,7 +56,7 @@ namespace EastFive.Api
 
         public static Uri GetLocation<TResource>(this UrlHelper url,
             Expression<Action<TResource>>[] parameters,
-            EastFive.Api.HttpApplication application,
+            IApiApplication application,
             string routeName = "DefaultApi")
         {
             var baseUrl = url.GetLocation(typeof(TResource), routeName);
@@ -105,13 +104,6 @@ namespace EastFive.Api
         {
             if (String.IsNullOrWhiteSpace(routeName))
             {
-                var routePrefixes = controllerType
-                    .GetCustomAttributes<System.Web.Http.RoutePrefixAttribute>()
-                    .Select(routePrefix => routePrefix.Prefix)
-                    .ToArray();
-                if (routePrefixes.Any())
-                    routeName = routePrefixes[0];
-                else
                     routeName = "DefaultApi";
             }
 
@@ -427,13 +419,6 @@ namespace BlackBarLabs.Api
         {
             if (String.IsNullOrWhiteSpace(routeName))
             {
-                var routePrefixes = controllerType
-                            .GetCustomAttributes<System.Web.Http.RoutePrefixAttribute>()
-                            .Select(routePrefix => routePrefix.Prefix)
-                            .ToArray();
-                if (routePrefixes.Any())
-                    routeName = routePrefixes[0];
-                else
                     routeName = "DefaultApi";
             }
 

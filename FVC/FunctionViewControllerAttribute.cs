@@ -16,6 +16,7 @@ using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Linq.Async;
+using Microsoft.AspNetCore.Http;
 
 namespace EastFive.Api
 {
@@ -24,6 +25,7 @@ namespace EastFive.Api
     {
         public string Namespace { get; set; }
         public string Route { get; set; }
+        public string Prefix { get; set; }
         public Type Resource { get; set; }
         public string ContentType { get; set; }
         public string ContentTypeVersion { get; set; }
@@ -80,7 +82,7 @@ namespace EastFive.Api
 
         public virtual async Task<HttpResponseMessage> CreateResponseAsync(Type controllerType,
             IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken,
-            string routeName)
+            RouteData routeData, MethodInfo[] extensionMethods)
         {
             var path = request.RequestUri.Segments
                 .Skip(1)
@@ -88,6 +90,7 @@ namespace EastFive.Api
                 .Where(pathPart => !pathPart.IsNullOrWhiteSpace())
                 .ToArray();
             var possibleHttpMethods = PossibleHttpMethods(controllerType, httpApp);
+            var routeName = this.Route;
             if (path.Length > 2)
             {
                 var actionMethod = path[2];
@@ -101,7 +104,8 @@ namespace EastFive.Api
                     var matchingActionMethods = possibleHttpMethods[actionHttpMethod];
                     return await CreateResponseAsync(httpApp,
                         request, cancellationToken,
-                        routeName, matchingActionMethods);
+                        routeName,
+                        matchingActionMethods);
                 }
             }
 
@@ -117,7 +121,8 @@ namespace EastFive.Api
 
             return await CreateResponseAsync(httpApp,
                 request, cancellationToken,
-                routeName, matchingMethods);
+                routeName,
+                matchingMethods);
         }
 
         #region Invoke correct method
@@ -126,18 +131,18 @@ namespace EastFive.Api
 
         private static async Task<HttpResponseMessage> CreateResponseAsync(IApplication httpApp,
             HttpRequestMessage request, CancellationToken cancellationToken,
-            string controllerName, MethodInfo[] methods)
+            string routeName, MethodInfo[] methods)
         {
-            #region setup query parameter casting
-
             var fileNameParams = request.RequestUri.AbsoluteUri
                 .MatchRegexInvoke(
-                        $".*/(?i){controllerName}(?-i)/(?<defaultQueryParam>[a-zA-Z0-9-]+)",
+                        $".*/(?i){routeName}(?-i)/(?<defaultQueryParam>[a-zA-Z0-9-]+)",
                         defaultQueryParam => defaultQueryParam,
                     (string[] urlFileNames) =>
                     {
                         return urlFileNames;
                     });
+
+            #region setup query parameter casting
 
             var queryParameters = request.RequestUri.ParseQuery()
                 .Select(kvp => kvp.Key.ToLower().PairWithValue(kvp.Value))
@@ -651,8 +656,9 @@ namespace EastFive.Api
             return new Route(type, this.Route, methods, httpApp);
         }
 
-        public bool DoesHandleRequest()
+        public virtual bool DoesHandleRequest(Type type, HttpContext context, out RouteData fileParams)
         {
+            fileParams = new RouteData ();
             return false;
         }
     }

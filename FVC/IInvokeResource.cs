@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Http;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -11,17 +12,19 @@ namespace EastFive.Api
 {
     public interface IInvokeResource
     {
+        string Namespace { get; }
+
         string Route { get; }
 
         string ContentType { get; }
 
-        Type Resource { get; }
+        //Type Resource { get; }
+
+        bool DoesHandleRequest(Type type, HttpContext context, out RouteData pathParameters);
 
         Task<HttpResponseMessage> CreateResponseAsync(Type controllerType, 
             IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken,
-            string routeName);
-
-        bool DoesHandleRequest();
+            RouteData routeData, MethodInfo[] extensionMethods);
     }
 
     public interface IInvokeExtensions

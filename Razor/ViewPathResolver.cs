@@ -19,7 +19,7 @@ namespace EastFive.Api
             ViewPathResolver responseDelegate =
                 (viewPath) =>
                 {
-                    return $"{System.Web.HttpRuntime.AppDomainAppPath}Views\\{viewPath}";
+                    return $"{Razor.RazorTemplateManager.systemPath}Views\\{viewPath}";
                 };
             return onSuccess(responseDelegate);
         }

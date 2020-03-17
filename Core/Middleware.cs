@@ -19,6 +19,7 @@ namespace EastFive.Api.Core
         private readonly RequestDelegate continueAsync;
         private readonly IApplication app;
         private ResourceInvocation[] resources;
+        private static IDictionary<Type, MethodInfo[]> routeResourceExtensionLookup;
 
         private struct ResourceInvocation
         {
@@ -37,19 +38,56 @@ namespace EastFive.Api.Core
         {
             return resources
                 .NullToEmpty()
-                .First(
-                    async (resource, next) =>
+                .Select(
+                    resource =>
                     {
-                        if (!resource.invokeResourceAttr.DoesHandleRequest())
+                        var doesHandleRequest = resource.invokeResourceAttr.DoesHandleRequest(
+                            resource.type, context, out RouteData routeData);
+                        return new
                         {
-                            await next();
-                            return;
-                        }
-
+                            doesHandleRequest,
+                            resource,
+                            routeData,
+                        };
+                    })
+                .Where(kvp => kvp.doesHandleRequest)
+                .First(
+                    async (requestHandler, next) =>
+                    {
+                        var resource = requestHandler.resource;
                         var httpRequestMessage = context.GetHttpRequestMessage();
                         var cancellationToken = new CancellationToken();
-                        var response = await resource.invokeResourceAttr.CreateResponseAsync(resource.type, this.app,
-                            httpRequestMessage, cancellationToken, "");
+                        var extensionMethods = routeResourceExtensionLookup.ContainsKey(resource.type) ?
+                            routeResourceExtensionLookup[resource.type]
+                            :
+                            new MethodInfo[] { };
+
+                        var response = await app.GetType()
+                            .GetAttributesInterface<IHandleRoutes>(true, true)
+                            .Aggregate<IHandleRoutes, RouteHandlingDelegate>(
+                                async (controllerTypeFinal, httpAppFinal, requestFinal, pathParameters, extensionMethodsFinal) =>
+                                {
+                                    var invokeResource = controllerTypeFinal.GetAttributesInterface<IInvokeResource>().First();
+                                    var response = await invokeResource.CreateResponseAsync(controllerTypeFinal,
+                                        httpAppFinal, requestFinal, cancellationToken,
+                                        pathParameters, extensionMethodsFinal);
+                                    return response;
+
+                                    //return await resource.invokeResourceAttr.CreateResponseAsync(resource.type,
+                                    //    this.app, httpRequestMessage, cancellationToken,
+                                    //    requestHandler.routeData, extensionMethods);
+                                },
+                                (callback, routeHandler) =>
+                                {
+                                    return (controllerTypeCurrent, httpAppCurrent, requestCurrent, routeNameCurrent, pathParameters) =>
+                                        routeHandler.HandleRouteAsync(controllerTypeCurrent,
+                                            httpAppCurrent, requestCurrent, routeNameCurrent,
+                                            pathParameters, callback);
+                                })
+                            .Invoke(resource.type, app, httpRequestMessage,
+                                new RouteData(), extensionMethods);
+
+                        
                         await response.WriteToContextAsync(context);
                     },
                     () => continueAsync(context));
@@ -124,6 +162,22 @@ namespace EastFive.Api.Core
                     .NullToEmpty()
                     .Concat(functionViewControllerAttributesAndTypes)
                     .ToArray();
+
+                var extendedMethods = types
+                    .Where(type => type.ContainsAttributeInterface<IInvokeExtensions>())
+                    .SelectMany(
+                        (type) =>
+                        {
+                            var attr = type.GetAttributesInterface<IInvokeExtensions>().First();
+                            return attr.GetResourcesExtended(type);
+                        })
+                    .ToArray();
+
+                routeResourceExtensionLookup = extendedMethods
+                    .ToDictionaryCollapsed((t1, t2) => t1.FullName == t2.FullName)
+                    .Concat(routeResourceExtensionLookup.NullToEmpty().Where(kvp => !extendedMethods.Contains(kvp2 => kvp2.Key == kvp.Key)))
+                    .ToDictionary();
+
             }
             catch (System.Reflection.ReflectionTypeLoadException ex)
             {

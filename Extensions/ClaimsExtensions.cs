@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 using BlackBarLabs.Extensions;
 using BlackBarLabs.Web;
+using EastFive.Web.Configuration;
 using Microsoft.Azure;
 
 namespace BlackBarLabs.Api
@@ -97,18 +98,21 @@ namespace BlackBarLabs.Api
             Func<TResult> actorIdNotFound)
         {
             //var accountIdClaimValue = CloudConfigurationManager.GetSetting(accountIdClaimType);
-            var accountIdClaimValue = ConfigurationContext.Instance.AppSettings[accountIdClaimType];
+            return accountIdClaimType.ConfigurationString(
+                accountIdClaimValue =>
+                {
+                    //TODO - Log if not found
 
-            //TODO - Log if not found
+                    var adminClaim = claims
+                        .FirstOrDefault((claim) => String.Compare(claim.Type, accountIdClaimValue) == 0);
 
-            var adminClaim = claims
-                .FirstOrDefault((claim) => String.Compare(claim.Type, accountIdClaimValue) == 0);
+                    if (default(System.Security.Claims.Claim) == adminClaim)
+                        return actorIdNotFound();
 
-            if (default(System.Security.Claims.Claim) == adminClaim)
-                return actorIdNotFound();
+                    var accountId = Guid.Parse(adminClaim.Value);
+                    return success(accountId);
+                }); // ConfigurationContext.Instance.AppSettings[accountIdClaimType];
 
-            var accountId = Guid.Parse(adminClaim.Value);
-            return success(accountId);
         }
     }
 }

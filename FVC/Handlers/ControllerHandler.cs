@@ -26,12 +26,12 @@ namespace EastFive.Api.Modules
         public const string HeaderStatusName = "X-StatusName";
         public const string HeaderStatusInstance = "X-StatusInstance";
 
-        public ControllerHandler(System.Web.Http.HttpConfiguration config)
+        public ControllerHandler(IApplication config)
             : base(config)
         {
         }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpApplication httpApp, 
+        protected override Task<HttpResponseMessage> SendAsync(IApplication httpApp, 
             HttpRequestMessage request, CancellationToken cancellationToken, 
             Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> continuation)
         {
@@ -60,28 +60,36 @@ namespace EastFive.Api.Modules
                 return await continuation(request, cancellationToken);
             var routeName = path[1].ToLower();
 
+            //var middleWare = new Core.Middleware(
+            //    context =>
+            //    {
+            //        return 1.AsTask();
+            //    },
+            //    httpApp);
+
             return await httpApp.GetControllerType(routeName,
                 (controllerType) =>
                 {
                     return httpApp.GetType()
                         .GetAttributesInterface<IHandleRoutes>(true, true)
                         .Aggregate<IHandleRoutes, RouteHandlingDelegate>(
-                            async (controllerTypeFinal, httpAppFinal, requestFinal, routeNameFinal) =>
+                            async (controllerTypeFinal, httpAppFinal, requestFinal, pathParameters, extensionMethods) =>
                             {
                                 var invokeResource = controllerTypeFinal.GetAttributesInterface<IInvokeResource>().First();
                                 var response = await invokeResource.CreateResponseAsync(controllerTypeFinal, 
-                                    httpAppFinal, requestFinal, cancellationToken, 
-                                    routeNameFinal);
+                                    httpAppFinal, requestFinal, cancellationToken,
+                                    pathParameters, extensionMethods);
                                 return response;
                             },
                             (callback, routeHandler) =>
                             {
-                                return (controllerTypeCurrent, httpAppCurrent, requestCurrent, routeNameCurrent) =>
+                                return (controllerTypeCurrent, httpAppCurrent, requestCurrent, routeNameCurrent, pathParameters) =>
                                     routeHandler.HandleRouteAsync(controllerTypeCurrent,
                                         httpAppCurrent, requestCurrent, routeNameCurrent,
-                                        callback);
+                                        pathParameters, callback);
                             })
-                        .Invoke(controllerType, httpApp, request, routeName);
+                        .Invoke(controllerType, httpApp, request,
+                            new RouteData(), httpApp.GetExtensionMethods(controllerType).ToArray());
                 },
                 () => continuation(request, cancellationToken));
         }

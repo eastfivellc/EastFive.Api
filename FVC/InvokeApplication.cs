@@ -55,11 +55,6 @@ namespace EastFive.Api
         public virtual HttpRequestMessage GetHttpRequest()
         {
             var httpRequest = new HttpRequestMessage();
-            var config = new HttpConfiguration();
-
-            var updatedConfig = ConfigureRoutes(httpRequest, config);
-
-            httpRequest.SetConfiguration(updatedConfig);
 
             foreach (var headerKVP in this.Headers)
                 httpRequest.Headers.Add(headerKVP.Key, headerKVP.Value);
@@ -71,38 +66,6 @@ namespace EastFive.Api
         public virtual RequestMessage<TResource> GetRequest<TResource>()
         {
             return BuildRequest<TResource>(this.Application);
-        }
-
-        protected virtual HttpConfiguration ConfigureRoutes(HttpRequestMessage httpRequest, HttpConfiguration config)
-        {
-            var apiRoutes = this.ApiRoutes
-                .Select(
-                    routeName =>
-                    {
-                        var route = config.Routes.MapHttpRoute(
-                            name: routeName,
-                            routeTemplate: routeName + "/{controller}/{id}",
-                            defaults: new { id = RouteParameter.Optional }
-                        );
-                        httpRequest.SetRouteData(new System.Web.Http.Routing.HttpRouteData(route));
-                        return route;
-                    })
-                .ToArray();
-
-            var mvcRoutes = this.MvcRoutes
-                .Select(
-                    routeName =>
-                    {
-                        var route = config.Routes.MapHttpRoute(
-                            name: routeName,
-                            routeTemplate: "{controller}/{action}/{id}",
-                            defaults: new { controller = "Default", action = "Index", id = "" }
-                            );
-                        httpRequest.SetRouteData(new System.Web.Http.Routing.HttpRouteData(route));
-                        return route;
-                    })
-                .ToArray();
-            return config;
         }
 
         protected virtual RequestMessage<TResource> BuildRequest<TResource>(IApplication application)

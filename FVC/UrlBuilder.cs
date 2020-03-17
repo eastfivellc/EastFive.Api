@@ -7,9 +7,9 @@ using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using System.Web.Http.Routing;
 using EastFive.Collections.Generic;
 using EastFive.Reflection;
+using Microsoft.AspNetCore.Mvc.Routing;
 
 namespace EastFive.Api
 {
@@ -18,10 +18,10 @@ namespace EastFive.Api
         private UrlHelper urlHelper;
         private IApplication httpApp;
 
-        public UrlBuilder(HttpRequestMessage request, IApplication httpApp)
+        public UrlBuilder(Microsoft.AspNetCore.Mvc.ActionContext context, IApplication httpApp)
         {
             this.httpApp = httpApp;
-            this.urlHelper = new UrlHelper(request);
+            this.urlHelper = new UrlHelper(context);
         }
 
         public IQueryable<T> Resources<T>()
