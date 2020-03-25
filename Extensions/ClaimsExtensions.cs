@@ -5,32 +5,30 @@ using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 
-using BlackBarLabs.Extensions;
-using BlackBarLabs.Web;
+using EastFive.Extensions;
 using EastFive.Web.Configuration;
-using Microsoft.Azure;
 
-namespace BlackBarLabs.Api
+namespace EastFive.Api
 {
     public static class ClaimsExtensions
     {
-        public static Task<HttpResponseMessage> GetSessionIdAsync(this IEnumerable<System.Security.Claims.Claim> claims,
-            HttpRequestMessage request, string sessionIdClaimType,
-            Func<Guid, Task<HttpResponseMessage>> success)
+        public static Task<IHttpResponse> GetSessionIdAsync(this IEnumerable<System.Security.Claims.Claim> claims,
+                IHttpRequest request, string sessionIdClaimType,
+            Func<Guid, Task<IHttpResponse>> success)
         {
             var adminClaim = claims
                 .FirstOrDefault((claim) => String.Compare(claim.Type, sessionIdClaimType) == 0);
 
             if (default(System.Security.Claims.Claim) == adminClaim)
-                return request.CreateResponse(HttpStatusCode.Unauthorized).ToTask();
+                return request.CreateResponse(HttpStatusCode.Unauthorized).AsTask();
 
             var accountId = Guid.Parse(adminClaim.Value);
             return success(accountId);
         }
 
-        public static HttpResponseMessage GetAccountId(this IEnumerable<System.Security.Claims.Claim> claims,
-            HttpRequestMessage request, string accountIdClaimType,
-            Func<Guid, HttpResponseMessage> success)
+        public static IHttpResponse GetAccountId(this IEnumerable<System.Security.Claims.Claim> claims,
+                IHttpRequest request, string accountIdClaimType,
+            Func<Guid, IHttpResponse> success)
         {
             var adminClaim = claims
                 .FirstOrDefault((claim) => String.Compare(claim.Type, accountIdClaimType) == 0);
@@ -42,22 +40,22 @@ namespace BlackBarLabs.Api
             return success(accountId);
         }
 
-        public static Task<HttpResponseMessage> GetAccountIdAsync(this IEnumerable<System.Security.Claims.Claim> claims,
-            HttpRequestMessage request, string accountIdClaimType,
-            Func<Guid, Task<HttpResponseMessage>> success)
+        public static Task<IHttpResponse> GetAccountIdAsync(this IEnumerable<System.Security.Claims.Claim> claims,
+            IHttpRequest request, string accountIdClaimType,
+            Func<Guid, Task<IHttpResponse>> success)
         {
             var adminClaim = claims
                 .FirstOrDefault((claim) => String.Compare(claim.Type, accountIdClaimType) == 0);
 
             if (default(System.Security.Claims.Claim) == adminClaim)
-                return request.CreateResponse(HttpStatusCode.Unauthorized).ToTask();
+                return request.CreateResponse(HttpStatusCode.Unauthorized).AsTask();
 
             var accountId = Guid.Parse(adminClaim.Value);
             return success(accountId);
         }
 
         public static TResult GetAccountIdMaybe<TResult>(this IEnumerable<System.Security.Claims.Claim> claims,
-            HttpRequestMessage request, string accountIdClaimType,
+            IHttpRequest request, string accountIdClaimType,
             Func<Guid?, TResult> success)
         {
             var adminClaim = claims
@@ -70,14 +68,15 @@ namespace BlackBarLabs.Api
             return success(accountId);
         }
 
-        public static Task<HttpResponseMessage[]> GetAccountIdAsync(this IEnumerable<System.Security.Claims.Claim> claims, HttpRequestMessage request, string accountIdClaimType,
-            Func<Guid, Task<HttpResponseMessage[]>> success)
+        public static Task<IHttpResponse[]> GetAccountIdAsync(this IEnumerable<System.Security.Claims.Claim> claims,
+                IHttpRequest request, string accountIdClaimType,
+            Func<Guid, Task<IHttpResponse[]>> success)
         {
             var adminClaim = claims
                 .FirstOrDefault((claim) => String.Compare(claim.Type, accountIdClaimType) == 0);
 
             if (default(System.Security.Claims.Claim) == adminClaim)
-                return request.CreateResponse(HttpStatusCode.Unauthorized).AsEnumerable().ToArray().ToTask();
+                return request.CreateResponse(HttpStatusCode.Unauthorized).AsEnumerable().ToArray().AsTask();
 
             var accountId = Guid.Parse(adminClaim.Value);
             return success(accountId);

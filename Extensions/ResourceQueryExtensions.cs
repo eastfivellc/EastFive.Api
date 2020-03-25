@@ -116,10 +116,10 @@ namespace EastFive.Api
                     });
             }
 
-            public HttpRequestMessage MutateRequest(HttpRequestMessage request,
+            public IHttpRequest MutateRequest(IHttpRequest routeData,
                 MethodInfo method, Expression[] arguments)
             {
-                request.RequestUri = BindUrlQueryValue(request.RequestUri, method, arguments);
+                routeData.request.Set = BindUrlQueryValue(request.RequestUri, method, arguments);
                 return request;
             }
         }
@@ -139,7 +139,7 @@ namespace EastFive.Api
                 return url.AppendToPath(idStr);
             }
 
-            public HttpRequestMessage MutateRequest(HttpRequestMessage request,
+            public HttpRequestMessage MutateRequest(IHttpRequest request,
                 MethodInfo method, Expression[] arguments)
             {
                 request.RequestUri = BindUrlQueryValue(request.RequestUri, method, arguments);

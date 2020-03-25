@@ -1,6 +1,7 @@
 ﻿using EastFive.Api.Bindings;
 using EastFive.Api.Resources;
 using EastFive.Extensions;
+using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -18,14 +19,12 @@ namespace EastFive.Api
     public class PropertyAttribute : QueryValidationAttribute,
         IDocumentParameter, IBindJsonApiValue, IBindMultipartApiValue, IBindFormDataApiValue
     {
-        public override SelectParameterResult TryCast(IApplication httpApp,
-                HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
-                CastDelegate fetchQueryParam,
-                CastDelegate fetchBodyParam,
-                CastDelegate fetchDefaultParam)
+        public override SelectParameterResult TryCast(BindingData bindingData)
         {
+            var request = bindingData.request.request;
+            var parameterRequiringValidation = bindingData.parameterRequiringValidation;
             var name = this.GetKey(parameterRequiringValidation);
-            return fetchBodyParam(parameterRequiringValidation,
+            return bindingData.fetchBodyParam(parameterRequiringValidation,
                 vCasted => SelectParameterResult.Body(vCasted, name, parameterRequiringValidation),
                 why => SelectParameterResult.FailureBody(why, name, parameterRequiringValidation));
         }
@@ -119,7 +118,7 @@ namespace EastFive.Api
 
                 if (typeof(Type).GUID == type.GUID)
                 {
-                    return HttpApplication.GetResourceType(valueString,
+                    return httpApp.GetResourceType(valueString,
                             (typeInstance) => onCasted(typeInstance),
                             () => valueString.GetClrType(
                                 typeInstance => onCasted(typeInstance),
@@ -182,7 +181,7 @@ namespace EastFive.Api
         public TResult ParseContentDelegate<TResult>(JObject contentJObject,
                 string contentString, Serialization.BindConvert bindConvert,
                 ParameterInfo paramInfo,
-                IApplication httpApp, HttpRequestMessage request,
+                IApplication httpApp, IHttpRequest request,
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure)
         {
@@ -198,7 +197,7 @@ namespace EastFive.Api
         public static TResult ParseJsonContentDelegate<TResult>(JObject contentJObject,
                 string contentString, Serialization.BindConvert bindConvert,
                 string key, ParameterInfo paramInfo,
-                IApplication httpApp, HttpRequestMessage request,
+                IApplication httpApp, IHttpRequest request,
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure)
         {
@@ -236,7 +235,7 @@ namespace EastFive.Api
         }
 
         public TResult ParseContentDelegate<TResult>(IDictionary<string, MultipartContentTokenParser> contentsLookup,
-                ParameterInfo parameterInfo, IApplication httpApp, HttpRequestMessage request,
+                ParameterInfo parameterInfo, IApplication httpApp, IHttpRequest request,
             Func<object, TResult> onParsed, 
             Func<string, TResult> onFailure)
         {
@@ -250,8 +249,8 @@ namespace EastFive.Api
                     onFailure);
         }
 
-        public TResult ParseContentDelegate<TResult>(NameValueCollection formData, 
-                ParameterInfo parameterInfo, IApplication httpApp, HttpRequestMessage request,
+        public TResult ParseContentDelegate<TResult>(IFormCollection formData, 
+                ParameterInfo parameterInfo, IApplication httpApp, IHttpRequest routeData,
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure)
         {
@@ -261,7 +260,7 @@ namespace EastFive.Api
             if (formData.IsDefaultOrNull())
                 return onFailure("No form data provided");
 
-            if (!formData.AllKeys.Contains(key))
+            if (!formData.ContainsKey(key))
                 return onFailure("Key not found");
 
             var strValue = formData[key];

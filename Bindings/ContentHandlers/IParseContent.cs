@@ -9,13 +9,13 @@ namespace EastFive.Api
 {
     public interface IParseContent
     {
-        bool DoesParse(HttpRequestMessage request);
+        bool DoesParse(IHttpRequest routeData);
 
-        Task<HttpResponseMessage> ParseContentValuesAsync(
-            IApplication httpApp, HttpRequestMessage request,
+        Task<IHttpResponse> ParseContentValuesAsync(
+            IApplication httpApp, IHttpRequest routeData,
             Func<
                 CastDelegate,
                 string[],
-                Task<HttpResponseMessage>> onParsedContentValues);
+                Task<IHttpResponse>> onParsedContentValues);
     }
 }

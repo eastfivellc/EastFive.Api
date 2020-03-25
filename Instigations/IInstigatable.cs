@@ -11,19 +11,19 @@ namespace EastFive.Api
 { 
     public interface IInstigatable
     {
-        Task<HttpResponseMessage> Instigate(
-                IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken,
+        Task<IHttpResponse> Instigate(
+                IApplication httpApp, IHttpRequest routeData,
                 ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess);
+            Func<object, Task<IHttpResponse>> onSuccess);
     }
 
     public interface IInstigate
     {
         bool CanInstigate(ParameterInfo parameterInfo);
 
-        Task<HttpResponseMessage> Instigate(
-                IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken,
+        Task<IHttpResponse> Instigate(
+                IApplication httpApp, IHttpRequest request,
                 ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess);
+            Func<object, Task<IHttpResponse>> onSuccess);
     }
 }

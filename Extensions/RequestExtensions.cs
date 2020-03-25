@@ -3,133 +3,96 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Web.Http;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using BlackBarLabs.Extensions;
-using BlackBarLabs.Api.Resources;
-using BlackBarLabs.Linq;
-using Microsoft.Azure;
-using BlackBarLabs.Web;
 using System.Security.Claims;
 using System.Configuration;
+
+using Microsoft.AspNetCore.Http;
+
 using EastFive.Api;
 using EastFive.Linq;
 using EastFive.Extensions;
 using EastFive.Web;
-using BlackBarLabs.Api;
 using EastFive.Linq.Async;
 using EastFive.Web.Configuration;
+using EastFive.Api.Core;
 
 namespace EastFive.Api
 {
     public static class RequestExtensions
     {
-        public static async Task<HttpResponseMessage> CreateMultipartResponseAsync(this HttpRequestMessage request,
-            IEnumerable<HttpResponseMessage> contents)
+        public static Uri GetAbsoluteUri(this IHttpRequest req)
+            => req.AbsoluteUri;
+
+        public static string GetHeader(this IHttpRequest req, string headerKey)
+            => req.GetHeaders(headerKey)
+            .First(
+                (v, next) => v,
+                () => string.Empty);
+
+        public static bool TryGetHeader(this IHttpRequest req, string headerKey, out string headerValue)
         {
-            if (request.Headers.Accept.Contains(accept => accept.MediaType.ToLower().Contains("multipart/mixed")))
+            var headers = req.GetHeaders(headerKey);
+            if(!headers.Any())
             {
-                return request.CreateHttpMultipartResponse(contents);
-            }
-            if (request.Headers.Accept.Contains(accept => accept.MediaType.ToLower().Contains("application/json+content-array")))
-            {
-                return await request.CreateJsonArrayResponseAsync(contents);
-            }
-
-            return await request.CreateBrowserMultipartResponse(contents);
-        }
-
-        private static HttpResponseMessage CreateHttpMultipartResponse(this HttpRequestMessage request,
-            IEnumerable<HttpResponseMessage> contents)
-        {
-            var multipartContent = new MultipartContent("mixed", "----Boundary_" + Guid.NewGuid().ToString("N"));
-            request.CreateResponse(HttpStatusCode.OK, multipartContent);
-            foreach (var content in contents)
-            {
-                multipartContent.Add(new HttpMessageContent(content));
-            }
-            var response = request.CreateResponse(HttpStatusCode.OK);
-            response.Content = multipartContent;
-            return response;
-        }
-
-        private static async Task<HttpResponseMessage> CreateJsonArrayResponseAsync(this HttpRequestMessage request,
-            IEnumerable<HttpResponseMessage> contents)
-        {
-            var multipartContent = await contents
-                .NullToEmpty()
-                .Select(
-                    async (content) =>
-                    {
-                        return await content.Content.HasValue(
-                            async (contentContent) => await contentContent.ReadAsStringAsync(),
-                            () => content.ReasonPhrase.AsTask());
-                    })
-                .Parallel()
-                .ToArrayAsync();
-
-            var multipartResponse = request.CreateHtmlResponse($"[{multipartContent.Join(',')}]");
-            multipartResponse.Content.Headers.ContentType =
-                new MediaTypeHeaderValue("application/json+content-array");
-            return multipartResponse;
-        }
-
-        private static async Task<HttpResponseMessage> CreateBrowserMultipartResponse(this HttpRequestMessage request,
-            IEnumerable<HttpResponseMessage> contents)
-        {
-            var multipartContentTasks = contents.NullToEmpty().Select(
-                async (content) =>
-                {
-                    return await content.Content.HasValue(
-                        async (contentContent) =>
-                        {
-                            var response = new Response
-                            {
-                                StatusCode = content.StatusCode,
-                                ContentType = contentContent.Headers.ContentType,
-                                ContentLocation = contentContent.Headers.ContentLocation,
-                                Content = await contentContent.ReadAsStringAsync(),
-                                ReasonPhrase = content.ReasonPhrase,
-                                Location = content.Headers.Location,
-                            };
-                            return response;
-                        },
-                        () =>
-                        {
-                            var response = new Response
-                            {
-                                StatusCode = content.StatusCode,
-                                ReasonPhrase = content.ReasonPhrase,
-                                Location = content.Headers.Location,
-                            };
-                            return Task.FromResult(response);
-                        });
-                });
-
-            var multipartContents = await Task.WhenAll(multipartContentTasks);
-            var multipartResponseContent = new MultipartResponse
-            {
-                StatusCode = HttpStatusCode.OK,
-                Content = multipartContents,
-                Location = request.RequestUri,
+                headerValue = default;
+                return false;
             };
-
-            var multipartResponse = request.CreateResponse(HttpStatusCode.OK, multipartResponseContent);
-            multipartResponse.Content.Headers.ContentType = new MediaTypeHeaderValue("application/x-multipart+json");
-            return multipartResponse;
+            headerValue = headers.First();
+            return true;
         }
 
-        public static bool IsAuthorizedFor(this HttpRequestMessage request,
+        public static string GetMediaType(this IHttpRequest req)
+            => req.GetHeader("content-type");
+
+        public static IEnumerable<MediaTypeWithQualityHeaderValue> GetMediaTypes(this IHttpRequest req)
+            => req
+                .GetHeaders("content-type")
+                .Select(acceptString => new MediaTypeWithQualityHeaderValue(acceptString));
+
+        public static bool TryGetMediaType(this IHttpRequest req, out string mediaType)
+            => req.TryGetHeader("content-type", out mediaType);
+
+        public static bool TryGetMediaType(this IHttpRequest req, out MediaTypeWithQualityHeaderValue mediaType)
+        {
+            var mediaTypes = req.GetMediaTypes();
+            if (mediaTypes.Any())
+            {
+                mediaType = mediaTypes.First();
+                return true;
+            }
+            mediaType = default;
+            return false;
+        }
+
+        public static string GetAuthorization(this IHttpRequest req)
+            => req.GetHeader("Authorization");
+
+        public static bool TryGetAuthorization(this IHttpRequest req, out string authorization)
+            => req.TryGetHeader("Authorization", out authorization);
+
+        public static IEnumerable<MediaTypeWithQualityHeaderValue> GetAcceptTypes(this IHttpRequest req)
+            => req.GetHeaders("accept")
+            .Select(acceptString => new MediaTypeWithQualityHeaderValue(acceptString));
+
+        public static IEnumerable<StringWithQualityHeaderValue> GetAcceptLanguage(this IHttpRequest req)
+            => req.GetHeaders("Accept-Language")
+            .Select(acceptString => new StringWithQualityHeaderValue(acceptString));
+
+        public static bool IsJson(this IHttpRequest req)
+            => req.GetMediaType().ToLower().Contains("json");
+
+        public static bool IsMimeMultipartContent(this IHttpRequest req)
+            => req.GetMediaType().ToLower().StartsWith("multipart/");
+
+        public static bool IsXml(this IHttpRequest req)
+            => req.GetMediaType().ToLower().Contains("xml");
+
+        public static bool IsAuthorizedFor(this IHttpRequest request,
             string claimType)
         {
-            if (request.IsDefaultOrNull())
-                return false;
-            if (request.Headers.IsDefaultOrNull())
-                return false;
-            if (request.Headers.Authorization.IsDefaultOrNull())
-                return false;
-            var jwtString = request.Headers.Authorization.ToString();
+            var jwtString = request.GetAuthorization();
             if (jwtString.IsNullOrWhiteSpace())
                 return false;
             return jwtString.GetClaimsJwtString(
@@ -147,16 +110,10 @@ namespace EastFive.Api
                 (why) => false);
         }
 
-        public static bool IsAuthorizedFor(this HttpRequestMessage request,
+        public static bool IsAuthorizedFor(this IHttpRequest request,
             Uri claimType, string claimValue)
         {
-            if (request.IsDefaultOrNull())
-                return false;
-            if (request.Headers.IsDefaultOrNull())
-                return false;
-            if (request.Headers.Authorization.IsDefaultOrNull())
-                return false;
-            var jwtString = request.Headers.Authorization.ToString();
+            var jwtString = request.GetAuthorization();
             if (jwtString.IsNullOrWhiteSpace())
                 return false;
             return jwtString.GetClaimsJwtString(
@@ -176,6 +133,17 @@ namespace EastFive.Api
                 },
                 (why) => false);
         }
+
+
+        public static bool IsContentOfType(this IHttpRequest request, string contentType)
+        {
+            if(!request.TryGetMediaType(out string requestContentType))
+                return contentType.IsNullOrWhiteSpace();
+
+            return requestContentType.Equals(contentType, StringComparison.OrdinalIgnoreCase);
+        }
+
+        #region Claims / Auth
 
         public static TResult GetClaimsFromAuthorizationHeader<TResult>(this AuthenticationHeaderValue header,
             Func<IEnumerable<Claim>, TResult> success,
@@ -234,23 +202,20 @@ namespace EastFive.Api
                 validationKeyConfigSetting);
         }
 
-        public static TResult GetClaims<TResult>(this HttpRequestMessage request,
+        public static TResult GetClaims<TResult>(this IHttpRequest request,
             Func<IEnumerable<System.Security.Claims.Claim>, TResult> success,
             Func<TResult> authorizationNotSet,
             Func<string, TResult> failure)
         {
-            if (request.IsDefaultOrNull())
+            if(!request.TryGetAuthorization(out string jwtString))
                 return authorizationNotSet();
-            if (request.Headers.IsDefaultOrNull())
-                return authorizationNotSet();
-            var result = request.Headers.Authorization.GetClaimsFromAuthorizationHeader(
-                success, authorizationNotSet, failure,
-                EastFive.Security.AppSettings.TokenIssuer, EastFive.Security.AppSettings.TokenKey);
-            return result;
+
+            return jwtString.GetClaimsFromJwtToken(success, authorizationNotSet, failure);
+            
         }
 
-        public static Task<HttpResponseMessage> GetClaimsAsync(this HttpRequestMessage request,
-            Func<System.Security.Claims.Claim[], Task<HttpResponseMessage>> success)
+        public static Task<IHttpResponse> GetClaimsAsync(this IHttpRequest request,
+            Func<System.Security.Claims.Claim[], Task<IHttpResponse>> success)
         {
             var result = request.GetClaims(
                 (claimsEnumerable) =>
@@ -258,13 +223,13 @@ namespace EastFive.Api
                     var claims = claimsEnumerable.ToArray();
                     return success(claims);
                 },
-                () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason("Authorization header not set").ToTask(),
-                (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason(why).ToTask());
+                () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason("Authorization header not set").AsTask(),
+                (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason(why).AsTask());
             return result;
         }
 
-        public static Task<HttpResponseMessage[]> GetClaimsAsync(this HttpRequestMessage request,
-            Func<System.Security.Claims.Claim[], Task<HttpResponseMessage[]>> success)
+        public static Task<IHttpResponse[]> GetClaimsAsync(this IHttpRequest request,
+            Func<System.Security.Claims.Claim[], Task<IHttpResponse[]>> success)
         {
             var result = request.GetClaims(
                 (claimsEnumerable) =>
@@ -273,14 +238,14 @@ namespace EastFive.Api
                     return success(claims);
                 },
                 () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason("Authorization header not set")
-                    .AsEnumerable().ToArray().ToTask(),
+                    .AsEnumerable().ToArray().AsTask(),
                 (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized).AddReason(why)
-                    .AsEnumerable().ToArray().ToTask());
+                    .AsEnumerable().ToArray().AsTask());
             return result;
         }
 
-        public static Task<HttpResponseMessage> GetActorIdClaimsFromTokenAsync(this HttpRequestMessage request, string jwtToken,
-            Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage>> success)
+        public static Task<IHttpResponse> GetActorIdClaimsFromTokenAsync(this IHttpRequest request, string jwtToken,
+            Func<Guid, System.Security.Claims.Claim[], Task<IHttpResponse>> success)
         {
             return jwtToken.GetClaimsJwtString(
                 (claimsEnumerable) =>
@@ -294,20 +259,20 @@ namespace EastFive.Api
                     return result;
                 },
                 (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized)
-                    .AddReason("Authorization header not set").ToTask());
+                    .AddReason("Authorization header not set").AsTask());
         }
 
-        public static Task<HttpResponseMessage> GetSessionIdClaimsAsync(this HttpRequestMessage request,
-            Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage>> success)
+        public static Task<IHttpResponse> GetSessionIdClaimsAsync(this IHttpRequest request,
+            Func<Guid, System.Security.Claims.Claim[], Task<IHttpResponse>> success)
         {
             var sessionIdClaimTypeConfigurationSetting =
                 EastFive.Api.AppSettings.SessionIdClaimType;
             return GetSessionIdClaimsAsync(request, sessionIdClaimTypeConfigurationSetting, success);
         }
 
-        public static Task<HttpResponseMessage> GetSessionIdClaimsAsync(this HttpRequestMessage request,
+        public static Task<IHttpResponse> GetSessionIdClaimsAsync(this IHttpRequest request,
             string sessionIdClaimTypeConfigurationSetting,
-            Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage>> success)
+            Func<Guid, System.Security.Claims.Claim[], Task<IHttpResponse>> success)
         {
             var resultGetClaims = request.GetClaims(
                 (claimsEnumerable) =>
@@ -322,23 +287,23 @@ namespace EastFive.Api
                     return result;
                 },
                 () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized)
-                    .AddReason("Authorization header not set").ToTask(),
+                    .AddReason("Authorization header not set").AsTask(),
                 (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized)
-                    .AddReason(why).ToTask());
+                    .AddReason(why).AsTask());
             return resultGetClaims;
         }
         
-        public static HttpResponseMessage GetActorIdClaims(this HttpRequestMessage request,
-            Func<Guid, System.Security.Claims.Claim[], HttpResponseMessage> success)
+        public static IHttpResponse GetActorIdClaims(this IHttpRequest request,
+            Func<Guid, System.Security.Claims.Claim[], IHttpResponse> success)
         {
             var accountIdClaimTypeConfigurationSetting =
                 EastFive.Api.AppSettings.ActorIdClaimType;
             return GetActorIdClaims(request, accountIdClaimTypeConfigurationSetting, success);
         }
 
-        public static HttpResponseMessage GetActorIdClaims(this HttpRequestMessage request,
+        public static IHttpResponse GetActorIdClaims(this IHttpRequest request,
             string accountIdClaimTypeConfigurationSetting,
-            Func<Guid, System.Security.Claims.Claim[], HttpResponseMessage> success)
+            Func<Guid, System.Security.Claims.Claim[], IHttpResponse> success)
         {
             var resultGetClaims = request.GetClaims(
                 (claimsEnumerable) =>
@@ -358,8 +323,8 @@ namespace EastFive.Api
             return resultGetClaims;
         }
 
-        public static Task<HttpResponseMessage> GetActorIdClaimsAsync(this HttpRequestMessage request,
-            Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage>> success)
+        public static Task<IHttpResponse> GetActorIdClaimsAsync(this IHttpRequest request,
+            Func<Guid, System.Security.Claims.Claim[], Task<IHttpResponse>> success)
         {
             var accountIdClaimTypeConfigurationSetting =
                 EastFive.Api.AppSettings.ActorIdClaimType;
@@ -367,17 +332,17 @@ namespace EastFive.Api
         }
 
 
-        public static Task<HttpResponseMessage> GetActorIdClaimsFromBearerParamAsync(this HttpRequestMessage request,
-            Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage>> onSuccess,
-            Func<Task<HttpResponseMessage>> onNoBearerParameterFound,
-            Func<Task<HttpResponseMessage>> onAuthorizationNotSet,
-            Func<Task<HttpResponseMessage>> onFailure)
+        public static Task<IHttpResponse> GetActorIdClaimsFromBearerParamAsync(this IHttpRequest request,
+            Func<Guid, System.Security.Claims.Claim[], Task<IHttpResponse>> onSuccess,
+            Func<Task<IHttpResponse>> onNoBearerParameterFound,
+            Func<Task<IHttpResponse>> onAuthorizationNotSet,
+            Func<Task<IHttpResponse>> onFailure)
 
         {
             var accountIdClaimTypeConfigurationSetting =
                 EastFive.Api.AppSettings.ActorIdClaimType;
 
-            if(!request.RequestUri.TryGetQueryParam("bearer", out string bearer))
+            if(!request.AbsoluteUri.TryGetQueryParam("bearer", out string bearer))
                 return onNoBearerParameterFound();
 
             var foundClaims = bearer.GetClaimsFromJwtToken(
@@ -396,9 +361,9 @@ namespace EastFive.Api
             return foundClaims;
         }
 
-        public static Task<HttpResponseMessage> GetActorIdClaimsAsync(this HttpRequestMessage request,
+        public static Task<IHttpResponse> GetActorIdClaimsAsync(this IHttpRequest request,
             string accountIdClaimTypeConfigurationSetting,
-            Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage>> success)
+            Func<Guid, System.Security.Claims.Claim[], Task<IHttpResponse>> success)
         {
             var resultGetClaims = request.GetClaims(
                 (claimsEnumerable) =>
@@ -412,15 +377,15 @@ namespace EastFive.Api
                     return result;
                 },
                 () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized)
-                    .AddReason("Authorization header not set").ToTask(),
+                    .AddReason("Authorization header not set").AsTask(),
                 (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized)
-                    .AddReason(why).ToTask());
+                    .AddReason(why).AsTask());
             return resultGetClaims;
         }
 
-        public static Task<HttpResponseMessage[]> GetActorIdClaimsAsync(this HttpRequestMessage request,
+        public static Task<IHttpResponse[]> GetActorIdClaimsAsync(this IHttpRequest request,
             string accountIdClaimType,
-            Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage[]>> success)
+            Func<Guid, System.Security.Claims.Claim[], Task<IHttpResponse[]>> success)
         {
             var resultGetClaims = request.GetClaims(
                 (claimsEnumerable) =>
@@ -432,48 +397,12 @@ namespace EastFive.Api
                     return result;
                 },
                 () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized)
-                    .AddReason("Authorization header not set").AsEnumerable().ToArray().ToTask(),
+                    .AddReason("Authorization header not set").AsEnumerable().ToArray().AsTask(),
                 (why) => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized)
-                    .AddReason(why).AsEnumerable().ToArray().ToTask());
+                    .AddReason(why).AsEnumerable().ToArray().AsTask());
             return resultGetClaims;
         }
-
-        public static Task<HttpResponseMessage[]> GetActorIdClaimsAsync(this HttpRequestMessage request,
-           Func<Guid, System.Security.Claims.Claim[], Task<HttpResponseMessage[]>> success)
-        {
-            var accountIdClaimTypeConfigurationSetting =
-                EastFive.Api.AppSettings.ActorIdClaimType;
-            return EastFive.Web.Configuration.Settings.GetString(
-                accountIdClaimTypeConfigurationSetting,
-                (accountIdClaimType) =>
-                    GetActorIdClaimsAsync(request, accountIdClaimType, success),
-                (error) =>
-                    (new HttpResponseMessage[]
-                    {
-                        request
-                            .CreateResponse(HttpStatusCode.Unauthorized)
-                            .AddReason(error)
-                    }).ToTask());
-        }
-
-        public static bool IsContentOfType(this HttpRequestMessage request, string contentType)
-        {
-            if (request.Content.IsDefaultOrNull())
-                return false;
-
-            if (request.Content.Headers.IsDefaultOrNull())
-                return false;
-
-            if (request.Content.Headers.ContentType.IsDefaultOrNull())
-                return false;
-
-            if (request.Content.Headers.ContentType.MediaType.IsDefaultOrNull())
-                return false;
-
-            if (request.Content.Headers.ContentType.MediaType.ToLower() == contentType.ToLower())
-                return true;
-
-            return false;
-        }
+        
+        #endregion
     }
 }

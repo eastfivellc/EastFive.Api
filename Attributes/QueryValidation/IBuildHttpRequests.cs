@@ -11,7 +11,7 @@ namespace EastFive.Api
 {
     public interface IBuildHttpRequests
     {
-        HttpRequestMessage MutateRequest(HttpRequestMessage request,
+        IHttpRequest MutateRequest(IHttpRequest request,
             MethodInfo method, Expression[] arguments);
     }
 

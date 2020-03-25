@@ -1,7 +1,8 @@
-﻿using EastFive.Api.Serialization;
+﻿using EastFive.Api.Core;
+using EastFive.Api.Serialization;
 using EastFive.Extensions;
 using EastFive.Web;
-using Newtonsoft.Json.Linq;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,27 +19,27 @@ namespace EastFive.Api
         TResult ParseContentDelegate<TResult>(
                 XmlDocument xmlDoc, string rawContent,
                 ParameterInfo parameterInfo,
-                IApplication httpApp, HttpRequestMessage request,
+                IApplication httpApp, IHttpRequest request,
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure);
     }
 
     public class XmlContentParserAttribute : Attribute, IParseContent
     {
-        public bool DoesParse(HttpRequestMessage request)
+        public bool DoesParse(IHttpRequest routeData)
         {
-            return request.Content.IsXml();
+            return routeData.request.IsXml();
         }
 
-        public async Task<HttpResponseMessage> ParseContentValuesAsync(
-            IApplication httpApp, HttpRequestMessage request,
+        public async Task<IHttpResponse> ParseContentValuesAsync(
+            IApplication httpApp, IHttpRequest routeData,
             Func<
                 CastDelegate, 
                 string[],
-                Task<HttpResponseMessage>> onParsedContentValues)
+                Task<IHttpResponse>> onParsedContentValues)
         {
-            var content = request.Content;
-            var contentString = await content.ReadAsStringAsync();
+            var request = routeData.request;
+            var contentString = request.Body.ReadAsString();
 
             var exceptionKeys = new string[] { };
             if (contentString.IsNullOrWhiteSpace())
@@ -77,7 +78,7 @@ namespace EastFive.Api
                     return paramInfo
                         .GetAttributeInterface<IBindXmlApiValue>()
                         .ParseContentDelegate(xmldoc, contentString,
-                            paramInfo, httpApp, request,
+                            paramInfo, httpApp, routeData,
                             onParsed,
                             onFailure);
                 };

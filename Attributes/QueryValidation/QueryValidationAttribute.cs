@@ -11,6 +11,7 @@ using System.Web;
 
 using BlackBarLabs.Api;
 using BlackBarLabs.Extensions;
+using EastFive.Api.Core;
 using EastFive.Api.Resources;
 using EastFive.Extensions;
 using EastFive.Linq;
@@ -24,14 +25,12 @@ namespace EastFive.Api
     {
         public virtual string Name { get; set; }
 
-        public virtual SelectParameterResult TryCast(IApplication httpApp,
-                HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
-            CastDelegate fetchQueryParam,
-            CastDelegate fetchBodyParam,
-            CastDelegate fetchPathParam)
+        public virtual SelectParameterResult TryCast(BindingData bindingData)
         {
+            var request = bindingData.request.request;
+            var parameterRequiringValidation = bindingData.parameterRequiringValidation;
             var key = GetKey(parameterRequiringValidation);
-            var fileResult = fetchPathParam(parameterRequiringValidation,
+            var fileResult = bindingData.fetchQueryParam(parameterRequiringValidation,
                 (v) =>
                 {
                     return SelectParameterResult.File(v, key, parameterRequiringValidation);
@@ -43,7 +42,7 @@ namespace EastFive.Api
             if (fileResult.valid)
                 return fileResult;
 
-            var queryResult = fetchQueryParam(parameterRequiringValidation,
+            var queryResult = bindingData.fetchQueryParam(parameterRequiringValidation,
                 (v) =>
                 {
                     if (fileResult.valid)
@@ -63,7 +62,7 @@ namespace EastFive.Api
             if (queryResult.valid)
                 return queryResult;
 
-            return fetchBodyParam(parameterRequiringValidation,
+            return bindingData.fetchBodyParam(parameterRequiringValidation,
                 (v) =>
                 {
                     return SelectParameterResult.Body(v, key, parameterRequiringValidation);
@@ -89,15 +88,12 @@ namespace EastFive.Api
     {
         public bool CheckFileName { get; set; }
 
-        public override SelectParameterResult TryCast(IApplication httpApp,
-                HttpRequestMessage request, MethodInfo method,
-                ParameterInfo parameterRequiringValidation,
-                CastDelegate fetchQueryParam,
-                CastDelegate fetchBodyParam,
-                CastDelegate fetchDefaultParam)
+        public override SelectParameterResult TryCast(BindingData bindingData)
         {
+            var request = bindingData.request.request;
+            var parameterRequiringValidation = bindingData.parameterRequiringValidation;
             var key = this.GetKey(parameterRequiringValidation);
-            var queryResult = fetchQueryParam(parameterRequiringValidation,
+            var queryResult = bindingData.fetchQueryParam(parameterRequiringValidation,
                 (v) =>
                 {
                     return SelectParameterResult.Query(v, key, parameterRequiringValidation);
@@ -110,7 +106,7 @@ namespace EastFive.Api
             if (!CheckFileName)
                 return queryResult;
 
-            return fetchDefaultParam(parameterRequiringValidation,
+            return bindingData.fetchDefaultParam(parameterRequiringValidation,
                 (v) =>
                 {
                     return SelectParameterResult.File(v, key, parameterRequiringValidation);
@@ -141,16 +137,10 @@ namespace EastFive.Api
 
     public class OptionalQueryParameterAttribute : QueryParameterAttribute
     {
-        public override SelectParameterResult TryCast(IApplication httpApp,
-                HttpRequestMessage request, MethodInfo method,
-                ParameterInfo parameterRequiringValidation,
-                CastDelegate fetchQueryParam,
-                CastDelegate fetchBodyParam,
-                CastDelegate fetchDefaultParam)
+        public override SelectParameterResult TryCast(BindingData bindingData)
         {
-            var baseValue = base.TryCast(httpApp, request, method,
-                parameterRequiringValidation,
-                fetchQueryParam, fetchBodyParam, fetchDefaultParam);
+            var parameterRequiringValidation = bindingData.parameterRequiringValidation;
+            var baseValue = base.TryCast(bindingData);
             if (baseValue.valid)
                 return baseValue;
 
@@ -194,17 +184,10 @@ namespace EastFive.Api
             set => base.Name = value;
         }
 
-        public override SelectParameterResult TryCast(IApplication httpApp,
-                HttpRequestMessage request, MethodInfo method,
-                ParameterInfo parameterRequiringValidation,
-                CastDelegate fetchQueryParam,
-                CastDelegate fetchBodyParam,
-                CastDelegate fetchDefaultParam)
+        public override SelectParameterResult TryCast(BindingData bindingData)
         {
             base.CheckFileName = true;
-            return base.TryCast(httpApp, request, method,
-                parameterRequiringValidation,
-                fetchQueryParam, fetchBodyParam, fetchDefaultParam);
+            return base.TryCast(bindingData);
         }
 
         public override Parameter GetParameter(ParameterInfo paramInfo, HttpApplication httpApp)
@@ -217,15 +200,11 @@ namespace EastFive.Api
 
     public class HashedFileAttribute : QueryValidationAttribute, IDocumentParameter
     {
-        public override SelectParameterResult TryCast(IApplication httpApp,
-                HttpRequestMessage request, MethodInfo method,
-                ParameterInfo parameterRequiringValidation,
-                CastDelegate fetchQueryParam,
-                CastDelegate fetchBodyParam,
-                CastDelegate fetchDefaultParam)
+        public override SelectParameterResult TryCast(BindingData bindingData)
         {
+            var parameterRequiringValidation = bindingData.parameterRequiringValidation;
             var key = this.GetKey(parameterRequiringValidation);
-            return request.RequestUri
+            return bindingData.request.request.GetAbsoluteUri()
                 .VerifyParametersHash(
                     onValid: (id, paramsHash) =>
                      {
@@ -261,13 +240,10 @@ namespace EastFive.Api
             return "__accept-header__";
         }
 
-        public SelectParameterResult TryCast(IApplication httpApp,
-                HttpRequestMessage request, MethodInfo method, 
-                ParameterInfo parameterRequiringValidation,
-            CastDelegate fetchQueryParam,
-            CastDelegate fetchBodyParam,
-            CastDelegate fetchDefaultParam)
+        public SelectParameterResult TryCast(BindingData bindingData)
         {
+            var request = bindingData.request.request;
+            var parameterRequiringValidation = bindingData.parameterRequiringValidation;
             var bindType = parameterRequiringValidation.ParameterType;
             if (typeof(MediaTypeWithQualityHeaderValue) == bindType)
             {
@@ -282,18 +258,7 @@ namespace EastFive.Api
                         parameterInfo = parameterRequiringValidation,
                         failure = "No headers sent with request.",
                     };
-                if (request.Headers.Accept.IsDefaultOrNull())
-                    return new SelectParameterResult
-                    {
-                        valid = true,
-                        fromBody = false,
-                        fromQuery = false,
-                        fromFile = false,
-                        key = GetKey(parameterRequiringValidation),
-                        parameterInfo = parameterRequiringValidation,
-                        value = default(MediaTypeWithQualityHeaderValue),
-                    };
-                return request.Headers.Accept
+                return request.GetAcceptTypes()
                     .Where(accept => accept.MediaType.ToLower().Contains(this.Media))
                     .First(
                         (accept, next) =>
@@ -338,14 +303,10 @@ namespace EastFive.Api
 
     public class HeaderLogAttribute : QueryValidationAttribute
     {
-        public override SelectParameterResult TryCast(IApplication httpApp,
-                HttpRequestMessage request, MethodInfo method,
-                ParameterInfo parameterRequiringValidation,
-            CastDelegate fetchQueryParam,
-            CastDelegate fetchBodyParam,
-            CastDelegate fetchDefaultParam)
+        public override SelectParameterResult TryCast(BindingData bindingData)
         {
-            var logger = httpApp.Logger;
+            var parameterRequiringValidation = bindingData.parameterRequiringValidation;
+            var logger = bindingData.httpApp.Logger;
             return new SelectParameterResult
             {
                 value = logger,

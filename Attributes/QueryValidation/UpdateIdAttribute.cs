@@ -40,7 +40,7 @@ namespace EastFive.Api
         public TResult ParseContentDelegate<TResult>(JObject contentJObject,
                 string contentString, Serialization.BindConvert bindConvert,
                 ParameterInfo paramInfo,
-                IApplication httpApp, HttpRequestMessage request,
+                IApplication httpApp, IHttpRequest request,
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure)
         {
@@ -54,7 +54,7 @@ namespace EastFive.Api
         }
 
         public TResult ParseContentDelegate<TResult>(IDictionary<string, MultipartContentTokenParser> contentsLookup, 
-                ParameterInfo parameterInfo, IApplication httpApp, HttpRequestMessage request,
+                ParameterInfo parameterInfo, IApplication httpApp, IHttpRequest request,
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure)
         {

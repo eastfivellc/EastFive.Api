@@ -12,14 +12,24 @@ namespace EastFive.Api
         Func<object, SelectParameterResult> onCasted,
         Func<string, SelectParameterResult> onFailedToCast);
 
+    public struct BindingData
+    {
+        public IApplication httpApp;
+        public IHttpRequest request;
+        public MethodInfo method;
+        public IInvokeResource resourceInvoker;
+
+        public ParameterInfo parameterRequiringValidation;
+
+        public CastDelegate fetchQueryParam;
+        public CastDelegate fetchBodyParam;
+        public CastDelegate fetchDefaultParam;
+    }
+
     public interface IBindApiValue
     {
         string GetKey(ParameterInfo paramInfo);
 
-        SelectParameterResult TryCast(IApplication httpApp, HttpRequestMessage request,
-            MethodInfo method, ParameterInfo parameterRequiringValidation,
-            CastDelegate fetchQueryParam,
-            CastDelegate fetchBodyParam,
-            CastDelegate fetchDefaultParam);
+        SelectParameterResult TryCast(BindingData bindingData);
     }
 }

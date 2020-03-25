@@ -18,13 +18,10 @@ namespace EastFive.Api
 
         string ContentType { get; }
 
-        //Type Resource { get; }
+        bool DoesHandleRequest(Type type, HttpRequest context, out IHttpRequest pathParameters);
 
-        bool DoesHandleRequest(Type type, HttpContext context, out RouteData pathParameters);
-
-        Task<HttpResponseMessage> CreateResponseAsync(Type controllerType, 
-            IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken,
-            RouteData routeData, MethodInfo[] extensionMethods);
+        Task<IHttpResponse> CreateResponseAsync(Type controllerType, 
+            IApplication httpApp, IHttpRequest request);
     }
 
     public interface IInvokeExtensions

@@ -8,15 +8,16 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-using BlackBarLabs;
+using Microsoft.AspNetCore.Http;
+
 using EastFive.Api.Bindings;
+using EastFive.Api.Core;
 using EastFive.Api.Resources;
 using EastFive.Api.Serialization;
 using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Linq.Async;
-using Microsoft.AspNetCore.Http;
 
 namespace EastFive.Api
 {
@@ -80,60 +81,64 @@ namespace EastFive.Api
                 .ToDictionary();
         }
 
-        public virtual async Task<HttpResponseMessage> CreateResponseAsync(Type controllerType,
-            IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken,
-            RouteData routeData, MethodInfo[] extensionMethods)
+        public virtual Task<IHttpResponse> CreateResponseAsync(Type controllerType,
+            IApplication httpApp, IHttpRequest request)
         {
-            var path = request.RequestUri.Segments
-                .Skip(1)
-                .Select(segment => segment.Trim('/'.AsArray()))
-                .Where(pathPart => !pathPart.IsNullOrWhiteSpace())
-                .ToArray();
-            var possibleHttpMethods = PossibleHttpMethods(controllerType, httpApp);
-            var routeName = this.Route;
-            if (path.Length > 2)
-            {
-                var actionMethod = path[2];
-                var matchingActionKeys = possibleHttpMethods
-                    .SelectKeys()
-                    .Where(key => String.Compare(key.Method, actionMethod, true) == 0);
+            throw new NotImplementedException();
+            //var path = request.RequestUri.Segments
+            //    .Skip(1)
+            //    .Select(segment => segment.Trim('/'.AsArray()))
+            //    .Where(pathPart => !pathPart.IsNullOrWhiteSpace())
+            //    .ToArray();
+            //var possibleHttpMethods = PossibleHttpMethods(controllerType, httpApp);
+            //var routeName = this.Route;
+            //if (path.Length > 2)
+            //{
+            //    var actionMethod = path[2];
+            //    var matchingActionKeys = possibleHttpMethods
+            //        .SelectKeys()
+            //        .Where(key => String.Compare(key.Method, actionMethod, true) == 0);
 
-                if (matchingActionKeys.Any())
-                {
-                    var actionHttpMethod = matchingActionKeys.First();
-                    var matchingActionMethods = possibleHttpMethods[actionHttpMethod];
-                    return await CreateResponseAsync(httpApp,
-                        request, cancellationToken,
-                        routeName,
-                        matchingActionMethods);
-                }
-            }
+            //    if (matchingActionKeys.Any())
+            //    {
+            //        var actionHttpMethod = matchingActionKeys.First();
+            //        var matchingActionMethods = possibleHttpMethods[actionHttpMethod];
+            //        return await CreateResponseAsync(httpApp,
+            //            request, cancellationToken,
+            //            routeName,
+            //            matchingActionMethods);
+            //    }
+            //}
 
-            var matchingKey = possibleHttpMethods
-                .SelectKeys()
-                .Where(key => String.Compare(key.Method, request.Method.Method, true) == 0);
+            //var matchingKey = possibleHttpMethods
+            //    .SelectKeys()
+            //    .Where(key => String.Compare(key.Method, request.Method.Method, true) == 0);
 
-            if (!matchingKey.Any())
-                return request.CreateResponse(HttpStatusCode.NotImplemented);
+            //if (!matchingKey.Any())
+            //    return request.CreateResponse(HttpStatusCode.NotImplemented);
 
-            var httpMethod = matchingKey.First();
-            var matchingMethods = possibleHttpMethods[httpMethod];
+            //var httpMethod = matchingKey.First();
+            //var matchingMethods = possibleHttpMethods[httpMethod];
 
-            return await CreateResponseAsync(httpApp,
-                request, cancellationToken,
-                routeName,
-                matchingMethods);
+            //return await CreateResponseAsync(httpApp,
+            //    request, cancellationToken,
+            //    routeName,
+            //    matchingMethods);
         }
 
         #region Invoke correct method
 
-        public delegate TResult ParseContentDelegate<TResult>(Type type, Func<object, TResult> onParsed, Func<string, TResult> onFailure);
+        public delegate TResult ParseContentDelegate<TResult>(Type type, 
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onFailure);
 
-        private static async Task<HttpResponseMessage> CreateResponseAsync(IApplication httpApp,
-            HttpRequestMessage request, CancellationToken cancellationToken,
+        private static async Task<IHttpResponse> CreateResponseAsync(IApplication httpApp,
+            IHttpRequest routeData,
             string routeName, MethodInfo[] methods)
         {
-            var fileNameParams = request.RequestUri.AbsoluteUri
+            var request = routeData.request;
+            var absoluteUri = request.GetAbsoluteUri();
+            var fileNameParams = absoluteUri.OriginalString
                 .MatchRegexInvoke(
                         $".*/(?i){routeName}(?-i)/(?<defaultQueryParam>[a-zA-Z0-9-]+)",
                         defaultQueryParam => defaultQueryParam,
@@ -144,7 +149,7 @@ namespace EastFive.Api
 
             #region setup query parameter casting
 
-            var queryParameters = request.RequestUri.ParseQuery()
+            var queryParameters = absoluteUri.ParseQuery()
                 .Select(kvp => kvp.Key.ToLower().PairWithValue(kvp.Value))
                 .ToDictionary();
 
@@ -192,23 +197,23 @@ namespace EastFive.Api
 
             return await httpApp.GetType()
                 .GetAttributesInterface<IParseContent>(true, true)
-                .Where(contentParser => contentParser.DoesParse(request))
+                .Where(contentParser => contentParser.DoesParse(routeData))
                 .First(
                     (contentParser, next) =>
                     {
-                        return contentParser.ParseContentValuesAsync(httpApp, request,
+                        return contentParser.ParseContentValuesAsync(httpApp, routeData,
                             (bodyCastDelegate, bodyValues) => GetResponseAsync(methods,
                                 queryCastDelegate,
                                 bodyCastDelegate,
                                 fileNameCastDelegate,
-                                httpApp, request, cancellationToken,
+                                httpApp, routeData,
                                 queryParameters.SelectKeys(),
                                 bodyValues,
                                 fileNameParams.Any()));
                     },
                     () =>
                     {
-                        if (request.Content.IsDefaultOrNull())
+                        if (request.Body.IsDefaultOrNull())
                         {
                             CastDelegate parserEmpty =
                                 (paramInfo, onParsed, onFailure) => onFailure(
@@ -218,18 +223,12 @@ namespace EastFive.Api
                                 queryCastDelegate,
                                 parserEmpty,
                                 fileNameCastDelegate,
-                                httpApp, request, cancellationToken,
+                                httpApp, routeData,
                                 queryParameters.SelectKeys(),
                                 new string[] { },
                                 fileNameParams.Any());
                         }
-                        var mediaType = request.Content.Headers.IsDefaultOrNull() ?
-                           string.Empty
-                           :
-                           request.Content.Headers.ContentType.IsDefaultOrNull() ?
-                               string.Empty
-                               :
-                               request.Content.Headers.ContentType.MediaType;
+                        var mediaType = request.GetMediaType();
                         CastDelegate parser =
                             (paramInfo, onParsed, onFailure) => onFailure(
                                 $"Could not parse content of type {mediaType}");
@@ -238,7 +237,7 @@ namespace EastFive.Api
                             queryCastDelegate,
                             parser,
                             fileNameCastDelegate,
-                            httpApp, request, cancellationToken,
+                            httpApp, routeData,
                             queryParameters.SelectKeys(),
                             new string[] { },
                             fileNameParams.Any());
@@ -427,28 +426,35 @@ namespace EastFive.Api
             }
         }
 
-        public static async Task<HttpResponseMessage> GetResponseAsync(MethodInfo[] methods,
+        public static async Task<IHttpResponse> GetResponseAsync(MethodInfo[] methods,
             CastDelegate fetchQueryParam,
             CastDelegate fetchBodyParam,
             CastDelegate fetchNameParam,
-            IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken,
+            IApplication httpApp, IHttpRequest routeData,
             IEnumerable<string> queryKeys, IEnumerable<string> bodyKeys, bool hasFileParam)
         {
+            var bindData = new BindingData
+            {
+                httpApp = httpApp,
+                request = routeData,
+                fetchQueryParam = fetchQueryParam,
+                fetchBodyParam = fetchBodyParam,
+                fetchDefaultParam = fetchNameParam,
+            };
             var methodsForConsideration = methods
                 .Select(
                     (method) =>
                     {
+                        bindData.method = method;
                         var parametersCastResults = method
                             .GetParameters()
                             .Where(param => param.ContainsAttributeInterface<IBindApiValue>())
                             .Select(
                                 (param) =>
                                 {
-                                    var castValue = param.GetAttributeInterface<IBindApiValue>();
-                                    return castValue.TryCast(httpApp, request, method, param,
-                                            fetchQueryParam,
-                                            fetchBodyParam,
-                                            fetchNameParam);
+                                    bindData.parameterRequiringValidation = param;
+                                    var bindingAttr = param.GetAttributeInterface<IBindApiValue>();
+                                    return bindingAttr.TryCast(bindData);
                                 })
                             .ToArray();
 
@@ -500,7 +506,7 @@ namespace EastFive.Api
                 .First(
                     (methodCast, next) =>
                     {
-                        return InvokeValidatedMethod(httpApp, request, cancellationToken,
+                        return InvokeValidatedMethod(httpApp, routeData,
                                 methodCast.method, methodCast.parametersWithValues);
                     },
                     () =>
@@ -508,7 +514,7 @@ namespace EastFive.Api
                         return Issues(methodsForConsideration).AsTask();
                     });
 
-            HttpResponseMessage Issues(IEnumerable<MethodCast> methodsCasts)
+            IHttpResponse Issues(IEnumerable<MethodCast> methodsCasts)
             {
                 var reasonStrings = methodsCasts
                     .Select(
@@ -520,12 +526,12 @@ namespace EastFive.Api
                     .ToArray();
                 if (!reasonStrings.Any())
                 {
-                    return request
-                        .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
+                    return routeData
+                        .CreateResponse(HttpStatusCode.NotImplemented)
                         .AddReason("No methods that implement Action");
                 }
                 var content = reasonStrings.Join(";");
-                return request
+                return routeData
                     .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
                     .AddReason(content);
             }
@@ -583,20 +589,22 @@ namespace EastFive.Api
                 () => throw new ArgumentException("method", $"Method {method.DeclaringType.FullName}..{method.Name}(...) does not have an HttpVerbAttribute."));
         }
 
-        private static Task<HttpResponseMessage> InvokeValidatedMethod(IApplication httpApp,
-                HttpRequestMessage request, CancellationToken cancellationToken, MethodInfo method,
+        private static Task<IHttpResponse> InvokeValidatedMethod(IApplication httpApp,
+                IHttpRequest routeData, MethodInfo method,
             KeyValuePair<ParameterInfo, object>[] queryParameters)
         {
+            var request = routeData.request;
+            var cancellationToken = routeData.cancellationToken;
             var queryParameterOptions = queryParameters.ToDictionary(kvp => kvp.Key.Name, kvp => kvp.Value);
             return method
                 .GetParameters()
-                .SelectReduce(
+                .SelectReduce<ParameterInfo, object, Task<IHttpResponse>>(
                     async (methodParameter, next) =>
                     {
                         if (queryParameterOptions.ContainsKey(methodParameter.Name))
                             return await next(queryParameterOptions[methodParameter.Name]);
 
-                        return await httpApp.Instigate(request, cancellationToken, methodParameter,
+                        return await httpApp.Instigate(routeData, methodParameter,
                             v => next(v));
                     },
                     async (object[] methodParameters) =>
@@ -606,19 +614,19 @@ namespace EastFive.Api
                             if (method.IsGenericMethod)
                             {
                                 var genericArguments = method.GetGenericArguments().Select(arg => arg.Name).Join(",");
-                                return request.CreateResponse(HttpStatusCode.InternalServerError)
+                                return routeData.CreateResponse(HttpStatusCode.InternalServerError)
                                     .AddReason($"Could not invoke {method.DeclaringType.FullName}..{method.Name} because it contains generic arguments:{genericArguments}");
                             }
 
                             var response = method.Invoke(null, methodParameters);
-                            if (typeof(HttpResponseMessage).IsAssignableFrom(method.ReturnType))
-                                return ((HttpResponseMessage)response);
-                            if (typeof(Task<HttpResponseMessage>).IsAssignableFrom(method.ReturnType))
-                                return (await (Task<HttpResponseMessage>)response);
-                            if (typeof(Task<Task<HttpResponseMessage>>).IsAssignableFrom(method.ReturnType))
-                                return (await await (Task<Task<HttpResponseMessage>>)response);
+                            if (typeof(IHttpResponse).IsAssignableFrom(method.ReturnType))
+                                return ((IHttpResponse)response);
+                            if (typeof(Task<IHttpResponse>).IsAssignableFrom(method.ReturnType))
+                                return (await (Task<IHttpResponse>)response);
+                            if (typeof(Task<Task<IHttpResponse>>).IsAssignableFrom(method.ReturnType))
+                                return (await await (Task<Task<IHttpResponse>>)response);
 
-                            return (request.CreateResponse(System.Net.HttpStatusCode.InternalServerError)
+                            return (routeData.CreateResponse(System.Net.HttpStatusCode.InternalServerError)
                                 .AddReason($"Could not convert type: {method.ReturnType.FullName} to HttpResponseMessage."));
                         }
                         catch (TargetInvocationException ex)
@@ -628,7 +636,7 @@ namespace EastFive.Api
                                 ex.StackTrace
                                 :
                                 $"[{ex.InnerException.GetType().FullName}]{ex.InnerException.Message}:\n{ex.InnerException.StackTrace}";
-                            return request
+                            return routeData
                                 .CreateResponse(HttpStatusCode.InternalServerError, body)
                                 .AddReason($"Could not invoke {method.DeclaringType.FullName}.{method.Name}({paramList})");
                         }
@@ -638,11 +646,13 @@ namespace EastFive.Api
                             {
                                 var httpResponseMessageException = ex as IHttpResponseMessageException;
                                 return httpResponseMessageException.CreateResponseAsync(
-                                    httpApp, request, queryParameterOptions,
+                                    httpApp, routeData, queryParameterOptions,
                                     method, methodParameters);
                             }
                             // TODO: Only do this in a development environment
-                            return request.CreateResponse(HttpStatusCode.InternalServerError, ex.StackTrace).AddReason(ex.Message);
+                            return routeData
+                                .CreateResponse(HttpStatusCode.InternalServerError, ex.StackTrace)
+                                .AddReason(ex.Message);
                         }
 
                     });
@@ -656,9 +666,9 @@ namespace EastFive.Api
             return new Route(type, this.Route, methods, httpApp);
         }
 
-        public virtual bool DoesHandleRequest(Type type, HttpContext context, out RouteData fileParams)
+        public virtual bool DoesHandleRequest(Type type, HttpRequest context, out IHttpRequest fileParams)
         {
-            fileParams = new RouteData ();
+            fileParams = new IHttpRequest ();
             return false;
         }
     }

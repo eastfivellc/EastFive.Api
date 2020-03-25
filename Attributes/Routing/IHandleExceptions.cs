@@ -8,16 +8,16 @@ using System.Threading.Tasks;
 
 namespace EastFive.Api
 {
-    public delegate Task<HttpResponseMessage> HandleExceptionDelegate(Exception ex,
+    public delegate Task<IHttpResponse> HandleExceptionDelegate(Exception ex,
         MethodInfo method,
         KeyValuePair<ParameterInfo, object>[] queryParameters,
-        IApplication httpApp, HttpRequestMessage request);
+        IApplication httpApp, IHttpRequest routeData);
 
     public interface IHandleExceptions
     {
-        Task<HttpResponseMessage> HandleExceptionAsync(Exception ex, MethodInfo method,
+        Task<IHttpResponse> HandleExceptionAsync(Exception ex, MethodInfo method,
             KeyValuePair<ParameterInfo, object>[] queryParameters,
-            IApplication httpApp, HttpRequestMessage request,
+            IApplication httpApp, IHttpRequest routeData,
             HandleExceptionDelegate continueExecution);
     }
 }

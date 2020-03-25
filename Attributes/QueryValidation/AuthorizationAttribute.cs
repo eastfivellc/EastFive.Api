@@ -1,8 +1,4 @@
-﻿using BlackBarLabs.Api;
-using EastFive.Extensions;
-using EastFive.Linq;
-using EastFive.Web.Configuration;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -11,16 +7,18 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 
+using EastFive.Extensions;
+using EastFive.Linq;
+using EastFive.Web.Configuration;
+
 namespace EastFive.Api
 {
     public class AuthorizationAttribute : System.Attribute, IBindApiValue
     {
-        public virtual SelectParameterResult TryCast(IApplication httpApp,
-                HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
-                Api.CastDelegate fetchQueryParam,
-                Api.CastDelegate fetchBodyParam,
-                Api.CastDelegate fetchDefaultParam)
+        public virtual SelectParameterResult TryCast(BindingData bindingData)
         {
+            var request = bindingData.request;
+            var parameterRequiringValidation = bindingData.parameterRequiringValidation;
             return request.GetClaims(
                 (claimsEnumerable) =>
                 {

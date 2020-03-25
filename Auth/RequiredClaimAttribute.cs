@@ -22,19 +22,20 @@ namespace EastFive.Api.Auth
             this.ClaimValue = requiredClaimValue;
         }
 
-        public Task<HttpResponseMessage> ValidateRequest(
+        public Task<IHttpResponse> ValidateRequest(
             KeyValuePair<ParameterInfo, object>[] parameterSelection,
             MethodInfo method,
             IApplication httpApp,
-            HttpRequestMessage request,
+            IHttpRequest routeData,
             ValidateHttpDelegate boundCallback)
         {
+            var request = routeData.request;
             if (!request.IsAuthorizedFor(ClaimType, ClaimValue))
-                return request
+                return routeData
                     .CreateResponse(System.Net.HttpStatusCode.Unauthorized)
                     .AddReason($"{method.DeclaringType.FullName}..{method.Name} requires claim `{ClaimType}`=`{this.ClaimValue}`")
                     .AsTask();
-            return boundCallback(parameterSelection, method, httpApp, request);
+            return boundCallback(parameterSelection, method, httpApp, routeData);
         }
     }
 }

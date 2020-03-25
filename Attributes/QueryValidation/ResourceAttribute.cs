@@ -25,20 +25,18 @@ namespace EastFive.Api
             return default;
         }
 
-        public SelectParameterResult TryCast(IApplication httpApp,
-            HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
-            CastDelegate fetchQueryParam,
-            CastDelegate fetchBodyParam,
-            CastDelegate fetchDefaultParam)
+        public SelectParameterResult TryCast(BindingData bindingData)
         {
-            return fetchBodyParam(parameterRequiringValidation,
+            var request = bindingData.request.request;
+            var parameterRequiringValidation = bindingData.parameterRequiringValidation;
+            return bindingData.fetchBodyParam(parameterRequiringValidation,
                 (value) => SelectParameterResult.Body(value, string.Empty, parameterRequiringValidation),
                 (why) => SelectParameterResult.FailureBody(why, string.Empty, parameterRequiringValidation));
         }
 
         public TResult ParseContentDelegate<TResult>(JObject contentJObject,
                 string contentString, BindConvert bindConvert, ParameterInfo parameterInfo, 
-                IApplication httpApp, HttpRequestMessage request,
+                IApplication httpApp, IHttpRequest request,
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure)
         {
@@ -58,7 +56,7 @@ namespace EastFive.Api
         public TResult ParseContentDelegate<TResult>(
                 IDictionary<string, MultipartContentTokenParser> content, 
                 ParameterInfo parameterInfo, 
-                IApplication httpApp, HttpRequestMessage request, 
+                IApplication httpApp, IHttpRequest request, 
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure)
         {

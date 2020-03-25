@@ -122,12 +122,16 @@ namespace EastFive.Api.Bindings
             }
             if (type == typeof(Type))
             {
-                return HttpApplication.GetResourceType(content,
-                    (typeInstance) => onParsed(typeInstance),
-                    () => content.GetClrType(
-                        typeInstance => onParsed(typeInstance),
-                        () => onDidNotBind(
-                            $"`{content}` is not a recognizable resource type or CLR type.")));
+                return content.GetClrType(
+                    typeInstance => onParsed(typeInstance),
+                    () => onDidNotBind(
+                        $"`{content}` is not a recognizable resource type or CLR type."));
+                //return HttpApplication.GetResourceType(content,
+                //    (typeInstance) => onParsed(typeInstance),
+                //    () => content.GetClrType(
+                //        typeInstance => onParsed(typeInstance),
+                //        () => onDidNotBind(
+                //            $"`{content}` is not a recognizable resource type or CLR type.")));
             }
             if (type == typeof(Stream))
             {

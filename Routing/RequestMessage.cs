@@ -1,9 +1,4 @@
-﻿using BlackBarLabs.Extensions;
-using EastFive.Collections.Generic;
-using EastFive.Linq;
-using EastFive.Linq.Expressions;
-using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -12,6 +7,13 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+
+using Newtonsoft.Json;
+
+using EastFive.Collections.Generic;
+using EastFive.Linq;
+using EastFive.Linq.Expressions;
+using Microsoft.AspNetCore.Http;
 
 namespace EastFive.Api
 {
@@ -94,16 +96,15 @@ namespace EastFive.Api
 
     public class RequestMessageAttribute : Attribute, IInstigatableGeneric
     {
-        public virtual Task<HttpResponseMessage> InstigatorDelegateGeneric(Type type,
-                IApplication httpApp, HttpRequestMessage request, 
-                CancellationToken cancellationToken, ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
+        public virtual Task<IHttpResponse> InstigatorDelegateGeneric(Type type,
+                IApplication httpApp, IHttpRequest routeData, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
         {
             return type
                 .GetConstructors(BindingFlags.Public | BindingFlags.Instance)
                 .First()
                 .GetParameters()
-                .Aggregate<ParameterInfo, Func<object [], Task<HttpResponseMessage>>>(
+                .Aggregate<ParameterInfo, Func<object [], Task<IHttpResponse>>>(
                     (invocationParameterValues) =>
                     {
                         var requestMessage = Activator.CreateInstance(type, invocationParameterValues);
@@ -113,7 +114,7 @@ namespace EastFive.Api
                     {
                         return (previousParams) =>
                         {
-                            return httpApp.Instigate(request, cancellationToken, invocationParameterInfo,
+                            return httpApp.Instigate(routeData, invocationParameterInfo,
                                 (invocationParameterValue) =>
                                 {
                                     return next(previousParams.Prepend(invocationParameterValue).ToArray());

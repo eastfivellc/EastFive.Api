@@ -18,31 +18,41 @@ namespace EastFive.Api.Core
     {
         private readonly RequestDelegate continueAsync;
         private readonly IApplication app;
-        private ResourceInvocation[] resources;
-        private static IDictionary<Type, MethodInfo[]> routeResourceExtensionLookup;
 
-        private struct ResourceInvocation
-        {
-            public IInvokeResource invokeResourceAttr;
-            public Type type;
-        }
+        public const string HeaderStatusName = "X-StatusName";
+        public const string HeaderStatusInstance = "X-StatusInstance";
 
         public Middleware(RequestDelegate next, IApplication app)
         {
             this.continueAsync = next;
             this.app = app;
-            LocateControllers();
         }
 
-        public Task InvokeAsync(HttpContext context)
+        public async Task InvokeAsync(HttpContext context)
         {
-            return resources
+            var routeResponse = await InvokeRequestAsync(context.Request, this.app, 
+                () =>
+                {
+                    var routeResponse = new IHttpResponse()
+                    {
+                        writeResultAsync = (context) => continueAsync(context),
+                    };
+                    return routeResponse.AsTask();
+                });
+            await routeResponse.writeResultAsync(context);
+        }
+
+        public static Task<IHttpResponse> InvokeRequestAsync(HttpRequest requestMessage,
+            IApplication application,
+            Func<Task<IHttpResponse>> continueAsync)
+        {
+            return application.Resources
                 .NullToEmpty()
                 .Select(
                     resource =>
                     {
                         var doesHandleRequest = resource.invokeResourceAttr.DoesHandleRequest(
-                            resource.type, context, out RouteData routeData);
+                            resource.type, requestMessage, out IHttpRequest routeData);
                         return new
                         {
                             doesHandleRequest,
@@ -55,22 +65,17 @@ namespace EastFive.Api.Core
                     async (requestHandler, next) =>
                     {
                         var resource = requestHandler.resource;
-                        var httpRequestMessage = context.GetHttpRequestMessage();
                         var cancellationToken = new CancellationToken();
-                        var extensionMethods = routeResourceExtensionLookup.ContainsKey(resource.type) ?
-                            routeResourceExtensionLookup[resource.type]
-                            :
-                            new MethodInfo[] { };
+                        var extensionMethods = requestHandler.resource.extensions;
 
-                        var response = await app.GetType()
+                        var response = await application.GetType()
                             .GetAttributesInterface<IHandleRoutes>(true, true)
                             .Aggregate<IHandleRoutes, RouteHandlingDelegate>(
-                                async (controllerTypeFinal, httpAppFinal, requestFinal, pathParameters, extensionMethodsFinal) =>
+                                async (controllerTypeFinal, httpAppFinal, routeDataFinal) =>
                                 {
                                     var invokeResource = controllerTypeFinal.GetAttributesInterface<IInvokeResource>().First();
                                     var response = await invokeResource.CreateResponseAsync(controllerTypeFinal,
-                                        httpAppFinal, requestFinal, cancellationToken,
-                                        pathParameters, extensionMethodsFinal);
+                                        httpAppFinal, routeDataFinal, cancellationToken);
                                     return response;
 
                                     //return await resource.invokeResourceAttr.CreateResponseAsync(resource.type,
@@ -79,114 +84,16 @@ namespace EastFive.Api.Core
                                 },
                                 (callback, routeHandler) =>
                                 {
-                                    return (controllerTypeCurrent, httpAppCurrent, requestCurrent, routeNameCurrent, pathParameters) =>
+                                    return (controllerTypeCurrent, httpAppCurrent, routeNameCurrent) =>
                                         routeHandler.HandleRouteAsync(controllerTypeCurrent,
-                                            httpAppCurrent, requestCurrent, routeNameCurrent,
-                                            pathParameters, callback);
+                                            httpAppCurrent, routeNameCurrent,
+                                            callback);
                                 })
-                            .Invoke(resource.type, app, httpRequestMessage,
-                                new RouteData(), extensionMethods);
+                            .Invoke(resource.type, application, requestHandler.routeData);
 
-                        
-                        await response.WriteToContextAsync(context);
+                        return response;
                     },
-                    () => continueAsync(context));
-        }
-
-        private void LocateControllers()
-        {
-            object lookupLock = new object();
-            
-            var limitedAssemblyQuery = this.app.GetType()
-                .GetAttributesInterface<IApiResources>(inherit: true, multiple: true);
-            Func<Assembly, bool> shouldCheckAssembly =
-                (assembly) =>
-                {
-                    return limitedAssemblyQuery
-                        .First(
-                            (limitedAssembly, next) =>
-                            {
-                                if (limitedAssembly.ShouldCheckAssembly(assembly))
-                                    return true;
-                                return next();
-                            },
-                            () => false);
-                };
-
-            AppDomain.CurrentDomain.AssemblyLoad += (object sender, AssemblyLoadEventArgs args) =>
-            {
-                if (args.LoadedAssembly.GlobalAssemblyCache)
-                    return;
-                var check = shouldCheckAssembly(args.LoadedAssembly);
-                if (!check)
-                    return;
-                lock (lookupLock)
-                {
-                    AddControllersFromAssembly(args.LoadedAssembly);
-                }
-            };
-
-            var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies()
-                .Where(assembly => (!assembly.GlobalAssemblyCache))
-                .Where(shouldCheckAssembly)
-                .ToArray();
-
-            lock (lookupLock)
-            {
-                foreach (var assembly in loadedAssemblies)
-                {
-                    AddControllersFromAssembly(assembly);
-                }
-            }
-        }
-
-        private void AddControllersFromAssembly(System.Reflection.Assembly assembly)
-        {
-            try
-            {
-                var types = assembly
-                    .GetTypes();
-                var functionViewControllerAttributesAndTypes = types
-                    .Where(type => type.ContainsAttributeInterface<IInvokeResource>())
-                    .Select(
-                        (type) =>
-                        {
-                            var attr = type.GetAttributesInterface<IInvokeResource>().First();
-                            return new ResourceInvocation
-                            {
-                                type = type,
-                                invokeResourceAttr = attr,
-                            };
-                        });
-                resources = resources
-                    .NullToEmpty()
-                    .Concat(functionViewControllerAttributesAndTypes)
-                    .ToArray();
-
-                var extendedMethods = types
-                    .Where(type => type.ContainsAttributeInterface<IInvokeExtensions>())
-                    .SelectMany(
-                        (type) =>
-                        {
-                            var attr = type.GetAttributesInterface<IInvokeExtensions>().First();
-                            return attr.GetResourcesExtended(type);
-                        })
-                    .ToArray();
-
-                routeResourceExtensionLookup = extendedMethods
-                    .ToDictionaryCollapsed((t1, t2) => t1.FullName == t2.FullName)
-                    .Concat(routeResourceExtensionLookup.NullToEmpty().Where(kvp => !extendedMethods.Contains(kvp2 => kvp2.Key == kvp.Key)))
-                    .ToDictionary();
-
-            }
-            catch (System.Reflection.ReflectionTypeLoadException ex)
-            {
-                ex.GetType();
-            }
-            catch (Exception ex)
-            {
-                ex.GetType();
-            }
+                    continueAsync);
         }
 
     }

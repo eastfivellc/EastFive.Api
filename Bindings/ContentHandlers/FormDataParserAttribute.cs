@@ -3,6 +3,7 @@ using EastFive.Api.Serialization;
 using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using EastFive.Web;
+using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -18,45 +19,43 @@ namespace EastFive.Api
 {
     public interface IBindFormDataApiValue
     {
-        TResult ParseContentDelegate<TResult>(NameValueCollection formData,
+        TResult ParseContentDelegate<TResult>(IFormCollection formData,
                 ParameterInfo parameterInfo,
-                IApplication httpApp, HttpRequestMessage request,
+                IApplication httpApp, IHttpRequest request,
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure);
     }
 
     public class FormDataParserAttribute : Attribute, IParseContent
     {
-        public bool DoesParse(HttpRequestMessage request)
+        public bool DoesParse(IHttpRequest routeData)
         {
-            if (request.Content.IsDefaultOrNull())
+            if (routeData.request.Form.IsDefaultOrNull())
                 return false;
-            return request.Content.IsFormData();
+            return routeData.request.Form.Any();
         }
 
-        public async Task<HttpResponseMessage> ParseContentValuesAsync(
-            IApplication httpApp, HttpRequestMessage request,
+        public async Task<IHttpResponse> ParseContentValuesAsync(
+            IApplication httpApp, IHttpRequest routeData,
             Func<
                 CastDelegate, 
                 string[],
-                Task<HttpResponseMessage>> onParsedContentValues)
+                Task<IHttpResponse>> onParsedContentValues)
         {
-            var content = request.Content;
-            var formData = await content.ReadAsFormDataAsync();
+            var formData = await routeData.request.ReadFormAsync(routeData.cancellationToken);
 
-            var parameters = formData.AllKeys;
+            var parameters = formData.SelectKeys().ToArray();
             CastDelegate parser =
                 (paramInfo, onParsed, onFailure) =>
                 {
                     return paramInfo
                         .GetAttributeInterface<IBindFormDataApiValue>()
                         .ParseContentDelegate(formData, 
-                                paramInfo, httpApp, request,
+                                paramInfo, httpApp, routeData,
                             onParsed,
                             onFailure);
                 };
-            return await onParsedContentValues(parser,
-                parameters.ToArray());
+            return await onParsedContentValues(parser, parameters);
         }
     }
 }

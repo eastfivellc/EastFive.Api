@@ -1,7 +1,4 @@
-﻿using EastFive.Api.Serialization;
-using EastFive.Linq;
-using Newtonsoft.Json.Linq;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -9,6 +6,12 @@ using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+
+using Newtonsoft.Json.Linq;
+
+using EastFive.Api.Core;
+using EastFive.Api.Serialization;
+using EastFive.Linq;
 
 namespace EastFive.Api
 {
@@ -19,7 +22,7 @@ namespace EastFive.Api
         public TResult ParseContentDelegate<TResult>(JObject contentJObject, string contentString, 
                 BindConvert bindConvert, 
                 ParameterInfo parameterInfo, 
-                IApplication httpApp, HttpRequestMessage request, 
+                IApplication httpApp, IHttpRequest request, 
             Func<object, TResult> onParsed, 
             Func<string, TResult> onFailure)
         {
@@ -42,14 +45,13 @@ namespace EastFive.Api
             throw new NotImplementedException();
         }
 
-        public override SelectParameterResult TryCast(IApplication httpApp,
-            HttpRequestMessage request, MethodInfo method, ParameterInfo parameterRequiringValidation,
-            CastDelegate fetchQueryParam,
-            CastDelegate fetchBodyParam,
-            CastDelegate fetchDefaultParam)
+        public override SelectParameterResult TryCast(BindingData bindingData)
         {
+            var request = bindingData.request;
+            var parameterRequiringValidation = bindingData.parameterRequiringValidation;
             var bindType = parameterRequiringValidation.ParameterType;
-            if (typeof(System.Net.Http.Headers.MediaTypeHeaderValue) == bindType)
+            request.GetAbsoluteUri();
+            if (typeof(MediaTypeHeaderValue) == bindType)
             {
                 if (Content.IsNullOrWhiteSpace())
                     return new SelectParameterResult
@@ -60,10 +62,10 @@ namespace EastFive.Api
                         fromFile = false,
                         key = Content,
                         parameterInfo = parameterRequiringValidation,
-                        value = request.Content.Headers.ContentType.MediaType,
+                        value = request.GetMediaType(),
                     };
 
-                return fetchBodyParam(
+                return bindingData.fetchBodyParam(
                     parameterRequiringValidation,
                     (value) =>
                     {
@@ -115,7 +117,7 @@ namespace EastFive.Api
                         fromFile = false,
                         key = default,
                         parameterInfo = parameterRequiringValidation,
-                        value = request.Headers.AcceptLanguage,
+                        value = request.GetAcceptLanguage(),
                     };
                 }
             }
@@ -133,15 +135,10 @@ namespace EastFive.Api
 
     public class HeaderOptionalAttribute : HeaderAttribute
     {
-        public override SelectParameterResult TryCast(
-                IApplication httpApp, HttpRequestMessage request, MethodInfo method,
-                ParameterInfo parameterRequiringValidation,
-                CastDelegate fetchQueryParam,
-                CastDelegate fetchBodyParam,
-                CastDelegate fetchDefaultParam)
+        public override SelectParameterResult TryCast(BindingData bindingData)
         {
-            var baseValue = base.TryCast(httpApp, request, method,
-                parameterRequiringValidation, fetchQueryParam, fetchBodyParam, fetchDefaultParam);
+            var parameterRequiringValidation = bindingData.parameterRequiringValidation;
+            var baseValue = base.TryCast(bindingData);
             if (baseValue.valid)
                 return baseValue;
 

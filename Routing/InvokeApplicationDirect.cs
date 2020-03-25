@@ -5,10 +5,11 @@ using System.Net.Http;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-
+using EastFive.Api.Core;
 using EastFive.Api.Modules;
 using EastFive.Extensions;
 using EastFive.Linq;
+using Microsoft.AspNetCore.Http;
 
 namespace EastFive.Api
 {
@@ -27,11 +28,10 @@ namespace EastFive.Api
 
         public override IApplication Application => application;
 
-        public override Task<HttpResponseMessage> SendAsync(HttpRequestMessage httpRequest)
+        public override Task<IHttpResponse> SendAsync(HttpRequest httpRequest)
         {
-            return ControllerHandler.DirectSendAsync(application, httpRequest, 
-                token,
-                (requestBack, token) =>
+            return Middleware.InvokeRequestAsync(httpRequest, application,
+                () =>
                 {
                     throw new Exception();
                 });
@@ -39,16 +39,16 @@ namespace EastFive.Api
 
         public class InstigateAttribute : Attribute, IInstigatable
         {
-            public Task<HttpResponseMessage> Instigate(IApplication httpApp, 
-                    HttpRequestMessage request, CancellationToken cancellationToken, 
+            public Task<IHttpResponse> Instigate(IApplication httpApp, 
+                    IHttpRequest request,
                     ParameterInfo parameterInfo,
-                Func<object, Task<HttpResponseMessage>> onSuccess)
+                Func<object, Task<IHttpResponse>> onSuccess)
             {
                 string GetApiPrefix()
                 {
                     return "api";
                 }
-                var instance = new InvokeApplicationDirect(httpApp, request.RequestUri, GetApiPrefix(), default(CancellationToken));
+                var instance = new InvokeApplicationDirect(httpApp, request.request.GetAbsoluteUri(), GetApiPrefix(), default(CancellationToken));
                 return onSuccess(instance);
             }
         }

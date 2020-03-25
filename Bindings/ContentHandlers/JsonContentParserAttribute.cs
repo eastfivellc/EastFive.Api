@@ -1,4 +1,5 @@
-﻿using EastFive.Api.Serialization;
+﻿using EastFive.Api.Core;
+using EastFive.Api.Serialization;
 using EastFive.Extensions;
 using EastFive.Web;
 using Newtonsoft.Json.Linq;
@@ -17,27 +18,28 @@ namespace EastFive.Api
         TResult ParseContentDelegate<TResult>(Newtonsoft.Json.Linq.JObject contentJObject,
                 string contentString, Serialization.BindConvert bindConvert,
                 ParameterInfo parameterInfo,
-                IApplication httpApp, HttpRequestMessage request,
+                IApplication httpApp, IHttpRequest routeData,
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure);
     }
 
     public class JsonContentParserAttribute : Attribute, IParseContent
     {
-        public bool DoesParse(HttpRequestMessage request)
+        public bool DoesParse(IHttpRequest routeData)
         {
-            return request.Content.IsJson();
+            var request = routeData.request;
+            return request.IsJson();
         }
 
-        public async Task<HttpResponseMessage> ParseContentValuesAsync(
-            IApplication httpApp, HttpRequestMessage request,
+        public async Task<IHttpResponse> ParseContentValuesAsync(
+            IApplication httpApp, IHttpRequest routeData,
             Func<
                 CastDelegate, 
                 string[],
-                Task<HttpResponseMessage>> onParsedContentValues)
+                Task<IHttpResponse>> onParsedContentValues)
         {
-            var content = request.Content;
-            var contentString = await content.ReadAsStringAsync();
+            var request = routeData.request;
+            var contentString = request.Body.ReadAsString();
             var exceptionKeys = new string[] { };
             if (contentString.IsNullOrWhiteSpace())
             {
@@ -64,7 +66,7 @@ namespace EastFive.Api
                             .GetAttributeInterface<IBindJsonApiValue>()
                             .ParseContentDelegate(contentJObject,
                                     contentString, bindConvert,
-                                    paramInfo, httpApp, request,
+                                    paramInfo, httpApp, routeData,
                                 onParsed,
                                 onFailure);
                     };

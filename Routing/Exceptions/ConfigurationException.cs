@@ -26,11 +26,10 @@ namespace EastFive.Api
             throw new ConfigurationException(string.Empty, typeof(string), message);
         }
 
-        public HttpResponseMessage CreateResponseAsync(IApplication httpApp, HttpRequestMessage request,
+        public IHttpResponse CreateResponseAsync(IApplication httpApp, IHttpRequest request,
             Dictionary<string, object> queryParameterOptions, MethodInfo method, object[] methodParameters)
         {
-            var response = request.CreateResponse(System.Net.HttpStatusCode.InternalServerError);
-            response.Content = new StringContent(this.StackTrace);
+            var response = request.CreateResponse(System.Net.HttpStatusCode.InternalServerError, this.StackTrace);
             return response.AddReason(this.Message);
         }
     }

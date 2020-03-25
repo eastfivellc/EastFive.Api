@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Http;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -11,21 +12,20 @@ namespace EastFive.Api
 { 
     public interface IInstigatableGeneric
     {
-        Task<HttpResponseMessage> InstigatorDelegateGeneric(
-            Type type, IApplication httpApp, HttpRequestMessage request,
-            CancellationToken cancellationToken,
+        Task<IHttpResponse> InstigatorDelegateGeneric(Type type,
+                IApplication httpApp, IHttpRequest routeData,
             ParameterInfo parameterInfo,
-        Func<object, Task<HttpResponseMessage>> onSuccess);
+        Func<object, Task<IHttpResponse>> onSuccess);
     }
 
     public interface IInstigateGeneric
     {
         bool CanInstigate(ParameterInfo parameterInfo);
 
-        Task<HttpResponseMessage> InstigatorDelegateGeneric(
-            Type type, IApplication httpApp, HttpRequestMessage request,
-            CancellationToken cancellationToken, 
+        Task<IHttpResponse> InstigatorDelegateGeneric(
+            Type type,
+                IApplication httpApp, IHttpRequest routeData,
             ParameterInfo parameterInfo,
-        Func<object, Task<HttpResponseMessage>> onSuccess);
+        Func<object, Task<IHttpResponse>> onSuccess);
     }
 }

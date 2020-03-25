@@ -21,10 +21,6 @@ namespace EastFive.Api.Serialization
         {
         }
 
-        public ExtrudeConvert(IApplication httpApplication, HttpRequestMessage request)
-        {
-        }
-
         public override bool CanConvert(Type objectType)
         {
             if (objectType.IsSubClassOfGeneric(typeof(IRef<>)))

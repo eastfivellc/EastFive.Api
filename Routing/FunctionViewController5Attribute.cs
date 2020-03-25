@@ -15,64 +15,60 @@ using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Linq.Async;
+using EastFive.Api.Core;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 
 namespace EastFive.Api
 {
     public class FunctionViewController5Attribute : FunctionViewController4Attribute
     {
-        public override async Task<HttpResponseMessage> CreateResponseAsync(Type controllerType,
-            IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken,
-            RouteData pathParameters, MethodInfo[] extensionMethods)
+        public async override Task<IHttpResponse> CreateResponseAsync(Type controllerType,
+            IApplication httpApp, IHttpRequest routeData)
         {
             var matchingActionMethods = GetHttpMethods(controllerType,
-                httpApp, request, extensionMethods);
+                httpApp, routeData);
             if (!matchingActionMethods.Any())
-                return request.CreateResponse(HttpStatusCode.NotImplemented);
-
+                return routeData.CreateResponse(HttpStatusCode.NotImplemented);
+            var request = routeData.request;
             return await httpApp.GetType()
                 .GetAttributesInterface<IParseContent>(true, true)
-                .Where(contentParser => contentParser.DoesParse(request))
+                .Where(contentParser => contentParser.DoesParse(routeData))
                 .First(
                     (contentParser, next) =>
                     {
-                        return contentParser.ParseContentValuesAsync(httpApp, request,
+                        return contentParser.ParseContentValuesAsync(httpApp, routeData,
                             (bodyCastDelegate, bodyValues) =>
                                 InvokeMethod(
                                     matchingActionMethods,
-                                    httpApp, request, cancellationToken,
+                                    httpApp, routeData,
                                     bodyCastDelegate, bodyValues));
                     },
                     () =>
                     {
-                        if(request.Content.IsDefaultOrNull())
+                        if(request.Body.IsDefaultOrNull())
                         {
                             CastDelegate parserEmpty =
                                 (paramInfo, onParsed, onFailure) => onFailure(
                                     $"Request did not contain any content.");
                             return InvokeMethod(
                                 matchingActionMethods,
-                                httpApp, request, cancellationToken,
+                                httpApp, routeData,
                                 parserEmpty, new string[] { });
                         }
-                        var mediaType = request.Content.Headers.IsDefaultOrNull() ?
-                           string.Empty
-                           :
-                           request.Content.Headers.ContentType.IsDefaultOrNull() ?
-                               string.Empty
-                               :
-                               request.Content.Headers.ContentType.MediaType;
+                        var mediaType = request.GetMediaType();
                         CastDelegate parser =
                             (paramInfo, onParsed, onFailure) => onFailure(
                                 $"Could not parse content of type {mediaType}");
                         return InvokeMethod(
                             matchingActionMethods,
-                            httpApp, request, cancellationToken,
+                            httpApp, routeData, 
                             parser, new string[] { });
                     });
         }
 
         protected virtual IEnumerable<MethodInfo> GetHttpMethods(Type controllerType,
-            IApplication httpApp, HttpRequestMessage request, MethodInfo[] extensionMethods)
+            IApplication httpApp, IHttpRequest request)
         {
             var matchingActionMethods = controllerType
                 .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
@@ -86,9 +82,9 @@ namespace EastFive.Api
             return matchingActionMethods;
         }
 
-        protected virtual async Task<HttpResponseMessage> InvokeMethod(
+        protected virtual async Task<IHttpResponse> InvokeMethod(
             IEnumerable<MethodInfo> matchingActionMethods,
-            IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken,
+            IApplication httpApp, IHttpRequest routeData,
             CastDelegate bodyCastDelegate, string[] bodyValues)
         {
             var evaluatedMethods = matchingActionMethods
@@ -96,7 +92,7 @@ namespace EastFive.Api
                     method =>
                     {
                         var routeMatcher = method.GetAttributesInterface<IMatchRoute>().Single();
-                        return routeMatcher.IsRouteMatch(method, request, httpApp,
+                        return routeMatcher.IsRouteMatch(method, routeData, httpApp,
                             bodyValues, bodyCastDelegate);
                     });
 
@@ -114,10 +110,10 @@ namespace EastFive.Api
                                     return methodFinalUnvalidated
                                         .GetAttributesInterface<IValidateHttpRequest>(true, true)
                                         .Aggregate<IValidateHttpRequest, ValidateHttpDelegate>(
-                                            (parameterSelection, methodFinal, httpAppFinal, requestFinal) =>
+                                            (parameterSelection, methodFinal, httpAppFinal, routeDataFinal) =>
                                             {
                                                 return InvokeValidatedMethodAsync(
-                                                    httpAppFinal, requestFinal, cancellationToken,
+                                                    httpAppFinal, routeDataFinal,
                                                     methodFinal,
                                                     parameterSelection);
                                             },
@@ -162,14 +158,14 @@ namespace EastFive.Api
                                 })
                             .Invoke(
                                 new KeyValuePair<ParameterInfo, object>[] { },
-                                methodCast.method, httpApp, request);
+                                methodCast.method, httpApp, routeData);
                     },
                     () =>
                     {
                         return Issues(evaluatedMethods).AsTask();
                     });
 
-            HttpResponseMessage Issues(IEnumerable<RouteMatch> methodsCasts)
+            IHttpResponse Issues(IEnumerable<RouteMatch> methodsCasts)
             {
                 var reasonStrings = methodsCasts
                     .Select(
@@ -181,28 +177,28 @@ namespace EastFive.Api
                     .ToArray();
                 if (!reasonStrings.Any())
                 {
-                    return request
+                    return routeData
                         .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
                         .AddReason("No methods that implement Action");
                 }
                 var content = reasonStrings.Join(";");
-                return request
+                return routeData
                     .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
                     .AddReason(content);
             }
         }
 
-        protected static Task<HttpResponseMessage> InvokeValidatedMethodAsync(
-            IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken,
+        protected static Task<IHttpResponse> InvokeValidatedMethodAsync(
+            IApplication httpApp, IHttpRequest routeData,
             MethodInfo method,
             KeyValuePair<ParameterInfo, object>[] queryParameters)
         {
             return httpApp.GetType()
                 .GetAttributesInterface<IHandleMethods>(true, true)
                 .Aggregate<IHandleMethods, MethodHandlingDelegate>(
-                    (methodFinal, queryParametersFinal, httpAppFinal, requestFinal) =>
+                    (methodFinal, queryParametersFinal, httpAppFinal, routeDataFinal) =>
                     {
-                        var response = InvokeHandledMethodAsync(httpApp, request, cancellationToken, method, queryParameters);
+                        var response = InvokeHandledMethodAsync(httpApp, routeDataFinal, method, queryParameters);
                         return response;
                     },
                     (callback, methodHandler) =>
@@ -212,23 +208,23 @@ namespace EastFive.Api
                                 queryParametersCurrent, httpAppCurrent, requestCurrent,
                                 callback);
                     })
-                .Invoke(method, queryParameters, httpApp, request);
+                .Invoke(method, queryParameters, httpApp, routeData);
         }
 
-        protected static Task<HttpResponseMessage> InvokeHandledMethodAsync(
-            IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken,
+        protected static Task<IHttpResponse> InvokeHandledMethodAsync(
+            IApplication httpApp, IHttpRequest routeData,
             MethodInfo method,
             KeyValuePair<ParameterInfo, object>[] queryParameters)
         {
             var queryParameterOptions = queryParameters.ToDictionary(kvp => kvp.Key.Name, kvp => kvp.Value);
             return method.GetParameters()
                 .SelectReduce(
-                    async (methodParameter, next) =>
+                    async (ParameterInfo methodParameter, Func<object, Task<IHttpResponse>> next) =>
                     {
                         if (queryParameterOptions.ContainsKey(methodParameter.Name))
                             return await next(queryParameterOptions[methodParameter.Name]);
 
-                        return await httpApp.Instigate(request, cancellationToken, methodParameter,
+                        return await httpApp.Instigate(routeData, methodParameter,
                             next);
                     },
                     async (object[] methodParameters) =>
@@ -238,19 +234,19 @@ namespace EastFive.Api
                             if (method.IsGenericMethod)
                             {
                                 var genericArguments = method.GetGenericArguments().Select(arg => arg.Name).Join(",");
-                                return request.CreateResponse(HttpStatusCode.InternalServerError)
+                                return routeData.CreateResponse(HttpStatusCode.InternalServerError)
                                     .AddReason($"Could not invoke {method.DeclaringType.FullName}..{method.Name} because it contains generic arguments:{genericArguments}");
                             }
 
                             var response = method.Invoke(null, methodParameters);
-                            if (typeof(HttpResponseMessage).IsAssignableFrom(method.ReturnType))
-                                return ((HttpResponseMessage)response);
-                            if (typeof(Task<HttpResponseMessage>).IsAssignableFrom(method.ReturnType))
-                                return (await (Task<HttpResponseMessage>)response);
-                            if (typeof(Task<Task<HttpResponseMessage>>).IsAssignableFrom(method.ReturnType))
-                                return (await await (Task<Task<HttpResponseMessage>>)response);
+                            if (typeof(Api.IHttpResponse).IsAssignableFrom(method.ReturnType))
+                                return ((Api.IHttpResponse)response);
+                            if (typeof(Task<Api.IHttpResponse>).IsAssignableFrom(method.ReturnType))
+                                return (await (Task<Api.IHttpResponse>)response);
+                            if (typeof(Task<Task<Api.IHttpResponse>>).IsAssignableFrom(method.ReturnType))
+                                return (await await (Task<Task<Api.IHttpResponse>>)response);
 
-                            return (request.CreateResponse(System.Net.HttpStatusCode.InternalServerError)
+                            return (routeData.CreateResponse(System.Net.HttpStatusCode.InternalServerError)
                                 .AddReason($"Could not convert type: {method.ReturnType.FullName} to HttpResponseMessage."));
                         }
                         catch (TargetInvocationException ex)
@@ -260,7 +256,7 @@ namespace EastFive.Api
                                 ex.StackTrace
                                 :
                                 $"[{ex.InnerException.GetType().FullName}]{ex.InnerException.Message}:\n{ex.InnerException.StackTrace}";
-                            return request
+                            return routeData
                                 .CreateResponse(HttpStatusCode.InternalServerError, body)
                                 .AddReason($"Could not invoke {method.DeclaringType.FullName}.{method.Name}({paramList})");
                         }
@@ -268,30 +264,30 @@ namespace EastFive.Api
                         {
                             return await httpApp.GetType()
                                 .GetAttributesInterface<IHandleExceptions>(true, true)
-                                .Aggregate<IHandleExceptions, HandleExceptionDelegate>(
-                                    (exFinal, methodFinal, queryParametersFinal, httpAppFinal, requestFinal) =>
+                                .Aggregate(
+                                    (Exception exFinal, MethodInfo methodFinal, KeyValuePair<ParameterInfo, object>[] queryParametersFinal, IApplication httpAppFinal, IHttpRequest routeDataFinal) =>
                                     {
                                         if (ex is IHttpResponseMessageException)
                                         {
                                             var httpResponseMessageException = ex as IHttpResponseMessageException;
                                             return httpResponseMessageException.CreateResponseAsync(
-                                                httpApp, request, queryParameterOptions,
-                                                method, methodParameters).AsTask();
+                                                httpApp, routeDataFinal, queryParameterOptions,
+                                                method, methodParameters).AsTask<Api.IHttpResponse>();
                                         }
 
-                                        return request
+                                        return routeData
                                             .CreateResponse(HttpStatusCode.InternalServerError)
                                             .AddReason(ex.Message)
-                                            .AsTask();
+                                            .AsTask<Api.IHttpResponse>();
                                     },
-                                    (callback, methodHandler) =>
+                                    (HandleExceptionDelegate callback, IHandleExceptions methodHandler) =>
                                     {
-                                        return (exCurrent, methodCurrent, queryParametersCurrent, httpAppCurrent, requestCurrent) =>
+                                        return (Exception exCurrent, MethodInfo methodCurrent, KeyValuePair<ParameterInfo, object>[] queryParametersCurrent, IApplication httpAppCurrent, IHttpRequest requestCurrent) =>
                                             methodHandler.HandleExceptionAsync(exCurrent, methodCurrent,
                                             queryParametersCurrent, httpAppCurrent, requestCurrent,
                                             callback);
                                     })
-                                .Invoke(ex, method, queryParameters, httpApp, request);
+                                .Invoke(ex, method, queryParameters, httpApp, routeData);
                             
                         }
 

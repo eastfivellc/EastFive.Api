@@ -29,13 +29,13 @@ namespace EastFive.Api
 
         }
 
-        public HttpResponseMessage CreateResponseAsync(IApplication httpApp, 
-            HttpRequestMessage request, Dictionary<string, object> queryParameterOptions, 
+        public IHttpResponse CreateResponseAsync(IApplication httpApp, 
+            IHttpRequest request, Dictionary<string, object> queryParameterOptions, 
             MethodInfo method, object[] methodParameters)
         {
-            var response = request.CreateResponse(System.Net.HttpStatusCode.InternalServerError);
-            response.Content = new StringContent(this.StackTrace);
-            return response.AddReason(this.Message);
+            return request
+                .CreateResponse(System.Net.HttpStatusCode.InternalServerError, this.StackTrace)
+                .AddReason(this.Message);
         }
     }
     

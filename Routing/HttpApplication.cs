@@ -26,6 +26,7 @@ using EastFive.Api.Serialization;
 using System.Xml;
 using System.Diagnostics;
 using EastFive.Analytics;
+using EastFive.Api.Core;
 
 namespace EastFive.Api
 {
@@ -184,90 +185,47 @@ namespace EastFive.Api
 
         #region Url Handlers
 
-        public static TResult GetResourceType<TResult>(string resourceType,
+        public TResult GetResourceType<TResult>(string resourceType,
             Func<Type, TResult> onConverted,
             Func<TResult> onMatchingResourceNotFound)
         {
-            return contentTypeLookup.First(
-                (kvp, next) =>
-                {
-                    if (kvp.Value.ToLower().Trim() == resourceType.ToLower().Trim())
-                        return onConverted(kvp.Key);
-                    return next();
-                },
-                () => onMatchingResourceNotFound());
+            return Resources
+                .Where(
+                    (resource) =>
+                    {
+                        if (resource.invokeResourceAttr.ContentType.Equals(resourceType.Trim(), StringComparison.OrdinalIgnoreCase))
+                            return true;
+                        if (resource.invokeResourceAttr.Route.Equals(resourceType.Trim(), StringComparison.OrdinalIgnoreCase))
+                            return true;
+                        if (resource.type.Name.Equals(resourceType.Trim(), StringComparison.OrdinalIgnoreCase))
+                            return true;
+                        return false;
+                    })
+                .First(
+                    (res, next) => onConverted(res.type),
+                    () => onMatchingResourceNotFound());
         }
 
         public string GetResourceMime(Type type)
         {
             if (type.IsDefaultOrNull())
-                return $"x-application/resource";
-            if (!contentTypeLookup.ContainsKey(type))
-                return $"x-application/resource";
-            return contentTypeLookup[type];
+                return "x-application/resource";
+            return Resources
+                .Where((resource) => resource.type == type)
+                .First(
+                    (resource, next) => resource.invokeResourceAttr.ContentType,
+                    () => "x-application/resource");
         }
 
         public string GetResourceName(Type type)
         {
             if (type.IsDefaultOrNull())
                 return string.Empty;
-            var matches = resourceTypeRouteLookup
-                .Where(nameTypeKvp => nameTypeKvp.Key == type);
-            if (!matches.Any())
-                return type.Name;
-            return matches.First().Value;
-        }
-
-        public WebId GetResourceLink(string resourceType, Guid? resourceIdMaybe, UrlHelper url)
-        {
-            if (!resourceIdMaybe.HasValue)
-                return default(WebId);
-            return GetResourceLink(resourceType, resourceIdMaybe.Value, url);
-        }
-
-        public WebId GetResourceLink(string resourceType, Guid resourceId, UrlHelper url)
-        {
-            var id = new WebId
-            {
-                Key = resourceId.ToString("N"),
-                UUID = resourceId,
-                URN = new Uri($"urn:{resourceType}/{resourceId}")
-            };
-            return id
-                .IfThen(
-                    (!resourceType.IsNullOrWhiteSpace()) && resourceNameControllerLookup.ContainsKey(resourceType),
-                    (webId) =>
-                    {
-                        var controllerType = resourceNameControllerLookup[resourceType];
-                        webId.Source = url.GetLocation(controllerType, resourceId);
-                        return webId;
-                    });
-        }
-
-        public WebId GetResourceLink(Type resourceType, Guid? resourceIdMaybe, UrlHelper url)
-        {
-            if (!resourceIdMaybe.HasValue)
-                return default(WebId);
-            return GetResourceLink(resourceType, resourceIdMaybe.Value, url);
-        }
-
-        public WebId GetResourceLink(Type resourceType, Guid resourceId, UrlHelper url)
-        {
-            var id = new WebId
-            {
-                Key = resourceId.ToString("N"),
-                UUID = resourceId,
-                URN = new Uri($"urn:{GetResourceMime(resourceType)}/{resourceId}")
-            };
-            return id
-                .IfThen(
-                    (!resourceType.IsDefaultOrNull()) && resourceTypeControllerLookup.ContainsKey(resourceType),
-                    (webId) =>
-                    {
-                        var controllerType = resourceTypeControllerLookup[resourceType];
-                        webId.Source = url.GetLocation(controllerType, resourceId);
-                        return webId;
-                    });
+            return Resources
+                .Where((resource) => resource.type == type)
+                .First(
+                    (resource, next) => resource.invokeResourceAttr.Route,
+                    () => string.Empty);
         }
 
         public delegate Uri ControllerHandlerDelegate(
@@ -277,18 +235,20 @@ namespace EastFive.Api
 
         public Type[] GetResources()
         {
-            return resources;
+            return Resources.Select(res => res.type).ToArray();
         }
 
         public TResult GetControllerType<TResult>(string routeName,
             Func<Type, TResult> onMethodsIdentified,
             Func<TResult> onKeyNotFound)
         {
-            var routeNameLower = routeName.ToLower();
-            if (!routeResourceTypeLookup.ContainsKey(routeNameLower))
+            if (routeName.IsNullOrWhiteSpace())
                 return onKeyNotFound();
-            var controllerType = routeResourceTypeLookup[routeNameLower];
-            return onMethodsIdentified(controllerType);
+            return Resources
+                .Where((resource) => resource.invokeResourceAttr.Route.Equals(routeName, StringComparison.OrdinalIgnoreCase))
+                .First(
+                    (resource, next) => onMethodsIdentified(resource.type),
+                    onKeyNotFound);
         }
 
         public Dictionary<Type, ControllerHandlerDelegate> urlHandlersByType =
@@ -428,18 +388,17 @@ namespace EastFive.Api
 
         #region Load Controllers
 
-        private static IDictionary<string, Type> routeResourceTypeLookup;
-        private static IDictionary<Type, MethodInfo[]> routeResourceExtensionLookup;
-        private static Type[] resources;
-        private static IDictionary<Type, string> contentTypeLookup;
-        private static IDictionary<string, Type> resourceNameControllerLookup;
-        private static IDictionary<Type, string> resourceTypeRouteLookup; // TODO: Delete after creating IDocumentParameter
-        private static IDictionary<Type, Type> resourceTypeControllerLookup;
-        public static IDictionary<Type, ConfigAttribute> configurationTypes;
+        private IDictionary<Type, ResourceInvocation> routeResourceExtensionLookup;
+
+        public ResourceInvocation[] Resources => routeResourceExtensionLookup
+            .SelectValues().ToArray();
+
         private static object lookupLock = new object();
 
         private void LocateControllers()
         {
+            object lookupLock = new object();
+
             var limitedAssemblyQuery = this.GetType()
                 .GetAttributesInterface<IApiResources>(inherit: true, multiple: true);
             Func<Assembly, bool> shouldCheckAssembly =
@@ -456,6 +415,19 @@ namespace EastFive.Api
                             () => false);
                 };
 
+            AppDomain.CurrentDomain.AssemblyLoad += (object sender, AssemblyLoadEventArgs args) =>
+            {
+                if (args.LoadedAssembly.GlobalAssemblyCache)
+                    return;
+                var check = shouldCheckAssembly(args.LoadedAssembly);
+                if (!check)
+                    return;
+                lock (lookupLock)
+                {
+                    AddControllersFromAssembly(args.LoadedAssembly);
+                }
+            };
+
             var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies()
                 .Where(assembly => (!assembly.GlobalAssemblyCache))
                 .Where(shouldCheckAssembly)
@@ -463,19 +435,6 @@ namespace EastFive.Api
 
             lock (lookupLock)
             {
-                AppDomain.CurrentDomain.AssemblyLoad += (object sender, AssemblyLoadEventArgs args) =>
-                {
-                    if (args.LoadedAssembly.GlobalAssemblyCache)
-                        return;
-                    var check = shouldCheckAssembly(args.LoadedAssembly);
-                    if (!check)
-                        return;
-                    lock (lookupLock)
-                    {
-                        AddControllersFromAssembly(args.LoadedAssembly);
-                    }
-                };
-
                 foreach (var assembly in loadedAssemblies)
                 {
                     AddControllersFromAssembly(assembly);
@@ -483,155 +442,52 @@ namespace EastFive.Api
             }
         }
 
-        IDictionary<Type, HttpMethod> methodLookup =
-            new Dictionary<Type, HttpMethod>()
-            {
-                { typeof(EastFive.Api.HttpGetAttribute), HttpMethod.Get },
-                { typeof(EastFive.Api.HttpDeleteAttribute), HttpMethod.Delete },
-                { typeof(EastFive.Api.HttpPostAttribute), HttpMethod.Post },
-                { typeof(EastFive.Api.HttpPutAttribute), HttpMethod.Put },
-                { typeof(EastFive.Api.HttpPatchAttribute), new HttpMethod("Patch") },
-                { typeof(EastFive.Api.HttpOptionsAttribute), HttpMethod.Options },
-                { typeof(EastFive.Api.HttpActionAttribute), new HttpMethod("actions") },
-            };
-
         private void AddControllersFromAssembly(System.Reflection.Assembly assembly)
         {
             try
             {
-                var types = assembly
-                    .GetTypes();
-                var functionViewControllerAttributesAndTypes = types
-                    .Where(type => type.ContainsAttributeInterface<IInvokeResource>())
-                    .Select(
-                        (type) =>
+                foreach(var type in assembly.GetTypes())
+                {
+                    var invokeResourceAttrs = type.GetAttributesInterface<IInvokeResource>();
+                    if (invokeResourceAttrs.Any())
+                    {
+                        var invokeResourceAttr = invokeResourceAttrs.First();
+                        if (!routeResourceExtensionLookup.ContainsKey(type))
                         {
-                            var attr = type.GetAttributesInterface<IInvokeResource>().First();
-                            return type.PairWithKey(attr);
-                        })
-                    .ToArray();
-                var duplicateRoutes = functionViewControllerAttributesAndTypes
-                    .Duplicates((kvp1, kvp2) => kvp1.Key.Route == kvp2.Key.Route)
-                    .Where(kvp => kvp.Key.Route.HasBlackSpace())
-                    .Distinct(kvp => kvp.Key.Route);
-                if (duplicateRoutes.Any())
-                    throw new Exception($"Duplicate routes:{duplicateRoutes.SelectKeys(attr => attr.Route).Join(",")}");
-
-                resources = resources
-                    .NullToEmpty()
-                    .Concat(functionViewControllerAttributesAndTypes.SelectValues())
-                    .Distinct(type => type.GUID)
-                    .ToArray();
-
-                var extendedMethods = types
-                    .Where(type => type.ContainsAttributeInterface<IInvokeExtensions>())
-                    .SelectMany(
-                        (type) =>
-                        {
-                            var attr = type.GetAttributesInterface<IInvokeExtensions>().First();
-                            return attr.GetResourcesExtended(type);
-                        })
-                    .ToArray();
-                routeResourceExtensionLookup = extendedMethods
-                    .ToDictionaryCollapsed((t1, t2) => t1.FullName == t2.FullName)
-                    .Concat(routeResourceExtensionLookup.NullToEmpty().Where(kvp => !extendedMethods.Contains(kvp2 => kvp2.Key == kvp.Key)))
-                    .ToDictionary();
-
-                routeResourceTypeLookup = routeResourceTypeLookup
-                    .NullToEmpty()
-                    .Concat(functionViewControllerAttributesAndTypes
-                        .Select(
-                            attrType =>
-                            {
-                                return attrType.Key.Route
-                                    .IfThen(attrType.Key.Route.IsNullOrWhiteSpace(),
-                                        (route) =>
-                                        {
-                                            var routeType = attrType.Value.Name;
-                                            return routeType;
-                                        })
-                                    .ToLower()
-                                    .PairWithValue(attrType.Value);
-                            }))
-                    .Distinct(kvp => kvp.Key)
-                    .ToDictionary();
-
-                resourceNameControllerLookup = resourceNameControllerLookup
-                    .NullToEmpty()
-                    .Concat(functionViewControllerAttributesAndTypes
-                        .Select(
-                            attrType =>
-                            {
-                                var contentType = GetContentType();
-                                return contentType.PairWithValue(attrType.Value);
-                                string GetContentType()
+                            routeResourceExtensionLookup.Add(type,
+                                new ResourceInvocation
                                 {
-                                    if (!attrType.Key.ContentType.IsNullOrWhiteSpace())
-                                        return attrType.Key.ContentType;
-                                    var routeType = attrType.Value;
-                                    return $"x-application/{routeType.Name}";
-                                }
-                            }))
-                    .Distinct(kvp => kvp.Key)
-                    .ToDictionary();
-
-                resourceTypeRouteLookup = resourceTypeRouteLookup
-                    .NullToEmpty()
-                    .Concat(functionViewControllerAttributesAndTypes
-                        .Select(
-                            attrType =>
+                                    type = type,
+                                });
+                            continue;
+                        }
+                        routeResourceExtensionLookup[type].invokeResourceAttr = invokeResourceAttr;
+                    }
+                    var invokeExtensionsAttrs = type.GetAttributesInterface<IInvokeExtensions>();
+                    if (invokeExtensionsAttrs.Any())
+                    {
+                        var invokeExtensionsAttr = invokeExtensionsAttrs.First();
+                        var extensionMethods = invokeExtensionsAttr.GetResourcesExtended(type);
+                        foreach (var extensionsKvp in extensionMethods)
+                        {
+                            var extendedType = extensionsKvp.Key;
+                            if (!routeResourceExtensionLookup.ContainsKey(extendedType))
                             {
-                                return attrType.Key.Route
-                                    .IfThen(attrType.Key.Route.IsNullOrWhiteSpace(),
-                                        (route) =>
-                                        {
-                                            var routeType = attrType.Value.Name;
-                                            return routeType;
-                                        })
-                                    .ToLower()
-                                    .PairWithKey(attrType.Value);
-                            }))
-                    .Distinct(kvp => kvp.Key.FullName)
-                    .ToDictionary();
-
-                var kvps = functionViewControllerAttributesAndTypes
-                    .Select(
-                        (attrType) =>
-                        {
-                            return attrType.Value.PairWithValue(attrType.Value);
-                        });
-                resourceTypeControllerLookup = resourceTypeControllerLookup
-                    .Merge(kvps,
-                        (k, v1, v2) => v2)
-                    .ToDictionary();
-
-                contentTypeLookup = functionViewControllerAttributesAndTypes
-                    .FlatMap(
-                        (attrType, next, skip) =>
-                        {
-                            if (attrType.Key.ContentType.IsNullOrWhiteSpace())
-                                return skip();
-                            return next(attrType.Key.ContentType.PairWithKey(attrType.Value));
-                        },
-                        (IEnumerable<KeyValuePair<Type, string>> kvps) =>
-                            contentTypeLookup.Merge(
-                                kvps,
-                                (k, v1, v2) => v2).ToDictionary());
-
-                var newConfigurationTypes = types
-                    .Where(type => type.ContainsCustomAttribute<ConfigAttribute>())
-                    .Select(
-                        (type) =>
-                        {
-                            var attr = type.GetCustomAttribute<ConfigAttribute>();
-                            return type.PairWithValue(attr);
-                        });
-
-                configurationTypes = configurationTypes
-                    .NullToEmpty()
-                    .Concat(newConfigurationTypes)
-                    .Distinct(ct => ct.Key.FullName)
-                    .ToDictionary();
+                                routeResourceExtensionLookup.Add(extendedType,
+                                    new ResourceInvocation
+                                    {
+                                        type = extendedType,
+                                    });
+                                continue;
+                            }
+                            routeResourceExtensionLookup[extendedType].extensions =
+                                routeResourceExtensionLookup[extendedType].extensions
+                                .NullToEmpty()
+                                .Append(extensionsKvp.Value)
+                                .ToArray();
+                        }
+                    }
+                }
             }
             catch (System.Reflection.ReflectionTypeLoadException ex)
             {
@@ -708,28 +564,25 @@ namespace EastFive.Api
                 },
                 {
                     typeof(Controllers.ApiSecurity),
-                    (httpApp, request, paramInfo, success) =>
+                    (httpApp, routeData, paramInfo, success) =>
                     {
                         return EastFive.Web.Configuration.Settings.GetString(AppSettings.ApiKey,
                             (authorizedApiKey) =>
                             {
-                                var queryParams = request.RequestUri.ParseQueryString();
+                                var queryParams = routeData.request.GetAbsoluteUri().ParseQueryString();
                                 if (queryParams["ApiKeySecurity"] == authorizedApiKey)
                                     return success(new Controllers.ApiSecurity());
 
-                                if (request.Headers.IsDefaultOrNull())
-                                    return request.CreateResponse(HttpStatusCode.Unauthorized).ToTask();
-                                if(request.Headers.Authorization.IsDefaultOrNull())
-                                    return request.CreateResponse(HttpStatusCode.Unauthorized).ToTask();
+                                var authorization = routeData.request.GetAuthorization();
 
-                                if(request.Headers.Authorization.Parameter == authorizedApiKey)
+                                if(authorization == authorizedApiKey)
                                     return success(new Controllers.ApiSecurity());
-                                if(request.Headers.Authorization.Scheme == authorizedApiKey)
+                                if(authorization == authorizedApiKey)
                                     return success(new Controllers.ApiSecurity());
 
-                                return request.CreateResponse(HttpStatusCode.Unauthorized).ToTask();
+                                return routeData.CreateResponse(HttpStatusCode.Unauthorized).AsTask();
                             },
-                            (why) => request.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).ToTask());
+                            (why) => routeData.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).ToTask());
                     }
                 },
 
@@ -783,9 +636,8 @@ namespace EastFive.Api
             instigators[type] = instigator;
         }
 
-        public Task<HttpResponseMessage> Instigate(HttpRequestMessage request,
-                 CancellationToken cancellationToken, ParameterInfo methodParameter,
-            Func<object, Task<HttpResponseMessage>> onInstigated)
+        public Task<IHttpResponse> Instigate(IHttpRequest request, ParameterInfo methodParameter,
+            Func<object, Task<IHttpResponse>> onInstigated)
         {
             #region Check for app level override 
 
@@ -796,7 +648,7 @@ namespace EastFive.Api
             {
                 var instigationAttr = instigationAttrsApp.First();
                 return instigationAttr.Instigate(this,
-                        request, cancellationToken, methodParameter,
+                        request, methodParameter,
                     onInstigated);
             }
 
@@ -807,7 +659,7 @@ namespace EastFive.Api
             {
                 var instigationAttr = instigationGenericAttrsApp.First();
                 return instigationAttr.InstigatorDelegateGeneric(methodParameter.ParameterType, this,
-                        request, cancellationToken, methodParameter,
+                        request, methodParameter,
                     (v) => onInstigated(v));
             }
 

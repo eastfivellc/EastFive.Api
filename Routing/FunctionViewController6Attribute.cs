@@ -21,18 +21,17 @@ namespace EastFive.Api
 {
     public class FunctionViewController6Attribute : FunctionViewController5Attribute
     {
-        protected override IEnumerable<MethodInfo> GetHttpMethods(Type controllerType,
-            IApplication httpApp, HttpRequestMessage request, MethodInfo[] extensionMethods)
+        protected override IEnumerable<MethodInfo> GetHttpMethods(Type controllerType, IApplication httpApp, IHttpRequest routeData)
         {
             var matchingActionMethods = controllerType
                 .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
-                .Concat(extensionMethods)
+                .Concat(routeData.extensionMethods)
                 .Where(method => method.ContainsAttributeInterface<IMatchRoute>(true))
                 .Where(
                     method =>
                     {
                         var routeMatcher = method.GetAttributesInterface<IMatchRoute>().Single();
-                        return routeMatcher.IsMethodMatch(method, request, httpApp);
+                        return routeMatcher.IsMethodMatch(method, routeData, httpApp);
                     });
             return matchingActionMethods;
         }
@@ -51,7 +50,7 @@ namespace EastFive.Api
                 httpApp);
         }
 
-        public override bool DoesHandleRequest(Type type, HttpContext context, out RouteData routeData)
+        public override bool DoesHandleRequest(Type type, HttpRequest request, out IHttpRequest routeData)
         {
             if (this.Namespace.HasBlackSpace())
             {
@@ -65,15 +64,15 @@ namespace EastFive.Api
                 return doesMatch;
             }
 
-            routeData = new RouteData();
+            routeData = new IHttpRequest();
             return true;
 
-            bool DoesMatch(int index, string value, out RouteData routeDataInner)
+            bool DoesMatch(int index, string value, out IHttpRequest routeDataInner)
             {
-                routeDataInner = new RouteData();
-                if (!context.Request.Path.HasValue)
+                routeDataInner = new IHttpRequest();
+                if (!request.Path.HasValue)
                     return false;
-                var path = context.Request.Path.Value;
+                var path = request.Path.Value;
                 routeDataInner.pathParameters = path
                     .Split('/'.AsArray())
                     .Where(v => v.HasBlackSpace())

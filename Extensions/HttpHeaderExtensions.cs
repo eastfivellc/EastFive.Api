@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,6 +15,11 @@ namespace EastFive.Api
 {
     public static class HttpHeaderExtensions
     {
+        public static bool IsSuccess(this HttpStatusCode statusCode)
+        {
+            return ((int)statusCode >= 200) && ((int)statusCode <= 299);
+        }
+
         public static CultureInfo[] ToCultures(this HttpHeaderValueCollection<StringWithQualityHeaderValue> acceptsCultures)
         {
             var acceptLookup = acceptsCultures

@@ -4,6 +4,8 @@ using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using EastFive.Linq.Async;
 using EastFive.Web;
+using EastFive.Api.Core;
+using EastFive.Linq;
 
 using System;
 using System.Collections.Generic;
@@ -14,6 +16,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
+using Microsoft.AspNetCore.Http;
 
 namespace EastFive.Api
 {
@@ -21,65 +24,44 @@ namespace EastFive.Api
     {
         TResult ParseContentDelegate<TResult>(IDictionary<string, MultipartContentTokenParser> content,
                 ParameterInfo parameterInfo,
-                IApplication httpApp, HttpRequestMessage request,
+                IApplication httpApp, IHttpRequest routeData,
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure);
     }
 
     public class MimeMultipartContentParserAttribute : Attribute, IParseContent
     {
-        public bool DoesParse(HttpRequestMessage request)
+        public bool DoesParse(IHttpRequest routeData)
         {
-            if (request.Content.IsDefaultOrNull())
-                return false;
-            return request.Content.IsMimeMultipartContent();
+            return routeData.request.IsMimeMultipartContent();
         }
 
-        public async Task<HttpResponseMessage> ParseContentValuesAsync(
-            IApplication httpApp, HttpRequestMessage request,
+        public async Task<IHttpResponse> ParseContentValuesAsync(
+            IApplication httpApp, IHttpRequest routeData,
             Func<
                 CastDelegate, 
                 string[],
-                Task<HttpResponseMessage>> onParsedContentValues)
+                Task<IHttpResponse>> onParsedContentValues)
         {
-            var streamProvider = new MultipartMemoryStreamProvider();
-            try
-            {
-                await request.Content.ReadAsMultipartAsync(streamProvider);
-            }
-            catch (IOException readError)
-            {
-                CastDelegate exceptionParser =
-                    (paramInfo, onParsed, onFailure) =>
-                    {
-                        if (readError.InnerException.IsDefaultOrNull())
-                            return onFailure(readError.Message);
-
-                        var failMsg = $"{readError.Message}:{readError.InnerException.Message}";
-                        return onFailure(failMsg);
-                    };
-                return await onParsedContentValues(exceptionParser, new string[] { });
-            }
-            var contentsLookup = await streamProvider.Contents
+            var contentsLookup = routeData.request.Form.Files
                 .Select(
-                    async (file) =>
+                    (file) =>
                     {
                         if (file.IsDefaultOrNull())
                             return default;
 
-                        var key = file.Headers.ContentDisposition.Name.Trim(new char[] { '"' });
-                        var fileNameMaybe = file.Headers.ContentDisposition.FileName;
+                        var key = file.Name;
+                        var fileNameMaybe = file.FileName;
                         if (null != fileNameMaybe)
                             fileNameMaybe = fileNameMaybe.Trim(new char[] { '"' });
-                        var contents = await file.ReadAsByteArrayAsync();
+                        var contents = file.OpenReadStream().ToBytes();
 
                         var kvp = key.PairWithValue(
-                                new MultipartContentTokenParser(file, contents, fileNameMaybe));
+                            new MultipartContentTokenParser(file, contents, fileNameMaybe));
                         return kvp.AsOptional();
                     })
-                .AsyncEnumerable()
                 .SelectWhereHasValue()
-                .ToDictionaryAsync();
+                .ToDictionary();
 
             CastDelegate parser =
                 (paramInfo, onParsed, onFailure) =>
@@ -87,7 +69,7 @@ namespace EastFive.Api
                     return paramInfo
                         .GetAttributeInterface<IBindMultipartApiValue>(true)
                         .ParseContentDelegate(contentsLookup,
-                                paramInfo, httpApp, request,
+                                paramInfo, httpApp, routeData,
                             onParsed,
                             onFailure);
                 };
@@ -100,7 +82,7 @@ namespace EastFive.Api
     {
         private byte[] contents;
         private string fileNameMaybe;
-        private HttpContent file;
+        private IFormFile file;
 
         public class MemoryStreamForFile : MemoryStream
         {
@@ -108,7 +90,7 @@ namespace EastFive.Api
             public string FileName { get; set; }
         }
 
-        public MultipartContentTokenParser(HttpContent file, byte[] contents, string fileNameMaybe)
+        public MultipartContentTokenParser(IFormFile file, byte[] contents, string fileNameMaybe)
         {
             this.file = file;
             this.contents = contents;

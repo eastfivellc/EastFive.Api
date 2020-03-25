@@ -5,11 +5,15 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-using EastFive.Extensions;
+
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Primitives;
+
+using EastFive.Extensions;
+using EastFive.Linq;
+using System.Net.Http.Headers;
 
 namespace EastFive.Api.Core
 {
@@ -38,14 +42,17 @@ namespace EastFive.Api.Core
             .SetContentType(req);
 
         private static HttpRequestMessage SetAbsoluteUri(this HttpRequestMessage msg, HttpRequest req)
-            => msg.Set(m => m.RequestUri = new UriBuilder
+            => msg.Set(m => m.RequestUri = req.GetAbsoluteUri());
+
+        public static Uri GetAbsoluteUri(this HttpRequest req)
+            => new UriBuilder
             {
                 Scheme = req.Scheme,
                 Host = req.Host.Host,
                 Port = req.Host.Port.Value,
                 Path = req.PathBase.Add(req.Path),
                 Query = req.QueryString.ToString()
-            }.Uri);
+            }.Uri;
 
         private static HttpRequestMessage SetMethod(this HttpRequestMessage msg, HttpRequest req)
             => msg.Set(m => m.Method = new HttpMethod(req.Method));
@@ -71,6 +78,47 @@ namespace EastFive.Api.Core
 
             return msg;
         }
+
+        public static string GetHeader(this HttpRequest req, string headerKey)
+            => req.Headers
+            .Where(kvp => kvp.Key.ToLower() == headerKey.ToLower())
+            .First(
+                (v, next) => v.Value.Any() ? v.Value.First() : string.Empty,
+                () => string.Empty);
+
+        public static IEnumerable<string> GetHeaders(this HttpRequest req, string headerKey)
+            => req.Headers
+            .Where(kvp => kvp.Key.ToLower() == headerKey.ToLower())
+            .SelectMany(kvp => kvp.Value.ToArray());
+
+        public static string GetMediaType(this HttpRequest req)
+            => req.GetHeaders("content-type")
+            .First(
+                (v, next) => v,
+                () => string.Empty);
+
+        public static string GetAuthorization(this HttpRequest req)
+            => req.GetHeaders("Authorization")
+            .First(
+                (v, next) => v,
+                () => string.Empty);
+
+        public static IEnumerable<MediaTypeWithQualityHeaderValue> GetAcceptTypes(this HttpRequest req)
+            => req.GetHeaders("accept")
+            .Select(acceptString => new MediaTypeWithQualityHeaderValue(acceptString));
+
+        public static IEnumerable<StringWithQualityHeaderValue> GetAcceptLanguage(this HttpRequest req)
+            => req.GetHeaders("Accept-Language")
+            .Select(acceptString => new StringWithQualityHeaderValue(acceptString));
+
+        public static bool IsJson(this HttpRequest req)
+            => req.GetMediaType().ToLower().Contains("json");
+
+        public static bool IsMimeMultipartContent(this HttpRequest req)
+            => req.GetMediaType().ToLower().StartsWith("multipart/");
+
+        public static bool IsXml(this HttpRequest req)
+            => req.GetMediaType().ToLower().Contains("xml");
 
         #endregion
 

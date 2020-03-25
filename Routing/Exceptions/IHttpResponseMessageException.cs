@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Http;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -10,8 +11,8 @@ namespace EastFive.Api
 {
     public interface IHttpResponseMessageException
     {
-        HttpResponseMessage CreateResponseAsync(IApplication httpApp,
-            HttpRequestMessage request, Dictionary<string, object> queryParameterOptions, 
+        IHttpResponse CreateResponseAsync(IApplication httpApp,
+            IHttpRequest routeData, Dictionary<string, object> queryParameterOptions, 
             MethodInfo method, object[] methodParameters);
     }
 }

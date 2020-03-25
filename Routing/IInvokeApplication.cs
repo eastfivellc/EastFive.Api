@@ -8,8 +8,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
 using EastFive;
+using EastFive.Api.Core;
 using EastFive.Extensions;
 using EastFive.Linq;
+using Microsoft.AspNetCore.Http;
 
 namespace EastFive.Api
 {
@@ -26,22 +28,23 @@ namespace EastFive.Api
 
         RequestMessage<TResource> GetRequest<TResource>();
 
-        Task<HttpResponseMessage> SendAsync(HttpRequestMessage httpRequest);
-        HttpRequestMessage GetHttpRequest();
+        Task<IHttpResponse> SendAsync(IHttpRequest httpRequest);
+
+        IHttpRequest GetHttpRequest();
     }
 
     public class IInvokeApplicationAttribute : Attribute, IInstigatable
     {
-        public virtual Task<HttpResponseMessage> Instigate(IApplication httpApp, 
-                HttpRequestMessage request, CancellationToken cancellationToken, 
+        public virtual Task<IHttpResponse> Instigate(IApplication httpApp,
+                IHttpRequest request,
                 ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
+            Func<object, Task<IHttpResponse>> onSuccess)
         {
             var instance = Instigate(httpApp, request);
             return onSuccess(instance);
         }
 
-        public static IInvokeApplication Instigate(IApplication httpApp, HttpRequestMessage request)
+        public static IInvokeApplication Instigate(IApplication httpApp, IHttpRequest request)
         {
             var apiPrefix = GetApiPrefix(request);
             var serverLocation = GetServerLocation(request);
@@ -49,20 +52,21 @@ namespace EastFive.Api
             return instance;
         }
 
-        static protected Uri GetServerLocation(HttpRequestMessage request)
+        static protected Uri GetServerLocation(IHttpRequest request)
         {
-            if (request.RequestUri.IsDefaultOrNull())
+            var url = request.GetAbsoluteUri();
+            if (url.IsDefaultOrNull())
                 return new Uri("http://example.com");
 
-            var hostUrlString = request.RequestUri.GetLeftPart(UriPartial.Authority);
+            var hostUrlString = url.GetLeftPart(UriPartial.Authority);
             return new Uri(hostUrlString);
         }
 
-        static protected string GetApiPrefix(HttpRequestMessage request)
+        static protected string GetApiPrefix(IHttpRequest request)
         {
             try
             {
-                return request.RequestUri.AbsolutePath.Trim('/'.AsArray()).Split('/'.AsArray()).First();
+                return request.GetAbsoluteUri().AbsolutePath.Trim('/'.AsArray()).Split('/'.AsArray()).First();
             }
             catch (Exception)
             {
@@ -74,17 +78,17 @@ namespace EastFive.Api
         protected class InvokeApplicationFromRequest : InvokeApplication
         {
             private IApplication httpApp;
-            private HttpRequestMessage request;
+            private IHttpRequest routeData;
 
             //private string[] apiRoute;
 
             public override IApplication Application => httpApp;
 
-            public InvokeApplicationFromRequest(IApplication httpApp, HttpRequestMessage request,
+            public InvokeApplicationFromRequest(IApplication httpApp, IHttpRequest routeData,
                     Uri serverLocation, string apiPrefix) : base(serverLocation, apiPrefix)
             {
                 this.httpApp = httpApp;
-                this.request = request;
+                this.routeData = routeData;
 
                 //var routes = request.GetConfiguration().Routes;
 
@@ -113,19 +117,20 @@ namespace EastFive.Api
                 return new RequestMessage<TResource>(this);
             }
 
-            public override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage httpRequest)
+            public override async Task<IHttpResponse> SendAsync(IHttpRequest httpRequest)
             {
-                using (var client = new HttpClient())
-                {
-                    var response = await client.SendAsync(httpRequest);
-                    return response;
-                }
+                throw new NotImplementedException();
+                //using (var client = new HttpClient())
+                //{
+                //    var response = await client.SendAsync(httpRequest);
+                //    return response;
+                //}
             }
 
-            public override HttpRequestMessage GetHttpRequest()
+            public override IHttpRequest GetHttpRequest()
             {
                 var requestMsg = base.GetHttpRequest();
-                requestMsg.Headers.Referrer = this.request.RequestUri;
+                requestMsg.SetReferrer(this.routeData.GetAbsoluteUri());
                 return requestMsg;
             }
         }

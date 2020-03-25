@@ -1,4 +1,5 @@
 ﻿using EastFive.Extensions;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,6 +17,7 @@ namespace EastFive.Api
         public virtual string[] MvcRoutes => new string[] { };
 
         public Uri ServerLocation { get; private set; }
+
         public string ApiRouteName { get; private set; }
 
         public IDictionary<string, string> Headers { get; private set; }
@@ -52,14 +54,13 @@ namespace EastFive.Api
 
         public abstract IApplication Application { get; }
 
-        public virtual HttpRequestMessage GetHttpRequest()
+        public virtual IHttpRequest GetHttpRequest()
         {
-            var httpRequest = new HttpRequestMessage();
+            var httpRequest = new HttpRequest(this.ServerLocation);
 
             foreach (var headerKVP in this.Headers)
-                httpRequest.Headers.Add(headerKVP.Key, headerKVP.Value);
+                httpRequest.UpdateHeader(headerKVP.Key, x => headerKVP.Value.AsArray());
 
-            httpRequest.RequestUri = this.ServerLocation;
             return httpRequest;
         }
 
@@ -73,9 +74,8 @@ namespace EastFive.Api
             return new RequestMessage<TResource>(this);
         }
 
-        public abstract Task<HttpResponseMessage> SendAsync(HttpRequestMessage httpRequest);
+        public abstract Task<IHttpResponse> SendAsync(IHttpRequest httpRequest);
 
-        
     }
 
     

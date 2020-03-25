@@ -1,4 +1,5 @@
-﻿using EastFive.Extensions;
+﻿using EastFive.Api.Core;
+using EastFive.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -30,40 +31,31 @@ namespace EastFive.Api.Controllers
             });
         }
 
-        public Task<HttpResponseMessage> Instigate(IApplication httpApp,
-                HttpRequestMessage request, CancellationToken cancellationToken,
+        public Task<IHttpResponse> Instigate(IApplication httpApp,
+                IHttpRequest routeData,
                 ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
+            Func<object, Task<IHttpResponse>> onSuccess)
         {
             return EastFive.Web.Configuration.Settings.GetString(AppSettings.ApiKey,
                 (authorizedApiKey) =>
                 {
-                    var queryParams = request.RequestUri.ParseQueryString();
+                    var queryParams = routeData.request.GetAbsoluteUri().ParseQueryString();
                     if (queryParams["ApiKeySecurity"] == authorizedApiKey)
                         return onSuccess(new Controllers.ApiSecurity
                         { 
                             key = queryParams["ApiKeySecurity"],
                         });
 
-                    if (request.Headers.IsDefaultOrNull())
-                        return request.CreateResponse(HttpStatusCode.Unauthorized).AsTask();
-                    if (request.Headers.Authorization.IsDefaultOrNull())
-                        return request.CreateResponse(HttpStatusCode.Unauthorized).AsTask();
-
-                    if (request.Headers.Authorization.Parameter == authorizedApiKey)
+                    var authorization = routeData.request.GetAuthorization();
+                    if (authorization == authorizedApiKey)
                         return onSuccess(new Controllers.ApiSecurity 
                         { 
-                            key = request.Headers.Authorization.Parameter,
-                        });
-                    if (request.Headers.Authorization.Scheme == authorizedApiKey)
-                        return onSuccess(new Controllers.ApiSecurity
-                        {
-                            key = request.Headers.Authorization.Scheme,
+                            key = authorization,
                         });
 
-                    return request.CreateResponse(HttpStatusCode.Unauthorized).AsTask();
+                    return routeData.CreateResponse(HttpStatusCode.Unauthorized).AsTask();
                 },
-                (why) => request.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).AsTask());
+                (why) => routeData.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).AsTask());
         }
     }
 }

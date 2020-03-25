@@ -17,7 +17,7 @@ namespace EastFive.Api
         public HttpResponseMessage Serialize(HttpResponseMessage response,
             IApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo, object obj)
         {
-            var converter = new Serialization.ExtrudeConvert(httpApp, request);
+            var converter = new Serialization.ExtrudeConvert();
             var jsonObj = Newtonsoft.Json.JsonConvert.SerializeObject(obj,
                 new JsonSerializerSettings
                 {

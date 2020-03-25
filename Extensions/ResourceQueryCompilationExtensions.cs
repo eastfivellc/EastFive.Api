@@ -42,14 +42,13 @@ namespace EastFive.Api
             return queryUrl;
         }
 
-        public static HttpRequestMessage CompileRequest<TResource>(this IQueryable<TResource> urlQuery,
-            HttpRequestMessage relativeTo = default)
+        public static IHttpRequest CompileRequest<TResource>(this IQueryable<TResource> urlQuery,
+            IHttpRequest relativeTo = default)
         {
-            var httpRequest = GetHttpRequest();
             var baseUrl = BaseUrl(urlQuery);
-            httpRequest.RequestUri = baseUrl;
+            var httpRequest = new HttpRequest(baseUrl);
 
-            return urlQuery.Compile<HttpRequestMessage, IBuildHttpRequests>(
+            return urlQuery.Compile<IHttpRequest, IBuildHttpRequests>(
                     httpRequest,
                 (request, methodAttr, method, methodArguments) =>
                 {
@@ -65,20 +64,6 @@ namespace EastFive.Api
                     }
                     throw new ArgumentException($"Cannot compile Method `{method.DeclaringType.FullName}..{method.Name}`");
                 });
-
-            HttpRequestMessage GetHttpRequest()
-            {
-                if (!relativeTo.IsDefaultOrNull())
-                    return relativeTo;
-
-                if (urlQuery is RequestMessage<TResource>)
-                    return (urlQuery as RequestMessage<TResource>)
-                        .InvokeApplication
-                        .GetHttpRequest();
-
-                return new HttpRequestMessage();
-            }
-
         }
 
         private static Uri BaseUrl<TResource>(IQueryable<TResource> urlQuery)

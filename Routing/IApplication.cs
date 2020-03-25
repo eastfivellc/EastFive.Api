@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Http;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -9,25 +10,34 @@ using System.Threading.Tasks;
 
 namespace EastFive.Api
 {
-    public delegate Task<HttpResponseMessage> InstigatorDelegate(
-                HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess);
+    public delegate Task<IHttpResponse> InstigatorDelegate(
+                HttpApplication httpApp, IHttpRequest routeData, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess);
 
-    public delegate Task<HttpResponseMessage> InstigatorDelegateGeneric(
-            Type type, HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
-        Func<object, Task<HttpResponseMessage>> onSuccess);
+    public delegate Task<IHttpResponse> InstigatorDelegateGeneric(
+            Type type, HttpApplication httpApp, IHttpRequest routeData, ParameterInfo parameterInfo,
+        Func<object, Task<IHttpResponse>> onSuccess);
 
     public delegate Task<TResult> ParseContentDelegateAsync<TResult>(
             ParameterInfo parameterInfo,
-            IApplication httpApp, HttpRequestMessage request, 
+            IApplication httpApp, IHttpRequest routeData, 
         Func<object, TResult> onParsed,
         Func<string, TResult> onFailure);
 
 
     public delegate Task StoreMonitoringDelegate(Guid monitorRecordId, Guid authenticationId, DateTime when, string method, string controllerName, string queryString);
 
+    public class ResourceInvocation
+    {
+        public IInvokeResource invokeResourceAttr;
+        public Type type;
+        public MethodInfo[] extensions;
+    }
+
     public interface IApplication //: IInvokeApplication
     {
+        ResourceInvocation[] Resources { get; }
+        
         EastFive.Analytics.ILogger Logger { get; }
 
         IEnumerable<MethodInfo> GetExtensionMethods(Type controllerType);
@@ -46,12 +56,9 @@ namespace EastFive.Api
             Func<Type, TResult> onMethodsIdentified,
             Func<TResult> onKeyNotFound);
 
-        Task<HttpResponseMessage> Instigate(HttpRequestMessage request, 
-                CancellationToken cancellationToken,
+        Task<IHttpResponse> Instigate(IHttpRequest request, 
                 ParameterInfo methodParameter,
-            Func<object, Task<HttpResponseMessage>> onInstigated);
-
-
+            Func<object, Task<IHttpResponse>> onInstigated);
     }
 
 }
