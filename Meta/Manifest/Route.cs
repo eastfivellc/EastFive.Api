@@ -24,12 +24,12 @@ namespace EastFive.Api.Resources
         public bool IsEntryPoint { get; set; }
 
         [EastFive.Api.HttpGet]
-        public static HttpResponseMessage FindAsync(
-                HttpApplication httpApp, HttpRequestMessage request,
+        public static IHttpResponse FindAsync(
+                IApplication app,
             ContentTypeResponse<Route[]> onContent)
         {
-            var lookups = httpApp.GetResources();
-            var manifest = new Manifest(lookups, httpApp);
+            var lookups = app.Resources.Select(res => res.type).ToArray();
+            var manifest = new Manifest(lookups, app as HttpApplication);
             return onContent(manifest.Routes);
         }
 

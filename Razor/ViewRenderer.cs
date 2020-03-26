@@ -13,9 +13,9 @@ namespace EastFive.Api
     public delegate string ViewRenderer(string filePath, object content);
     public class ViewRendererAttribute : HtmlResponseAttribute
     {
-        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
-                HttpRequestMessage request, ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
         {
             ViewRenderer responseDelegate =
                 (filePath, content) =>

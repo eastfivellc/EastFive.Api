@@ -39,10 +39,9 @@ namespace EastFive.Api
 
     public class SessionTokenAttribute : Attribute, IInstigatable
     {
-        public Task<HttpResponseMessage> Instigate(IApplication httpApp,
-                HttpRequestMessage request, CancellationToken cancellationToken, 
-                ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
+        public Task<IHttpResponse> Instigate(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
         {
             var accountIdClaimType = Auth.ClaimEnableActorAttribute.Type;
             return request.GetClaims(

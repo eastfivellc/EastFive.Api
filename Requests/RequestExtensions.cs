@@ -16,14 +16,13 @@ using EastFive.Extensions;
 using EastFive.Web;
 using EastFive.Linq.Async;
 using EastFive.Web.Configuration;
-using EastFive.Api.Core;
 
 namespace EastFive.Api
 {
     public static class RequestExtensions
     {
         public static Uri GetAbsoluteUri(this IHttpRequest req)
-            => req.AbsoluteUri;
+            => req.RequestUri;
 
         public static string GetHeader(this IHttpRequest req, string headerKey)
             => req.GetHeaders(headerKey)
@@ -43,16 +42,20 @@ namespace EastFive.Api
             return true;
         }
 
+        #region Media Type
+
+        private const string HeaderKeyContentType = "Content-Type";
+
         public static string GetMediaType(this IHttpRequest req)
-            => req.GetHeader("content-type");
+            => req.GetHeader(HeaderKeyContentType);
 
         public static IEnumerable<MediaTypeWithQualityHeaderValue> GetMediaTypes(this IHttpRequest req)
             => req
-                .GetHeaders("content-type")
+                .GetHeaders(HeaderKeyContentType)
                 .Select(acceptString => new MediaTypeWithQualityHeaderValue(acceptString));
 
         public static bool TryGetMediaType(this IHttpRequest req, out string mediaType)
-            => req.TryGetHeader("content-type", out mediaType);
+            => req.TryGetHeader(HeaderKeyContentType, out mediaType);
 
         public static bool TryGetMediaType(this IHttpRequest req, out MediaTypeWithQualityHeaderValue mediaType)
         {
@@ -66,11 +69,51 @@ namespace EastFive.Api
             return false;
         }
 
+        public static void SetMediaType(this IHttpRequest req, string contentType)
+            => req
+                .UpdateHeader(
+                    HeaderKeyContentType, 
+                    x => x.Append(contentType).ToArray());
+
+        #endregion
+
+
+        public static bool TryGetAcceptEncoding(this IHttpRequest req, out System.Text.Encoding encoding)
+        {
+            var encodingStrings = req
+                .GetHeaders("Accept-Encoding")
+                .Where(
+                    encodingString =>
+                    {
+                        try
+                        {
+                            System.Text.Encoding.GetEncoding(encodingString);
+                            return true;
+                        } catch (ArgumentException)
+                        {
+                            return false;
+                        }
+                    });
+            if(!encodingStrings.Any())
+            {
+                encoding = System.Text.Encoding.UTF8;
+                return false;
+            }
+            encoding = System.Text.Encoding.GetEncoding(encodingStrings.First());
+            return true;
+        }
+
+        #region Authorization
+
         public static string GetAuthorization(this IHttpRequest req)
             => req.GetHeader("Authorization");
 
         public static bool TryGetAuthorization(this IHttpRequest req, out string authorization)
             => req.TryGetHeader("Authorization", out authorization);
+
+        #endregion
+
+        #region Accepts
 
         public static IEnumerable<MediaTypeWithQualityHeaderValue> GetAcceptTypes(this IHttpRequest req)
             => req.GetHeaders("accept")
@@ -79,6 +122,20 @@ namespace EastFive.Api
         public static IEnumerable<StringWithQualityHeaderValue> GetAcceptLanguage(this IHttpRequest req)
             => req.GetHeaders("Accept-Language")
             .Select(acceptString => new StringWithQualityHeaderValue(acceptString));
+
+        #endregion
+
+        public static void SetReferer(this IHttpRequest req, Uri referer)
+            => req.UpdateHeader("Referer", x => x.Append(referer.AbsoluteUri).ToArray());
+
+        public static bool TryGetReferer(this IHttpRequest req, out Uri referer)
+        {
+            if (req.TryGetHeader("Referer", out string refererString))
+                return Uri.TryCreate(refererString, UriKind.RelativeOrAbsolute, out referer);
+
+            referer = default;
+            return false;
+        }
 
         public static bool IsJson(this IHttpRequest req)
             => req.GetMediaType().ToLower().Contains("json");
@@ -133,7 +190,6 @@ namespace EastFive.Api
                 },
                 (why) => false);
         }
-
 
         public static bool IsContentOfType(this IHttpRequest request, string contentType)
         {
@@ -342,7 +398,7 @@ namespace EastFive.Api
             var accountIdClaimTypeConfigurationSetting =
                 EastFive.Api.AppSettings.ActorIdClaimType;
 
-            if(!request.AbsoluteUri.TryGetQueryParam("bearer", out string bearer))
+            if(!request.RequestUri.TryGetQueryParam("bearer", out string bearer))
                 return onNoBearerParameterFound();
 
             var foundClaims = bearer.GetClaimsFromJwtToken(

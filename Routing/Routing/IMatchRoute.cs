@@ -14,7 +14,7 @@ namespace EastFive.Api
         bool IsMethodMatch(MethodInfo method, IHttpRequest routeData, IApplication httpApp);
         
         RouteMatch IsRouteMatch(
-            MethodInfo method, IHttpRequest routeData, IApplication httpApp,
+            MethodInfo method, IInvokeResource resourceInvoker, IHttpRequest routeData, IApplication httpApp,
             IEnumerable<string> bodyKeys, CastDelegate fetchBodyParam);
     }
 

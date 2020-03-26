@@ -28,12 +28,12 @@ namespace EastFive.Api.Core
 
         #region Get Request Message
 
-        public static HttpRequestMessage GetHttpRequestMessage(this HttpContext context)
+        public static HttpRequestMessage GetHttpRequestMessage(this Microsoft.AspNetCore.Http.HttpContext context)
         {
             return context.Request.ToHttpRequestMessage();
         }
 
-        public static HttpRequestMessage ToHttpRequestMessage(this HttpRequest req)
+        public static HttpRequestMessage ToHttpRequestMessage(this Microsoft.AspNetCore.Http.HttpRequest req)
         => new HttpRequestMessage()
             .SetMethod(req)
             .SetAbsoluteUri(req)
@@ -41,10 +41,10 @@ namespace EastFive.Api.Core
             .SetContent(req)
             .SetContentType(req);
 
-        private static HttpRequestMessage SetAbsoluteUri(this HttpRequestMessage msg, HttpRequest req)
+        private static HttpRequestMessage SetAbsoluteUri(this HttpRequestMessage msg, Microsoft.AspNetCore.Http.HttpRequest req)
             => msg.Set(m => m.RequestUri = req.GetAbsoluteUri());
 
-        public static Uri GetAbsoluteUri(this HttpRequest req)
+        public static Uri GetAbsoluteUri(this Microsoft.AspNetCore.Http.HttpRequest req)
             => new UriBuilder
             {
                 Scheme = req.Scheme,
@@ -54,19 +54,19 @@ namespace EastFive.Api.Core
                 Query = req.QueryString.ToString()
             }.Uri;
 
-        private static HttpRequestMessage SetMethod(this HttpRequestMessage msg, HttpRequest req)
+        private static HttpRequestMessage SetMethod(this HttpRequestMessage msg, Microsoft.AspNetCore.Http.HttpRequest req)
             => msg.Set(m => m.Method = new HttpMethod(req.Method));
 
-        private static HttpRequestMessage SetHeaders(this HttpRequestMessage msg, HttpRequest req)
+        private static HttpRequestMessage SetHeaders(this HttpRequestMessage msg, Microsoft.AspNetCore.Http.HttpRequest req)
             => req.Headers
                 .Aggregate(msg,
                     (acc, h) => acc.Set(
                         m => m.Headers.TryAddWithoutValidation(h.Key, h.Value.Select(s => s)).AsEnumerable()));
 
-        private static HttpRequestMessage SetContent(this HttpRequestMessage msg, HttpRequest req)
+        private static HttpRequestMessage SetContent(this HttpRequestMessage msg, Microsoft.AspNetCore.Http.HttpRequest req)
             => msg.Set(m => m.Content = new StreamContent(req.Body));
 
-        private static HttpRequestMessage SetContentType(this HttpRequestMessage msg, HttpRequest req)
+        private static HttpRequestMessage SetContentType(this HttpRequestMessage msg, Microsoft.AspNetCore.Http.HttpRequest req)
             => msg.Set(m => m.Content.Headers.Add("Content-Type", req.ContentType), applyIf: req.Headers.ContainsKey("Content-Type"));
 
         private static HttpRequestMessage Set(this HttpRequestMessage msg, Action<HttpRequestMessage> config, bool applyIf = true)
@@ -79,47 +79,6 @@ namespace EastFive.Api.Core
             return msg;
         }
 
-        public static string GetHeader(this HttpRequest req, string headerKey)
-            => req.Headers
-            .Where(kvp => kvp.Key.ToLower() == headerKey.ToLower())
-            .First(
-                (v, next) => v.Value.Any() ? v.Value.First() : string.Empty,
-                () => string.Empty);
-
-        public static IEnumerable<string> GetHeaders(this HttpRequest req, string headerKey)
-            => req.Headers
-            .Where(kvp => kvp.Key.ToLower() == headerKey.ToLower())
-            .SelectMany(kvp => kvp.Value.ToArray());
-
-        public static string GetMediaType(this HttpRequest req)
-            => req.GetHeaders("content-type")
-            .First(
-                (v, next) => v,
-                () => string.Empty);
-
-        public static string GetAuthorization(this HttpRequest req)
-            => req.GetHeaders("Authorization")
-            .First(
-                (v, next) => v,
-                () => string.Empty);
-
-        public static IEnumerable<MediaTypeWithQualityHeaderValue> GetAcceptTypes(this HttpRequest req)
-            => req.GetHeaders("accept")
-            .Select(acceptString => new MediaTypeWithQualityHeaderValue(acceptString));
-
-        public static IEnumerable<StringWithQualityHeaderValue> GetAcceptLanguage(this HttpRequest req)
-            => req.GetHeaders("Accept-Language")
-            .Select(acceptString => new StringWithQualityHeaderValue(acceptString));
-
-        public static bool IsJson(this HttpRequest req)
-            => req.GetMediaType().ToLower().Contains("json");
-
-        public static bool IsMimeMultipartContent(this HttpRequest req)
-            => req.GetMediaType().ToLower().StartsWith("multipart/");
-
-        public static bool IsXml(this HttpRequest req)
-            => req.GetMediaType().ToLower().Contains("xml");
-
         #endregion
 
         #region Response
@@ -129,7 +88,7 @@ namespace EastFive.Api.Core
             return context.Response.FromHttpResponseMessage(msg);
         }
 
-        public static async Task FromHttpResponseMessage(this HttpResponse resp, HttpResponseMessage msg)
+        public static async Task FromHttpResponseMessage(this Microsoft.AspNetCore.Http.HttpResponse resp, HttpResponseMessage msg)
         {
             resp.SetStatusCode(msg)
                 .SetHeaders(msg)
@@ -138,13 +97,13 @@ namespace EastFive.Api.Core
             await resp.SetBodyAsync(msg);
         }
 
-        private static HttpResponse SetStatusCode(this HttpResponse resp, HttpResponseMessage msg)
+        private static Microsoft.AspNetCore.Http.HttpResponse SetStatusCode(this Microsoft.AspNetCore.Http.HttpResponse resp, HttpResponseMessage msg)
             => resp.Set(r => r.StatusCode = (int)msg.StatusCode);
 
-        private static HttpResponse SetHeaders(this HttpResponse resp, HttpResponseMessage msg)
+        private static Microsoft.AspNetCore.Http.HttpResponse SetHeaders(this Microsoft.AspNetCore.Http.HttpResponse resp, HttpResponseMessage msg)
             => msg.Headers.Aggregate(resp, (acc, h) => acc.Set(r => r.Headers[h.Key] = new StringValues(h.Value.ToArray())));
 
-        private static async Task<HttpResponse> SetBodyAsync(this HttpResponse resp, HttpResponseMessage msg)
+        private static async Task<Microsoft.AspNetCore.Http.HttpResponse> SetBodyAsync(this Microsoft.AspNetCore.Http.HttpResponse resp, HttpResponseMessage msg)
         {
             if (msg.Content.IsDefaultOrNull())
                 return resp;
@@ -157,12 +116,12 @@ namespace EastFive.Api.Core
             }
         }
 
-        private static HttpResponse SetContentType(this HttpResponse resp, HttpResponseMessage msg)
+        private static Microsoft.AspNetCore.Http.HttpResponse SetContentType(this Microsoft.AspNetCore.Http.HttpResponse resp, HttpResponseMessage msg)
             => resp.Set(
                 r => r.ContentType = msg.Content.Headers.GetValues("Content-Type").Single(),
                 applyIf: (!msg.Content.IsDefaultOrNull()) && msg.Content.Headers.Contains("Content-Type"));
 
-        private static HttpResponse Set(this HttpResponse msg, Action<HttpResponse> config, bool applyIf = true)
+        private static Microsoft.AspNetCore.Http.HttpResponse Set(this Microsoft.AspNetCore.Http.HttpResponse msg, Action<Microsoft.AspNetCore.Http.HttpResponse> config, bool applyIf = true)
         {
             if (applyIf)
             {

@@ -25,20 +25,18 @@ namespace EastFive.Api
 
     public class JsonContentParserAttribute : Attribute, IParseContent
     {
-        public bool DoesParse(IHttpRequest routeData)
+        public bool DoesParse(IHttpRequest request)
         {
-            var request = routeData.request;
             return request.IsJson();
         }
 
         public async Task<IHttpResponse> ParseContentValuesAsync(
-            IApplication httpApp, IHttpRequest routeData,
+            IApplication httpApp, IHttpRequest request,
             Func<
                 CastDelegate, 
                 string[],
                 Task<IHttpResponse>> onParsedContentValues)
         {
-            var request = routeData.request;
             var contentString = request.Body.ReadAsString();
             var exceptionKeys = new string[] { };
             if (contentString.IsNullOrWhiteSpace())
@@ -66,7 +64,7 @@ namespace EastFive.Api
                             .GetAttributeInterface<IBindJsonApiValue>()
                             .ParseContentDelegate(contentJObject,
                                     contentString, bindConvert,
-                                    paramInfo, httpApp, routeData,
+                                    paramInfo, httpApp, request,
                                 onParsed,
                                 onFailure);
                     };

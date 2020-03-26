@@ -64,16 +64,5 @@ namespace BlackBarLabs.Api.Resources
         {
             return (default(ResourceBase) == value) ? default(WebId) : value.Id;
         }
-        
-        public static implicit operator WebId(ResourceQueryBase value)
-        {
-            return value.Id.Parse(
-                (v) => v,
-                (vs) => vs.First(),
-                () => default(WebId),
-                () => default(WebId),
-                () => default(WebId),
-                () => default(WebId));
-        }
     }
 }

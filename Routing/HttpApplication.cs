@@ -569,11 +569,11 @@ namespace EastFive.Api
                         return EastFive.Web.Configuration.Settings.GetString(AppSettings.ApiKey,
                             (authorizedApiKey) =>
                             {
-                                var queryParams = routeData.request.GetAbsoluteUri().ParseQueryString();
+                                var queryParams = routeData.GetAbsoluteUri().ParseQueryString();
                                 if (queryParams["ApiKeySecurity"] == authorizedApiKey)
                                     return success(new Controllers.ApiSecurity());
 
-                                var authorization = routeData.request.GetAuthorization();
+                                var authorization = routeData.GetAuthorization();
 
                                 if(authorization == authorizedApiKey)
                                     return success(new Controllers.ApiSecurity());
@@ -608,7 +608,7 @@ namespace EastFive.Api
                     typeof(Analytics.ILogger),
                     async (httpApp, request, paramInfo, success) =>
                     {
-                        if(!request.Headers.Contains("X-Diagnostics"))
+                        if(!request.TryGetHeader("X-Diagnostics", out string hdrValue))
                             return await success(httpApp.Logger);
                         var timer = new Stopwatch();
                         timer.Start();
@@ -616,7 +616,7 @@ namespace EastFive.Api
                         var response = await success(logger);
                         logger.Trace("Response concluded.");
                         var diagnosticsLog = logger.Dump();
-                        response.RequestMessage.Properties.Add(DiagnosticsLogProperty, diagnosticsLog);
+                        response.Request.Properties.Add(DiagnosticsLogProperty, diagnosticsLog);
                         // response.Content = new StringContent(responseString, Encoding.UTF8, "text/text");
                         return response;
                     }
@@ -672,7 +672,7 @@ namespace EastFive.Api
             {
                 var instigationAttr = instigationAttrs.First();
                 return instigationAttr.Instigate(this,
-                        request, cancellationToken, methodParameter,
+                        request, methodParameter,
                     onInstigated);
             }
 
@@ -681,7 +681,7 @@ namespace EastFive.Api
             {
                 var instigationAttr = instigationGenericAttrs.First();
                 return instigationAttr.InstigatorDelegateGeneric(methodParameter.ParameterType, this,
-                        request, cancellationToken, methodParameter,
+                        request, methodParameter,
                     (v) => onInstigated(v));
             }
 
@@ -690,7 +690,7 @@ namespace EastFive.Api
             #region Context types
 
             if (methodParameter.ParameterType.IsAssignableFrom(typeof(CancellationToken)))
-                return onInstigated(cancellationToken);
+                return onInstigated(request.CancellationToken);
 
             if (methodParameter.ParameterType.IsAssignableFrom(typeof(HttpRequestMessage)))
                 return onInstigated(request);
@@ -875,7 +875,7 @@ namespace EastFive.Api
         public IEnumerable<MethodInfo> GetExtensionMethods(Type controllerType)
         {
             if (routeResourceExtensionLookup.ContainsKey(controllerType))
-                return routeResourceExtensionLookup[controllerType];
+                return routeResourceExtensionLookup[controllerType].extensions;
             return new MethodInfo[] { };
         }
 

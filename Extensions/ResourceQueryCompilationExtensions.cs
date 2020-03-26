@@ -1,10 +1,4 @@
-﻿using BlackBarLabs.Extensions;
-using EastFive.Collections.Generic;
-using EastFive.Extensions;
-using EastFive.Linq;
-using EastFive.Linq.Expressions;
-using EastFive.Reflection;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -12,7 +6,12 @@ using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using System.Web.Http;
+
+using EastFive.Collections.Generic;
+using EastFive.Extensions;
+using EastFive.Linq;
+using EastFive.Linq.Expressions;
+using EastFive.Reflection;
 
 namespace EastFive.Api
 {

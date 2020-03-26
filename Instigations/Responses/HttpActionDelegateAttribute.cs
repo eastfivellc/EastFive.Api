@@ -7,8 +7,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using BlackBarLabs.Extensions;
-using EastFive.Api.Modules;
+
 using EastFive.Api.Resources;
 using EastFive.Collections.Generic;
 using EastFive.Extensions;
@@ -28,10 +27,9 @@ namespace EastFive.Api
 
         public virtual string Example { get; set; }
 
-        public virtual Task<HttpResponseMessage> Instigate(IApplication httpApp,
-                HttpRequestMessage request, CancellationToken cancellationToken,
-                ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
+        public virtual Task<IHttpResponse> Instigate(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
         {
             return InstigateInternal(httpApp, request, parameterInfo,
                 callback =>
@@ -56,12 +54,12 @@ namespace EastFive.Api
                 });
         }
 
-        public abstract Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
-                HttpRequestMessage request, ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess);
+        public abstract Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess);
 
         public object GenerateIntercept<TResult>(object callback,
-                HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo)
+                HttpApplication httpApp, IHttpRequest request, ParameterInfo parameterInfo)
         {
             var callbackCast = callback as MulticastDelegate;
             Func<TResult> interceptor =
@@ -75,14 +73,14 @@ namespace EastFive.Api
         }
 
         protected virtual TResult InterceptResult<TResult>(
-            HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo, 
+            HttpApplication httpApp, IHttpRequest request, ParameterInfo parameterInfo, 
             TResult result)
         {
             return result;
         }
 
         public object GenerateIntercept<T1, TResult>(object callback,
-                HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo)
+                HttpApplication httpApp, IHttpRequest request, ParameterInfo parameterInfo)
         {
             var callbackCast = callback as Func<T1, TResult>;
             Func<T1, TResult> interceptor =
@@ -97,14 +95,14 @@ namespace EastFive.Api
         }
 
         protected virtual TResult InterceptResult<T1, TResult>(
-                HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
+                HttpApplication httpApp, IHttpRequest request, ParameterInfo parameterInfo,
                 T1 v1, TResult result)
         {
             return result;
         }
 
         public object GenerateIntercept<T1, T2, TResult>(object callback,
-                HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo)
+                HttpApplication httpApp, IHttpRequest request, ParameterInfo parameterInfo)
         {
             var callbackCast = callback as Func<T1, T2, TResult>;
             Func<T1, T2, TResult> interceptor = (v1, v2) =>
@@ -118,14 +116,14 @@ namespace EastFive.Api
         }
 
         protected virtual TResult InterceptResult<T1, T2, TResult>(
-                HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
+                HttpApplication httpApp, IHttpRequest request, ParameterInfo parameterInfo,
                 T1 v1, T2 v2, TResult result)
         {
             return result;
         }
 
         public object GenerateIntercept<T1, T2, T3, TResult>(object callback,
-                HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo)
+                HttpApplication httpApp, IHttpRequest request, ParameterInfo parameterInfo)
         {
             var callbackCast = callback as Func<T1, T2, T3, TResult>;
             Func<T1, T2, T3, TResult> interceptor = (v1, v2, v3) =>
@@ -139,7 +137,7 @@ namespace EastFive.Api
         }
 
         protected virtual TResult InterceptResult<T1, T2, T3, TResult>(
-                HttpApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo,
+                HttpApplication httpApp, IHttpRequest request, ParameterInfo parameterInfo,
                 T1 v1, T2 v2, T3 v3, TResult result)
         {
             return result;

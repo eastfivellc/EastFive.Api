@@ -28,8 +28,9 @@ namespace EastFive.Api.Modules
         {
         }
 
-        private Task<HttpResponseMessage> StoreMonitoringInfoAndFireRequestAsync(IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken, Guid authenticationId,
-            Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> continuation)
+        private Task<IHttpResponse> StoreMonitoringInfoAndFireRequestAsync(IApplication httpApp,
+            IHttpRequest request, CancellationToken cancellationToken, Guid authenticationId,
+            Func<IHttpRequest, CancellationToken, Task<IHttpResponse>> continuation)
         {
             return GetControllerNameAndId(request, 
                 async (controllerName, iden) =>
@@ -52,8 +53,9 @@ namespace EastFive.Api.Modules
                 ()=> continuation(request, cancellationToken));
         }
 
-        protected override Task<HttpResponseMessage> SendAsync(IApplication httpApplication, HttpRequestMessage request, CancellationToken cancellationToken,
-            Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> continuation)
+        protected override Task<IHttpResponse> SendAsync(IApplication httpApplication,
+            IHttpRequest request, CancellationToken cancellationToken,
+            Func<IHttpRequest, CancellationToken, Task<IHttpResponse>> continuation)
         {
             return request.GetActorIdClaimsFromBearerParamAsync(
                 (authenticationId, claims) => StoreMonitoringInfoAndFireRequestAsync(
@@ -78,7 +80,7 @@ namespace EastFive.Api.Modules
                 () => continuation(request, cancellationToken));
         }
 
-        private TResult GetControllerNameAndId<TResult>(HttpRequestMessage request,
+        private TResult GetControllerNameAndId<TResult>(IHttpRequest request,
             Func<string, string, TResult> onSuccess,
             Func<TResult> onUndetermined)
         {
@@ -99,7 +101,7 @@ namespace EastFive.Api.Modules
             return onUndetermined();
         }
 
-        private string GetParamInfo(HttpRequestMessage request, string iden)
+        private string GetParamInfo(IHttpRequest request, string iden)
         {
             var queryParams = request.RequestUri.ParseQueryString();
             var queryElements = queryParams.AllKeys.Select(qP => $"{qP}:{queryParams[qP]}");

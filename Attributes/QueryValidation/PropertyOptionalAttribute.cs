@@ -13,7 +13,6 @@ namespace EastFive.Api
     {
         public override SelectParameterResult TryCast(BindingData bindingData)
         {
-            var request = bindingData.request.request;
             var parameterRequiringValidation = bindingData.parameterRequiringValidation;
             var baseValue = base.TryCast(bindingData);
             if (baseValue.valid)

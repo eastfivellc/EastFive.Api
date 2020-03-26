@@ -133,10 +133,9 @@ namespace EastFive.Api
             Func<string, TResult> onFailure);
 
         private static async Task<IHttpResponse> CreateResponseAsync(IApplication httpApp,
-            IHttpRequest routeData,
+            IHttpRequest request,
             string routeName, MethodInfo[] methods)
         {
-            var request = routeData.request;
             var absoluteUri = request.GetAbsoluteUri();
             var fileNameParams = absoluteUri.OriginalString
                 .MatchRegexInvoke(
@@ -197,16 +196,16 @@ namespace EastFive.Api
 
             return await httpApp.GetType()
                 .GetAttributesInterface<IParseContent>(true, true)
-                .Where(contentParser => contentParser.DoesParse(routeData))
+                .Where(contentParser => contentParser.DoesParse(request))
                 .First(
                     (contentParser, next) =>
                     {
-                        return contentParser.ParseContentValuesAsync(httpApp, routeData,
+                        return contentParser.ParseContentValuesAsync(httpApp, request,
                             (bodyCastDelegate, bodyValues) => GetResponseAsync(methods,
                                 queryCastDelegate,
                                 bodyCastDelegate,
                                 fileNameCastDelegate,
-                                httpApp, routeData,
+                                httpApp, request,
                                 queryParameters.SelectKeys(),
                                 bodyValues,
                                 fileNameParams.Any()));
@@ -223,7 +222,7 @@ namespace EastFive.Api
                                 queryCastDelegate,
                                 parserEmpty,
                                 fileNameCastDelegate,
-                                httpApp, routeData,
+                                httpApp, request,
                                 queryParameters.SelectKeys(),
                                 new string[] { },
                                 fileNameParams.Any());
@@ -237,7 +236,7 @@ namespace EastFive.Api
                             queryCastDelegate,
                             parser,
                             fileNameCastDelegate,
-                            httpApp, routeData,
+                            httpApp, request,
                             queryParameters.SelectKeys(),
                             new string[] { },
                             fileNameParams.Any());
@@ -590,11 +589,10 @@ namespace EastFive.Api
         }
 
         private static Task<IHttpResponse> InvokeValidatedMethod(IApplication httpApp,
-                IHttpRequest routeData, MethodInfo method,
+                IHttpRequest request, MethodInfo method,
             KeyValuePair<ParameterInfo, object>[] queryParameters)
         {
-            var request = routeData.request;
-            var cancellationToken = routeData.cancellationToken;
+            var cancellationToken = request.CancellationToken;
             var queryParameterOptions = queryParameters.ToDictionary(kvp => kvp.Key.Name, kvp => kvp.Value);
             return method
                 .GetParameters()
@@ -604,7 +602,7 @@ namespace EastFive.Api
                         if (queryParameterOptions.ContainsKey(methodParameter.Name))
                             return await next(queryParameterOptions[methodParameter.Name]);
 
-                        return await httpApp.Instigate(routeData, methodParameter,
+                        return await httpApp.Instigate(request, methodParameter,
                             v => next(v));
                     },
                     async (object[] methodParameters) =>
@@ -614,7 +612,7 @@ namespace EastFive.Api
                             if (method.IsGenericMethod)
                             {
                                 var genericArguments = method.GetGenericArguments().Select(arg => arg.Name).Join(",");
-                                return routeData.CreateResponse(HttpStatusCode.InternalServerError)
+                                return request.CreateResponse(HttpStatusCode.InternalServerError)
                                     .AddReason($"Could not invoke {method.DeclaringType.FullName}..{method.Name} because it contains generic arguments:{genericArguments}");
                             }
 
@@ -626,7 +624,7 @@ namespace EastFive.Api
                             if (typeof(Task<Task<IHttpResponse>>).IsAssignableFrom(method.ReturnType))
                                 return (await await (Task<Task<IHttpResponse>>)response);
 
-                            return (routeData.CreateResponse(System.Net.HttpStatusCode.InternalServerError)
+                            return (request.CreateResponse(System.Net.HttpStatusCode.InternalServerError)
                                 .AddReason($"Could not convert type: {method.ReturnType.FullName} to HttpResponseMessage."));
                         }
                         catch (TargetInvocationException ex)
@@ -636,7 +634,7 @@ namespace EastFive.Api
                                 ex.StackTrace
                                 :
                                 $"[{ex.InnerException.GetType().FullName}]{ex.InnerException.Message}:\n{ex.InnerException.StackTrace}";
-                            return routeData
+                            return request
                                 .CreateResponse(HttpStatusCode.InternalServerError, body)
                                 .AddReason($"Could not invoke {method.DeclaringType.FullName}.{method.Name}({paramList})");
                         }
@@ -646,11 +644,11 @@ namespace EastFive.Api
                             {
                                 var httpResponseMessageException = ex as IHttpResponseMessageException;
                                 return httpResponseMessageException.CreateResponseAsync(
-                                    httpApp, routeData, queryParameterOptions,
+                                    httpApp, request, queryParameterOptions,
                                     method, methodParameters);
                             }
                             // TODO: Only do this in a development environment
-                            return routeData
+                            return request
                                 .CreateResponse(HttpStatusCode.InternalServerError, ex.StackTrace)
                                 .AddReason(ex.Message);
                         }
@@ -666,9 +664,8 @@ namespace EastFive.Api
             return new Route(type, this.Route, methods, httpApp);
         }
 
-        public virtual bool DoesHandleRequest(Type type, HttpRequest context, out IHttpRequest fileParams)
+        public virtual bool DoesHandleRequest(Type type, IHttpRequest request)
         {
-            fileParams = new IHttpRequest ();
             return false;
         }
     }

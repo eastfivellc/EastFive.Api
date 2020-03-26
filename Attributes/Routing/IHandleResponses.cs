@@ -8,15 +8,15 @@ using System.Threading.Tasks;
 
 namespace EastFive.Api
 {
-    public delegate HttpResponseMessage ResponseHandlingDelegate(ParameterInfo parameterInfo,
-            IApplication httpApp, HttpRequestMessage request,
-            HttpResponseMessage response);
+    public delegate IHttpResponse ResponseHandlingDelegate(ParameterInfo parameterInfo,
+            IApplication httpApp, IHttpRequest request,
+            IHttpResponse response);
 
     public interface IHandleResponses
     {
-        HttpResponseMessage HandleResponse(ParameterInfo parameterInfo,
-            IApplication httpApp, HttpRequestMessage request,
-            HttpResponseMessage response,
+        IHttpResponse HandleResponse(ParameterInfo parameterInfo,
+            IApplication httpApp, IHttpRequest request,
+            IHttpResponse response,
             ResponseHandlingDelegate continueExecution);
     }
 }

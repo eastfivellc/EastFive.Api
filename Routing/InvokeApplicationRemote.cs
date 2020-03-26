@@ -18,7 +18,7 @@ namespace EastFive.Api
         {
         }
 
-        public override async Task<IHttpResponse> SendAsync(HttpRequest httpRequest)
+        public override async Task<IHttpResponse> SendAsync(IHttpRequest httpRequest)
         {
             throw new NotImplementedException();
             //using (var client = new HttpClient())
@@ -138,7 +138,7 @@ namespace EastFive.Api
         {
             public bool ForceBackground => false;
 
-            public Task<HttpResponseMessage> InvokeAsync(Action<double> updateCallback)
+            public Task<IHttpResponse> InvokeAsync(Action<double> updateCallback)
             {
                 throw new NotImplementedException();
             }

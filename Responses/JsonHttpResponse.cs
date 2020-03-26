@@ -5,9 +5,13 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-using EastFive.Extensions;
+
 using Microsoft.AspNetCore.Http;
+
 using Newtonsoft.Json;
+
+using EastFive.Extensions;
+using System.IO;
 
 namespace EastFive.Api
 {
@@ -20,20 +24,35 @@ namespace EastFive.Api
             : base(request, statusCode)
         {
             this.content = content;
+            this.Headers.Add("Content-Type", "application/json".AsArray());
         }
 
-        public async override Task WriteResultAsync(HttpContext context)
+        public override Task WriteResponseAsync(System.IO.Stream responseStream)
         {
-            await base.WriteResultAsync(context);
-            context.Response.Headers.Add("Content-Type", "application/json");
-            var converter = new Serialization.ExtrudeConvert();
-            var jsonContent = Newtonsoft.Json.JsonConvert.SerializeObject(content,
-                new JsonSerializerSettings
-                {
-                    Converters = new JsonConverter[] { converter }.ToList(),
-                });
-            await context.Response.WriteAsync(jsonContent, Encoding.UTF8);
-            return;
+            return WriteResponseAsync(responseStream, this.content, this.Request);
+        }
+
+        public static Task WriteResponseAsync(System.IO.Stream responseStream, T content,
+            IHttpRequest request)
+        {
+            if (request.TryGetAcceptEncoding(out Encoding encoding))
+                return WriteResponseAsync(responseStream, content, encoding);
+
+            return WriteResponseAsync(responseStream, content);
+        }
+
+        public async static Task WriteResponseAsync(System.IO.Stream responseStream, object content,
+            Encoding encoding = default)
+        {
+            var settings = new JsonSerializerSettings();
+            settings.Converters.Add(new Serialization.Converter());
+            settings.DefaultValueHandling = DefaultValueHandling.Ignore;
+            var contentJsonString = JsonConvert.SerializeObject(content, settings);
+            var writer = encoding.IsDefaultOrNull() ?
+                new StreamWriter(responseStream)
+                :
+                new StreamWriter(responseStream, encoding);
+            await writer.WriteAsync(contentJsonString);
         }
     }
 }

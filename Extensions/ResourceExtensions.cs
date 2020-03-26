@@ -161,72 +161,6 @@ namespace BlackBarLabs.Api
             return multiple(guids);
         }
 
-        public static Resources.WebId GetWebId<TController>(this UrlHelper url,
-            Guid id,
-            string routeName = "DefaultApi")
-        {
-            return url.GetWebId(typeof(TController), id, routeName);
-        }
-
-        public static Resources.WebId GetWebId(this UrlHelper url,
-            Type controllerType,
-            Guid id,
-            string routeName = "DefaultApi")
-        {
-            var controllerName =
-                controllerType.Name.TrimEnd("Controller",
-                    (trimmedName) => trimmedName, (originalName) => originalName);
-            var location = url.Link(routeName, new { Controller = controllerName, Id = id });
-            return new Resources.WebId
-            {
-                Key = id.ToString(),
-                UUID = id,
-                URN = id.ToWebUrn(controllerName, ""),
-                Source = new Uri(location),
-            };
-        }
-
-        public static Resources.WebId GetWebId(this UrlHelper url,
-            Guid id, string ns)
-        {
-            return new Resources.WebId
-            {
-                Key = id.ToString(),
-                UUID = id,
-                URN = id.ToWebUrn(ns, ""),
-            };
-        }
-
-        public static Resources.WebId[] GetWebIds<TController>(this UrlHelper url,
-            Guid [] ids,
-            string routeName = "DefaultApi")
-        {
-            return ids.Select(id => url.GetWebId<TController>(id)).ToArray();
-        }
-
-        public static Resources.WebIdQuery GetWebIdQuery<TController>(this UrlHelper url,
-            Guid [] ids,
-            string routeName = "DefaultApi")
-        {
-            var controllerName =
-                typeof(TController).Name.TrimEnd("Controller",
-                    (trimmedName) => trimmedName, (originalName) => originalName);
-            var keys = ids.Select(id => id.ToString("N")).Join(",");
-            var uuid = keys;
-            var urns = ids.Select(id => id.ToWebUrn(controllerName, "").AbsoluteUri).Join(",");
-            var location = url.Link(routeName,
-                new Dictionary<string, object>
-                {
-                    { "Controller", controllerName },
-                    { $"{controllerName}Id" , uuid },
-                });
-            return new Resources.WebIdQuery
-            {
-                UUIDs = keys,
-                URN = urns,
-                Source = location,
-            };
-        }
 
         public static Resources.WebId GetWebId<TController>(this UrlHelper url,
             Guid? idMaybe,
@@ -247,22 +181,6 @@ namespace BlackBarLabs.Api
             return url.GetWebId(controllerType, idMaybe.Value, routeName);
         }
 
-        public static Resources.WebId GetWebId<TController>(this UrlHelper url,
-            string urn,
-            string routeName = "DefaultApi")
-        {
-            var controllerName =
-                typeof(TController).Name.TrimEnd("Controller",
-                    (trimmedName) => trimmedName, (originalName) => originalName);
-            var location = url.Link(routeName, new { Controller = controllerName, Id = default(Guid) });
-            return new Resources.WebId
-            {
-                Key = default(Guid).ToString(),
-                UUID = default(Guid),
-                URN = new Uri(urn),
-                Source = new Uri(location)
-            };
-        }
 
         public static Resources.WebId GetWebId(this UrlHelper url,
             Type controllerType,
@@ -586,31 +504,6 @@ namespace BlackBarLabs.Api
             return webId.UUID;
         }
         
-        public static Guid? ToGuid(this Resources.WebIdQuery webIdQuery)
-        {
-            if (default(WebIdQuery) == webIdQuery)
-                return default(Guid?);
-            return webIdQuery.Parse(
-                (id) => (Guid?)id,
-                (ids) => default(Guid?),
-                () => default(Guid?),
-                () => default(Guid?),
-                () => default(Guid?),
-                () => default(Guid?));
-        }
-
-        public static Guid[] ToGuids(this Resources.WebIdQuery webIdQuery)
-        {
-            if (default(WebIdQuery) == webIdQuery)
-                return default(Guid []);
-            return webIdQuery.Parse(
-                (id) => new Guid[] { id },
-                (ids) => ids.ToArray(),
-                () => new Guid[] { },
-                () => new Guid[] { },
-                () => new Guid[] { },
-                () => new Guid[] { });
-        }
 
         public static Resources.WebId GetWebIdUUID(this Guid uuId)
         {

@@ -17,5 +17,5 @@ using EastFive.Reflection;
 namespace EastFive.Api
 {
     [StatusCodeResponse(StatusCode = HttpStatusCode.NoContent)]
-    public delegate HttpResponseMessage NoContentResponse();
+    public delegate IHttpResponse NoContentResponse();
 }

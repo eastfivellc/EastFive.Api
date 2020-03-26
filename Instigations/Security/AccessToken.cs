@@ -35,10 +35,9 @@ namespace EastFive.Api
             return onParsed(default(AccessTokenAccount));
         }
 
-        public Task<HttpResponseMessage> Instigate(IApplication httpApp,
-                HttpRequestMessage request, CancellationToken cancellationToken, 
-                ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
+        public Task<IHttpResponse> Instigate(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
         {
             return request.RequestUri.ValidateAccessTokenAccount(
                 accessToken => onSuccess(accessToken),

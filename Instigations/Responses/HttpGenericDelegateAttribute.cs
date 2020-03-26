@@ -21,9 +21,9 @@ namespace EastFive.Api
 
         public virtual string Example { get; set; }
 
-        public override Task<HttpResponseMessage> InstigatorDelegateGeneric(Type type,
-            IApplication httpApp, HttpRequestMessage request, CancellationToken cancellationToken, ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
+        public override Task<IHttpResponse> InstigatorDelegateGeneric(Type type,
+            IApplication httpApp, IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
         {
             var attrType = this.GetType();
             var scope = Activator.CreateInstance(attrType);
@@ -47,7 +47,7 @@ namespace EastFive.Api
             return attrType
                 .GetMethods(BindingFlags.Public | BindingFlags.Instance)
                 .Where(method => method.ContainsAttributeInterface<IDefineInstigateMethod>())
-                .First<MethodInfo, Task<HttpResponseMessage>>(
+                .First<MethodInfo, Task<IHttpResponse>>(
                     (multipartResponseMethodInfoGeneric, next) =>
                     {
                         var multipartResponseMethodInfoBound = multipartResponseMethodInfoGeneric
@@ -61,7 +61,8 @@ namespace EastFive.Api
                     });
         }
 
-        protected override object CreateScope(Type type, IApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo)
+        protected override object CreateScope(Type type, IApplication httpApp,
+            IHttpRequest request, ParameterInfo paramInfo)
         {
             var scope = base.CreateScope(type, httpApp, request, paramInfo);
             var statusCodeProperty = typeof(HttpGenericDelegateAttribute)

@@ -17,14 +17,14 @@ using EastFive.Reflection;
 namespace EastFive.Api
 {
     [GeneralFailureResponse]
-    public delegate HttpResponseMessage GeneralFailureResponse(string why = default);
+    public delegate IHttpResponse GeneralFailureResponse(string why = default);
     public class GeneralFailureResponseAttribute : HttpFuncDelegateAttribute
     {
         public override HttpStatusCode StatusCode => HttpStatusCode.InternalServerError;
 
-        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
-                HttpRequestMessage request, ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
         {
             GeneralFailureResponse responseDelegate =
                 (why) =>
@@ -39,20 +39,20 @@ namespace EastFive.Api
     }
 
     [StatusCodeResponse(StatusCode = HttpStatusCode.NotImplemented)]
-    public delegate HttpResponseMessage NotImplementedResponse();
+    public delegate IHttpResponse NotImplementedResponse();
 
     [StatusCodeResponse(StatusCode = HttpStatusCode.ServiceUnavailable)]
-    public delegate HttpResponseMessage ServiceUnavailableResponse();
+    public delegate IHttpResponse ServiceUnavailableResponse();
 
     [ConfigurationFailureResponse]
-    public delegate HttpResponseMessage ConfigurationFailureResponse(string configurationValue, string message);
+    public delegate IHttpResponse ConfigurationFailureResponse(string configurationValue, string message);
     public class ConfigurationFailureResponseAttribute : HttpFuncDelegateAttribute
     {
         public override HttpStatusCode StatusCode => HttpStatusCode.ServiceUnavailable;
 
-        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
-                HttpRequestMessage request, ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
         {
             ConfigurationFailureResponse responseDelegate =
                 (configurationValue, message) =>

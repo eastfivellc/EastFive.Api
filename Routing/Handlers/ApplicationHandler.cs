@@ -46,9 +46,10 @@ namespace EastFive.Api.Modules
             
             // add applicationProperty as a property to identify this method has already been called.
             request.Properties.Add(applicationProperty, this.application);
-            return SendAsync(this.application, request, cancellationToken,
-                (requestBase, cancellationTokenBase) =>
-                    base.SendAsync(requestBase, cancellationTokenBase));
+            throw new NotImplementedException();
+            //return SendAsync(this.application, request, cancellationToken,
+            //    (requestBase, cancellationTokenBase) =>
+            //        base.SendAsync(requestBase, cancellationTokenBase));
         }
 
         /// <summary>
@@ -60,8 +61,8 @@ namespace EastFive.Api.Modules
         /// <param name="continuation">In the event that the given application handler does not handle this request,
         /// this allows other handlers (SPA, Content, MVC, etc) to attempt to manage the request.</param>
         /// <returns></returns>
-        protected abstract Task<HttpResponseMessage> SendAsync(IApplication httpApp,
-            HttpRequestMessage request, CancellationToken cancellationToken, 
-            Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> continuation);
+        protected abstract Task<IHttpResponse> SendAsync(IApplication httpApplication,
+            IHttpRequest request, CancellationToken cancellationToken,
+            Func<IHttpRequest, CancellationToken, Task<IHttpResponse>> continuation);
     }
 }

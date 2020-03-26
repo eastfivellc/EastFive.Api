@@ -20,7 +20,7 @@ namespace EastFive.Api
 
         IDictionary<string, string[]> Headers { get; }
 
-        Task WriteResultAsync(HttpContext context);
+        Task WriteResponseAsync(System.IO.Stream responseStream);
     }
 
     

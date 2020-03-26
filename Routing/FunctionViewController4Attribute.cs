@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -14,8 +15,8 @@ namespace EastFive.Api
     {
         public string MediaType => "application/json";
 
-        public HttpResponseMessage Serialize(HttpResponseMessage response,
-            IApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo, object obj)
+        public Task SerializeAsync(Stream responseStream,
+            IApplication httpApp, IHttpRequest request, ParameterInfo paramInfo, object obj)
         {
             var converter = new Serialization.ExtrudeConvert();
             var jsonObj = Newtonsoft.Json.JsonConvert.SerializeObject(obj,
@@ -27,8 +28,11 @@ namespace EastFive.Api
                 this.ContentType
                 :
                 this.MediaType;
-            response.Content = new StringContent(jsonObj, Encoding.UTF8, contentType);
-            return response;
+            var streamWriter = request.TryGetAcceptEncoding(out Encoding writerEncoding) ?
+                new StreamWriter(responseStream, writerEncoding)
+                :
+                new StreamWriter(responseStream, Encoding.UTF8);
+            return streamWriter.WriteAsync(jsonObj);
         }
     }
 }

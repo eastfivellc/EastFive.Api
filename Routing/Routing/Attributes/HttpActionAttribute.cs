@@ -24,7 +24,7 @@ namespace EastFive.Api
 
         public override string Method => Action;
 
-        public override bool IsMethodMatch(MethodInfo method, HttpRequestMessage request, IApplication httpApp)
+        public override bool IsMethodMatch(MethodInfo method, IHttpRequest request, IApplication httpApp)
         {
             var path = request.RequestUri.Segments
                 .Skip(1)
@@ -40,7 +40,7 @@ namespace EastFive.Api
         }
 
         protected override CastDelegate GetFileNameCastDelegate(
-            HttpRequestMessage request, IApplication httpApp, out string[] pathKeys)
+            IHttpRequest request, IApplication httpApp, out string[] pathKeys)
         {
             var path = request.RequestUri.Segments
                 .Skip(1)

@@ -67,7 +67,10 @@ namespace EastFive.Api
             }
             catch (Exception ex)
             {
-                return request.CreateResponse(HttpStatusCode.Conflict, ex.StackTrace).AddReason(ex.Message);
+                return request
+                    .CreateResponse(HttpStatusCode.Conflict, ex.StackTrace)
+                    //.AddReason(ex.Message);
+                    ;
             }
         }
 
@@ -85,7 +88,8 @@ namespace EastFive.Api
             }
             catch (Exception ex)
             {
-                return request.CreateResponse(HttpStatusCode.Conflict, ex.StackTrace).AddReason(ex.Message);
+                return request.CreateResponse(HttpStatusCode.Conflict, ex.StackTrace);
+                // .AddReason(ex.Message);
             }
         }
 

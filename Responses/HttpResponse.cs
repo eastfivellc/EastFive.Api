@@ -26,10 +26,8 @@ namespace EastFive.Api
 
         public IDictionary<string, string[]> Headers { get; private set; }
 
-        public virtual Task WriteResultAsync(HttpContext context)
+        public virtual Task WriteResponseAsync(System.IO.Stream responseStream)
         {
-            context.Response.StatusCode = (int)StatusCode;
-            // TODO: ReasonPhrase
             return StatusCode.AsTask();
         }
     }

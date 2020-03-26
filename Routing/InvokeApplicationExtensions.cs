@@ -1,4 +1,6 @@
 ﻿using System;
+using System.IO;
+using System.Text;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -12,15 +14,13 @@ using System.Threading;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
-using EastFive.Linq;
-using EastFive.Collections.Generic;
 using EastFive;
-using EastFive.Reflection;
 using EastFive.Extensions;
-using EastFive.Api.Controllers;
+using EastFive.Linq;
 using EastFive.Linq.Expressions;
-using BlackBarLabs.Extensions;
 using EastFive.Linq.Async;
+using EastFive.Collections.Generic;
+using EastFive.Reflection;
 using EastFive.Api.Serialization;
 
 namespace EastFive.Api
@@ -48,14 +48,42 @@ namespace EastFive.Api
         {
             public string Method { get; set; }
 
-            public HttpRequestMessage MutateRequest(HttpRequestMessage request, MethodInfo method, Expression[] arguments)
+            public IHttpRequest MutateRequest(IHttpRequest request,
+                MethodInfo method, Expression[] arguments)
             {
-                request.Method =new HttpMethod(Method);
+                request.Method = new HttpMethod(Method);
                 return request;
             }
         }
 
         #endregion
+
+        private static IHttpRequest WriteResource(IHttpRequest request, 
+            HttpMethod httpMethod, object resource, KeyValuePair<string, string>[] headers,
+            DefaultValueHandling defaultValueHandling)
+        {
+            request.Method = httpMethod;
+            request.SetMediaType("application/json");
+            foreach (var header in headers.NullToEmpty())
+            {
+                request.UpdateHeader(header.Key, x => x.Append(header.Value).ToArray());
+            }
+            request.WriteBody =
+                async (stream) =>
+                {
+                    var settings = new JsonSerializerSettings();
+                    settings.Converters.Add(new Serialization.Converter());
+                    settings.DefaultValueHandling = DefaultValueHandling.Ignore;
+                    var contentJsonString = JsonConvert.SerializeObject(resource, settings);
+                    var writer = request.TryGetAcceptEncoding(out Encoding encoding) ?
+                        new StreamWriter(stream, encoding)
+                        :
+                        new StreamWriter(stream);
+                    await writer.WriteAsync(contentJsonString);
+                };
+
+            return request;
+        }
 
         #region POST
 
@@ -81,20 +109,12 @@ namespace EastFive.Api
 
         public class HttpPostRequestBuilderAttribute : Attribute, IBuildHttpRequests
         {
-            public HttpRequestMessage MutateRequest(HttpRequestMessage request, MethodInfo method, Expression[] arguments)
+            public IHttpRequest MutateRequest(IHttpRequest request, MethodInfo method, Expression[] arguments)
             {
-                request.Method = HttpMethod.Post;
                 var resource = arguments[0].Resolve();
                 var headers = (KeyValuePair<string, string>[])arguments[1].Resolve();
 
-                var contentJsonString = JsonConvert.SerializeObject(resource, new Serialization.Converter());
-                request.Content = new StreamContent(contentJsonString.ToStream());
-                request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
-                foreach (var header in headers.NullToEmpty())
-                {
-                    request.Headers.Add(header.Key, header.Value);
-                }
-                return request;
+                return WriteResource(request, HttpMethod.Post, resource, headers, DefaultValueHandling.Include);
             }
         }
 
@@ -105,7 +125,7 @@ namespace EastFive.Api
         [HttpPatchRequestBuilder]
         public static IQueryable<TResource> HttpPatch<TResource>(this IQueryable<TResource> requestQuery,
             TResource resource,
-            System.Net.Http.Headers.HttpRequestHeaders headers = default)
+            KeyValuePair<string, string>[] headers = default)
         {
             if (!typeof(RequestMessage<TResource>).IsAssignableFrom(requestQuery.GetType()))
                 throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{requestQuery.GetType().FullName}`", "query");
@@ -124,23 +144,12 @@ namespace EastFive.Api
 
         public class HttpPatchRequestBuilderAttribute : Attribute, IBuildHttpRequests
         {
-            public HttpRequestMessage MutateRequest(HttpRequestMessage request, MethodInfo method, Expression[] arguments)
+            public IHttpRequest MutateRequest(IHttpRequest request, MethodInfo method, Expression[] arguments)
             {
-                request.Method = new HttpMethod("Patch");
+                var httpMethod = new HttpMethod("Patch");
                 var resource = arguments[0].Resolve();
-                var headers = (System.Net.Http.Headers.HttpRequestHeaders)arguments[1].Resolve();
-
-                var settings = new JsonSerializerSettings();
-                settings.Converters.Add(new Serialization.Converter());
-                settings.DefaultValueHandling = DefaultValueHandling.Ignore;
-                var contentJsonString = JsonConvert.SerializeObject(resource, settings);
-                request.Content = new StreamContent(contentJsonString.ToStream());
-                request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
-                foreach (var header in headers.NullToEmpty())
-                {
-                    request.Headers.Add(header.Key, header.Value);
-                }
-                return request;
+                var headers = (KeyValuePair<string, string>[])arguments[1].Resolve();
+                return WriteResource(request, httpMethod, resource, headers.ToArray(), DefaultValueHandling.Ignore);
             }
         }
 
@@ -151,7 +160,7 @@ namespace EastFive.Api
         [HttpPutRequestBuilder]
         public static IQueryable<TResource> HttpPut<TResource>(this IQueryable<TResource> requestQuery,
             TResource resource,
-            System.Net.Http.Headers.HttpRequestHeaders headers = default)
+            KeyValuePair<string, string>[] headers = default)
         {
             if (!typeof(RequestMessage<TResource>).IsAssignableFrom(requestQuery.GetType()))
                 throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{requestQuery.GetType().FullName}`", "query");
@@ -170,20 +179,11 @@ namespace EastFive.Api
 
         public class HttpPutRequestBuilderAttribute : Attribute, IBuildHttpRequests
         {
-            public HttpRequestMessage MutateRequest(HttpRequestMessage request, MethodInfo method, Expression[] arguments)
+            public IHttpRequest MutateRequest(IHttpRequest request, MethodInfo method, Expression[] arguments)
             {
-                request.Method = HttpMethod.Put;
                 var resource = arguments[0].Resolve();
-                var headers = (System.Net.Http.Headers.HttpRequestHeaders)arguments[1].Resolve();
-
-                var contentJsonString = JsonConvert.SerializeObject(resource, new Serialization.Converter());
-                request.Content = new StreamContent(contentJsonString.ToStream());
-                request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
-                foreach (var header in headers.NullToEmpty())
-                {
-                    request.Headers.Add(header.Key, header.Value);
-                }
-                return request;
+                var headers = (KeyValuePair<string, string>[])arguments[1].Resolve();
+                return WriteResource(request, HttpMethod.Put, resource, headers, DefaultValueHandling.Include);
             }
         }
 
@@ -243,7 +243,7 @@ namespace EastFive.Api
 
         public class HttpActionRequestBuilder : Attribute, IBuildHttpRequests
         {
-            public HttpRequestMessage MutateRequest(HttpRequestMessage request, MethodInfo method, Expression[] arguments)
+            public IHttpRequest MutateRequest(IHttpRequest request, MethodInfo method, Expression[] arguments)
             {
                 var actionName = (string)arguments[0].Resolve();
                 var headers = (System.Net.Http.Headers.HttpRequestHeaders)arguments[1].Resolve();
@@ -251,7 +251,7 @@ namespace EastFive.Api
 
                 foreach (var header in headers.NullToEmpty())
                 {
-                    request.Headers.Add(header.Key, header.Value);
+                    request.UpdateHeader(header.Key, x => x.Concat(header.Value).ToArray());
                 }
                 return request;
             }
@@ -259,7 +259,7 @@ namespace EastFive.Api
 
         #endregion
 
-        public static async Task<HttpResponseMessage> SendAsync<TResource>(this IQueryable<TResource> requestQuery)
+        public static async Task<IHttpResponse> SendAsync<TResource>(this IQueryable<TResource> requestQuery)
         {
             var request = (requestQuery as RequestMessage<TResource>);
             var httpRequest = request.CompileRequest();
@@ -289,7 +289,7 @@ namespace EastFive.Api
 
             Func<TResult> onNotImplemented = default,
             Func<IExecuteAsync, Task<TResult>> onExecuteBackground = default,
-            Func<HttpResponseMessage, TResult> onResponse = default,
+            Func<IHttpResponse, TResult> onResponse = default,
             Func<HttpStatusCode, TResult> onNotOverriddenResponse = default)
         {
             var httpRequest = requestQuery.CompileRequest();
@@ -300,11 +300,10 @@ namespace EastFive.Api
 
             if (response.StatusCode == HttpStatusCode.OK)
             {
-                if (!response.Content.IsDefaultOrNull())
-                {
-                    if (!onContent.IsDefaultOrNull())
-                        return onContent(
-                            await response.ParseContentAsync<TResource>(application));
+                if (!onContent.IsDefaultOrNull())
+
+                    return onContent(
+                        await response.ParseContentAsync<TResource>(application));
 
                     if (!onContents.IsDefaultOrNull())
                         return onContents(
@@ -313,16 +312,21 @@ namespace EastFive.Api
                     if (!onContentObjects.IsDefaultOrNull())
                         return onContentObjects(
                             await response.ParseContentAsync<object[]>(application));
-                }
+                
             }
 
             if (response.StatusCode == HttpStatusCode.Created)
             {
-                if(!response.Content.IsDefaultOrNull())
+                var memoryStream = new MemoryStream();
+                await response.WriteResponseAsync(memoryStream);
+                if (memoryStream.Length > 0)
                     if (!onCreatedBody.IsDefaultOrNull())
+                    {
+                        response.TryGetContentType(out string contentType);
                         return onCreatedBody(
                             await response.ParseContentAsync<TResource>(application),
-                            response.Content.Headers.ContentType.MediaType);
+                            contentType);
+                    }
 
                 if (!onCreated.IsDefaultOrNull())
                     return onCreated();
@@ -340,7 +344,10 @@ namespace EastFive.Api
             if (response.StatusCode == HttpStatusCode.Redirect)
             {
                 if (!onRedirect.IsDefaultOrNull())
-                    return onRedirect(response.Headers.Location);
+                {
+                    response.TryGetLocation(out Uri location);
+                    return onRedirect(location);
+                }
             }
 
             if (response.StatusCode == HttpStatusCode.BadRequest)
@@ -353,7 +360,7 @@ namespace EastFive.Api
             {
                 if (!onExists.IsDefaultOrNull())
                 {
-                    if(response.Headers.Contains("X-Something"))
+                    if(response.Headers.Contains(kvp => kvp.Key == "X-Something"))
                         application.AlreadyExistsResponse<TResource, TResult>(onExists);
                 }
 
@@ -405,9 +412,11 @@ namespace EastFive.Api
             throw new Exception(msg);
         }
 
-        public static async Task<TResource> ParseContentAsync<TResource>(this HttpResponseMessage message, HttpApplication httpApp)
+        public static async Task<TResource> ParseContentAsync<TResource>(this IHttpResponse response, HttpApplication httpApp)
         {
-            var json = await message.Content.ReadAsStringAsync();
+            var stream = new MemoryStream();
+            await response.WriteResponseAsync(stream);
+            var json = stream.ReadAsString();
             var converter = new BindConvert(httpApp);
             return JsonConvert.DeserializeObject<TResource>(json, converter);
         }
@@ -495,7 +504,7 @@ namespace EastFive.Api
             Func<TResult> onUnauthorized = default,
             Func<string, TResult> onFailure = default,
             Func<HttpStatusCode, TResult> onNotOverriddenResponse = default,
-            Func<HttpResponseMessage, TResult> onResponse = default)
+            Func<IHttpResponse, TResult> onResponse = default)
         {
             return requestQuery
                 .HttpPatch(resource)
@@ -543,7 +552,7 @@ namespace EastFive.Api
             Func<TResult> onUnauthorized = default,
             Func<string, TResult> onFailure = default,
             Func<HttpStatusCode, TResult> onNotOverriddenResponse = default,
-            Func<HttpResponseMessage, TResult> onResponse = default)
+            Func<IHttpResponse, TResult> onResponse = default)
         {
             return requestQuery
                 .HttpAction(actionName)
@@ -566,7 +575,7 @@ namespace EastFive.Api
             TResult GetResultCasted<TResult>();
         }
 
-        private class AttachedHttpResponseMessage<TResult> : HttpResponseMessage, IReturnResult
+        private class AttachedHttpResponseMessage<TResult> : IHttpResponse, IReturnResult
         {
             public TResult Result { get; }
 
@@ -575,8 +584,17 @@ namespace EastFive.Api
                 this.Result = result;
             }
 
-            public HttpResponseMessage Inner { get; }
-            public AttachedHttpResponseMessage(TResult result, HttpResponseMessage inner)
+            public IHttpResponse Inner { get; }
+
+            public IHttpRequest Request => Inner.Request;
+
+            public HttpStatusCode StatusCode => Inner.StatusCode;
+
+            public string ReasonPhrase { get => Inner.ReasonPhrase; set => Inner.ReasonPhrase = value; }
+
+            public IDictionary<string, string[]> Headers => Inner.Headers;
+
+            public AttachedHttpResponseMessage(TResult result, IHttpResponse inner)
             {
                 this.Result = result;
                 this.Inner = inner;
@@ -586,6 +604,11 @@ namespace EastFive.Api
             {
                 return (TResult1)(this.Result as object);
             }
+
+            public Task WriteResponseAsync(Stream responseStream)
+            {
+                return Inner.WriteResponseAsync(responseStream);
+            }
         }
 
         private interface IDidNotOverride
@@ -593,20 +616,33 @@ namespace EastFive.Api
             void OnFailure();
         }
 
-        private class NoOverrideHttpResponseMessage<TResource> : HttpResponseMessage, IDidNotOverride
+        private class NoOverrideHttpResponseMessage<TResource> : IHttpResponse, IDidNotOverride
         {
             private Type typeOfResponse;
-            private HttpRequestMessage request;
-            public NoOverrideHttpResponseMessage(Type typeOfResponse, HttpRequestMessage request)
+            private IHttpRequest request;
+            public NoOverrideHttpResponseMessage(Type typeOfResponse, IHttpRequest request)
             {
                 this.typeOfResponse = typeOfResponse;
                 this.request = request;
             }
 
+            public IHttpRequest Request => throw new NotImplementedException();
+
+            public HttpStatusCode StatusCode => throw new NotImplementedException();
+
+            public string ReasonPhrase { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+
+            public IDictionary<string, string[]> Headers => throw new NotImplementedException();
+
             public void OnFailure()
             {
                 var message = $"Failed to override response for: [{request.Method.Method}] `{typeof(TResource).FullName}`.`{typeOfResponse.Name}`";
                 throw new Exception(message);
+            }
+
+            public Task WriteResponseAsync(Stream responseStream)
+            {
+                throw new NotImplementedException();
             }
         }
 
@@ -713,12 +749,12 @@ namespace EastFive.Api
         {
             private Func<Type, TResult> referencedDocDoesNotExists;
             private HttpApplication thisAgain;
-            private HttpRequestMessage requestAgain;
+            private IHttpRequest requestAgain;
             private ParameterInfo paramInfo;
-            private Func<object, Task<HttpResponseMessage>> onSuccess;
+            private Func<object, Task<IHttpResponse>> onSuccess;
             
             public CallbackWrapperReferencedDocumentDoesNotExistsResponse(Func<Type, TResult> referencedDocDoesNotExists,
-                HttpApplication thisAgain, HttpRequestMessage requestAgain, ParameterInfo paramInfo, Func<object, Task<HttpResponseMessage>> onSuccess)
+                HttpApplication thisAgain, IHttpRequest requestAgain, ParameterInfo paramInfo, Func<object, Task<IHttpResponse>> onSuccess)
             {
                 this.referencedDocDoesNotExists = referencedDocDoesNotExists;
                 this.thisAgain = thisAgain;
@@ -727,7 +763,7 @@ namespace EastFive.Api
                 this.onSuccess = onSuccess;
             }
 
-            public HttpResponseMessage RefNotFoundTypeResponseGeneric<TResource>()
+            public IHttpResponse RefNotFoundTypeResponseGeneric<TResource>()
             {
                 if (referencedDocDoesNotExists.IsDefaultOrNull())
                     return FailureToOverride<TResource>(typeof(ReferencedDocumentDoesNotExistsResponse<>), thisAgain, requestAgain, paramInfo, onSuccess);
@@ -741,14 +777,14 @@ namespace EastFive.Api
         {
             private Type type;
             private HttpApplication httpApp;
-            private HttpRequestMessage request;
+            private IHttpRequest request;
             private ParameterInfo paramInfo;
             private TCallback callback;
-            private Func<object, Task<HttpResponseMessage>> onSuccess;
+            private Func<object, Task<IHttpResponse>> onSuccess;
 
             public InstigatorGenericWrapper1(Type type,
-                HttpApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo,
-                TCallback callback, Func<object, Task<HttpResponseMessage>> onSuccess)
+                HttpApplication httpApp, IHttpRequest request, ParameterInfo paramInfo,
+                TCallback callback, Func<object, Task<IHttpResponse>> onSuccess)
             {
                 this.type = type;
                 this.httpApp = httpApp;
@@ -758,7 +794,7 @@ namespace EastFive.Api
                 this.onSuccess = onSuccess;
             }
 
-            HttpResponseMessage ContentTypeResponse(object content, string mediaType = default(string))
+            IHttpResponse ContentTypeResponse(object content, string mediaType = default(string))
             {
                 if (callback.IsDefault())
                     return FailureToOverride<TResource>(
@@ -772,7 +808,7 @@ namespace EastFive.Api
                 return new AttachedHttpResponseMessage<TResult>(result);
             }
 
-            HttpResponseMessage CreatedBodyResponse(object content, string mediaType = default(string))
+            IHttpResponse CreatedBodyResponse(object content, string mediaType = default(string))
             {
                 if (callback.IsDefault())
                     return FailureToOverride<TResource>(
@@ -931,27 +967,27 @@ namespace EastFive.Api
         private static void MultipartContentResponse<TResource, TResult>(this IApplication application,
             Func<TResource[], TResult> onContents)
         {
-            application.SetInstigator(
-                typeof(MultipartAcceptArrayResponseAsync),
-                (thisAgain, requestAgain, paramInfo, onSuccess) =>
-                {
-                    MultipartAcceptArrayResponseAsync created =
-                        (contents) =>
-                        {
-                            var resources = contents.Cast<TResource>().ToArray();
-                            // TODO: try catch
-                            //if (!(content is TResource))
-                            //    Assert.Fail($"Could not cast {content.GetType().FullName} to {typeof(TResource).FullName}.");
+            //application.SetInstigator(
+            //    typeof(MultipartAcceptArrayResponseAsync),
+            //    (thisAgain, requestAgain, paramInfo, onSuccess) =>
+            //    {
+            //        MultipartAcceptArrayResponseAsync created =
+            //            (contents) =>
+            //            {
+            //                var resources = contents.Cast<TResource>().ToArray();
+            //                // TODO: try catch
+            //                //if (!(content is TResource))
+            //                //    Assert.Fail($"Could not cast {content.GetType().FullName} to {typeof(TResource).FullName}.");
 
-                            if (onContents.IsDefaultOrNull())
-                                return FailureToOverride<TResource>(
-                                    typeof(MultipartAcceptArrayResponseAsync), 
-                                    thisAgain, requestAgain, paramInfo, onSuccess).AsTask();
-                            var result = onContents(resources);
-                            return new AttachedHttpResponseMessage<TResult>(result).ToTask<HttpResponseMessage>();
-                        };
-                    return onSuccess(created);
-                });
+            //                if (onContents.IsDefaultOrNull())
+            //                    return FailureToOverride<TResource>(
+            //                        typeof(MultipartAcceptArrayResponseAsync), 
+            //                        thisAgain, requestAgain, paramInfo, onSuccess).AsTask();
+            //                var result = onContents(resources);
+            //                return new AttachedHttpResponseMessage<TResult>(result).ToTask<IHttpResponse>();
+            //            };
+            //        return onSuccess(created);
+            //    });
 
             application.SetInstigatorGeneric(
                 typeof(MultipartResponseAsync<>),
@@ -982,27 +1018,27 @@ namespace EastFive.Api
         private static void MultipartContentObjectResponse<TResource, TResult>(this IApplication application,
             Func<object[], TResult> onContents)
         {
-            application.SetInstigator(
-                typeof(EastFive.Api.MultipartAcceptArrayResponseAsync),
-                (thisAgain, requestAgain, paramInfo, onSuccess) =>
-                {
-                    EastFive.Api.MultipartAcceptArrayResponseAsync created =
-                        (contents) =>
-                        {
-                            var resources = contents.ToArray();
-                            // TODO: try catch
-                            //if (!(content is TResource))
-                            //    Assert.Fail($"Could not cast {content.GetType().FullName} to {typeof(TResource).FullName}.");
+            //application.SetInstigator(
+            //    typeof(EastFive.Api.MultipartAcceptArrayResponseAsync),
+            //    (thisAgain, requestAgain, paramInfo, onSuccess) =>
+            //    {
+            //        EastFive.Api.MultipartAcceptArrayResponseAsync created =
+            //            (contents) =>
+            //            {
+            //                var resources = contents.ToArray();
+            //                // TODO: try catch
+            //                //if (!(content is TResource))
+            //                //    Assert.Fail($"Could not cast {content.GetType().FullName} to {typeof(TResource).FullName}.");
 
-                            if (onContents.IsDefaultOrNull())
-                                return FailureToOverride<TResource>(
-                                    typeof(MultipartAcceptArrayResponseAsync),
-                                    thisAgain, requestAgain, paramInfo, onSuccess).AsTask();
-                            var result = onContents(resources);
-                            return new AttachedHttpResponseMessage<TResult>(result).ToTask<HttpResponseMessage>();
-                        };
-                    return onSuccess(created);
-                });
+            //                if (onContents.IsDefaultOrNull())
+            //                    return FailureToOverride<TResource>(
+            //                        typeof(MultipartAcceptArrayResponseAsync),
+            //                        thisAgain, requestAgain, paramInfo, onSuccess).AsTask();
+            //                var result = onContents(resources);
+            //                return new AttachedHttpResponseMessage<TResult>(result).ToTask<IHttpResponse>();
+            //            };
+            //        return onSuccess(created);
+            //    });
 
             application.SetInstigatorGeneric(
                 typeof(MultipartResponseAsync<>),
@@ -1025,13 +1061,13 @@ namespace EastFive.Api
             private Func<TResource[], TResult> callback;
             private Func<object[], TResult> callbackObjs;
             private HttpApplication thisAgain;
-            private HttpRequestMessage requestAgain;
+            private IHttpRequest requestAgain;
             private ParameterInfo paramInfo;
-            private Func<object, Task<HttpResponseMessage>> onSuccess;
+            private Func<object, Task<IHttpResponse>> onSuccess;
             
             public CallbackWrapper(Func<TResource[], TResult> onContents, Func<object[], TResult> callbackObjs,
-                HttpApplication thisAgain, HttpRequestMessage requestAgain, ParameterInfo paramInfo,
-                Func<object, Task<HttpResponseMessage>> onSuccess)
+                HttpApplication thisAgain, IHttpRequest requestAgain, ParameterInfo paramInfo,
+                Func<object, Task<IHttpResponse>> onSuccess)
             {
                 this.callback = onContents;
                 this.callbackObjs = callbackObjs;
@@ -1041,7 +1077,7 @@ namespace EastFive.Api
                 this.onSuccess = onSuccess;
             }
 
-            public async Task<HttpResponseMessage> MultipartResponseAsyncGeneric(IEnumerableAsync<TResource> resources)
+            public async Task<IHttpResponse> MultipartResponseAsyncGeneric(IEnumerableAsync<TResource> resources)
             {
                 if (!callback.IsDefaultOrNull())
                 {
@@ -1157,10 +1193,10 @@ namespace EastFive.Api
         }
 
 
-        private static HttpResponseMessage FailureToOverride<TResource>(Type typeOfResponse,
+        private static IHttpResponse FailureToOverride<TResource>(Type typeOfResponse,
             HttpApplication application,
-            HttpRequestMessage request, ParameterInfo paramInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
+            IHttpRequest request, ParameterInfo paramInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
         {
             return new NoOverrideHttpResponseMessage<TResource>(paramInfo.ParameterType, request);
         }

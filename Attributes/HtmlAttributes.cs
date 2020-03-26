@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
@@ -23,9 +24,8 @@ namespace EastFive.Api
 
         public string ContentType => MediaType;
 
-        public HttpResponseMessage Serialize(HttpResponseMessage response,
-            IApplication httpApp, HttpRequestMessage request, 
-            ParameterInfo paramInfo, object obj)
+        public Task SerializeAsync(Stream responseStream,
+            IApplication httpApp, IHttpRequest request, ParameterInfo paramInfo, object obj)
         {
             var contentType = this.MediaType;
 
@@ -52,8 +52,12 @@ namespace EastFive.Api
             var head = $"<head><title>{this.Title}</title><script href=\"/Content/Renderers/Html/RenderHtml.js\" /></head>";
             var body = $"<body><form action=\"{(obj as IReferenceable).id}\">{properties}</form></body>";
             var html = $"<html>{head}<body>{body}</body></html>";
-            response.Content = new StringContent(html, Encoding.UTF8, contentType);
-            return response;
+
+            var streamWriter = request.TryGetAcceptEncoding(out Encoding writerEncoding) ?
+                new StreamWriter(responseStream, writerEncoding)
+                :
+                new StreamWriter(responseStream, Encoding.UTF8);
+            return streamWriter.WriteAsync(html);
         }
     }
 

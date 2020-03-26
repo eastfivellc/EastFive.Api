@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
@@ -10,9 +11,9 @@ namespace EastFive.Api
 {
     public class BodyResponseAttribute : HttpFuncDelegateAttribute
     {
-        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
-                HttpRequestMessage request, ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
         {
             ContentResponse responseDelegate =
                 (obj, contentType) =>
@@ -24,23 +25,40 @@ namespace EastFive.Api
             return onSuccess(responseDelegate);
         }
 
-        private HttpResponseMessage GetResponse(object obj, string contentType,
-            IApplication httpApp, HttpRequestMessage request, ParameterInfo parameterInfo)
+        private IHttpResponse GetResponse(object obj, string contentType,
+            IApplication httpApp, IHttpRequest request, ParameterInfo parameterInfo)
         {
             var objType = obj.GetType();
             if (!objType.ContainsAttributeInterface<IProvideSerialization>())
             {
                 var response = request.CreateResponse(System.Net.HttpStatusCode.OK, obj);
                 if (!contentType.IsNullOrWhiteSpace())
-                    response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+                    response.SetContentType(contentType);
                 return response;
             }
 
-            var responseNoContent = request.CreateResponse(System.Net.HttpStatusCode.OK, obj);
-            var serializationProvider = objType.GetAttributesInterface<IProvideSerialization>().Single();
-            var customResponse = serializationProvider.Serialize(
-                responseNoContent, httpApp, request, parameterInfo, obj);
-            return customResponse;
+            return new ProvidedHttpResponse(objType, obj,
+                httpApp, request, parameterInfo,
+                System.Net.HttpStatusCode.OK);
+        }
+
+        private class ProvidedHttpResponse : HttpResponse
+        {
+            public ProvidedHttpResponse(Type objType, object obj,
+                IApplication httpApp, IHttpRequest request, ParameterInfo parameterInfo,
+                HttpStatusCode statusCode) 
+                : base(request, statusCode,
+                    stream =>
+                    {
+                        var serializationProvider = objType
+                            .GetAttributesInterface<IProvideSerialization>()
+                            .Single();
+                        return serializationProvider.SerializeAsync(
+                            stream, httpApp, request, parameterInfo, obj);
+                    })
+            {
+
+            }
         }
     }
 }

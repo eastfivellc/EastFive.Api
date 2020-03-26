@@ -14,8 +14,6 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
-
-
 namespace EastFive.Api
 {
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Method)]
@@ -83,14 +81,14 @@ namespace EastFive.Api
 
         public abstract string Method { get; }
 
-        public virtual bool IsMethodMatch(MethodInfo method, HttpRequestMessage request, IApplication httpApp)
+        public virtual bool IsMethodMatch(MethodInfo method, IHttpRequest request, IApplication httpApp)
         {
             var isMethodMatch = String.Compare(this.Method, request.Method.Method, true) == 0;
             return isMethodMatch;
         }
 
         public RouteMatch IsRouteMatch(
-            MethodInfo method, HttpRequestMessage request, IApplication httpApp,
+            MethodInfo method, IInvokeResource resourceInvoker, IHttpRequest request, IApplication httpApp,
             IEnumerable<string> bodyKeys, CastDelegate fetchBodyParam)
         {
             var fileNameCastDelegate = GetFileNameCastDelegate(request, httpApp, out string [] pathKeys);
@@ -102,10 +100,18 @@ namespace EastFive.Api
                     (param) =>
                     {
                         var castValue = param.GetAttributeInterface<IBindApiValue>();
-                        return castValue.TryCast(httpApp, request, method, param,
-                            fetchQueryParam,
-                            fetchBodyParam,
-                            fileNameCastDelegate);
+                        var bindingData = new BindingData
+                        {
+                            httpApp = httpApp,
+                            fetchDefaultParam = fileNameCastDelegate,
+                            fetchQueryParam = fetchQueryParam,
+                            fetchBodyParam = fetchBodyParam,
+                            method = method,
+                            parameterRequiringValidation = param,
+                            request = request,
+                            resourceInvoker = resourceInvoker,
+                        };
+                        return castValue.TryCast(bindingData);
                     })
                 .ToArray();
 
@@ -155,7 +161,7 @@ namespace EastFive.Api
         }
 
         protected virtual CastDelegate GetFileNameCastDelegate(
-            HttpRequestMessage request, IApplication httpApp, out string [] pathKeys)
+            IHttpRequest request, IApplication httpApp, out string [] pathKeys)
         {
             var path = request.RequestUri.Segments
                 .Skip(1)
@@ -176,7 +182,7 @@ namespace EastFive.Api
         }
 
         protected virtual CastDelegate GetQueryCastDelegate(
-            HttpRequestMessage request, IApplication httpApp, out string[] queryKeys)
+            IHttpRequest request, IApplication httpApp, out string[] queryKeys)
         {
             var queryParameters = request.RequestUri.ParseQuery()
                 .Select(kvp => kvp.Key.ToLower().PairWithValue(kvp.Value))

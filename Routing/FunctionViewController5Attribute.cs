@@ -24,24 +24,24 @@ namespace EastFive.Api
     public class FunctionViewController5Attribute : FunctionViewController4Attribute
     {
         public async override Task<IHttpResponse> CreateResponseAsync(Type controllerType,
-            IApplication httpApp, IHttpRequest routeData)
+            IApplication httpApp, IHttpRequest request)
         {
             var matchingActionMethods = GetHttpMethods(controllerType,
-                httpApp, routeData);
+                httpApp, request);
             if (!matchingActionMethods.Any())
-                return routeData.CreateResponse(HttpStatusCode.NotImplemented);
-            var request = routeData.request;
+                return request.CreateResponse(HttpStatusCode.NotImplemented);
+
             return await httpApp.GetType()
                 .GetAttributesInterface<IParseContent>(true, true)
-                .Where(contentParser => contentParser.DoesParse(routeData))
+                .Where(contentParser => contentParser.DoesParse(request))
                 .First(
                     (contentParser, next) =>
                     {
-                        return contentParser.ParseContentValuesAsync(httpApp, routeData,
+                        return contentParser.ParseContentValuesAsync(httpApp, request,
                             (bodyCastDelegate, bodyValues) =>
                                 InvokeMethod(
                                     matchingActionMethods,
-                                    httpApp, routeData,
+                                    httpApp, request,
                                     bodyCastDelegate, bodyValues));
                     },
                     () =>
@@ -53,7 +53,7 @@ namespace EastFive.Api
                                     $"Request did not contain any content.");
                             return InvokeMethod(
                                 matchingActionMethods,
-                                httpApp, routeData,
+                                httpApp, request,
                                 parserEmpty, new string[] { });
                         }
                         var mediaType = request.GetMediaType();
@@ -62,7 +62,7 @@ namespace EastFive.Api
                                 $"Could not parse content of type {mediaType}");
                         return InvokeMethod(
                             matchingActionMethods,
-                            httpApp, routeData, 
+                            httpApp, request, 
                             parser, new string[] { });
                     });
         }
@@ -92,7 +92,7 @@ namespace EastFive.Api
                     method =>
                     {
                         var routeMatcher = method.GetAttributesInterface<IMatchRoute>().Single();
-                        return routeMatcher.IsRouteMatch(method, routeData, httpApp,
+                        return routeMatcher.IsRouteMatch(method, this, routeData, httpApp,
                             bodyValues, bodyCastDelegate);
                     });
 

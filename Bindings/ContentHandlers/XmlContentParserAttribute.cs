@@ -26,19 +26,18 @@ namespace EastFive.Api
 
     public class XmlContentParserAttribute : Attribute, IParseContent
     {
-        public bool DoesParse(IHttpRequest routeData)
+        public bool DoesParse(IHttpRequest request)
         {
-            return routeData.request.IsXml();
+            return request.IsXml();
         }
 
         public async Task<IHttpResponse> ParseContentValuesAsync(
-            IApplication httpApp, IHttpRequest routeData,
+            IApplication httpApp, IHttpRequest request,
             Func<
                 CastDelegate, 
                 string[],
                 Task<IHttpResponse>> onParsedContentValues)
         {
-            var request = routeData.request;
             var contentString = request.Body.ReadAsString();
 
             var exceptionKeys = new string[] { };
@@ -78,7 +77,7 @@ namespace EastFive.Api
                     return paramInfo
                         .GetAttributeInterface<IBindXmlApiValue>()
                         .ParseContentDelegate(xmldoc, contentString,
-                            paramInfo, httpApp, routeData,
+                            paramInfo, httpApp, request,
                             onParsed,
                             onFailure);
                 };

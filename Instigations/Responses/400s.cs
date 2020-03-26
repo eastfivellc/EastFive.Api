@@ -19,14 +19,14 @@ using EastFive.Linq.Expressions;
 namespace EastFive.Api
 {
     [BadRequestGenericResponse]
-    public delegate HttpResponseMessage BadRequestResponse<TQuery>(
+    public delegate IHttpResponse BadRequestResponse<TQuery>(
         Expression<Func<TQuery, bool>> problem);
     public class BadRequestGenericResponseAttribute : HttpGenericDelegateAttribute
     {
         public override HttpStatusCode StatusCode => HttpStatusCode.BadRequest;
 
         [InstigateMethod]
-        public HttpResponseMessage BadRequestResponse<TQuery>(Expression<Func<TQuery, bool>> problem)
+        public IHttpResponse BadRequestResponse<TQuery>(Expression<Func<TQuery, bool>> problem)
         {
             Type GetType(Type type)
             {
@@ -41,36 +41,36 @@ namespace EastFive.Api
     }
 
     [StatusCodeResponse(StatusCode = HttpStatusCode.BadRequest)]
-    public delegate HttpResponseMessage BadRequestResponse();
+    public delegate IHttpResponse BadRequestResponse();
 
     [StatusCodeResponse(StatusCode = HttpStatusCode.Unauthorized)]
-    public delegate HttpResponseMessage UnauthorizedResponse();
+    public delegate IHttpResponse UnauthorizedResponse();
 
     [StatusCodeResponse(StatusCode = HttpStatusCode.Forbidden)]
-    public delegate HttpResponseMessage ForbiddenResponse();
+    public delegate IHttpResponse ForbiddenResponse();
 
     [StatusCodeResponse(StatusCode = HttpStatusCode.NotFound)]
-    public delegate HttpResponseMessage NotFoundResponse();
+    public delegate IHttpResponse NotFoundResponse();
 
     /// <summary>
     /// When performing a query, the document being queried by does not exist.
     /// </summary>
     /// <returns></returns>
     [StatusCodeResponse(StatusCode = HttpStatusCode.NotFound)]
-    public delegate HttpResponseMessage ReferencedDocumentNotFoundResponse();
+    public delegate IHttpResponse ReferencedDocumentNotFoundResponse();
 
     /// <summary>
     /// When performing a query, the document being queried by does not exist.
     /// </summary>
     /// <returns></returns>
     [ReferencedDocumentNotFoundResponse]
-    public delegate HttpResponseMessage ReferencedDocumentNotFoundResponse<TResource>();
+    public delegate IHttpResponse ReferencedDocumentNotFoundResponse<TResource>();
     public class ReferencedDocumentNotFoundResponseAttribute : HttpGenericDelegateAttribute
     {
         public override HttpStatusCode StatusCode => HttpStatusCode.NotFound;
 
         [InstigateMethod]
-        public HttpResponseMessage ReferencedDocumentNotFound<TResource>()
+        public IHttpResponse ReferencedDocumentNotFound<TResource>()
         {
             var response = request.CreateResponse(this.StatusCode);
             return UpdateResponse(parameterInfo, httpApp, request, response);
@@ -82,14 +82,14 @@ namespace EastFive.Api
     /// </summary>
     /// <returns></returns>
     [ReferencedDocumentNotFoundGenericResponse]
-    public delegate HttpResponseMessage ReferencedDocumentNotFoundResponse<TQuery, TParameter>(
+    public delegate IHttpResponse ReferencedDocumentNotFoundResponse<TQuery, TParameter>(
         Expression<Func<TQuery, TParameter>> problem);
     public class ReferencedDocumentNotFoundGenericResponse : HttpGenericDelegateAttribute
     {
         public override HttpStatusCode StatusCode => HttpStatusCode.NotFound;
 
         [InstigateMethod]
-        public HttpResponseMessage ReferencedDocumentNotFoundResponse<TQuery, TParameter>(
+        public IHttpResponse ReferencedDocumentNotFoundResponse<TQuery, TParameter>(
             Expression<Func<TQuery, TParameter>> problem)
         {
             return problem.MemberInfo(
@@ -115,13 +115,13 @@ namespace EastFive.Api
     /// </summary>
     /// <returns></returns>
     [ReferencedDocumentDoesNotExistResponse]
-    public delegate HttpResponseMessage ReferencedDocumentDoesNotExistsResponse<TResource>();
+    public delegate IHttpResponse ReferencedDocumentDoesNotExistsResponse<TResource>();
     public class ReferencedDocumentDoesNotExistResponseAttribute : HttpGenericDelegateAttribute
     {
         public override HttpStatusCode StatusCode => HttpStatusCode.Conflict;
 
         [InstigateMethod]
-        public HttpResponseMessage ReferencedDocumentDoesNotExist<TResource>()
+        public IHttpResponse ReferencedDocumentDoesNotExist<TResource>()
         {
             var response = request.CreateResponse(this.StatusCode);
             return UpdateResponse(parameterInfo, httpApp, request, response);
@@ -129,17 +129,17 @@ namespace EastFive.Api
     }
 
     [StatusCodeResponse(StatusCode = HttpStatusCode.Conflict)]
-    public delegate HttpResponseMessage AlreadyExistsResponse();
+    public delegate IHttpResponse AlreadyExistsResponse();
 
     [AlreadyExistsReferencedResponse]
-    public delegate HttpResponseMessage AlreadyExistsReferencedResponse(Guid value);
+    public delegate IHttpResponse AlreadyExistsReferencedResponse(Guid value);
     public class AlreadyExistsReferencedResponseAttribute : HttpFuncDelegateAttribute
     {
         public override HttpStatusCode StatusCode => HttpStatusCode.Conflict;
 
-        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
-                HttpRequestMessage request, ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
         {
             AlreadyExistsReferencedResponse dele =
                 (existingId) =>
@@ -154,14 +154,14 @@ namespace EastFive.Api
     }
 
     [GeneralConflictResponse]
-    public delegate HttpResponseMessage GeneralConflictResponse(string value);
+    public delegate IHttpResponse GeneralConflictResponse(string value);
     public class GeneralConflictResponseAttribute : HttpFuncDelegateAttribute
     {
         public override HttpStatusCode StatusCode => HttpStatusCode.Conflict;
 
-        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
-                HttpRequestMessage request, ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
         {
             GeneralConflictResponse responseDelegate =
                 (why) =>

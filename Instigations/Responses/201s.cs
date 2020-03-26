@@ -19,17 +19,81 @@ using EastFive.Api.Resources;
 namespace EastFive.Api
 {
     [StatusCodeResponse(StatusCode = HttpStatusCode.Created)]
-    public delegate HttpResponseMessage CreatedResponse();
+    public delegate IHttpResponse CreatedResponse();
     
-    [CreatedBodyResponse(StatusCode = HttpStatusCode.Created)]
-    public delegate HttpResponseMessage CreatedBodyResponse<TResource>(TResource content, string contentType = default);
-    public class CreatedBodyResponseAttribute : BodyTypeResponseAttribute
+    [BodyTypeResponse(StatusCode = HttpStatusCode.Created)]
+    public delegate IHttpResponse CreatedBodyResponse<TResource>(TResource content, string contentType = default);
+    
+    public class BodyTypeResponseAttribute : HttpGenericDelegateAttribute
     {
-        public override Response GetResponse(ParameterInfo paramInfo, HttpApplication httpApp)
+        public override string Example => "serialized object";
+
+        [InstigateMethod]
+        public IHttpResponse ContentResponse<TResource>(TResource content, 
+            string contentTypeString = default(string))
         {
-            var response = base.GetResponse(paramInfo, httpApp);
-            response.Example = Parameter.GetTypeName(paramInfo.ParameterType.GenericTypeArguments.First(), httpApp);
-            return response;
+            var response = new ProvidedHttpResponse(typeof(TResource), content,
+                this.httpApp, this.request, this.parameterInfo,
+                this.StatusCode);
+            return UpdateResponse(parameterInfo, httpApp, request, response);
+            //Type GetType(Type type)
+            //{
+            //    if (type.IsArray)
+            //        return GetType(type.GetElementType());
+            //    return type;
+            //}
+
+            //var responseWithContent = GetType(typeof(TResource))
+            //    .GetAttributesInterface<IProvideSerialization>()
+            //    .Select(
+            //        serializeAttr =>
+            //        {
+            //            var quality = request.GetAcceptTypes()
+            //                .Where(acceptOption => acceptOption.MediaType.ToLower() == serializeAttr.MediaType.ToLower())
+            //                .First(
+            //                    (acceptOption, next) => acceptOption.Quality.HasValue ? acceptOption.Quality.Value : -1.0,
+            //                    () => -2.0);
+            //            return serializeAttr.PairWithValue(quality);
+            //        })
+            //    .OrderByDescending(kvp => kvp.Value)
+            //    .First(
+            //        (serializerQualityKvp, next) =>
+            //        {
+            //            var serializationProvider = serializerQualityKvp.Key;
+            //            var quality = serializerQualityKvp.Value;
+            //            var responseNoContent = request.CreateResponse(this.StatusCode, content);
+            //            var customResponse = await serializationProvider.SerializeAsync(responseNoContent, httpApp, request, parameterInfo, content);
+            //            customResponse.StatusCode = this.StatusCode;
+            //            return customResponse;
+            //        },
+            //        () =>
+            //        {
+            //            var response = request.CreateResponse(this.StatusCode, content);
+            //            if (!contentTypeString.IsNullOrWhiteSpace())
+            //                response.SetContentType(contentTypeString);
+            //            return response;
+            //        });
+            //return UpdateResponse(parameterInfo, httpApp, request, responseWithContent);
+        }
+
+
+        private class ProvidedHttpResponse : HttpResponse
+        {
+            public ProvidedHttpResponse(Type objType, object obj,
+                IApplication httpApp, IHttpRequest request, ParameterInfo parameterInfo,
+                HttpStatusCode statusCode)
+                : base(request, statusCode,
+                    stream =>
+                    {
+                        var serializationProvider = objType
+                            .GetAttributesInterface<IProvideSerialization>()
+                            .Single();
+                        return serializationProvider.SerializeAsync(
+                            stream, httpApp, request, parameterInfo, obj);
+                    })
+            {
+
+            }
         }
     }
 }

@@ -28,21 +28,21 @@ namespace EastFive.Api
 
     public class FormDataParserAttribute : Attribute, IParseContent
     {
-        public bool DoesParse(IHttpRequest routeData)
+        public bool DoesParse(IHttpRequest request)
         {
-            if (routeData.request.Form.IsDefaultOrNull())
+            if (request.Form.IsDefaultOrNull())
                 return false;
-            return routeData.request.Form.Any();
+            return request.Form.Any();
         }
 
         public async Task<IHttpResponse> ParseContentValuesAsync(
-            IApplication httpApp, IHttpRequest routeData,
+            IApplication httpApp, IHttpRequest request,
             Func<
                 CastDelegate, 
                 string[],
                 Task<IHttpResponse>> onParsedContentValues)
         {
-            var formData = await routeData.request.ReadFormAsync(routeData.cancellationToken);
+            var formData = request.Form;
 
             var parameters = formData.SelectKeys().ToArray();
             CastDelegate parser =
@@ -51,7 +51,7 @@ namespace EastFive.Api
                     return paramInfo
                         .GetAttributeInterface<IBindFormDataApiValue>()
                         .ParseContentDelegate(formData, 
-                                paramInfo, httpApp, routeData,
+                                paramInfo, httpApp, request,
                             onParsed,
                             onFailure);
                 };

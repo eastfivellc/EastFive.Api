@@ -26,16 +26,15 @@ namespace EastFive.Api.Auth
             KeyValuePair<ParameterInfo, object>[] parameterSelection,
             MethodInfo method,
             IApplication httpApp,
-            IHttpRequest routeData,
+            IHttpRequest request,
             ValidateHttpDelegate boundCallback)
         {
-            var request = routeData.request;
             if (!request.IsAuthorizedFor(ClaimType, ClaimValue))
-                return routeData
+                return request
                     .CreateResponse(System.Net.HttpStatusCode.Unauthorized)
                     .AddReason($"{method.DeclaringType.FullName}..{method.Name} requires claim `{ClaimType}`=`{this.ClaimValue}`")
                     .AsTask();
-            return boundCallback(parameterSelection, method, httpApp, routeData);
+            return boundCallback(parameterSelection, method, httpApp, request);
         }
     }
 }

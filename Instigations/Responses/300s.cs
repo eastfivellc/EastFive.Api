@@ -17,14 +17,14 @@ using EastFive.Reflection;
 namespace EastFive.Api
 {
     [RedirectResponse]
-    public delegate HttpResponseMessage RedirectResponse(Uri redirectLocation);
+    public delegate IHttpResponse RedirectResponse(Uri redirectLocation);
     public class RedirectResponseAttribute : HttpFuncDelegateAttribute
     {
         public override HttpStatusCode StatusCode => HttpStatusCode.Redirect;
 
-        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
-                HttpRequestMessage request, ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
         {
             RedirectResponse responseDelegate =
                 (redirectLocation) =>

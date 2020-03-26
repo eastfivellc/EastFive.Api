@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
@@ -14,6 +15,7 @@ namespace EastFive.Api
 
         string ContentType { get; }
 
-        HttpResponseMessage Serialize(HttpResponseMessage response, IApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo, object obj);
+        Task SerializeAsync(Stream responseStream,
+            IApplication httpApp, IHttpRequest request, ParameterInfo paramInfo, object obj);
     }
 }

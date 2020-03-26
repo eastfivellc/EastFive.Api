@@ -10,7 +10,6 @@ using Microsoft.AspNetCore.Mvc.Routing;
 using Newtonsoft.Json;
 
 using EastFive.Linq;
-using BlackBarLabs.Api;
 using EastFive.Reflection;
 
 namespace EastFive.Api.Serialization

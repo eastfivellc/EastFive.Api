@@ -12,7 +12,6 @@ using EastFive.Api.Resources;
 using EastFive.Linq;
 using EastFive.Extensions;
 using EastFive.Linq.Async;
-using BlackBarLabs.Api;
 
 namespace EastFive.Api
 {
@@ -20,23 +19,23 @@ namespace EastFive.Api
     public delegate HttpResponseMessage AcceptedResponse();
     
     [AcceptedBodyResponse]
-    public delegate HttpResponseMessage AcceptedBodyResponse(object content, string contentType = default(string));
+    public delegate IHttpResponse AcceptedBodyResponse(object content, string contentType = default(string));
     public class AcceptedBodyResponseAttribute : HttpFuncDelegateAttribute
     {
         public override HttpStatusCode StatusCode => HttpStatusCode.Accepted;
 
         public override string Example => "serialized object";
 
-        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
-                HttpRequestMessage request, ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
         {
             AcceptedBodyResponse responseDelegate =
                 (obj, contentType) =>
                 {
                     var response = request.CreateResponse(HttpStatusCode.Accepted, obj);
                     if (!contentType.IsNullOrWhiteSpace())
-                        response.Content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+                        response.SetContentType(contentType);
                     return UpdateResponse(parameterInfo, httpApp, request, response);
                 };
             return onSuccess(responseDelegate);
@@ -47,20 +46,20 @@ namespace EastFive.Api
     {
         bool ForceBackground { get; }
 
-        Task<HttpResponseMessage> InvokeAsync(Action<double> updateCallback);
+        Task<IHttpResponse> InvokeAsync(Action<double> updateCallback);
     }
 
     [ExecuteBackgroundResponse]
-    public delegate Task<HttpResponseMessage> ExecuteBackgroundResponseAsync(IExecuteAsync executeAsync);
+    public delegate Task<IHttpResponse> ExecuteBackgroundResponseAsync(IExecuteAsync executeAsync);
     public class ExecuteBackgroundResponseAttribute : HttpFuncDelegateAttribute
     {
         public override HttpStatusCode StatusCode => HttpStatusCode.Accepted;
 
         public override string Example => "serialized object";
 
-        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
-                HttpRequestMessage request, ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
         {
             ExecuteBackgroundResponseAsync responseDelegate =
                 async (executionContext) =>

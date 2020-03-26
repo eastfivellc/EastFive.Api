@@ -130,7 +130,7 @@ namespace EastFive.Api
             public override IHttpRequest GetHttpRequest()
             {
                 var requestMsg = base.GetHttpRequest();
-                requestMsg.SetReferrer(this.routeData.GetAbsoluteUri());
+                requestMsg.SetReferer(this.routeData.RequestUri);
                 return requestMsg;
             }
         }

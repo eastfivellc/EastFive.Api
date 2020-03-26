@@ -24,12 +24,12 @@ namespace EastFive.Api
             throw new ResourceNotFoundException();
         }
 
-        public HttpResponseMessage CreateResponseAsync(IApplication httpApp,
-            HttpRequestMessage request, Dictionary<string, object> queryParameterOptions,
+        public IHttpResponse CreateResponseAsync(IApplication httpApp,
+            IHttpRequest request, Dictionary<string, object> queryParameterOptions,
             MethodInfo method, object[] methodParameters)
         {
-            var response = request.CreateResponse(System.Net.HttpStatusCode.NotFound);
-            response.Content = new StringContent(this.StackTrace);
+            var response = request.CreateResponse(System.Net.HttpStatusCode.NotFound,
+                this.StackTrace);
             return response.AddReason(this.Message);
         }
     }

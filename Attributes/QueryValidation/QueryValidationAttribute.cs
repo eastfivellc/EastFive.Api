@@ -27,7 +27,6 @@ namespace EastFive.Api
 
         public virtual SelectParameterResult TryCast(BindingData bindingData)
         {
-            var request = bindingData.request.request;
             var parameterRequiringValidation = bindingData.parameterRequiringValidation;
             var key = GetKey(parameterRequiringValidation);
             var fileResult = bindingData.fetchQueryParam(parameterRequiringValidation,
@@ -90,7 +89,6 @@ namespace EastFive.Api
 
         public override SelectParameterResult TryCast(BindingData bindingData)
         {
-            var request = bindingData.request.request;
             var parameterRequiringValidation = bindingData.parameterRequiringValidation;
             var key = this.GetKey(parameterRequiringValidation);
             var queryResult = bindingData.fetchQueryParam(parameterRequiringValidation,
@@ -204,7 +202,7 @@ namespace EastFive.Api
         {
             var parameterRequiringValidation = bindingData.parameterRequiringValidation;
             var key = this.GetKey(parameterRequiringValidation);
-            return bindingData.request.request.GetAbsoluteUri()
+            return bindingData.request.GetAbsoluteUri()
                 .VerifyParametersHash(
                     onValid: (id, paramsHash) =>
                      {
@@ -242,22 +240,11 @@ namespace EastFive.Api
 
         public SelectParameterResult TryCast(BindingData bindingData)
         {
-            var request = bindingData.request.request;
+            var request = bindingData.request;
             var parameterRequiringValidation = bindingData.parameterRequiringValidation;
             var bindType = parameterRequiringValidation.ParameterType;
             if (typeof(MediaTypeWithQualityHeaderValue) == bindType)
             {
-                if (request.Headers.IsDefaultOrNull())
-                    return new SelectParameterResult
-                    {
-                        valid = false,
-                        fromBody = false,
-                        fromQuery = false,
-                        fromFile = false,
-                        key = "",
-                        parameterInfo = parameterRequiringValidation,
-                        failure = "No headers sent with request.",
-                    };
                 return request.GetAcceptTypes()
                     .Where(accept => accept.MediaType.ToLower().Contains(this.Media))
                     .First(

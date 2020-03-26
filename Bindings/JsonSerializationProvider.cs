@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
@@ -15,33 +16,39 @@ namespace EastFive.Api
 
         public string ContentType => MediaType;
 
-        public virtual HttpResponseMessage Serialize(HttpResponseMessage response,
-            IApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo, object obj)
+        public virtual Task SerializeAsync(Stream responseStream,
+            IApplication httpApp, IHttpRequest request, ParameterInfo paramInfo, object obj)
         {
-            var converter = new Serialization.ExtrudeConvert(httpApp, request);
+            var converter = new Serialization.ExtrudeConvert();
             var jsonObj = Newtonsoft.Json.JsonConvert.SerializeObject(obj,
                 new JsonSerializerSettings
                 {
                     Converters = new JsonConverter[] { converter }.ToList(),
                 });
-            response.Content = new StringContent(jsonObj, Encoding.UTF8, ContentType);
-            return response;
+            var streamWriter = request.TryGetAcceptEncoding(out Encoding writerEncoding) ?
+                new StreamWriter(responseStream, writerEncoding)
+                :
+                new StreamWriter(responseStream, Encoding.UTF8);
+            return streamWriter.WriteAsync(jsonObj);
         }
     }
 
     public class JsonSerializationDictionarySafeProviderAttribute : JsonSerializationProviderAttribute
     {
-        public override HttpResponseMessage Serialize(HttpResponseMessage response,
-            IApplication httpApp, HttpRequestMessage request, ParameterInfo paramInfo, object obj)
+        public override Task SerializeAsync(Stream responseStream,
+            IApplication httpApp, IHttpRequest request, ParameterInfo paramInfo, object obj)
         {
-            var converter = new Serialization.ExtrudeDictionarySafeConvert(httpApp, request);
+            var converter = new Serialization.ExtrudeDictionarySafeConvert();
             var jsonObj = Newtonsoft.Json.JsonConvert.SerializeObject(obj,
                 new JsonSerializerSettings
                 {
                     Converters = new JsonConverter[] { converter }.ToList(),
                 });
-            response.Content = new StringContent(jsonObj, Encoding.UTF8, ContentType);
-            return response;
+            var streamWriter = request.TryGetAcceptEncoding(out Encoding writerEncoding) ?
+                new StreamWriter(responseStream, writerEncoding)
+                :
+                new StreamWriter(responseStream, Encoding.UTF8);
+            return streamWriter.WriteAsync(jsonObj);
         }
     }
 }

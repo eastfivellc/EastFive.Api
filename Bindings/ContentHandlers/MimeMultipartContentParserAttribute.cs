@@ -31,19 +31,19 @@ namespace EastFive.Api
 
     public class MimeMultipartContentParserAttribute : Attribute, IParseContent
     {
-        public bool DoesParse(IHttpRequest routeData)
+        public bool DoesParse(IHttpRequest request)
         {
-            return routeData.request.IsMimeMultipartContent();
+            return request.IsMimeMultipartContent();
         }
 
         public async Task<IHttpResponse> ParseContentValuesAsync(
-            IApplication httpApp, IHttpRequest routeData,
+            IApplication httpApp, IHttpRequest request,
             Func<
                 CastDelegate, 
                 string[],
                 Task<IHttpResponse>> onParsedContentValues)
         {
-            var contentsLookup = routeData.request.Form.Files
+            var contentsLookup = request.Form.Files
                 .Select(
                     (file) =>
                     {
@@ -69,7 +69,7 @@ namespace EastFive.Api
                     return paramInfo
                         .GetAttributeInterface<IBindMultipartApiValue>(true)
                         .ParseContentDelegate(contentsLookup,
-                                paramInfo, httpApp, routeData,
+                                paramInfo, httpApp, request,
                             onParsed,
                             onFailure);
                 };

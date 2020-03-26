@@ -12,9 +12,9 @@ namespace EastFive.Api
     public delegate string ViewPathResolver(string view);
     public class ViewPathAttribute : HtmlResponseAttribute
     {
-        public override Task<HttpResponseMessage> InstigateInternal(IApplication httpApp,
-                HttpRequestMessage request, ParameterInfo parameterInfo,
-            Func<object, Task<HttpResponseMessage>> onSuccess)
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
         {
             ViewPathResolver responseDelegate =
                 (viewPath) =>

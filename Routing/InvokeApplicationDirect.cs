@@ -28,7 +28,7 @@ namespace EastFive.Api
 
         public override IApplication Application => application;
 
-        public override Task<IHttpResponse> SendAsync(HttpRequest httpRequest)
+        public override Task<IHttpResponse> SendAsync(IHttpRequest httpRequest)
         {
             return Middleware.InvokeRequestAsync(httpRequest, application,
                 () =>
@@ -48,7 +48,8 @@ namespace EastFive.Api
                 {
                     return "api";
                 }
-                var instance = new InvokeApplicationDirect(httpApp, request.request.GetAbsoluteUri(), GetApiPrefix(), default(CancellationToken));
+                var instance = new InvokeApplicationDirect(httpApp,
+                    request.RequestUri, GetApiPrefix(), request.CancellationToken);
                 return onSuccess(instance);
             }
         }

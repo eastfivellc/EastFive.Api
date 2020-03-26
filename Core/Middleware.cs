@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
@@ -30,21 +31,80 @@ namespace EastFive.Api.Core
 
         public async Task InvokeAsync(HttpContext context)
         {
-            var routeResponse = await InvokeRequestAsync(context.Request, this.app, 
+            var request = new CoreHttpRequest(context.Request, new CancellationToken());
+            var routeResponse = await InvokeRequestAsync(request, this.app, 
                 () =>
                 {
-                    var routeResponse = new IHttpResponse()
-                    {
-                        writeResultAsync = (context) => continueAsync(context),
-                    };
-                    return routeResponse.AsTask();
+                    return new HttpResponse(context, continueAsync);
                 });
-            await routeResponse.writeResultAsync(context);
+            context.Response.StatusCode = (int)routeResponse.StatusCode;
+            routeResponse = AddReason(routeResponse);
+            foreach (var header in routeResponse.Headers)
+                context.Response.Headers.Add(header.Key, header.Value);
+
+            await routeResponse.WriteResponseAsync(context.Response.Body);
+
+            IHttpResponse AddReason(IHttpResponse response)
+            {
+                var reason = response.ReasonPhrase;
+                if (string.IsNullOrEmpty(reason))
+                    return response;
+
+                var reasonPhrase = reason.Replace('\n', ';').Replace("\r", "");
+                if (reasonPhrase.Length > 510)
+                    reasonPhrase = new string(reasonPhrase.Take(510).ToArray());
+                
+                response.SetHeader("X-Reason", reasonPhrase);
+
+                //if (response.StatusCode == HttpStatusCode.Unauthorized)
+                //    response.WriteResponseAsync = (stream) => JsonHttpResponse<int>.WriteResponseAsync(
+                //        stream, new { Message = reason })
+                //    {
+                //        var messageResponse = JsonConvert.SerializeObject();
+
+                //    };
+                return response;
+            }
         }
 
-        public static Task<IHttpResponse> InvokeRequestAsync(HttpRequest requestMessage,
+
+        private class HttpResponse : IHttpResponse
+        {
+            private readonly RequestDelegate continueAsync;
+            private readonly HttpContext context;
+
+            public HttpResponse(HttpContext context, RequestDelegate continueAsync)
+            {
+                this.context = context;
+                this.continueAsync = continueAsync;
+            }
+
+            public IHttpRequest Request => throw new NotImplementedException();
+
+            public HttpStatusCode StatusCode => throw new NotImplementedException();
+
+            public string ReasonPhrase 
+            {
+                get => throw new NotImplementedException(); 
+                set => throw new NotImplementedException(); 
+            }
+
+            public IDictionary<string, string[]> Headers => throw new NotImplementedException();
+
+            public HttpResponse(RequestDelegate continueAsync)
+            {
+                this.continueAsync = continueAsync;
+            }
+
+            public virtual Task WriteResponseAsync(System.IO.Stream responseStream)
+            {
+                return continueAsync(context);
+            }
+        }
+
+        public static Task<IHttpResponse> InvokeRequestAsync(IHttpRequest requestMessage,
             IApplication application,
-            Func<Task<IHttpResponse>> continueAsync)
+            Func<IHttpResponse> skip)
         {
             return application.Resources
                 .NullToEmpty()
@@ -52,12 +112,11 @@ namespace EastFive.Api.Core
                     resource =>
                     {
                         var doesHandleRequest = resource.invokeResourceAttr.DoesHandleRequest(
-                            resource.type, requestMessage, out IHttpRequest routeData);
+                            resource.type, requestMessage);
                         return new
                         {
                             doesHandleRequest,
                             resource,
-                            routeData,
                         };
                     })
                 .Where(kvp => kvp.doesHandleRequest)
@@ -65,7 +124,6 @@ namespace EastFive.Api.Core
                     async (requestHandler, next) =>
                     {
                         var resource = requestHandler.resource;
-                        var cancellationToken = new CancellationToken();
                         var extensionMethods = requestHandler.resource.extensions;
 
                         var response = await application.GetType()
@@ -75,7 +133,7 @@ namespace EastFive.Api.Core
                                 {
                                     var invokeResource = controllerTypeFinal.GetAttributesInterface<IInvokeResource>().First();
                                     var response = await invokeResource.CreateResponseAsync(controllerTypeFinal,
-                                        httpAppFinal, routeDataFinal, cancellationToken);
+                                        httpAppFinal, routeDataFinal);
                                     return response;
 
                                     //return await resource.invokeResourceAttr.CreateResponseAsync(resource.type,
@@ -89,11 +147,11 @@ namespace EastFive.Api.Core
                                             httpAppCurrent, routeNameCurrent,
                                             callback);
                                 })
-                            .Invoke(resource.type, application, requestHandler.routeData);
+                            .Invoke(resource.type, application, requestMessage);
 
                         return response;
                     },
-                    continueAsync);
+                    skip.AsAsyncFunc());
         }
 
     }

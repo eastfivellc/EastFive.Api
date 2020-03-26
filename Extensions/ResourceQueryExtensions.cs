@@ -5,12 +5,12 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using EastFive.Reflection;
-using EastFive.Linq.Expressions;
 using System.Net.Http;
-using BlackBarLabs.Extensions;
+
 using EastFive.Extensions;
 using EastFive.Linq;
+using EastFive.Reflection;
+using EastFive.Linq.Expressions;
 
 namespace EastFive.Api
 {
@@ -116,10 +116,10 @@ namespace EastFive.Api
                     });
             }
 
-            public IHttpRequest MutateRequest(IHttpRequest routeData,
+            public IHttpRequest MutateRequest(IHttpRequest request,
                 MethodInfo method, Expression[] arguments)
             {
-                routeData.request.Set = BindUrlQueryValue(request.RequestUri, method, arguments);
+                request.RequestUri = BindUrlQueryValue(request.RequestUri, method, arguments);
                 return request;
             }
         }
@@ -139,7 +139,7 @@ namespace EastFive.Api
                 return url.AppendToPath(idStr);
             }
 
-            public HttpRequestMessage MutateRequest(IHttpRequest request,
+            public IHttpRequest MutateRequest(IHttpRequest request,
                 MethodInfo method, Expression[] arguments)
             {
                 request.RequestUri = BindUrlQueryValue(request.RequestUri, method, arguments);
@@ -285,7 +285,7 @@ namespace EastFive.Api
                 //        });
             }
 
-            public HttpRequestMessage MutateRequest(HttpRequestMessage request,
+            public IHttpRequest MutateRequest(IHttpRequest request,
                 MethodInfo method, Expression[] arguments)
             {
                 request.RequestUri = BindUrlQueryValue(request.RequestUri, method, arguments);

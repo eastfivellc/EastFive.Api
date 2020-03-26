@@ -27,7 +27,6 @@ namespace EastFive.Api
 
         public SelectParameterResult TryCast(BindingData bindingData)
         {
-            var request = bindingData.request.request;
             var parameterRequiringValidation = bindingData.parameterRequiringValidation;
             return bindingData.fetchBodyParam(parameterRequiringValidation,
                 (value) => SelectParameterResult.Body(value, string.Empty, parameterRequiringValidation),

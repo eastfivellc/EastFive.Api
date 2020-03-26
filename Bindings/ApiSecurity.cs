@@ -32,30 +32,30 @@ namespace EastFive.Api.Controllers
         }
 
         public Task<IHttpResponse> Instigate(IApplication httpApp,
-                IHttpRequest routeData,
+                IHttpRequest request,
                 ParameterInfo parameterInfo,
             Func<object, Task<IHttpResponse>> onSuccess)
         {
             return EastFive.Web.Configuration.Settings.GetString(AppSettings.ApiKey,
                 (authorizedApiKey) =>
                 {
-                    var queryParams = routeData.request.GetAbsoluteUri().ParseQueryString();
+                    var queryParams = request.GetAbsoluteUri().ParseQueryString();
                     if (queryParams["ApiKeySecurity"] == authorizedApiKey)
                         return onSuccess(new Controllers.ApiSecurity
                         { 
                             key = queryParams["ApiKeySecurity"],
                         });
 
-                    var authorization = routeData.request.GetAuthorization();
+                    var authorization = request.GetAuthorization();
                     if (authorization == authorizedApiKey)
                         return onSuccess(new Controllers.ApiSecurity 
                         { 
                             key = authorization,
                         });
 
-                    return routeData.CreateResponse(HttpStatusCode.Unauthorized).AsTask();
+                    return request.CreateResponse(HttpStatusCode.Unauthorized).AsTask();
                 },
-                (why) => routeData.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).AsTask());
+                (why) => request.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).AsTask());
         }
     }
 }

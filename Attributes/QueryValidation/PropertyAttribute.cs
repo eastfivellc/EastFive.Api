@@ -1,9 +1,4 @@
-﻿using EastFive.Api.Bindings;
-using EastFive.Api.Resources;
-using EastFive.Extensions;
-using Microsoft.AspNetCore.Http;
-using Newtonsoft.Json.Linq;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
@@ -14,6 +9,15 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 
+using Microsoft.AspNetCore.Http;
+
+using Newtonsoft.Json.Linq;
+
+using EastFive.Api.Bindings;
+using EastFive.Api.Resources;
+using EastFive.Extensions;
+using EastFive.Linq;
+
 namespace EastFive.Api
 {
     public class PropertyAttribute : QueryValidationAttribute,
@@ -21,7 +25,7 @@ namespace EastFive.Api
     {
         public override SelectParameterResult TryCast(BindingData bindingData)
         {
-            var request = bindingData.request.request;
+            var request = bindingData.request;
             var parameterRequiringValidation = bindingData.parameterRequiringValidation;
             var name = this.GetKey(parameterRequiringValidation);
             return bindingData.fetchBodyParam(parameterRequiringValidation,
@@ -260,16 +264,21 @@ namespace EastFive.Api
             if (formData.IsDefaultOrNull())
                 return onFailure("No form data provided");
 
-            if (!formData.ContainsKey(key))
-                return onFailure("Key not found");
+            return formData
+                .Where(kvp => kvp.Key == key)
+                .First(
+                    (kvp, next) =>
+                    {
+                        var strValue = kvp.Value;
+                        return httpApp.Bind(strValue, parameterInfo,
+                            (value) =>
+                            {
+                                return onParsed(value);
+                            },
+                            why => onFailure(why));
+                    },
+                    () => onFailure("Key not found"));
 
-            var strValue = formData[key];
-            return httpApp.Bind(strValue, parameterInfo,
-                (value) =>
-                {
-                    return onParsed(value);
-                },
-                why => onFailure(why));
         }
 
         internal static TResult ContentToType<TResult>(IApplication httpApp, ParameterInfo paramInfo,
