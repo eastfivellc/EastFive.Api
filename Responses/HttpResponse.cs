@@ -20,7 +20,7 @@ namespace EastFive.Api
 
         public IHttpRequest Request { get; private set; }
 
-        public HttpStatusCode StatusCode { get; private set; }
+        public HttpStatusCode StatusCode { get; set; }
 
         public string ReasonPhrase { get; set; }
 

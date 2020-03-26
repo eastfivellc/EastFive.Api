@@ -81,7 +81,7 @@ namespace EastFive.Api.Core
 
             public IHttpRequest Request => throw new NotImplementedException();
 
-            public HttpStatusCode StatusCode => throw new NotImplementedException();
+            public HttpStatusCode StatusCode { get; set; }
 
             public string ReasonPhrase 
             {

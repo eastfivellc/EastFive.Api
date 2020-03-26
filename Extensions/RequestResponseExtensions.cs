@@ -37,7 +37,7 @@ namespace EastFive.Api
             HttpStatusCode statusCode,
             T content)
         {
-            return new JsonHttpResponse<T>(request, statusCode, content);
+            return new JsonHttpResponse(request, statusCode, content);
         }
 
         public static IHttpResponse CreateExtrudedResponse(this IHttpRequest request,

@@ -53,6 +53,8 @@ namespace EastFive.Api.Core
 
         IDictionary<string, object> IHttpRequest.Properties { get; }
 
+        public IDictionary<string, string[]> Headers => throw new NotImplementedException();
+
         public IEnumerable<string> GetHeaders(string headerKey)
             => request.GetHeaders(headerKey);
 

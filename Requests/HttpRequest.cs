@@ -29,6 +29,8 @@ namespace EastFive.Api
 
         public IFormCollection Form => throw new NotImplementedException();
 
+        public IDictionary<string, string[]> Headers => throw new NotImplementedException();
+
         IDictionary<string, object> IHttpRequest.Properties { get; }
 
         public IEnumerable<string> GetHeaders(string headerKey)

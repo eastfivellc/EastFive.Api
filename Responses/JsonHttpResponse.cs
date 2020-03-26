@@ -15,12 +15,12 @@ using System.IO;
 
 namespace EastFive.Api
 {
-    public class JsonHttpResponse<T> : HttpResponse
+    public class JsonHttpResponse : HttpResponse
     {
-        private T content;
+        private object content;
 
         public JsonHttpResponse(IHttpRequest request,
-            HttpStatusCode statusCode, T content) 
+            HttpStatusCode statusCode, object content) 
             : base(request, statusCode)
         {
             this.content = content;
@@ -32,7 +32,7 @@ namespace EastFive.Api
             return WriteResponseAsync(responseStream, this.content, this.Request);
         }
 
-        public static Task WriteResponseAsync(System.IO.Stream responseStream, T content,
+        public static Task WriteResponseAsync(System.IO.Stream responseStream, object content,
             IHttpRequest request)
         {
             if (request.TryGetAcceptEncoding(out Encoding encoding))

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using EastFive.Web;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -37,7 +38,9 @@ namespace EastFive.Api
     public interface IApplication //: IInvokeApplication
     {
         ResourceInvocation[] Resources { get; }
-        
+
+        IDictionary<Type, ConfigAttribute> ConfigurationTypes { get; }
+
         EastFive.Analytics.ILogger Logger { get; }
 
         IEnumerable<MethodInfo> GetExtensionMethods(Type controllerType);

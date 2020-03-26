@@ -588,7 +588,14 @@ namespace EastFive.Api
 
             public IHttpRequest Request => Inner.Request;
 
-            public HttpStatusCode StatusCode => Inner.StatusCode;
+            public HttpStatusCode StatusCode
+            {
+                get => Inner.StatusCode;
+                set
+                {
+                    Inner.StatusCode = value;
+                }
+            }
 
             public string ReasonPhrase { get => Inner.ReasonPhrase; set => Inner.ReasonPhrase = value; }
 
@@ -628,7 +635,7 @@ namespace EastFive.Api
 
             public IHttpRequest Request => throw new NotImplementedException();
 
-            public HttpStatusCode StatusCode => throw new NotImplementedException();
+            public HttpStatusCode StatusCode { get; set; }
 
             public string ReasonPhrase { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 

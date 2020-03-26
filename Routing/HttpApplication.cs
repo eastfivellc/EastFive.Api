@@ -388,12 +388,15 @@ namespace EastFive.Api
 
         #region Load Controllers
 
-        private IDictionary<Type, ResourceInvocation> routeResourceExtensionLookup;
+        private IDictionary<Type, ResourceInvocation> routeResourceExtensionLookup
+            = new Dictionary<Type, ResourceInvocation>();
 
         public ResourceInvocation[] Resources => routeResourceExtensionLookup
             .SelectValues().ToArray();
 
-        private static object lookupLock = new object();
+        public IDictionary<Type, ConfigAttribute> ConfigurationTypes => configurationTypes;
+
+        public static IDictionary<Type, ConfigAttribute> configurationTypes;
 
         private void LocateControllers()
         {
@@ -459,9 +462,11 @@ namespace EastFive.Api
                                 {
                                     type = type,
                                 });
-                            continue;
                         }
-                        routeResourceExtensionLookup[type].invokeResourceAttr = invokeResourceAttr;
+                        else
+                        {
+                            routeResourceExtensionLookup[type].invokeResourceAttr = invokeResourceAttr;
+                        }
                     }
                     var invokeExtensionsAttrs = type.GetAttributesInterface<IInvokeExtensions>();
                     if (invokeExtensionsAttrs.Any())
@@ -478,14 +483,25 @@ namespace EastFive.Api
                                     {
                                         type = extendedType,
                                     });
-                                continue;
                             }
-                            routeResourceExtensionLookup[extendedType].extensions =
-                                routeResourceExtensionLookup[extendedType].extensions
-                                .NullToEmpty()
-                                .Append(extensionsKvp.Value)
-                                .ToArray();
+                            else
+                            {
+                                routeResourceExtensionLookup[extendedType].extensions =
+                                    routeResourceExtensionLookup[extendedType].extensions
+                                    .NullToEmpty()
+                                    .Append(extensionsKvp.Value)
+                                    .ToArray();
+                            }
                         }
+                    }
+                    if (type.ContainsCustomAttribute<ConfigAttribute>())
+                    {
+                        var attr = type.GetCustomAttribute<ConfigAttribute>();
+                        configurationTypes = configurationTypes
+                            .NullToEmpty()
+                            .Append(attr.PairWithKey(type))
+                            .Distinct(ct => ct.Key.FullName)
+                            .ToDictionary();
                     }
                 }
             }
