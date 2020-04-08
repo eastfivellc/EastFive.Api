@@ -7,11 +7,13 @@ using System.Threading;
 using Microsoft.AspNetCore.Http;
 
 using EastFive.Linq;
+using EastFive.Collections.Generic;
 using System.Net.Http.Headers;
 using System.Net.Http;
 using System.IO;
 using System.Threading.Tasks;
 using EastFive.Extensions;
+using Microsoft.AspNetCore.Mvc.Razor;
 
 namespace EastFive.Api.Core
 {
@@ -20,14 +22,20 @@ namespace EastFive.Api.Core
         public Microsoft.AspNetCore.Http.HttpRequest request;
 
         public CoreHttpRequest(Microsoft.AspNetCore.Http.HttpRequest request,
+            IRazorViewEngine razorViewEngine,
             CancellationToken cancellationToken)
         {
             this.request = request;
             this.CancellationToken = cancellationToken;
             this.Properties = new Dictionary<string, object>();
+            this.Headers = request.Headers
+                .Select(kvp =>kvp.Key.PairWithValue((string[])kvp.Value))
+                .ToDictionary();
+            this.Method = new HttpMethod(request.Method);
+            this.RazorViewEngine = razorViewEngine;
         }
 
-        public IDictionary<string, object> Properties;
+        public IDictionary<string, object> Properties { get; private set; }
 
         public Uri RequestUri
         {
@@ -49,14 +57,27 @@ namespace EastFive.Api.Core
 
         public Stream Body => this.request.Body;
 
-        public IFormCollection Form => this.request.Form;
+        public bool HasBody => this.request.ContentLength.HasValue;
 
-        IDictionary<string, object> IHttpRequest.Properties { get; }
+        public bool HasFormContentType => this.request.HasFormContentType;
 
-        public IDictionary<string, string[]> Headers => throw new NotImplementedException();
+        public IFormCollection Form => this.request.HasFormContentType?
+            this.request.Form
+            :
+            default;
+
+
+        public IDictionary<string, string[]> Headers { get; private set; }
+
+        public IRazorViewEngine RazorViewEngine { get; private set; }
+
+        public string GetHeader(string headerKey)
+            => request.GetHeader(headerKey);
 
         public IEnumerable<string> GetHeaders(string headerKey)
-            => request.GetHeaders(headerKey);
+            => request.GetHeaders(headerKey)
+            .SelectMany(header => header.Split(','))
+            .Select(header => header.Trim());
 
         public void UpdateHeader(string headerKey, Func<string[], string[]> callback)
         {

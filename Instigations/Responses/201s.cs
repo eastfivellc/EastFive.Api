@@ -85,11 +85,18 @@ namespace EastFive.Api
                 : base(request, statusCode,
                     stream =>
                     {
-                        var serializationProvider = objType
+                        var serializationProviders = objType
                             .GetAttributesInterface<IProvideSerialization>()
-                            .Single();
-                        return serializationProvider.SerializeAsync(
-                            stream, httpApp, request, parameterInfo, obj);
+                            .OrderByDescending(x => x.GetPreference(request));
+
+                        if (serializationProviders.Any())
+                        { 
+                            var serializationProvider = serializationProviders.First();
+                            return serializationProvider.SerializeAsync(
+                                stream, httpApp, request, parameterInfo, obj);
+                        }
+
+                        return JsonHttpResponse.WriteResponseAsync(stream, obj, request);
                     })
             {
 

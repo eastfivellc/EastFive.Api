@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.Razor;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -25,13 +26,22 @@ namespace EastFive.Api
         
         public Func<Stream, Task> WriteBody { get; set; }
 
+        public bool HasBody => false;
+
         public Stream Body => throw new NotImplementedException();
+
+        public bool HasFormContentType => false; // TODO:
 
         public IFormCollection Form => throw new NotImplementedException();
 
         public IDictionary<string, string[]> Headers => throw new NotImplementedException();
 
+        public IRazorViewEngine RazorViewEngine => throw new NotImplementedException();
+
         IDictionary<string, object> IHttpRequest.Properties { get; }
+
+        public string GetHeader(string headerKey)
+            => string.Empty;
 
         public IEnumerable<string> GetHeaders(string headerKey)
         {

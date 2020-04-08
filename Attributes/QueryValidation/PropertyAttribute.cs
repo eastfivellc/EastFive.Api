@@ -238,7 +238,8 @@ namespace EastFive.Api
             }
         }
 
-        public TResult ParseContentDelegate<TResult>(IDictionary<string, MultipartContentTokenParser> contentsLookup,
+        public TResult ParseContentDelegate<TResult>(
+                IDictionary<string, MultipartContentTokenParser> contentsLookup,
                 ParameterInfo parameterInfo, IApplication httpApp, IHttpRequest request,
             Func<object, TResult> onParsed, 
             Func<string, TResult> onFailure)
@@ -251,34 +252,6 @@ namespace EastFive.Api
             return ContentToType(httpApp, parameterInfo, contentsLookup[key],
                     onParsed,
                     onFailure);
-        }
-
-        public TResult ParseContentDelegate<TResult>(IFormCollection formData, 
-                ParameterInfo parameterInfo, IApplication httpApp, IHttpRequest routeData,
-            Func<object, TResult> onParsed,
-            Func<string, TResult> onFailure)
-        {
-            var key = this.GetKey(parameterInfo);
-            var type = parameterInfo.ParameterType;
-
-            if (formData.IsDefaultOrNull())
-                return onFailure("No form data provided");
-
-            return formData
-                .Where(kvp => kvp.Key == key)
-                .First(
-                    (kvp, next) =>
-                    {
-                        var strValue = kvp.Value;
-                        return httpApp.Bind(strValue, parameterInfo,
-                            (value) =>
-                            {
-                                return onParsed(value);
-                            },
-                            why => onFailure(why));
-                    },
-                    () => onFailure("Key not found"));
-
         }
 
         internal static TResult ContentToType<TResult>(IApplication httpApp, ParameterInfo paramInfo,
@@ -322,5 +295,59 @@ namespace EastFive.Api
                 why => onFailure(why));
         }
 
+        public TResult ParseContentDelegate<TResult>(IFormCollection formData, 
+                ParameterInfo parameterInfo, IApplication httpApp, IHttpRequest routeData,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onFailure)
+        {
+            var key = this.GetKey(parameterInfo);
+            return ParseContentDelegate<TResult>(key, formData,
+                    parameterInfo, httpApp,
+                onParsed,
+                onFailure);
+        }
+
+        public static TResult ParseContentDelegate<TResult>(string key, IFormCollection formData,
+                ParameterInfo parameterInfo, IApplication httpApp,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onFailure)
+        {
+            var type = parameterInfo.ParameterType;
+
+            if (formData.IsDefaultOrNull())
+                return onFailure("No form data provided");
+
+            return formData
+                .Where(kvp => kvp.Key == key)
+                .First(
+                    (kvp, next) =>
+                    {
+                        var strValue = (string)kvp.Value;
+                        return httpApp.Bind(strValue, parameterInfo,
+                            (value) =>
+                            {
+                                return onParsed(value);
+                            },
+                            why => onFailure(why));
+                    },
+                    () =>
+                    {
+                        return formData.Files
+                            .Where(file => file.Name == key)
+                            .First(
+                                (file, next) =>
+                                {
+                                    var strValue = (IFormFile)file;
+                                    return httpApp.Bind(strValue, parameterInfo,
+                                        (value) =>
+                                        {
+                                            return onParsed(value);
+                                        },
+                                        why => onFailure(why));
+                                },
+                                () => onFailure("Key not found"));
+                    });
+
+        }
     }
 }

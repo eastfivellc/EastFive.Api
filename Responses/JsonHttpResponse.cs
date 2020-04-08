@@ -12,6 +12,7 @@ using Newtonsoft.Json;
 
 using EastFive.Extensions;
 using System.IO;
+using EastFive.Api.Bindings.ContentHandlers;
 
 namespace EastFive.Api
 {
@@ -35,24 +36,22 @@ namespace EastFive.Api
         public static Task WriteResponseAsync(System.IO.Stream responseStream, object content,
             IHttpRequest request)
         {
-            if (request.TryGetAcceptEncoding(out Encoding encoding))
-                return WriteResponseAsync(responseStream, content, encoding);
+            if (request.TryGetAcceptCharset(out Encoding encoding))
+                return WriteResponseAsync(responseStream, content, request, encoding);
 
-            return WriteResponseAsync(responseStream, content);
+            return WriteResponseAsync(responseStream, content, request, encoding);
         }
 
-        public async static Task WriteResponseAsync(System.IO.Stream responseStream, object content,
+        public static Task WriteResponseAsync(System.IO.Stream responseStream, object content,
+            IHttpRequest request,
             Encoding encoding = default)
         {
             var settings = new JsonSerializerSettings();
-            settings.Converters.Add(new Serialization.Converter());
+            settings.Converters.Add(new Serialization.Converter(request));
             settings.DefaultValueHandling = DefaultValueHandling.Ignore;
             var contentJsonString = JsonConvert.SerializeObject(content, settings);
-            var writer = encoding.IsDefaultOrNull() ?
-                new StreamWriter(responseStream)
-                :
-                new StreamWriter(responseStream, encoding);
-            await writer.WriteAsync(contentJsonString);
+
+            return responseStream.WriteResponseText(contentJsonString, encoding);
         }
     }
 }

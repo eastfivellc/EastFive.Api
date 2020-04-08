@@ -33,6 +33,8 @@ namespace EastFive.Api
     {
         public bool DoesParse(IHttpRequest request)
         {
+            if (!request.HasFormContentType)
+                return false;
             return request.IsMimeMultipartContent();
         }
 
@@ -43,9 +45,9 @@ namespace EastFive.Api
                 string[],
                 Task<IHttpResponse>> onParsedContentValues)
         {
-            var contentsLookup = request.Form.Files
+            var contentsLookup = await request.Form.Files
                 .Select(
-                    (file) =>
+                    async (file) =>
                     {
                         if (file.IsDefaultOrNull())
                             return default;
@@ -54,14 +56,15 @@ namespace EastFive.Api
                         var fileNameMaybe = file.FileName;
                         if (null != fileNameMaybe)
                             fileNameMaybe = fileNameMaybe.Trim(new char[] { '"' });
-                        var contents = file.OpenReadStream().ToBytes();
+                        var contents = await file.OpenReadStream().ToBytesAsync();
 
                         var kvp = key.PairWithValue(
                             new MultipartContentTokenParser(file, contents, fileNameMaybe));
                         return kvp.AsOptional();
                     })
+                .AsyncEnumerable()
                 .SelectWhereHasValue()
-                .ToDictionary();
+                .ToDictionaryAsync();
 
             CastDelegate parser =
                 (paramInfo, onParsed, onFailure) =>
@@ -129,6 +132,7 @@ namespace EastFive.Api
             //}
             throw new NotImplementedException();
         }
+
         public object ReadObject()
         {
             throw new NotImplementedException();
@@ -140,7 +144,6 @@ namespace EastFive.Api
             { FileName = fileNameMaybe };
         }
 
-        public bool IsString => true;
         public string ReadString()
         {
             return System.Text.Encoding.UTF8.GetString(contents);

@@ -3,6 +3,7 @@ using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using EastFive.Linq;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.Razor;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,19 +20,34 @@ namespace EastFive.Api.Core
     {
         private readonly RequestDelegate continueAsync;
         private readonly IApplication app;
+        private readonly IRazorViewEngine razorViewEngine;
+        private readonly string[] pathLookups;
 
         public const string HeaderStatusName = "X-StatusName";
         public const string HeaderStatusInstance = "X-StatusInstance";
 
-        public Middleware(RequestDelegate next, IApplication app)
+        public Middleware(RequestDelegate next, IApplication app, IRazorViewEngine razorViewEngine)
         {
             this.continueAsync = next;
             this.app = app;
+            this.razorViewEngine = razorViewEngine;
+            this.pathLookups = app.Resources
+                .Select(res => res.invokeResourceAttr.Namespace)
+                .Where(res => res.HasBlackSpace())
+                .Distinct()
+                .ToArray();
         }
 
         public async Task InvokeAsync(HttpContext context)
         {
-            var request = new CoreHttpRequest(context.Request, new CancellationToken());
+            var matchesResources = pathLookups.Any(pathLookup => context.Request.Path.StartsWithSegments('/' + pathLookup));
+            if (!matchesResources)
+            {
+                await continueAsync(context);
+                return;
+            }
+
+            var request = new CoreHttpRequest(context.Request, this.razorViewEngine, new CancellationToken());
             var routeResponse = await InvokeRequestAsync(request, this.app, 
                 () =>
                 {
@@ -85,11 +101,11 @@ namespace EastFive.Api.Core
 
             public string ReasonPhrase 
             {
-                get => throw new NotImplementedException(); 
+                get => default; 
                 set => throw new NotImplementedException(); 
             }
 
-            public IDictionary<string, string[]> Headers => throw new NotImplementedException();
+            public IDictionary<string, string[]> Headers => new Dictionary<string, string[]>();
 
             public HttpResponse(RequestDelegate continueAsync)
             {
@@ -106,8 +122,11 @@ namespace EastFive.Api.Core
             IApplication application,
             Func<IHttpResponse> skip)
         {
-            return application.Resources
+            var matchingResources = application.Resources
                 .NullToEmpty()
+                .OrderByDescending(res =>
+                    (res.invokeResourceAttr.Route.HasBlackSpace() ? 2 : 0) +
+                    (res.invokeResourceAttr.Namespace.HasBlackSpace() ? 1 : 0))
                 .Select(
                     resource =>
                     {
@@ -119,7 +138,11 @@ namespace EastFive.Api.Core
                             resource,
                         };
                     })
-                .Where(kvp => kvp.doesHandleRequest)
+                .Where(kvp => kvp.doesHandleRequest);
+
+            var debug = matchingResources.ToArray();
+
+            return matchingResources
                 .First(
                     async (requestHandler, next) =>
                     {

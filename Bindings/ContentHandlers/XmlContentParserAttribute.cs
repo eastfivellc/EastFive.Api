@@ -38,24 +38,14 @@ namespace EastFive.Api
                 string[],
                 Task<IHttpResponse>> onParsedContentValues)
         {
-            var contentString = request.Body.ReadAsString();
+            if (!request.HasBody)
+                return await BodyMissing("Body was not provided");
 
-            var exceptionKeys = new string[] { };
+            var contentString = await request.Body.ReadAsStringAsync();
+
             if (contentString.IsNullOrWhiteSpace())
-            {
-                CastDelegate emptyParser =
-                    (paramInfo, onParsed, onFailure) =>
-                    {
-                        var key = paramInfo
-                            .GetAttributeInterface<IBindApiValue>()
-                            .GetKey(paramInfo)
-                            .ToLower();
-                        var failMsg = $"[{key}] was not provided (XML body content was empty).";
-                        return onFailure(failMsg);
-                    };
-                return await onParsedContentValues(emptyParser, exceptionKeys);
-            }
-
+                return await BodyMissing("XML body content was empty");
+            
             var xmldoc = new XmlDocument();
             try
             {
@@ -63,12 +53,7 @@ namespace EastFive.Api
             }
             catch (Exception ex)
             {
-                CastDelegate exceptionParser =
-                    (paramInfo, onParsed, onFailure) =>
-                    {
-                        return onFailure(ex.Message);
-                    };
-                return await onParsedContentValues(exceptionParser, exceptionKeys);
+                return await BodyMissing(ex.Message);
             }
 
             CastDelegate parser =
@@ -82,6 +67,23 @@ namespace EastFive.Api
                             onFailure);
                 };
             return await onParsedContentValues(parser, new string[] { });
+
+
+            Task<IHttpResponse> BodyMissing(string failureMessage)
+            {
+                CastDelegate emptyParser =
+                    (paramInfo, onParsed, onFailure) =>
+                    {
+                        var key = paramInfo
+                            .GetAttributeInterface<IBindApiValue>()
+                            .GetKey(paramInfo)
+                            .ToLower();
+                        var type = paramInfo.ParameterType;
+                        return onFailure($"XML [{key}] could not be parsed ({failureMessage}).");
+                    };
+                var exceptionKeys = new string[] { };
+                return onParsedContentValues(emptyParser, exceptionKeys);
+            }
         }
     }
 }

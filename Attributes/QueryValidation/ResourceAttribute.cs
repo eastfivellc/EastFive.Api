@@ -3,22 +3,22 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
-using Newtonsoft.Json;
-
 using EastFive.Extensions;
-using System.Xml;
+using EastFive.Linq;
 using EastFive.Api.Serialization;
 using Newtonsoft.Json.Linq;
 using EastFive.Linq.Expressions;
-using System.IO;
 using EastFive.Api.Bindings;
+using Microsoft.AspNetCore.Http;
 
 namespace EastFive.Api
 {
-    public class ResourceAttribute : System.Attribute, IBindApiValue, IBindJsonApiValue, IBindMultipartApiValue
+    public class ResourceAttribute : System.Attribute, 
+        IBindApiValue, IBindJsonApiValue, IBindMultipartApiValue, IBindFormDataApiValue
     {
         public string GetKey(ParameterInfo paramInfo)
         {
@@ -85,7 +85,7 @@ namespace EastFive.Api
         }
 
         internal static TResult ContentToType<TResult>(IApplication httpApp, Type type,
-            MultipartContentTokenParser tokenReader,
+                MultipartContentTokenParser tokenReader,
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure)
         {
@@ -122,6 +122,78 @@ namespace EastFive.Api
                     return onParsed(value);
                 },
                 why => onFailure(why));
+        }
+
+        public TResult ParseContentDelegate<TResult>(IFormCollection formData,
+                ParameterInfo parameterInfo, 
+                IApplication httpApp, IHttpRequest request,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onFailure)
+        {
+            var paramType = parameterInfo.ParameterType;
+            var obj = paramType.GetMembers()
+                .Aggregate(Activator.CreateInstance(paramType),
+                    (param, member) =>
+                    {
+                        if (!member.ContainsAttributeInterface<IProvideApiValue>(true))
+                            return param;
+                        var provideApiValue = member.GetAttributeInterface<IProvideApiValue>(true);
+
+                        if (!formData.ContainsKey(provideApiValue.PropertyName))
+                            return param;
+
+                        var tokenParser = formData[provideApiValue.PropertyName];
+                        return ParseFormContentDelegate(provideApiValue.PropertyName, formData,
+                            member.GetMemberType(), httpApp,
+                            paramValue =>
+                            {
+                                member.SetValue(ref param, paramValue);
+                                return param;
+                            },
+                            why => param);
+                    });
+            return onParsed(obj);
+        }
+
+        public static TResult ParseFormContentDelegate<TResult>(string key, IFormCollection formData,
+                Type type, IApplication httpApp,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onFailure)
+        {
+            if (formData.IsDefaultOrNull())
+                return onFailure("No form data provided");
+
+            return formData
+                .Where(kvp => kvp.Key == key)
+                .First(
+                    (kvp, next) =>
+                    {
+                        var strValue = (string)kvp.Value;
+                        return httpApp.Bind(strValue, type,
+                            (value) =>
+                            {
+                                return onParsed(value);
+                            },
+                            why => onFailure(why));
+                    },
+                    () =>
+                    {
+                        return formData.Files
+                            .Where(file => file.Name == key)
+                            .First(
+                                (file, next) =>
+                                {
+                                    var strValue = (IFormFile)file;
+                                    return httpApp.Bind(strValue, type,
+                                        (value) =>
+                                        {
+                                            return onParsed(value);
+                                        },
+                                        why => onFailure(why));
+                                },
+                                () => onFailure("Key not found"));
+                    });
+
         }
     }
 }

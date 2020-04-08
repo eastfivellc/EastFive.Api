@@ -29,7 +29,7 @@ namespace EastFive.Api
         {
             var parameterRequiringValidation = bindingData.parameterRequiringValidation;
             var key = GetKey(parameterRequiringValidation);
-            var fileResult = bindingData.fetchQueryParam(parameterRequiringValidation,
+            var fileResult = bindingData.fetchDefaultParam(parameterRequiringValidation,
                 (v) =>
                 {
                     return SelectParameterResult.File(v, key, parameterRequiringValidation);
@@ -91,28 +91,7 @@ namespace EastFive.Api
         {
             var parameterRequiringValidation = bindingData.parameterRequiringValidation;
             var key = this.GetKey(parameterRequiringValidation);
-            var queryResult = bindingData.fetchQueryParam(parameterRequiringValidation,
-                (v) =>
-                {
-                    return SelectParameterResult.Query(v, key, parameterRequiringValidation);
-                },
-                (whyQuery) => SelectParameterResult.FailureQuery(whyQuery, key, parameterRequiringValidation));
-
-            if (queryResult.valid)
-                return queryResult;
-
-            if (!CheckFileName)
-                return queryResult;
-
-            return bindingData.fetchDefaultParam(parameterRequiringValidation,
-                (v) =>
-                {
-                    return SelectParameterResult.File(v, key, parameterRequiringValidation);
-                },
-                (whyQuery) =>
-                {
-                    return queryResult;
-                });
+            return TryCast(bindingData, key, this.CheckFileName);
         }
 
         public override string GetKey(ParameterInfo paramInfo)
@@ -130,6 +109,34 @@ namespace EastFive.Api
                 Type = Parameter.GetTypeName(paramInfo.ParameterType, httpApp),
                 Where = "QUERY",
             };
+        }
+
+        public static SelectParameterResult TryCast(BindingData bindingData,
+            string key, bool checkFileName)
+        {
+            var parameterRequiringValidation = bindingData.parameterRequiringValidation;
+            var queryResult = bindingData.fetchQueryParam(parameterRequiringValidation,
+                (v) =>
+                {
+                    return SelectParameterResult.Query(v, key, parameterRequiringValidation);
+                },
+                (whyQuery) => SelectParameterResult.FailureQuery(whyQuery, key, parameterRequiringValidation));
+
+            if (queryResult.valid)
+                return queryResult;
+
+            if (!checkFileName)
+                return queryResult;
+
+            return bindingData.fetchDefaultParam(parameterRequiringValidation,
+                (v) =>
+                {
+                    return SelectParameterResult.File(v, key, parameterRequiringValidation);
+                },
+                (whyQuery) =>
+                {
+                    return queryResult;
+                });
         }
     }
 

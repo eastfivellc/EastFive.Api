@@ -9,8 +9,6 @@ namespace EastFive.Api.Serialization
 {
     public interface IParseToken
     {
-        bool IsString { get; }
-
         string ReadString();
 
         byte[] ReadBytes();

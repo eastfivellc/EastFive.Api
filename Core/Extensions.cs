@@ -2,28 +2,30 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Primitives;
+using Microsoft.AspNetCore.Mvc.Razor;
 
 using EastFive.Extensions;
 using EastFive.Linq;
-using System.Net.Http.Headers;
 
 namespace EastFive.Api.Core
 {
     public static class Extensions
     {
         public static IApplicationBuilder UseFVCRouting(
-            this IApplicationBuilder builder, IApplication app, IConfiguration configuration)
+            this IApplicationBuilder builder, IApplication app, IConfiguration configuration,
+            IRazorViewEngine razorViewEngine)
         {
             EastFive.Web.Configuration.ConfigurationExtensions.Initialize(configuration);
-            return builder.UseMiddleware<Middleware>(app);
+            return builder.UseMiddleware<Middleware>(app, razorViewEngine);
         }
 
         #region Get Request Message
@@ -45,14 +47,21 @@ namespace EastFive.Api.Core
             => msg.Set(m => m.RequestUri = req.GetAbsoluteUri());
 
         public static Uri GetAbsoluteUri(this Microsoft.AspNetCore.Http.HttpRequest req)
-            => new UriBuilder
-            {
-                Scheme = req.Scheme,
-                Host = req.Host.Host,
-                Port = req.Host.Port.Value,
-                Path = req.PathBase.Add(req.Path),
-                Query = req.QueryString.ToString()
-            }.Uri;
+        {
+            var uriBuilder = new UriBuilder()
+               {
+                   Scheme = req.Scheme,
+                   Host = req.Host.Host,
+                   Port = req.Host.Port.HasValue ? req.Host.Port.Value : default,
+                   Path = req.PathBase.Add(req.Path),
+                   Query = req.QueryString.ToString()
+               };
+            if (req.Host.Port.HasValue)
+                return uriBuilder.Uri;
+
+            var cleanString = uriBuilder.Uri.GetComponents(UriComponents.AbsoluteUri & ~UriComponents.Port, UriFormat.Unescaped);
+            return new Uri(cleanString, UriKind.Absolute);
+        }
 
         private static HttpRequestMessage SetMethod(this HttpRequestMessage msg, Microsoft.AspNetCore.Http.HttpRequest req)
             => msg.Set(m => m.Method = new HttpMethod(req.Method));

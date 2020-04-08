@@ -1,5 +1,6 @@
 ﻿using EastFive.Web;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Hosting;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -62,6 +63,7 @@ namespace EastFive.Api
         Task<IHttpResponse> Instigate(IHttpRequest request, 
                 ParameterInfo methodParameter,
             Func<object, Task<IHttpResponse>> onInstigated);
+
     }
 
 }

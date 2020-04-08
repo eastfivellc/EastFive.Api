@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
+using System.Globalization;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -12,12 +13,27 @@ using Newtonsoft.Json.Linq;
 using EastFive.Api.Core;
 using EastFive.Api.Serialization;
 using EastFive.Linq;
+using EastFive.Extensions;
+using EastFive.Collections.Generic;
+using Microsoft.AspNetCore.Http;
 
 namespace EastFive.Api
 {
-    public class HeaderAttribute : QueryValidationAttribute, IBindJsonApiValue
+    public interface IHttpHeaderValueCollection<THeaderValue>
+    {
+        CultureInfo[] ToCultures();
+    }
+
+    public class HeaderAttribute : QueryValidationAttribute, IBindJsonApiValue, IBindFormDataApiValue
     {
         public string Content { get; set; }
+
+        public override string GetKey(ParameterInfo paramInfo)
+        {
+            if (this.Content.HasBlackSpace())
+                return this.Content;
+            return base.GetKey(paramInfo);
+        }
 
         public TResult ParseContentDelegate<TResult>(JObject contentJObject, string contentString, 
                 BindConvert bindConvert, 
@@ -94,7 +110,7 @@ namespace EastFive.Api
                         };
                     });
             }
-            if (bindType.IsSubClassOfGeneric(typeof(HttpHeaderValueCollection<>)))
+            if (bindType.IsSubClassOfGeneric(typeof(IHttpHeaderValueCollection<>)))
             {
                 if (bindType.GenericTypeArguments.First() == typeof(StringWithQualityHeaderValue))
                 {
@@ -109,6 +125,8 @@ namespace EastFive.Api
                             valid = false,
                             failure = "AcceptLanguage is not a content header.",
                         };
+                    var accepts = request.GetAcceptLanguage().ToArray();
+                    var valueCast = new HeaderValues<StringWithQualityHeaderValue>(accepts);
                     return new SelectParameterResult
                     {
                         valid = true,
@@ -117,7 +135,7 @@ namespace EastFive.Api
                         fromFile = false,
                         key = default,
                         parameterInfo = parameterRequiringValidation,
-                        value = request.GetAcceptLanguage(),
+                        value = valueCast,
                     };
                 }
             }
@@ -130,6 +148,74 @@ namespace EastFive.Api
                 valid = false,
                 failure = $"No header binding for type `{bindType.FullName}`.",
             };
+        }
+
+        public TResult ParseContentDelegate<TResult>(IFormCollection formData,
+                ParameterInfo parameterInfo, IApplication httpApp, IHttpRequest routeData,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onFailure)
+        {
+            var key = this.GetKey(parameterInfo);
+            return ParseContentDelegate<TResult>(key, formData,
+                    parameterInfo, httpApp, this.GetType(),
+                onParsed,
+                onFailure);
+        }
+
+        public static TResult ParseContentDelegate<TResult>(string key, IFormCollection formData,
+                ParameterInfo parameterInfo, IApplication httpApp, Type thisType,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onFailure)
+        {
+            var type = parameterInfo.ParameterType;
+
+            if (formData.IsDefaultOrNull())
+                return onFailure("No form data provided");
+            
+            return formData.Files
+                .Where(file => file.Name == key)
+                .First(
+                    (file, next) =>
+                    {
+                        if (type.IsAssignableFrom(typeof(MediaTypeHeaderValue)))
+                        {
+                            var mediaType = new MediaTypeHeaderValue(file.ContentType);
+                            return onParsed(mediaType);
+                        };
+                        return onFailure($"{thisType.FullName} does not bind to type {type.FullName}");
+                    },
+                    () => onFailure("File not found"));
+        }
+
+        private class HeaderValues<T> : IHttpHeaderValueCollection<T>
+        {
+            private StringWithQualityHeaderValue[] accepts;
+
+            public HeaderValues(StringWithQualityHeaderValue[] accepts)
+            {
+                this.accepts = accepts;
+            }
+
+            public CultureInfo[] ToCultures()
+            {
+                var acceptLookup = accepts
+                    .NullToEmpty()
+                    .Select(acceptHeader => acceptHeader.Value.ToLowerInvariant().PairWithValue(acceptHeader.Quality))
+                    .ToDictionary();
+                return CultureInfo.GetCultures(CultureTypes.AllCultures)
+                    .OrderBy(
+                        culture =>
+                        {
+                            var lookupKey = culture.Name.ToLowerInvariant();
+                            if (!acceptLookup.ContainsKey(lookupKey))
+                                return -1.0;
+                            var valueMaybe = acceptLookup[lookupKey];
+                            if (!valueMaybe.HasValue)
+                                return -1.0;
+                            return valueMaybe.Value;
+                        })
+                    .ToArray();
+            }
         }
     }
 

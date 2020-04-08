@@ -22,6 +22,7 @@ using EastFive.Linq.Async;
 using EastFive.Collections.Generic;
 using EastFive.Reflection;
 using EastFive.Api.Serialization;
+using EastFive.Api.Bindings.ContentHandlers;
 
 namespace EastFive.Api
 {
@@ -69,17 +70,18 @@ namespace EastFive.Api
                 request.UpdateHeader(header.Key, x => x.Append(header.Value).ToArray());
             }
             request.WriteBody =
-                async (stream) =>
+                (stream) =>
                 {
                     var settings = new JsonSerializerSettings();
-                    settings.Converters.Add(new Serialization.Converter());
+                    settings.Converters.Add(new Serialization.Converter(request));
                     settings.DefaultValueHandling = DefaultValueHandling.Ignore;
                     var contentJsonString = JsonConvert.SerializeObject(resource, settings);
-                    var writer = request.TryGetAcceptEncoding(out Encoding encoding) ?
-                        new StreamWriter(stream, encoding)
-                        :
-                        new StreamWriter(stream);
-                    await writer.WriteAsync(contentJsonString);
+                    return stream.WriteResponseText(contentJsonString, request);
+                    //var writer = request.TryGetAcceptEncoding(out Encoding encoding) ?
+                    //    new StreamWriter(stream, encoding)
+                    //    :
+                    //    new StreamWriter(stream);
+                    //await writer.WriteAsync(contentJsonString);
                 };
 
             return request;
@@ -416,7 +418,7 @@ namespace EastFive.Api
         {
             var stream = new MemoryStream();
             await response.WriteResponseAsync(stream);
-            var json = stream.ReadAsString();
+            var json = await stream.ReadAsStringAsync();
             var converter = new BindConvert(httpApp);
             return JsonConvert.DeserializeObject<TResource>(json, converter);
         }

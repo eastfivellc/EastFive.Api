@@ -16,8 +16,10 @@ namespace EastFive.Api.Serialization
 {
     public class ExtrudeConvert : Newtonsoft.Json.JsonConverter
     {
-        public ExtrudeConvert()
+        IHttpRequest request;
+        public ExtrudeConvert(IHttpRequest request)
         {
+            this.request = request;
         }
 
         public override bool CanConvert(Type objectType)
@@ -138,10 +140,13 @@ namespace EastFive.Api.Serialization
             if (value is Type)
             {
                 var typeValue = (value as Type);
-                var serializationAttrs = typeValue.GetAttributesInterface<IProvideSerialization>();
+                var serializationAttrs = typeValue
+                    .GetAttributesInterface<IProvideSerialization>();
                 if(serializationAttrs.Any())
                 {
-                    var serializationAttr = serializationAttrs.First();
+                    var serializationAttr = serializationAttrs
+                            .OrderByDescending(x => x.GetPreference(request))
+                            .First();
                     writer.WriteValue(serializationAttr.ContentType);
                     return;
                 }

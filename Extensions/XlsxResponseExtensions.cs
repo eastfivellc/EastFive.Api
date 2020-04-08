@@ -28,33 +28,30 @@ namespace EastFive.Api
 
         #region Xlsx
 
-        public static HttpResponseMessage CreateXlsxResponse(this HttpRequestMessage request, Stream xlsxData, string filename = "")
-        {
-            var content = new StreamContent(xlsxData);
-            return request.CreateXlsxResponse(content, filename);
-        }
+        //public static IHttpResponse CreateXlsxResponse(this IHttpRequest request, Stream xlsxData, string filename = "")
+        //{
+        //    return CreateXlsxResponse(request, xlsxData)
+        //    var response = new StringHttpResponse(request, HttpStatusCode.OK,
+        //        String.IsNullOrWhiteSpace(filename) ? $"sheet.xlsx" : filename,
+        //        "application/vnd.openxmlformats-officedocument.spreadsheetml.template",
+        //        false,
+        //        xlsxContent,
+        //        default);
+        //    return response;
+        //}
 
-        public static HttpResponseMessage CreateXlsxResponse(this HttpRequestMessage request, byte[] xlsxData, string filename = "")
+        public static IHttpResponse CreateXlsxResponse(this IHttpRequest request, byte[] xlsxData, string filename = "")
         {
-            var content = new ByteArrayContent(xlsxData);
-            return request.CreateXlsxResponse(content, filename);
-        }
-
-
-        public static HttpResponseMessage CreateXlsxResponse(this HttpRequestMessage request, HttpContent xlsxContent, string filename = "")
-        {
-            var response = request.CreateResponse(HttpStatusCode.OK);
-            response.Content = xlsxContent;
-            response.Content.Headers.ContentType =
-                new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.template");
-            response.Content.Headers.ContentDisposition = new ContentDispositionHeaderValue("attachment")
-            {
-                FileName = String.IsNullOrWhiteSpace(filename) ? $"sheet.xlsx" : filename,
-            };
+            var response = new BytesHttpResponse(request, HttpStatusCode.OK,
+                filename.IsNullOrWhiteSpace() ? $"sheet.xlsx" : filename,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.template",
+                false,
+                xlsxData);
             return response;
         }
 
-        public static HttpResponseMessage CreateXlsxResponse<TResource>(this HttpRequestMessage request,
+
+        public static IHttpResponse CreateXlsxResponse<TResource>(this IHttpRequest request,
             IDictionary<string, string> properties, IEnumerable<TResource> resources,
             string filename = "")
         {
@@ -74,7 +71,7 @@ namespace EastFive.Api
             }
         }
 
-        public static HttpResponseMessage CreateMultisheetXlsxResponse<TResource>(this HttpRequestMessage request,
+        public static IHttpResponse CreateMultisheetXlsxResponse<TResource>(this IHttpRequest request,
             IDictionary<string, string> properties, IEnumerable<TResource> resources,
             string filename = "")
             where TResource : IReferenceable
@@ -388,7 +385,7 @@ namespace EastFive.Api
         }
 
         public static TResult ParseXlsx<TResource, TResult>(this HttpRequestMessage request,
-                UrlHelper urlHelper,
+                IProvideUrl urlHelper,
                 Stream xlsx,
                 Func<TResource, KeyValuePair<string, string>[], Task<HttpResponseMessage>> executePost,
                 Func<TResource, KeyValuePair<string, string>[], Task<HttpResponseMessage>> executePut,
@@ -418,8 +415,8 @@ namespace EastFive.Api
                 });
         }
 
-        private static TResult ParseXlsxBackground<TResource, TResult>(this HttpRequestMessage request, 
-                UrlHelper urlHelper,
+        private static TResult ParseXlsxBackground<TResource, TResult>(this HttpRequestMessage request,
+                IProvideUrl urlHelper,
                 KeyValuePair<string, string>[] customValues, string[][] rows,
                 Func<TResource, KeyValuePair<string, string>[], Task<HttpResponseMessage>> executePost,
                 Func<TResource, KeyValuePair<string, string>[], Task<HttpResponseMessage>> executePut,

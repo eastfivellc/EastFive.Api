@@ -1,11 +1,14 @@
-﻿using EastFive.Collections.Generic;
+﻿using EastFive.Analytics;
+using EastFive.Collections.Generic;
 using EastFive.Extensions;
+using EastFive.Web;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
@@ -110,7 +113,7 @@ namespace EastFive.Api
         private Dictionary<HttpStatusCode, InstigatorDelegateGeneric> instigatorsGeneric =
             new Dictionary<HttpStatusCode, InstigatorDelegateGeneric>();
 
-        public override IApplication Application => new HttpApplication();
+        public override IApplication Application => new RemoteApplication();
 
         public void SetInstigatorGeneric(Type type, InstigatorDelegateGeneric instigator,
             bool clear = false)
@@ -139,6 +142,50 @@ namespace EastFive.Api
             public bool ForceBackground => false;
 
             public Task<IHttpResponse> InvokeAsync(Action<double> updateCallback)
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        private class RemoteApplication : IApplication
+        {
+            public ResourceInvocation[] Resources => throw new NotImplementedException();
+
+            public IDictionary<Type, ConfigAttribute> ConfigurationTypes => throw new NotImplementedException();
+
+            public ILogger Logger => throw new NotImplementedException();
+
+            public object CastResourceProperty(object value, Type propertyType)
+            {
+                throw new NotImplementedException();
+            }
+
+            public TResult DoesStoreMonitoring<TResult>(Func<StoreMonitoringDelegate, TResult> onMonitorUsingThisCallback, Func<TResult> onNoMonitoring)
+            {
+                throw new NotImplementedException();
+            }
+
+            public TResult GetControllerType<TResult>(string routeName, Func<Type, TResult> onMethodsIdentified, Func<TResult> onKeyNotFound)
+            {
+                throw new NotImplementedException();
+            }
+
+            public IEnumerable<MethodInfo> GetExtensionMethods(Type controllerType)
+            {
+                throw new NotImplementedException();
+            }
+
+            public Task<IHttpResponse> Instigate(IHttpRequest request, ParameterInfo methodParameter, Func<object, Task<IHttpResponse>> onInstigated)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void SetInstigator(Type type, InstigatorDelegate instigator, bool clear = false)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void SetInstigatorGeneric(Type type, InstigatorDelegateGeneric instigator, bool clear = true)
             {
                 throw new NotImplementedException();
             }

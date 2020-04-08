@@ -5,7 +5,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
-
+using EastFive.Api.Bindings.ContentHandlers;
 using EastFive.Extensions;
 
 namespace EastFive.Api
@@ -27,14 +27,10 @@ namespace EastFive.Api
 
         public override Task WriteResponseAsync(Stream responseStream)
         {
-            var streamWriter = encoding.IsDefaultOrNull() ?
-                this.Request.TryGetAcceptEncoding(out Encoding writerEncoding) ?
-                    new StreamWriter(responseStream, writerEncoding)
-                    :
-                    new StreamWriter(responseStream)
-                :
-                new StreamWriter(responseStream, encoding);
-            return streamWriter.WriteAsync(content);
+            if (!encoding.IsDefaultOrNull())
+                return responseStream.WriteResponseText(content, encoding);
+            
+            return responseStream.WriteResponseText(content, this.Request);
         }
     }
 }

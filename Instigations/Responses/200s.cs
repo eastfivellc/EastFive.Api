@@ -4,16 +4,20 @@ using System.Linq;
 using System.Text;
 using System.Collections.Generic;
 using System.Net;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Threading.Tasks;
 
-using RazorEngine.Templating;
+using Microsoft.AspNetCore.Mvc.Razor;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 using EastFive.Linq;
 using EastFive.Extensions;
 using EastFive.Linq.Async;
+using EastFive.Images;
 
 namespace EastFive.Api
 {
@@ -81,10 +85,55 @@ namespace EastFive.Api
 
     #region Images
 
-    [ImageResponse]
-    public delegate IHttpResponse ImageResponse(byte[] bytes,
+    [ImageRawResponse]
+    public delegate IHttpResponse ImageRawResponse(byte[] bytes,
         int? width, int? height, bool? fill,
         string filename = default, string contentType = default);
+    public class ImageRawResponseAttribute : HttpFuncDelegateAttribute
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override string Example => "Raw data (byte [])";
+
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
+        {
+            ImageRawResponse responseDelegate = (imageData, width, height, fill,
+                            filename, contentType) =>
+            {
+                if (width.HasValue || height.HasValue || fill.HasValue)
+                {
+                    var image = System.Drawing.Image.FromStream(new MemoryStream(imageData));
+                    var resizedResponse = new ImageHttpResponse(request, this.StatusCode,
+                        image, width, height, fill, filename);
+                    return UpdateResponse(parameterInfo, httpApp, request, resizedResponse);
+                }
+                var contentTypeFinal = contentType.NullToEmpty()
+                    .StartsWith("image", StringComparison.OrdinalIgnoreCase) ?
+                        contentType
+                        :
+                        System.Drawing.Image.FromStream(new MemoryStream(imageData)).GetMimeType();
+                var response = new BytesHttpResponse(request, this.StatusCode,
+                    filename,
+                    contentTypeFinal, 
+                    default,
+                    imageData);
+                //response.SetContentType(contentTypeFinal);
+
+                return UpdateResponse(parameterInfo, httpApp, request, response);
+            };
+            return onSuccess((object)responseDelegate);
+        }
+
+    }
+
+
+    [ImageResponse]
+    public delegate IHttpResponse ImageResponse(Image image,
+        int? width = default, int? height = default, bool? fill = default,
+        string contentType = default,
+        string filename = default);
     public class ImageResponseAttribute : HttpFuncDelegateAttribute
     {
         public override HttpStatusCode StatusCode => HttpStatusCode.OK;
@@ -95,27 +144,42 @@ namespace EastFive.Api
                 IHttpRequest request, ParameterInfo parameterInfo,
             Func<object, Task<IHttpResponse>> onSuccess)
         {
-            ImageResponse responseDelegate = (imageData, width, height, fill,
-                            filename, contentType) =>
+            ImageResponse responseDelegate = (image, 
+                width, height, fill,
+                contentType, filename) =>
             {
-                if (width.HasValue || height.HasValue || fill.HasValue)
-                {
-                    var image = System.Drawing.Image.FromStream(new MemoryStream(imageData));
-                    var unchangedResponse = new ImageHttpResponse(request, this.StatusCode,
-                        image, width, height, fill, filename);
-                    return UpdateResponse(parameterInfo, httpApp, request, unchangedResponse);
-                }
-                var response = new BytesHttpResponse(request, this.StatusCode,
-                    filename,
-                    contentType.IsNullOrWhiteSpace() ? "image/png" : contentType, 
-                    default,
-                    imageData);
+                var newImage = image.ResizeImage(width, height, fill);
+                var codec = contentType.ParseImageCodecInfo();
+                var response = new ImageHttpResponse(newImage, codec, request, this.StatusCode);
+                response.SetContentType(codec.MimeType);
 
                 return UpdateResponse(parameterInfo, httpApp, request, response);
             };
             return onSuccess((object)responseDelegate);
         }
 
+        private class ImageHttpResponse : HttpResponse
+        {
+            public ImageHttpResponse(Image image, ImageCodecInfo codec,
+                IHttpRequest request, HttpStatusCode statusCode)
+                : base(request, statusCode,
+                      async (responseStream) =>
+                      {
+                          // Hack for bug with images
+                          using (var intermediaryStream = new MemoryStream())
+                          {
+                              image.Save(intermediaryStream, codec,
+                                  encoderQuality: 80L);
+                              intermediaryStream.Position = 0;
+                              await intermediaryStream.CopyToAsync(responseStream);
+                              await intermediaryStream.FlushAsync();
+                              await responseStream.FlushAsync();
+                              //responseStream.WriteAsync(intermediaryStream.ToArray())
+                          }
+                      })
+            {
+            }
+        }
     }
 
     [PdfResponse()]
@@ -204,47 +268,94 @@ namespace EastFive.Api
             ViewFileResponse responseDelegate =
                 (filePath, content) =>
                 {
-                    try
-                    {
-                        var parsedView = RazorEngine.Engine.Razor.RunCompile(filePath, null, content);
-                        var response = new HtmlHttpResponse(request, this.StatusCode, parsedView);
-                        return UpdateResponse(parameterInfo, httpApp, request, response);
-                    }
-                    catch (RazorEngine.Templating.TemplateCompilationException ex)
-                    {
-                        var body = ex.CompilerErrors.Select(error => error.ErrorText).Join(";\n\n");
-                        var response = new HtmlHttpResponse(request, this.StatusCode, body);
-                        return UpdateResponse(parameterInfo, httpApp, request, response);
-                    }
-                    catch (Exception ex)
-                    {
-                        var body = $"Could not load template {filePath} due to:[{ex.GetType().FullName}] `{ex.Message}`";
-                        var response = new HtmlHttpResponse(request, this.StatusCode, body);
-                        return UpdateResponse(parameterInfo, httpApp, request, response);
-                    }
+                    var viewEngine = request.RazorViewEngine;
+                    var httpApiApp = httpApp as IApiApplication;
+                    var path = httpApiApp.HostEnvironment.ContentRootPath + Path.DirectorySeparatorChar + "Pages";
+                    var viewPath = filePath.Replace('/', Path.DirectorySeparatorChar);
+                    var viewEngineResult = viewEngine.GetView(path, filePath, false);
+
+                    if (!viewEngineResult.Success)
+                        return request.CreateResponse(HttpStatusCode.InternalServerError, $"Couldn't find view {filePath}");
+
+                    var view = viewEngineResult.View;
+
+                    var viewContext = new ViewContext();
+                    viewContext.HttpContext = (request as Core.CoreHttpRequest).request.HttpContext;
+                    //viewContext.ViewData = new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary<TModel>(
+                    //    new Microsoft.AspNetCore.Mvc.ModelBinding.EmptyModelMetadataProvider(), 
+                    //    new Microsoft.AspNetCore.Mvc.ModelBinding.ModelStateDictionary())
+                    //{ Model = content };
+                    viewContext.ViewData = new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary(
+                        new Microsoft.AspNetCore.Mvc.ModelBinding.EmptyModelMetadataProvider(),
+                        new Microsoft.AspNetCore.Mvc.ModelBinding.ModelStateDictionary())
+                    { Model = content };
+                    return new ViewHttpResponse(view, viewContext, request, this.StatusCode);
+
                 };
             return onSuccess(responseDelegate);
         }
+
+        protected class ViewHttpResponse : HttpResponse
+        {
+            public ViewHttpResponse(
+                Microsoft.AspNetCore.Mvc.ViewEngines.IView view,
+                ViewContext viewContext, IHttpRequest request, HttpStatusCode statusCode)
+                : base(request, statusCode,
+                      async (responseStream) =>
+                      {
+                          using (var output = new StreamWriter(responseStream))
+                          {
+                              viewContext.Writer = output;
+                              await view.RenderAsync(viewContext);
+                              await output.FlushAsync();
+                          }
+                      })
+            {
+            }
+        }
+
     }
 
-    [ViewStringResponse]
-    public delegate IHttpResponse ViewStringResponse(string view, object content);
-    public class ViewStringResponseAttribute : HtmlResponseAttribute
-    {
-        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
-                IHttpRequest request, ParameterInfo parameterInfo,
-            Func<object, Task<IHttpResponse>> onSuccess)
-        {
-            ViewStringResponse responseDelegate =
-                (razorTemplate, content) =>
-                {
-                    var parsedView = RazorEngine.Razor.Parse(razorTemplate, content); 
-                    var response = new HtmlHttpResponse(request, this.StatusCode, parsedView);
-                    return UpdateResponse(parameterInfo, httpApp, request, response);
-                };
-            return onSuccess(responseDelegate);
-        }
-    }
+    //[ViewStringResponse]
+    //public delegate IHttpResponse ViewStringResponse(string view, object content);
+    //public class ViewStringResponseAttribute : ViewFileResponseAttribute
+    //{
+    //    public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+    //            IHttpRequest request, ParameterInfo parameterInfo,
+    //        Func<object, Task<IHttpResponse>> onSuccess)
+    //    {
+    //        ViewFileResponse responseDelegate =
+    //            (razorSource, content) =>
+    //            {
+    //                var viewEngine = request.RazorViewEngine;
+    //                var filePath = Path.GetTempFileName();
+    //                using (StreamWriter sw = new StreamWriter(filePath))
+    //                {
+    //                    await sw.WriteAsync(razorSource);
+    //                }
+    //                var viewEngineResult = viewEngine.(  GetView("~/", filePath, false);
+
+    //                if (!viewEngineResult.Success)
+    //                    return request.CreateResponse(HttpStatusCode.InternalServerError, $"Couldn't find view {filePath}");
+
+    //                var view = viewEngineResult.View;
+
+    //                var viewContext = new ViewContext();
+    //                viewContext.HttpContext = (request as Core.CoreHttpRequest).request.HttpContext;
+    //                //viewContext.ViewData = new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary<TModel>(
+    //                //    new Microsoft.AspNetCore.Mvc.ModelBinding.EmptyModelMetadataProvider(), 
+    //                //    new Microsoft.AspNetCore.Mvc.ModelBinding.ModelStateDictionary())
+    //                //{ Model = content };
+    //                viewContext.ViewData = new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary(
+    //                    new Microsoft.AspNetCore.Mvc.ModelBinding.EmptyModelMetadataProvider(),
+    //                    new Microsoft.AspNetCore.Mvc.ModelBinding.ModelStateDictionary())
+    //                { Model = content };
+    //                return new ViewHttpResponse(view, viewContext, request, this.StatusCode);
+
+    //            };
+    //        return onSuccess(responseDelegate);
+    //    }
+    //}
 
     #endregion
 
@@ -275,8 +386,26 @@ namespace EastFive.Api
 
     #region Multipart
 
+    [MultipartAsyncResponseGeneric]
+    public delegate IHttpResponse MultipartAsyncResponse<TResource>(IEnumerableAsync<TResource> responses);
+    public class MultipartAsyncResponseGenericAttribute : HttpGenericDelegateAttribute
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override string Example => "[]";
+
+        [InstigateMethod]
+        public IHttpResponse EnumerableAsyncHttpResponse<T>(IEnumerableAsync<T> objectsAsync)
+        {
+            var response = new EnumerableAsyncHttpResponse<T>(this.httpApp, request, this.parameterInfo,
+                this.StatusCode,
+                objectsAsync);
+            return UpdateResponse(parameterInfo, httpApp, request, response);
+        }
+    }
 
     [MultipartResponseAsyncGeneric]
+    [Obsolete("Use MultipartAsyncResponse instead")]
     public delegate Task<IHttpResponse> MultipartResponseAsync<TResource>(IEnumerableAsync<TResource> responses);
     public class MultipartResponseAsyncGenericAttribute : HttpGenericDelegateAttribute
     {
@@ -356,6 +485,48 @@ namespace EastFive.Api
     //    }
     //}
 
+    [MultipartAcceptArrayResponse]
+    public delegate IHttpResponse MultipartAcceptArrayResponse(IEnumerable<object> responses);
+    public class MultipartAcceptArrayResponseAttribute : HttpFuncDelegateAttribute
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override string Example => "[]";
+
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
+        {
+            MultipartAcceptArrayResponse responseDelegate =
+                (objects) =>
+                {
+                    var objectsArr = objects.ToArray();
+                    var response = new JsonHttpResponse(request, this.StatusCode, objectsArr);
+                    return UpdateResponse(parameterInfo, httpApp, request, response);
+                };
+            return onSuccess(responseDelegate);
+        }
+    }
+
+    [MultipartAcceptArrayResponseType]
+    public delegate IHttpResponse MultipartAcceptArrayResponse<TResource>(IEnumerable<TResource> responses);
+    public class MultipartAcceptArrayResponseTypeAttribute : HttpGenericDelegateAttribute
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override string Example => "[]";
+
+        [InstigateMethod]
+        public IHttpResponse MultipartAcceptArrayResponse<TResource>(IEnumerable<TResource> responses)
+        {
+            var objectsArr = responses.ToArray();
+            var response = new JsonHttpResponse(request, this.StatusCode, objectsArr);
+            return UpdateResponse(parameterInfo, httpApp, request, response);
+        }
+
+    }
+
+    [Obsolete("Use MultipartAcceptArrayResponse (no Async on end)")]
     [BodyTypeResponse]
     public delegate Task<IHttpResponse> MultipartAcceptArrayResponseAsync(IEnumerable<object> responses);
     public class MultipartAcceptArrayResponseAsyncAttribute : HttpFuncDelegateAttribute

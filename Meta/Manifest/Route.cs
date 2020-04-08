@@ -12,7 +12,7 @@ using Newtonsoft.Json;
 
 namespace EastFive.Api.Resources
 {
-    [FunctionViewController6(Route = "ManifestRoute")]
+    [FunctionViewController(Route = "ManifestRoute")]
     public class Route
     {
         public string Name { get; set; }

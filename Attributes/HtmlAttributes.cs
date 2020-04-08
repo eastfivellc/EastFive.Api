@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using EastFive.Api.Bindings.ContentHandlers;
 using EastFive.Linq;
 using EastFive.Reflection;
 
@@ -24,12 +25,37 @@ namespace EastFive.Api
 
         public string ContentType => MediaType;
 
-        public Task SerializeAsync(Stream responseStream,
+        private const double defaultPreference = -111;
+
+        public double Preference { get; set; } = defaultPreference;
+
+        public double GetPreference(IHttpRequest request)
+        {
+            if (Preference != defaultPreference)
+                return Preference;
+
+            var accepts = request.GetAcceptTypes();
+            var matches = accepts.Where(mt => mt.MediaType.ToLower() == this.MediaType);
+            if (matches.Any())
+            {
+                var match = matches.First();
+                if (match.Quality.HasValue)
+                    return match.Quality.Value;
+                return 0.5;
+            }
+
+            if (accepts.Where(mt => mt.MediaType.ToLower().Contains("html")).Any())
+                return 0.1;
+
+            return -1.0;
+        }
+
+        public async Task SerializeAsync(Stream responseStream,
             IApplication httpApp, IHttpRequest request, ParameterInfo paramInfo, object obj)
         {
             var contentType = this.MediaType;
 
-            var urlHelper = new UrlBuilder(null, httpApp);
+            var urlHelper = new UrlBuilder(request, httpApp);
 
             var properties = obj.GetType()
                 .GetMembers()
@@ -53,11 +79,7 @@ namespace EastFive.Api
             var body = $"<body><form action=\"{(obj as IReferenceable).id}\">{properties}</form></body>";
             var html = $"<html>{head}<body>{body}</body></html>";
 
-            var streamWriter = request.TryGetAcceptEncoding(out Encoding writerEncoding) ?
-                new StreamWriter(responseStream, writerEncoding)
-                :
-                new StreamWriter(responseStream, Encoding.UTF8);
-            return streamWriter.WriteAsync(html);
+            await responseStream.WriteResponseText(html, request);
         }
     }
 

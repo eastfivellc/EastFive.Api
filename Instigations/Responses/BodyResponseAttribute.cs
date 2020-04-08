@@ -52,7 +52,8 @@ namespace EastFive.Api
                     {
                         var serializationProvider = objType
                             .GetAttributesInterface<IProvideSerialization>()
-                            .Single();
+                            .OrderByDescending(x => x.GetPreference(request))
+                            .First();
                         return serializationProvider.SerializeAsync(
                             stream, httpApp, request, parameterInfo, obj);
                     })

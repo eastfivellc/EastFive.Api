@@ -43,13 +43,12 @@ namespace EastFive.Api
                 IHttpRequest request, ParameterInfo parameterInfo,
             Func<object, Task<IHttpResponse>> onSuccess)
         {
-            var accountIdClaimType = Auth.ClaimEnableActorAttribute.Type;
             return request.GetClaims(
                 (claimsEnumerable) =>
                 {
                     var claims = claimsEnumerable.ToArray();
                     return claims.GetAccountIdMaybe(
-                            request, accountIdClaimType,
+                            request, Auth.ClaimEnableActorAttribute.Type,
                         (accountIdMaybe) =>
                         {
                             var sessionIdClaimType = Auth.ClaimEnableSessionAttribute.Type;

@@ -15,6 +15,8 @@ namespace EastFive.Api
 
         string ContentType { get; }
 
+        double GetPreference(IHttpRequest request);
+
         Task SerializeAsync(Stream responseStream,
             IApplication httpApp, IHttpRequest request, ParameterInfo paramInfo, object obj);
     }

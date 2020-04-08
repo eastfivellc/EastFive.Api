@@ -25,7 +25,8 @@ namespace EastFive.Api
                 why => SelectParameterResult.FailureBody(why, key, parameterRequiringValidation));
         }
 
-        public TResult ParseContentDelegate<TResult>(IDictionary<string, MultipartContentTokenParser> contentsLookup,
+        public TResult ParseContentDelegate<TResult>(
+                IDictionary<string, MultipartContentTokenParser> contentsLookup,
                 ParameterInfo parameterInfo, IApplication httpApp, IHttpRequest request,
             Func<object, TResult> onParsed, 
             Func<string, TResult> onFailure)

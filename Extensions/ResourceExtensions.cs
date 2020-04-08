@@ -21,16 +21,6 @@ namespace EastFive.Api
 {
     public static class ResourceExtensions
     {
-        public static void AssignQueryValue<T>(this T param, T value)
-        {
-
-        }
-
-        public static void AssignNameQueryParameterValue<T>(this string param, T value)
-        {
-
-        }
-
         public static Uri GetLocation<TResource>(this UrlHelper url,
             Expression<Action<TResource>> param1,
             IApiApplication application,

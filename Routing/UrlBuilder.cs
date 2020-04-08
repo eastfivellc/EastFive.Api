@@ -10,18 +10,19 @@ using System.Threading.Tasks;
 using EastFive.Collections.Generic;
 using EastFive.Reflection;
 using Microsoft.AspNetCore.Mvc.Routing;
+using EastFive.Api.Core;
 
 namespace EastFive.Api
 {
     public class UrlBuilder : IBuildUrls
     {
-        private UrlHelper urlHelper;
+        private IProvideUrl urlHelper;
         private IApplication httpApp;
 
-        public UrlBuilder(Microsoft.AspNetCore.Mvc.ActionContext context, IApplication httpApp)
+        public UrlBuilder(IHttpRequest context, IApplication httpApp)
         {
             this.httpApp = httpApp;
-            this.urlHelper = new UrlHelper(context);
+            this.urlHelper = new CoreUrlProvider((context as CoreHttpRequest).request.HttpContext);
         }
 
         public IQueryable<T> Resources<T>()
@@ -37,10 +38,10 @@ namespace EastFive.Api
 
         private class RenderableQueryProvider : IQueryProvider
         {
-            private UrlHelper urlHelper;
+            private IProvideUrl urlHelper;
             private IApplication httpApp;
 
-            public RenderableQueryProvider(UrlHelper urlHelper, IApplication httpApp)
+            public RenderableQueryProvider(IProvideUrl urlHelper, IApplication httpApp)
             {
                 this.httpApp = httpApp;
                 this.urlHelper = urlHelper;
@@ -69,23 +70,6 @@ namespace EastFive.Api
             public TResult Execute<TResult>(Expression expression)
             {
                 return (TResult)this.Execute(expression);
-            }
-
-            public Uri RenderLocation(Expression expression, string routeName = "DefaultApi")
-            {
-                var baseUrl = urlHelper.GetLocation(expression.Type.GenericTypeArguments.First(), routeName);
-                var queryParams = new QueryTranslator(httpApp).Translate(expression);
-                //var queryParams = expression
-                //    .Select(param => param.GetUrlAssignment(
-                //        (queryParamName, value) =>
-                //        {
-                //            return queryParamName
-                //                .PairWithValue((string)application.CastResourceProperty(value, typeof(String)));
-                //        }))
-                //    .ToDictionary();
-
-                var queryUrl = baseUrl.SetQuery(queryParams);
-                return queryUrl;
             }
 
             private static IDictionary<string, string> Translate(Expression expression)

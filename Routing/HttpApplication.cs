@@ -13,7 +13,6 @@ using Microsoft.AspNetCore.Mvc.Routing;
 using EastFive.Linq;
 using BlackBarLabs.Api;
 using BlackBarLabs.Extensions;
-using BlackBarLabs.Api.Resources;
 using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using System.IO;
@@ -27,6 +26,11 @@ using System.Xml;
 using System.Diagnostics;
 using EastFive.Analytics;
 using EastFive.Api.Core;
+using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.Mvc.Razor;
 
 namespace EastFive.Api
 {
@@ -39,6 +43,8 @@ namespace EastFive.Api
         string GetResourceName(Type type);
 
         IEnumerableAsync<T> InstantiateAll<T>();
+
+        IHostEnvironment HostEnvironment { get; }
     }
 
     [JsonContentParser]
@@ -58,11 +64,13 @@ namespace EastFive.Api
             }
         }
 
+        protected IConfiguration configuration;
+
         #region Constructors / Destructors
 
-        public HttpApplication()
-            : base()
+        public HttpApplication(IConfiguration configuration)
         {
+            this.configuration = configuration;
             initializationLock = new ManualResetEvent(false);
             this.initialization = InitializeAsync();
         }
@@ -97,6 +105,19 @@ namespace EastFive.Api
         #endregion
 
         #region Initialization
+
+        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
+        public void Configure(IApplicationBuilder app, IHostEnvironment env, IRazorViewEngine razorViewEngine)
+        {
+            this.HostEnvironment = env;
+            app.UseFVCRouting(this, this.configuration, razorViewEngine);
+            ConfigureCallback(app, env, razorViewEngine);
+        }
+
+        protected virtual void ConfigureCallback(IApplicationBuilder app, IHostEnvironment env, IRazorViewEngine razorViewEngine)
+        {
+            LocateControllers();
+        }
 
         private Task initialization;
         private ManualResetEvent initializationLock;
@@ -149,12 +170,10 @@ namespace EastFive.Api
         {
             ApplicationStart();
             Registration();
-            SetupRazorEngine(string.Empty);
         }
 
         public virtual void ApplicationStart()
         {
-            LocateControllers();
             //SetupRazorEngine();
         }
 
@@ -163,25 +182,6 @@ namespace EastFive.Api
         }
 
         #endregion
-
-        public virtual void SetupRazorEngine()
-        {
-            SetupRazorEngine(string.Empty);
-        }
-
-        public static void SetupRazorEngine(string rootDirectory)
-        {
-            var templateManager = new Razor.RazorTemplateManager(rootDirectory);
-            var referenceResolver = new Razor.GenericReferenceResolver();
-            var config = new RazorEngine.Configuration.TemplateServiceConfiguration
-            {
-                TemplateManager = templateManager,
-                ReferenceResolver = referenceResolver,
-                BaseTemplateType = typeof(Razor.HtmlSupportTemplateBase<>),
-                DisableTempFileLocking = true
-            };
-            RazorEngine.Engine.Razor = RazorEngine.Templating.RazorEngineService.Create(config);
-        }
 
         #region Url Handlers
 
@@ -229,7 +229,7 @@ namespace EastFive.Api
         }
 
         public delegate Uri ControllerHandlerDelegate(
-                HttpApplication httpApp, UrlHelper urlHelper, ParameterInfo parameterInfo,
+                HttpApplication httpApp, IProvideUrl urlHelper, ParameterInfo parameterInfo,
             Func<Type, string, Uri> onSuccess);
 
 
@@ -396,6 +396,8 @@ namespace EastFive.Api
 
         public IDictionary<Type, ConfigAttribute> ConfigurationTypes => configurationTypes;
 
+        public IHostEnvironment HostEnvironment { get; private set; }
+
         public static IDictionary<Type, ConfigAttribute> configurationTypes;
 
         private void LocateControllers()
@@ -461,6 +463,7 @@ namespace EastFive.Api
                                 new ResourceInvocation
                                 {
                                     type = type,
+                                    invokeResourceAttr = invokeResourceAttr,
                                 });
                         }
                         else
@@ -606,15 +609,7 @@ namespace EastFive.Api
 
                 #region MVC System Objects
 
-                {
-                    typeof(UrlHelper),
-                    (httpApp, request, paramInfo, success) => success(
-                        new UrlHelper(new Microsoft.AspNetCore.Mvc.ActionContext()))
-                },
-                {
-                    typeof(HttpRequestMessage),
-                    (httpApp, request, paramInfo, success) => success(request)
-                },
+                
 
                 #endregion
 
@@ -708,7 +703,7 @@ namespace EastFive.Api
             if (methodParameter.ParameterType.IsAssignableFrom(typeof(CancellationToken)))
                 return onInstigated(request.CancellationToken);
 
-            if (methodParameter.ParameterType.IsAssignableFrom(typeof(HttpRequestMessage)))
+            if (methodParameter.ParameterType.IsAssignableFrom(typeof(IHttpRequest)))
                 return onInstigated(request);
 
             #endregion
@@ -891,7 +886,7 @@ namespace EastFive.Api
         public IEnumerable<MethodInfo> GetExtensionMethods(Type controllerType)
         {
             if (routeResourceExtensionLookup.ContainsKey(controllerType))
-                return routeResourceExtensionLookup[controllerType].extensions;
+                return routeResourceExtensionLookup[controllerType].extensions.NullToEmpty();
             return new MethodInfo[] { };
         }
 

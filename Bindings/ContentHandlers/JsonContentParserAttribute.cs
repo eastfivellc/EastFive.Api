@@ -37,22 +37,14 @@ namespace EastFive.Api
                 string[],
                 Task<IHttpResponse>> onParsedContentValues)
         {
-            var contentString = request.Body.ReadAsString();
-            var exceptionKeys = new string[] { };
+            if (!request.HasBody)
+                return await BodyMissing("Body was not provided");
+
+            var contentString = await request.Body.ReadAsStringAsync();
+
             if (contentString.IsNullOrWhiteSpace())
-            {
-                CastDelegate emptyParser =
-                    (paramInfo, onParsed, onFailure) =>
-                    {
-                        var key = paramInfo
-                            .GetAttributeInterface<IBindApiValue>()
-                            .GetKey(paramInfo)
-                            .ToLower();
-                        var type = paramInfo.ParameterType;
-                        return onFailure($"[{key}] was not provided (JSON body content was empty).");
-                    };
-                return await onParsedContentValues(emptyParser, exceptionKeys);
-            }
+                return await BodyMissing("JSON body content was empty");
+
             var bindConvert = new BindConvert(httpApp as HttpApplication);
             try
             {
@@ -76,12 +68,23 @@ namespace EastFive.Api
             }
             catch (Exception ex)
             {
-                CastDelegate exceptionParser =
+                return await BodyMissing(ex.Message);
+            }
+
+            Task<IHttpResponse> BodyMissing(string failureMessage)
+            {
+                CastDelegate emptyParser =
                     (paramInfo, onParsed, onFailure) =>
                     {
-                        return onFailure(ex.Message);
+                        var key = paramInfo
+                            .GetAttributeInterface<IBindApiValue>()
+                            .GetKey(paramInfo)
+                            .ToLower();
+                        var type = paramInfo.ParameterType;
+                        return onFailure($"[{key}] could not be parsed ({failureMessage}).");
                     };
-                return await onParsedContentValues(exceptionParser, exceptionKeys);
+                var exceptionKeys = new string[] { };
+                return onParsedContentValues(emptyParser, exceptionKeys);
             }
         }
     }

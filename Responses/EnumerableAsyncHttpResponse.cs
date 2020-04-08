@@ -32,38 +32,49 @@ namespace EastFive.Api
 
         public override async Task WriteResponseAsync(Stream responseStream)
         {
-            var streamWriter = 
-                this.Request.TryGetAcceptEncoding(out Encoding writerEncoding) ?
+            using (var streamWriter =
+                this.Request.TryGetAcceptCharset(out Encoding writerEncoding) ?
                     new StreamWriter(responseStream, writerEncoding)
                     :
-                    new StreamWriter(responseStream);
-            var settings = new JsonSerializerSettings();
-            settings.Converters.Add(new Serialization.Converter());
-            settings.DefaultValueHandling = DefaultValueHandling.Ignore;
-
-            var enumerator = objectsAsync.GetEnumerator();
-            await streamWriter.WriteAsync('[');
-            bool first = true;
-            while (await enumerator.MoveNextAsync())
+                    new StreamWriter(responseStream, new UTF8Encoding(false)))
             {
-                if(!first)
-                    await streamWriter.WriteAsync(',');
-                first = false;
+                var settings = new JsonSerializerSettings();
+                settings.Converters.Add(new Serialization.Converter(this.Request));
+                settings.DefaultValueHandling = DefaultValueHandling.Ignore;
 
-                var obj = enumerator.Current;
-                var objType = obj.GetType();
-                if (!objType.ContainsAttributeInterface<IProvideSerialization>())
+                var enumerator = objectsAsync.GetEnumerator();
+                await streamWriter.WriteAsync('[');
+                await streamWriter.FlushAsync();
+                bool first = true;
+                while (await enumerator.MoveNextAsync())
                 {
-                    var contentJsonString = JsonConvert.SerializeObject(obj, settings);
-                    await streamWriter.WriteAsync(contentJsonString);
-                    continue;
-                }
+                    if (!first)
+                    {
+                        await streamWriter.WriteAsync(',');
+                        await streamWriter.FlushAsync();
+                    }
+                    first = false;
 
-                var serializationProvider = objType.GetAttributesInterface<IProvideSerialization>().Single();
-                await serializationProvider.SerializeAsync(responseStream,
-                    application, this.Request, this.parameterInfo, obj);
+                    var obj = enumerator.Current;
+                    var objType = obj.GetType();
+                    if (!objType.ContainsAttributeInterface<IProvideSerialization>())
+                    {
+                        var contentJsonString = JsonConvert.SerializeObject(obj, settings);
+                        await streamWriter.WriteAsync(contentJsonString);
+                        await streamWriter.FlushAsync();
+                        continue;
+                    }
+
+                    var serializationProvider = objType
+                        .GetAttributesInterface<IProvideSerialization>()
+                        .OrderByDescending(x => x.GetPreference(this.Request))
+                        .First();
+                    await serializationProvider.SerializeAsync(responseStream,
+                        application, this.Request, this.parameterInfo, obj);
+                }
+                await streamWriter.WriteAsync(']');
+                await streamWriter.FlushAsync();
             }
-            await streamWriter.WriteAsync(']');
         }
     }
 }

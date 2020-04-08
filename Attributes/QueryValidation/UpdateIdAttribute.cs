@@ -1,4 +1,5 @@
 ﻿using EastFive.Api.Resources;
+using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -11,7 +12,7 @@ using System.Threading.Tasks;
 namespace EastFive.Api
 {
     public class UpdateIdAttribute : QueryValidationAttribute, IDocumentParameter,
-        IBindJsonApiValue, IBindMultipartApiValue
+        IBindJsonApiValue, IBindMultipartApiValue, IBindFormDataApiValue
     {
         public override string Name
         {
@@ -53,7 +54,8 @@ namespace EastFive.Api
                 onFailure);
         }
 
-        public TResult ParseContentDelegate<TResult>(IDictionary<string, MultipartContentTokenParser> contentsLookup, 
+        public TResult ParseContentDelegate<TResult>(
+                IDictionary<string, MultipartContentTokenParser> contentsLookup, 
                 ParameterInfo parameterInfo, IApplication httpApp, IHttpRequest request,
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure)
@@ -68,5 +70,17 @@ namespace EastFive.Api
                     onFailure);
         }
 
+        public TResult ParseContentDelegate<TResult>(IFormCollection formData,
+                ParameterInfo parameterInfo,
+                IApplication httpApp, IHttpRequest request, 
+            Func<object, TResult> onParsed, 
+            Func<string, TResult> onFailure)
+        {
+            var key = this.GetKey(parameterInfo);
+            return PropertyAttribute.ParseContentDelegate(key, formData,
+                    parameterInfo, httpApp,
+                onParsed,
+                onFailure);
+        }
     }
 }

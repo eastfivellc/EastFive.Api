@@ -17,13 +17,13 @@ namespace EastFive.Api
             Func<object, Task<IHttpResponse>> onSuccess);
     }
 
-    public interface IInstigate
+    public interface IInstigate : IInstigatable
     {
         bool CanInstigate(ParameterInfo parameterInfo);
 
-        Task<IHttpResponse> Instigate(
-                IApplication httpApp, IHttpRequest request,
-                ParameterInfo parameterInfo,
-            Func<object, Task<IHttpResponse>> onSuccess);
+        //Task<IHttpResponse> Instigate(
+        //        IApplication httpApp, IHttpRequest request,
+        //        ParameterInfo parameterInfo,
+        //    Func<object, Task<IHttpResponse>> onSuccess);
     }
 }

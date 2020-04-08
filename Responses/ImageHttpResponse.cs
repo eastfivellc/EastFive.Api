@@ -63,21 +63,33 @@ namespace EastFive.Api
 
                 graphics.DrawImage(image, 0, 0, newWidth, newHeight);
             }
+
+
         }
 
-        public override Task WriteResponseAsync(Stream responseStream)
+        public override async Task WriteResponseAsync(Stream responseStream)
         {
             var encoderParameters = new EncoderParameters(1);
             encoderParameters.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 80L);
 
-            newImage.Save(responseStream, encoder, encoderParameters);
-            responseStream.Close();
-
-            return true.AsTask();
+            using (var memoryStream = new MemoryStream())
+            {
+                newImage.Save(memoryStream, encoder, encoderParameters);
+                await memoryStream.FlushAsync();
+                var bytes = memoryStream.ToArray();
+                await responseStream.WriteAsync(bytes, 0, bytes.Length);
+                await responseStream.FlushAsync();
+                //responseStream.Close();
+            }
         }
 
         private static bool TryGetEncoderInfo(string mimeType, out ImageCodecInfo encoder)
         {
+            if (mimeType.IsNullOrWhiteSpace())
+            {
+                encoder = default;
+                return false;
+            }
             ImageCodecInfo[] encoders = ImageCodecInfo.GetImageEncoders();
 
             for (int j = 0; j < encoders.Length; ++j)

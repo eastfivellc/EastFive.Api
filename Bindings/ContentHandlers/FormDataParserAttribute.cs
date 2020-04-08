@@ -1,11 +1,4 @@
-﻿using EastFive.Api.Bindings;
-using EastFive.Api.Serialization;
-using EastFive.Collections.Generic;
-using EastFive.Extensions;
-using EastFive.Web;
-using Microsoft.AspNetCore.Http;
-using Newtonsoft.Json.Linq;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
@@ -14,6 +7,17 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
+
+using Microsoft.AspNetCore.Http;
+
+using Newtonsoft.Json.Linq;
+
+using EastFive.Api.Bindings;
+using EastFive.Api.Serialization;
+using EastFive.Collections.Generic;
+using EastFive.Extensions;
+using EastFive.Web;
+using EastFive.Linq;
 
 namespace EastFive.Api
 {
@@ -30,7 +34,7 @@ namespace EastFive.Api
     {
         public bool DoesParse(IHttpRequest request)
         {
-            if (request.Form.IsDefaultOrNull())
+            if (!request.HasFormContentType)
                 return false;
             return request.Form.Any();
         }
@@ -49,11 +53,13 @@ namespace EastFive.Api
                 (paramInfo, onParsed, onFailure) =>
                 {
                     return paramInfo
-                        .GetAttributeInterface<IBindFormDataApiValue>()
-                        .ParseContentDelegate(formData, 
-                                paramInfo, httpApp, request,
-                            onParsed,
-                            onFailure);
+                        .GetAttributesInterface<IBindFormDataApiValue>(true)
+                        .First(
+                            (formBinder, next) => formBinder.ParseContentDelegate(formData, 
+                                    paramInfo, httpApp, request,
+                                onParsed,
+                                onFailure),
+                            () => onFailure($"{paramInfo.Name} does not handle form data."));
                 };
             return await onParsedContentValues(parser, parameters);
         }
