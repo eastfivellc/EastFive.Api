@@ -21,10 +21,11 @@ namespace EastFive.Api.Bindings
                     (paramBinder, next) =>
                     {
                         return paramBinder.Bind(parameter.ParameterType, provider,
+                                application,
                             onParsed,
                             (why) =>
                             {
-                                return parameter.Bind(provider,
+                                return parameter.Bind(provider, application,
                                     onParsed,
                                     onFailureToBind);
                             },
@@ -32,7 +33,7 @@ namespace EastFive.Api.Bindings
                     },
                     () =>
                     {
-                        return parameter.Bind(provider,
+                        return parameter.Bind(provider, application,
                                     onParsed,
                                     onFailureToBind);
                     });
@@ -49,10 +50,12 @@ namespace EastFive.Api.Bindings
                     (paramBinder, next) =>
                     {
                         return paramBinder.Bind(type, provider,
+                                application,
                             onParsed,
                             (why) =>
                             {
                                 return type.Bind(provider,
+                                        application,
                                     onParsed,
                                     onFailureToBind);
                             },
@@ -61,14 +64,16 @@ namespace EastFive.Api.Bindings
                     () =>
                     {
                         return type.Bind(provider,
-                                    onParsed,
-                                    onFailureToBind);
+                                application,
+                            onParsed,
+                            onFailureToBind);
                     });
                     //() => onFailureToBind($"{application.GetType().FullName} does not have binding attributes"));
         }
 
         public static TResult Bind<TProvider, TResult>(this ParameterInfo parameter,
                 TProvider provider,
+                IApplication application,
             Func<object, TResult> onParsed,
             Func<string, TResult> onDidNotBind)
         {
@@ -78,22 +83,26 @@ namespace EastFive.Api.Bindings
                     (paramBinder, next) =>
                     {
                         return paramBinder.Bind(parameter.ParameterType, provider,
+                                application,
                             onParsed,
                             (why) =>
                             {
                                 return parameter.ParameterType.Bind(provider,
+                                        application,
                                     onParsed,
                                     onDidNotBind);
                             },
                             onDidNotBind);
                     },
                     () => parameter.ParameterType.Bind(provider,
+                            application,
                         onParsed,
                         onDidNotBind));
         }
 
         public static TResult Bind<TProvider, TResult>(this Type type,
                 TProvider provider,
+                IApplication application,
             Func<object, TResult> onParsed,
             Func<string, TResult> onDidNotBind)
         {
@@ -103,6 +112,7 @@ namespace EastFive.Api.Bindings
                     (paramBinder, next) =>
                     {
                         return paramBinder.Bind(type, provider,
+                                application,
                             onParsed,
                             onDidNotBind,
                             onDidNotBind);

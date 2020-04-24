@@ -243,8 +243,16 @@ namespace EastFive.Api
             return requestMessageNewQuery;
         }
 
-        public class HttpActionRequestBuilder : Attribute, IBuildHttpRequests
+        public class HttpActionRequestBuilder : Attribute, IBuildHttpRequests, IBuildUrls
         {
+            public Uri BindUrlQueryValue(Uri url, MethodInfo method, Expression[] arguments)
+            {
+                var actionName = (string)arguments[0].Resolve();
+                url = url.AppendToPath(actionName, postPendFile: true);
+
+                return url;
+            }
+
             public IHttpRequest MutateRequest(IHttpRequest request, MethodInfo method, Expression[] arguments)
             {
                 var actionName = (string)arguments[0].Resolve();

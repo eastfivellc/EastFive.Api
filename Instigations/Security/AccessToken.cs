@@ -28,6 +28,7 @@ namespace EastFive.Api
     public class AccessTokenAccountAttribute : Attribute, IInstigatable, IBindApiParameter<string>
     {
         public TResult Bind<TResult>(Type type, string content,
+                IApplication application,
             Func<object, TResult> onParsed, 
             Func<string, TResult> onDidNotBind, 
             Func<string, TResult> onBindingFailure)

@@ -21,6 +21,7 @@ namespace EastFive.Api
             IBindApiParameter<JToken>
     {
         public TResult Bind<TResult>(Type type, JToken content,
+                IApplication application,
             Func<object, TResult> onParsed,
             Func<string, TResult> onDidNotBind,
             Func<string, TResult> onBindingFailure)

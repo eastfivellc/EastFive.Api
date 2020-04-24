@@ -139,12 +139,8 @@ namespace EastFive.Api
                             return param;
                         var provideApiValue = member.GetAttributeInterface<IProvideApiValue>(true);
 
-                        if (!formData.ContainsKey(provideApiValue.PropertyName))
-                            return param;
-
-                        var tokenParser = formData[provideApiValue.PropertyName];
                         return ParseFormContentDelegate(provideApiValue.PropertyName, formData,
-                            member.GetMemberType(), httpApp,
+                                member.GetMemberType(), httpApp,
                             paramValue =>
                             {
                                 member.SetValue(ref param, paramValue);

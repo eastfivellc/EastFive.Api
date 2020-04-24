@@ -1,16 +1,21 @@
-﻿using BlackBarLabs.Api;
-using BlackBarLabs.Api.Resources;
-using EastFive.Extensions;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using BlackBarLabs.Api.Resources;
+using EastFive.Extensions;
+using EastFive.Text;
+using EastFive;
+using System.Runtime.InteropServices;
+
 namespace EastFive.Api.Bindings
 {
-    public class StandardStringBindingsAttribute : Attribute, IBindApiParameter<string>
+    public class StandardStringBindingsAttribute : Attribute,
+        IBindApiParameter<string>,
+        IBindApiParameter<byte[]>
     {
         public delegate object BindingDelegate(
                 StandardStringBindingsAttribute httpApp,
@@ -18,7 +23,10 @@ namespace EastFive.Api.Bindings
             Func<object, object> onParsed,
             Func<string, object> notConvertable);
 
+        #region Strings
+
         public TResult Bind<TResult>(Type type, string content,
+                IApplication application,
             Func<object, TResult> onParsed,
             Func<string, TResult> onDidNotBind,
             Func<string, TResult> onBindingFailure)
@@ -264,6 +272,52 @@ namespace EastFive.Api.Bindings
 
             return onDidNotBind($"No binding for type `{type.FullName}` provided by {typeof(StandardStringBindingsAttribute).FullName}.");
         }
+
+        #endregion
+
+        #region Bytes
+
+        public TResult Bind<TResult>(Type type, byte[] content,
+                IApplication application,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure)
+        {
+            return BindDirect(type, content,
+                onParsed,
+                onDidNotBind,
+                onBindingFailure);
+        }
+
+        public static TResult BindDirect<TResult>(Type type, byte[] content,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure)
+        {
+            if (type == typeof(Guid))
+            {
+                if (content.Length == 0x10)
+                {
+                    var guid = new Guid(content);
+                    return onParsed(guid);
+                }
+
+                {
+                    var byteSpan = (ReadOnlySpan<byte>)content;
+                    var charSpan = MemoryMarshal.Cast<byte, char>(byteSpan);
+                    if (Guid.TryParse(charSpan, out Guid guid))
+                        return onParsed(guid);
+                }
+            }
+
+            var stringValue = System.Text.Encoding.UTF8.GetString(content);
+            return BindDirect(type, stringValue,
+                onParsed,
+                onDidNotBind,
+                onBindingFailure);
+        }
+
+        #endregion
 
     }
 }

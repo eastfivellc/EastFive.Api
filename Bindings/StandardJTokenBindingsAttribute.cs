@@ -24,6 +24,7 @@ namespace EastFive.Api.Bindings
         IBindApiParameter<JsonReader>
     {
         public TResult Bind<TResult>(Type type, JToken content,
+                IApplication application,
             Func<object, TResult> onParsed,
             Func<string, TResult> onDidNotBind,
             Func<string, TResult> onBindingFailure)
@@ -505,7 +506,8 @@ namespace EastFive.Api.Bindings
                     .ToDictionary();
         }
 
-        public TResult Bind<TResult>(Type objectType, JsonReader reader, 
+        public TResult Bind<TResult>(Type objectType, JsonReader reader,
+                IApplication application,
             Func<object, TResult> onParsed,
             Func<string, TResult> onDidNotBind,
             Func<string, TResult> onBindingFailure)
@@ -571,6 +573,7 @@ namespace EastFive.Api.Bindings
                         keyValue =>
                         {
                             var valueValue = Bind(dictionaryValueType, reader,
+                                    application,
                                 v => v,
                                 why => dictionaryValueType.GetDefault(),
                                 why => dictionaryValueType.GetDefault());
@@ -599,6 +602,7 @@ namespace EastFive.Api.Bindings
                 if (reader.TokenType == JsonToken.Null)
                     return onParsed(objectType.GetDefault());
                 return Bind(underlyingType, reader,
+                        application,
                     obj => onParsed(obj.AsNullable()),
                     (why) => onParsed(objectType.GetDefault()),
                     (why) => onParsed(objectType.GetDefault()));

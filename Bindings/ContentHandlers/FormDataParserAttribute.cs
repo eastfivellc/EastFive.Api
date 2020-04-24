@@ -36,7 +36,11 @@ namespace EastFive.Api
         {
             if (!request.HasFormContentType)
                 return false;
-            return request.Form.Any();
+            if (request.Form.Any())
+                return true;
+            if (request.Form.Files.Any())
+                return true;
+            return false;
         }
 
         public async Task<IHttpResponse> ParseContentValuesAsync(
