@@ -71,6 +71,7 @@ namespace EastFive.Api
                         .First();
                     await serializationProvider.SerializeAsync(responseStream,
                         application, this.Request, this.parameterInfo, obj);
+                    await streamWriter.FlushAsync();
                 }
                 await streamWriter.WriteAsync(']');
                 await streamWriter.FlushAsync();
