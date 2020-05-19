@@ -1,10 +1,13 @@
 ﻿using EastFive.Api.Modules;
+using EastFive.Api.Services;
 using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using EastFive.Linq;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc.Razor;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -16,21 +19,25 @@ using System.Threading.Tasks;
 
 namespace EastFive.Api.Core
 {
-    public class Middleware
+    public class Middleware : IAsyncDisposable
     {
         private readonly RequestDelegate continueAsync;
         private readonly IApplication app;
         private readonly IRazorViewEngine razorViewEngine;
         private readonly string[] pathLookups;
+        private readonly IBackgroundTaskQueue taskQueue;
 
         public const string HeaderStatusName = "X-StatusName";
         public const string HeaderStatusInstance = "X-StatusInstance";
 
-        public Middleware(RequestDelegate next, IApplication app, IRazorViewEngine razorViewEngine)
+        public Middleware(RequestDelegate next, IApplication app,
+            IRazorViewEngine razorViewEngine,
+            IBackgroundTaskQueue taskQueue)
         {
             this.continueAsync = next;
             this.app = app;
             this.razorViewEngine = razorViewEngine;
+            this.taskQueue = taskQueue;
             this.pathLookups = app.Resources
                 .Select(res => res.invokeResourceAttr.Namespace)
                 .Where(res => res.HasBlackSpace())
@@ -47,18 +54,29 @@ namespace EastFive.Api.Core
                 return;
             }
 
-            var request = new CoreHttpRequest(context.Request, this.razorViewEngine, new CancellationToken());
-            var routeResponse = await InvokeRequestAsync(request, this.app, 
+            var requestLifetime = context.Features.Get<IHttpRequestLifetimeFeature>();
+            var cancellationToken = requestLifetime.IsDefaultOrNull()?
+                new CancellationToken()
+                :
+                requestLifetime.RequestAborted;
+            var request = new CoreHttpRequest(context.Request, this.razorViewEngine, cancellationToken);
+            var routeResponse = await InvokeRequestAsync(request, this.app,
                 () =>
                 {
                     return new HttpResponse(context, continueAsync);
                 });
+
             context.Response.StatusCode = (int)routeResponse.StatusCode;
             routeResponse = AddReason(routeResponse);
             foreach (var header in routeResponse.Headers)
                 context.Response.Headers.Add(header.Key, header.Value);
 
             await routeResponse.WriteResponseAsync(context.Response.Body);
+
+            if (routeResponse is IHaveMoreWork)
+                taskQueue.QueueBackgroundWorkItem(
+                    (cancellationToken) => (routeResponse as IHaveMoreWork)
+                        .ProcessWorkAsync(cancellationToken));
 
             IHttpResponse AddReason(IHttpResponse response)
             {
@@ -71,6 +89,10 @@ namespace EastFive.Api.Core
                     reasonPhrase = new string(reasonPhrase.Take(510).ToArray());
                 
                 response.SetHeader("X-Reason", reasonPhrase);
+
+                var responseFeature = context.Features.Get<IHttpResponseFeature>();
+                if (!responseFeature.IsDefaultOrNull())
+                    responseFeature.ReasonPhrase = reason;
 
                 //if (response.StatusCode == HttpStatusCode.Unauthorized)
                 //    response.WriteResponseAsync = (stream) => JsonHttpResponse<int>.WriteResponseAsync(
@@ -177,5 +199,12 @@ namespace EastFive.Api.Core
                     skip.AsAsyncFunc());
         }
 
+        ConcurrentQueue<IAsyncDisposable> asyncDisposables = new ConcurrentQueue<IAsyncDisposable>();
+
+        public async ValueTask DisposeAsync()
+        {
+            while (asyncDisposables.TryDequeue(out IAsyncDisposable disposable))
+                await disposable.DisposeAsync();
+        }
     }
 }

@@ -26,9 +26,21 @@ namespace EastFive.Api
         
         public Func<Stream, Task> WriteBody { get; set; }
 
-        public bool HasBody => false;
+        public bool HasBody { get; private set; }
 
-        public Stream Body => throw new NotImplementedException();
+        private Stream body;
+        public Stream Body
+        {
+            get
+            {
+                return body;
+            }
+            set
+            {
+                HasBody = true;
+                body = value;
+            }
+        }
 
         public bool HasFormContentType => false; // TODO:
 
