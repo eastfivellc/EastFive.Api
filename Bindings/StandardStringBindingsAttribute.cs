@@ -55,6 +55,8 @@ namespace EastFive.Api.Bindings
             }
             if (type == typeof(Guid[]))
             {
+                if (content.IsNullOrWhiteSpace())
+                    return onParsed(new Guid[] { });
                 var tokens = content.Split(','.AsArray());
                 var guids = tokens
                     .Select(
@@ -124,6 +126,8 @@ namespace EastFive.Api.Bindings
             }
             if (type == typeof(Uri))
             {
+                if (content.IsDefaultNullOrEmpty())
+                    return onBindingFailure("URL value was empty");
                 if (Uri.TryCreate(content.Trim('"'.AsArray()), UriKind.RelativeOrAbsolute, out Uri uriValue))
                     return onParsed(uriValue);
                 return onBindingFailure($"Failed to convert {content} to `{typeof(Uri).FullName}`.");

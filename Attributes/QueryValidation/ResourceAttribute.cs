@@ -146,7 +146,16 @@ namespace EastFive.Api
                                 member.SetValue(ref param, paramValue);
                                 return param;
                             },
-                            why => param);
+                            why =>
+                            {
+                                return httpApp.Bind(default(string), member.GetMemberType(),
+                                    defaultValue =>
+                                    {
+                                        member.SetValue(ref param, defaultValue);
+                                        return param;
+                                    },
+                                    why => param);
+                            });
                     });
             return onParsed(obj);
         }
