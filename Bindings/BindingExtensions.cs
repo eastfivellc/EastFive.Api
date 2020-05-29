@@ -24,9 +24,7 @@ namespace EastFive.Api.Bindings
                             onParsed,
                             (why) =>
                             {
-                                return parameter.Bind(provider,
-                                    onParsed,
-                                    onFailureToBind);
+                                return next();
                             },
                             onFailureToBind);
                     },
@@ -81,11 +79,9 @@ namespace EastFive.Api.Bindings
                             onParsed,
                             (why) =>
                             {
-                                return parameter.ParameterType.Bind(provider,
-                                    onParsed,
-                                    onDidNotBind);
+                                return next();
                             },
-                            onDidNotBind);
+                            (why) => next());
                     },
                     () => parameter.ParameterType.Bind(provider,
                         onParsed,
