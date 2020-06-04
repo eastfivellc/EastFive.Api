@@ -61,6 +61,30 @@ namespace EastFive.Api
         }
     }
 
+    [StreamResponse]
+    public delegate IHttpResponse StreamResponse(Stream stream, string filename = default, string contentType = default, bool? inline = default);
+    public class StreamResponseAttribute : HttpFuncDelegateAttribute
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override string Example => "Raw data (Stream)";
+
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
+        {
+            StreamResponse responseDelegate = (stream, filename, contentType, inline) =>
+            {
+                var response = new StreamHttpResponse(request, this.StatusCode,
+                    fileName: filename, contentType: contentType, inline: inline,
+                    stream);
+
+                return UpdateResponse(parameterInfo, httpApp, request, response);
+            };
+            return onSuccess(responseDelegate);
+        }
+    }
+
     [TextResponse]
     public delegate IHttpResponse TextResponse(string content, Encoding encoding = default,
         string filename = default, string contentType = default, bool? inline = default);
