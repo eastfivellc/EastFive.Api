@@ -79,7 +79,7 @@ namespace EastFive.Api
                         var key = paramInfo
                             .GetAttributeInterface<IBindApiValue>()
                             .GetKey(paramInfo)
-                            .ToLower();
+                            .ToLowerNullSafe();
                         var type = paramInfo.ParameterType;
                         return onFailure($"[{key}] could not be parsed ({failureMessage}).");
                     };
