@@ -57,14 +57,22 @@ namespace EastFive.Api.Bindings
             {
                 if (content.IsNullOrWhiteSpace())
                     return onParsed(new Guid[] { });
+                if(content.StartsWith('['))
+                {
+                    content = content
+                        .TrimStart('[')
+                        .TrimEnd(']');
+                }
                 var tokens = content.Split(','.AsArray());
                 var guids = tokens
                     .Select(
                         token => BindDirect(typeof(Guid), token,
                                     guid => guid,
-                                    (why) => default(Guid),
-                                    (why) => default(Guid)))
-                    .Cast<Guid>()
+                                    (why) => default(Guid?),
+                                    (why) => default(Guid?)))
+                    .Cast<Guid?>()
+                    .Where(v => v.HasValue)
+                    .Select(v => v.Value)
                     .ToArray();
                 return onParsed(guids);
             }

@@ -160,6 +160,7 @@ namespace EastFive.Api
     [ImageResponse]
     public delegate IHttpResponse ImageResponse(Image image,
         int? width = default, int? height = default, bool? fill = default,
+        Brush background = default,
         string contentType = default,
         string filename = default);
     public class ImageResponseAttribute : HttpFuncDelegateAttribute
@@ -173,14 +174,13 @@ namespace EastFive.Api
             Func<object, Task<IHttpResponse>> onSuccess)
         {
             ImageResponse responseDelegate = (image, 
-                width, height, fill,
+                width, height, fill, background,
                 contentType, filename) =>
             {
-                var newImage = image.ResizeImage(width, height, fill);
+                var newImage = image.ResizeImage(width, height, fill, background);
                 var codec = contentType.ParseImageCodecInfo();
                 var response = new ImageHttpResponse(newImage, codec, request, this.StatusCode);
                 response.SetContentType(codec.MimeType);
-
                 return UpdateResponse(parameterInfo, httpApp, request, response);
             };
             return onSuccess((object)responseDelegate);
