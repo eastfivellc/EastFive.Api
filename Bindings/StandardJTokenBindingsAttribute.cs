@@ -392,11 +392,15 @@ namespace EastFive.Api.Bindings
             //    }
             //}
 
-            //if (content.Type == JTokenType.Null)
-            //{
-            //    var defaultValue = type.GetDefault();
-            //    return onParsed(defaultValue);
-            //}
+            if (content.Type == JTokenType.Null)
+            {
+                // PropertyAttribute will not recognize null values as specified w/o this.
+                if(type.IsAssignableFrom(typeof(string)))
+                    return onParsed((string)null);
+
+                //var defaultValue = type.GetDefault();
+                //return onParsed(defaultValue);
+            }
 
             return onDidNotBind($"Could not find binding for type {type.FullName}");
         }

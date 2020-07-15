@@ -114,6 +114,9 @@ namespace EastFive.Api.Bindings
             }
             if (type == typeof(bool))
             {
+                if (content.IsDefaultNullOrEmpty())
+                    return onDidNotBind("Value not provided.");
+
                 if ("t" == content.ToLower())
                     return onParsed(true);
 
