@@ -150,6 +150,15 @@ namespace EastFive.Api
             //SetupRazorEngine();
         }
 
+        protected void Application_PreSendRequestHeaders()
+        {
+            PreSendRequestHeaders();
+        }
+
+        public virtual void PreSendRequestHeaders()
+        {
+        }
+
         protected virtual void Registration()
         {
         }
