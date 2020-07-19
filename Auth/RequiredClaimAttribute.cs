@@ -22,6 +22,13 @@ namespace EastFive.Api.Auth
             this.ClaimValue = requiredClaimValue;
         }
 
+        public RequiredClaimAttribute(string requiredClaimType, 
+            string [] requiredClaimValues)
+        {
+            this.ClaimType = new Uri(requiredClaimType);
+            this.ClaimValue = requiredClaimValues.Join(',');
+        }
+
         public Task<HttpResponseMessage> ValidateRequest(
             KeyValuePair<ParameterInfo, object>[] parameterSelection,
             MethodInfo method,
