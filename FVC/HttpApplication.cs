@@ -137,7 +137,7 @@ namespace EastFive.Api
 
         public void Application_Start()
         {
-            System.Web.Mvc.AreaRegistration.RegisterAllAreas();
+            //System.Web.Mvc.AreaRegistration.RegisterAllAreas();
             ApplicationStart();
             GlobalConfiguration.Configure(this.Configure);
             Registration();
