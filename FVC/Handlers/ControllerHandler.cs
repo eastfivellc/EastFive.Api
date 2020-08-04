@@ -1,23 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO.Compression;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using System.Web;
-using System.Reflection;
-using System.Net;
 using System.Net.Http;
 using System.Threading;
-using System.IO;
-
-using EastFive.Serialization;
-using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Linq.Async;
-using EastFive.Api.Serialization;
-using EastFive.Web.Configuration;
 
 namespace EastFive.Api.Modules
 {
@@ -28,6 +17,12 @@ namespace EastFive.Api.Modules
 
         public ControllerHandler(System.Web.Http.HttpConfiguration config)
             : base(config)
+        {
+        }
+
+        public ControllerHandler(System.Web.Http.HttpConfiguration config,
+            HttpMessageHandler handler)
+            : base(config, handler)
         {
         }
 

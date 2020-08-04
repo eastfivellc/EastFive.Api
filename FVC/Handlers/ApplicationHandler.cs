@@ -27,6 +27,14 @@ namespace EastFive.Api.Modules
         private string applicationProperty = Guid.NewGuid().ToString("N");
 
         public ApplicationHandler(System.Web.Http.HttpConfiguration config)
+            : base()
+        {
+            this.config = config;
+        }
+
+        public ApplicationHandler(System.Web.Http.HttpConfiguration config,
+            HttpMessageHandler handler)
+            : base(handler)
         {
             this.config = config;
         }
