@@ -18,6 +18,7 @@ namespace EastFive.Api
             : base(request, statusCode)
         {
             this.SetFileHeaders(fileName, contentType, inline);
+            this.stream = stream;
         }
 
         public override Task WriteResponseAsync(Stream responseStream)

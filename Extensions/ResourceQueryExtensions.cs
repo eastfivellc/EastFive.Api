@@ -71,6 +71,14 @@ namespace EastFive.Api
                             }
 
                             var memberType = memberInfo.GetMemberType();
+                            if (memberType.IsNullable())
+                            {
+                                if (!content.NullableHasValue())
+                                    return "null";
+                                memberType = memberType.GetNullableUnderlyingType();
+                                content = content.GetNullableValue();
+                            }
+
                             if (typeof(string).IsAssignableFrom(memberType))
                             {
                                 return (string)content;
@@ -99,6 +107,11 @@ namespace EastFive.Api
                                 if(contentDate.Hour == 0 && contentDate.Minute == 0 && contentDate.Second == 0)
                                     return contentDate.ToString("yyyy-MM-dd");
                                 return contentDate.ToString();
+                            }
+
+                            if (memberType.IsNumeric())
+                            {
+                                return content.ToString();
                             }
 
                             if (typeof(Type) == memberType)

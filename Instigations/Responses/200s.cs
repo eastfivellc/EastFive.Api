@@ -10,18 +10,23 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Threading.Tasks;
+using System.Xml;
+using System.Xml.Linq;
+using System.Xml.XPath;
 
 using Microsoft.AspNetCore.Mvc.Razor;
 //using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis;
 using Microsoft.AspNetCore.Razor.Hosting;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.Extensions.Caching.Memory;
 
 using EastFive.Linq;
 using EastFive.Extensions;
 using EastFive.Linq.Async;
 using EastFive.Images;
-using Microsoft.AspNetCore.Mvc.Rendering;
+using EastFive.Serialization;
 
 namespace EastFive.Api
 {
@@ -210,6 +215,58 @@ namespace EastFive.Api
         }
     }
 
+    [ImageDisposableResponse]
+    public delegate IHttpResponse ImageDisposableResponse(Image image,
+        int? width = default, int? height = default, bool? fill = default,
+        Brush background = default,
+        string contentType = default,
+        string filename = default);
+    public class ImageDisposableResponseAttribute : HttpFuncDelegateAttribute
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override string Example => "Raw data (byte [])";
+
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
+        {
+            ImageDisposableResponse responseDelegate = (image,
+                width, height, fill, background,
+                contentType, filename) =>
+            {
+                var newImage = image.ResizeImage(width, height, fill, background);
+                var codec = contentType.ParseImageCodecInfo();
+                var imageStream = new MemoryStream();
+                image.Save(imageStream, codec,
+                        encoderQuality: 80L);
+                imageStream.Position = 0;
+                var response = new ImageDisposableHttpResponse(imageStream, codec, request, this.StatusCode);
+                response.SetContentType(codec.MimeType);
+                if (newImage != image)
+                    newImage.Dispose();
+                return UpdateResponse(parameterInfo, httpApp, request, response);
+            };
+            return onSuccess((object)responseDelegate);
+        }
+
+        private class ImageDisposableHttpResponse : HttpResponse
+        {
+            public ImageDisposableHttpResponse(MemoryStream imageStream, ImageCodecInfo codec,
+                IHttpRequest request, HttpStatusCode statusCode)
+                : base(request, statusCode,
+                      async (responseStream) =>
+                      {
+                          await imageStream.CopyToAsync(responseStream);
+                          await imageStream.FlushAsync();
+                          await responseStream.FlushAsync();
+                          await imageStream.DisposeAsync();
+                      })
+            {
+            }
+        }
+    }
+
     [PdfResponse()]
     public delegate IHttpResponse PdfResponse(byte[] content, string name, bool inline);
     public class PdfResponseAttribute : HttpFuncDelegateAttribute
@@ -235,7 +292,7 @@ namespace EastFive.Api
 
     [SvgResponse]
     public delegate IHttpResponse SvgResponse(string content, Encoding encoding = default,
-        string filename = default, bool? inline = default);
+        string filename = default, bool? inline = default, bool autoScale = false);
     public class SvgResponseAttribute : HttpFuncDelegateAttribute
     {
         public override HttpStatusCode StatusCode => HttpStatusCode.OK;
@@ -246,8 +303,19 @@ namespace EastFive.Api
                 IHttpRequest request, ParameterInfo parameterInfo,
             Func<object, Task<IHttpResponse>> onSuccess)
         {
-            SvgResponse responseDelegate = (content, encoding, filename, inline) =>
+            SvgResponse responseDelegate = (content, encoding, filename, inline, autoscale) =>
             {
+                if (autoscale)
+                {
+                    var doc = XDocument.Load(new StringReader(content));
+                    var svgEle = doc.Root;
+                    svgEle.SetAttributeValue("width", "100%");
+                    svgEle.SetAttributeValue("height", "auto");
+
+                    var saveStream = new MemoryStream();
+                    doc.Save(saveStream);
+                    content = saveStream.ToArray().GetString();
+                }
                 var response = new StringHttpResponse(request, this.StatusCode,
                     fileName: filename, contentType: "image/svg+xml", inline: inline,
                     content, encoding);

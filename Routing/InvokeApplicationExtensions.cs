@@ -248,7 +248,8 @@ namespace EastFive.Api
             public Uri BindUrlQueryValue(Uri url, MethodInfo method, Expression[] arguments)
             {
                 var actionName = (string)arguments[0].Resolve();
-                url = url.AppendToPath(actionName, postPendFile: true);
+                var postPendFile = url.Segments.Length > 3;
+                url = url.AppendToPath(actionName, postPendFile: postPendFile);
 
                 return url;
             }
