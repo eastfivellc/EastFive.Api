@@ -26,7 +26,7 @@ namespace EastFive.Api.Auth
                 .Select(kvp => new Claim(kvp.Key, kvp.Value));
 
             var issued = DateTime.UtcNow;
-            var result = BlackBarLabs.Security.Tokens.JwtTools.CreateToken(scope,
+            var result = EastFive.Security.Tokens.JwtTools.CreateToken(scope,
                 issued, duration, claimsAuth.Concat(claimsCrypt),
                 tokenCreated, missingConfigurationSetting, invalidConfigurationSetting,
                 configNameOfIssuer, configNameOfRSAKey);
@@ -61,7 +61,7 @@ namespace EastFive.Api.Auth
             var claimsCrypt = claims.NullToEmpty();
 
             var issued = DateTime.UtcNow;
-            var result = BlackBarLabs.Security.Tokens.JwtTools.CreateToken(scope,
+            var result = EastFive.Security.Tokens.JwtTools.CreateToken(scope,
                     issued, duration, claimsAuth.Concat(claimsCrypt),
                 tokenCreated, 
                 missingConfigurationSetting, 

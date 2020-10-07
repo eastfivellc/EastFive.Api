@@ -28,8 +28,10 @@ namespace EastFive.Api
         : Attribute, IInvokeResource, IDocumentRoute, IProvideSerialization
     {
         public string Namespace { get; set; }
+        public string ExcludeNamespaces { get; set; }
         public string Route { get; set; }
         public string Prefix { get; set; }
+        [Obsolete]
         public Type Resource { get; set; }
         public string ContentType { get; set; }
 
@@ -388,6 +390,11 @@ namespace EastFive.Api
 
         public virtual bool DoesHandleRequest(Type type, IHttpRequest request)
         {
+            if (IsExcluded())
+            {
+                return false;
+            }
+
             if (this.Namespace.HasBlackSpace())
             {
                 if (!DoesMatch(0, this.Namespace))
@@ -416,6 +423,23 @@ namespace EastFive.Api
                 if (!component.Equals(value, StringComparison.OrdinalIgnoreCase))
                     return false;
                 return true;
+            }
+
+            bool IsExcluded()
+            {
+                if (this.ExcludeNamespaces.IsNullOrWhiteSpace())
+                    return false;
+                return this.ExcludeNamespaces
+                    .Split(',')
+                    .Select(exNs => exNs.ToLower())
+                    .First(
+                        (exNs, next) =>
+                        {
+                            if (DoesMatch(0, exNs))
+                                return true;
+                            return next();
+                        },
+                        () => false);
             }
         }
 
