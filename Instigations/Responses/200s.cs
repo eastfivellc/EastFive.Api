@@ -789,40 +789,5 @@ namespace EastFive.Api
 
     }
 
-    [Obsolete("Use MultipartAcceptArrayResponse (no Async on end)")]
-    [BodyTypeResponse]
-    public delegate Task<IHttpResponse> MultipartAcceptArrayResponseAsync(IEnumerable<object> responses);
-    public class MultipartAcceptArrayResponseAsyncAttribute : HttpFuncDelegateAttribute
-    {
-        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
-
-        public override string Example => "[]";
-
-        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
-                IHttpRequest request, ParameterInfo parameterInfo,
-            Func<object, Task<IHttpResponse>> onSuccess)
-        {
-            MultipartAcceptArrayResponseAsync responseDelegate =
-                (objects) =>
-                {
-                    var objectsArr = objects.ToArray();
-                    var response = new JsonHttpResponse(request, this.StatusCode, objectsArr);
-                    return UpdateResponse(parameterInfo, httpApp, request, response).AsTask();
-
-                    //if (request.Headers.Accept.Contains(accept => accept.MediaType.ToLower().Contains("xlsx")))
-                    //{
-                    //    var xlsResponse = request.CreateMultisheetXlsxResponse(
-                    //        new Dictionary<string, string>(),
-                    //        objects.Cast<IReferenceable>());
-                    //    return UpdateResponse(parameterInfo, httpApp, request, xlsResponse);
-                    //}
-                    //var responses = objects.Select(obj => request.CreateResponse(System.Net.HttpStatusCode.OK, obj));
-                    //var multipart = await request.CreateMultipartResponseAsync(responses);
-                    //return UpdateResponse(parameterInfo, httpApp, request, multipart);
-                };
-            return onSuccess(responseDelegate);
-        }
-    }
-
     #endregion
 }

@@ -41,6 +41,7 @@ namespace EastFive.Api.Resources
 
         [EastFive.Api.HttpGet]
         public static IHttpResponse FindAsync(
+                Security security,
                 HttpApplication application, IHttpRequest request, IProvideUrl url,
             ContentTypeResponse<WebIdManifest> onFound,
             ContentTypeResponse<Api.Resources.Manifest> onContent,

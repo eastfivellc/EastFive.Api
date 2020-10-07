@@ -117,11 +117,19 @@ namespace EastFive.Api
 
         #region Authorization
 
+        private const string HeaderKeyAuthorization = "Authorization";
+
         public static string GetAuthorization(this IHttpRequest req)
-            => req.GetHeader("Authorization");
+            => req.GetHeader(HeaderKeyAuthorization);
 
         public static bool TryGetAuthorization(this IHttpRequest req, out string authorization)
-            => req.TryGetHeader("Authorization", out authorization);
+            => req.TryGetHeader(HeaderKeyAuthorization, out authorization);
+
+        public static void SetAuthorization(this IHttpRequest req, string authorization)
+            => req
+                .UpdateHeader(
+                    HeaderKeyAuthorization,
+                    x => x.Append(authorization).ToArray());
 
         #endregion
 
