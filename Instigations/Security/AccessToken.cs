@@ -16,7 +16,6 @@ using EastFive.Web.Configuration;
 
 namespace EastFive.Api
 {
-    [AccessTokenAccount]
     public struct AccessTokenAccount
     {
         public Guid sessionId;
@@ -25,45 +24,45 @@ namespace EastFive.Api
         public string token;
     }
 
-    public class AccessTokenAccountAttribute : Attribute, IInstigatable, IBindApiParameter<string>
-    {
-        public TResult Bind<TResult>(Type type, string content,
-                IApplication application,
-            Func<object, TResult> onParsed, 
-            Func<string, TResult> onDidNotBind, 
-            Func<string, TResult> onBindingFailure)
-        {
-            return onParsed(default(AccessTokenAccount));
-        }
+    //public class AccessTokenAccountAttribute : Attribute, IInstigatable, IBindApiParameter<string>
+    //{
+    //    public TResult Bind<TResult>(Type type, string content,
+    //            IApplication application,
+    //        Func<object, TResult> onParsed, 
+    //        Func<string, TResult> onDidNotBind, 
+    //        Func<string, TResult> onBindingFailure)
+    //    {
+    //        return onParsed(default(AccessTokenAccount));
+    //    }
 
-        public Task<IHttpResponse> Instigate(IApplication httpApp,
-                IHttpRequest request, ParameterInfo parameterInfo,
-            Func<object, Task<IHttpResponse>> onSuccess)
-        {
-            return request.RequestUri.ValidateAccessTokenAccount(
-                accessToken => onSuccess(accessToken),
-                () => request
-                    .CreateResponse(HttpStatusCode.NotImplemented)
-                    .AddReason($"Missing `{AccessTokenAccountExtensions.QueryParameter}` parameter")
-                    .AsTask(),
-                () => request
-                    .CreateResponse(HttpStatusCode.BadRequest)
-                    .AddReason($"Invalid `{AccessTokenAccountExtensions.QueryParameter}` parameter")
-                    .AsTask(),
-                () => request
-                    .CreateResponse(HttpStatusCode.Unauthorized)
-                    .AddReason("Access token has expired.")
-                    .AsTask(),
-                () => request
-                    .CreateResponse(HttpStatusCode.Forbidden)
-                    .AddReason($"Incorrect signature on `{AccessTokenAccountExtensions.QueryParameter}` parameter")
-                    .AsTask(),
-                () => request
-                    .CreateResponse(HttpStatusCode.Unauthorized)
-                    .AddReason("AccountAccessTokens are not configured for this system.")
-                    .AsTask());
-        }
-    }
+    //    public Task<IHttpResponse> Instigate(IApplication httpApp,
+    //            IHttpRequest request, ParameterInfo parameterInfo,
+    //        Func<object, Task<IHttpResponse>> onSuccess)
+    //    {
+    //        return request.RequestUri.ValidateAccessTokenAccount(
+    //            accessToken => onSuccess(accessToken),
+    //            () => request
+    //                .CreateResponse(HttpStatusCode.NotImplemented)
+    //                .AddReason($"Missing `{AccessTokenAccountExtensions.QueryParameter}` parameter")
+    //                .AsTask(),
+    //            () => request
+    //                .CreateResponse(HttpStatusCode.BadRequest)
+    //                .AddReason($"Invalid `{AccessTokenAccountExtensions.QueryParameter}` parameter")
+    //                .AsTask(),
+    //            () => request
+    //                .CreateResponse(HttpStatusCode.Unauthorized)
+    //                .AddReason("Access token has expired.")
+    //                .AsTask(),
+    //            () => request
+    //                .CreateResponse(HttpStatusCode.Forbidden)
+    //                .AddReason($"Incorrect signature on `{AccessTokenAccountExtensions.QueryParameter}` parameter")
+    //                .AsTask(),
+    //            () => request
+    //                .CreateResponse(HttpStatusCode.Unauthorized)
+    //                .AddReason("AccountAccessTokens are not configured for this system.")
+    //                .AsTask());
+    //    }
+    //}
 
     public static class AccessTokenAccountExtensions
     {
@@ -153,13 +152,13 @@ namespace EastFive.Api
                 (apiSecret) =>
                 {
                     var originalUrlStr = originalUrl.AbsoluteUri;
-                    var urlHash = originalUrlStr.MD5HashGuid();
+                    var urlHash = originalUrlStr.SHAHash();
 
                     var securityEnthropy = sessionId.ToByteArray()
                         .Concat(accountId.ToByteArray())
                         .Concat(BitConverter.GetBytes(secondsAfterEpoch));
                     var dataToSign = securityEnthropy
-                        .Concat(urlHash.ToByteArray());
+                        .Concat(urlHash);
                     var envelopeBytes = dataToSign
                         .Concat(apiSecret.ToByteArray())
                         .ToArray();

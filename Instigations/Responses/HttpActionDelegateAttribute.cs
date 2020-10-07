@@ -31,7 +31,7 @@ namespace EastFive.Api
                 IHttpRequest request, ParameterInfo parameterInfo,
             Func<object, Task<IHttpResponse>> onSuccess)
         {
-            return InstigateInternal(httpApp, request, parameterInfo,
+            return InstigateInternal(httpApp as HttpApplication, request, parameterInfo,
                 callback =>
                 {
                     //var callbackType = callback.GetType();
@@ -164,7 +164,7 @@ namespace EastFive.Api
         public override Response GetResponse(ParameterInfo paramInfo, HttpApplication httpApp)
         {
             var response = base.GetResponse(paramInfo, httpApp);
-            if (paramInfo.ParameterType.IsSubClassOfGeneric(typeof(MultipartResponseAsync<>)))
+            if (paramInfo.ParameterType.IsSubClassOfGeneric(typeof(MultipartAsyncResponse<>)))
             {
                 var typeName = Parameter.GetTypeName(paramInfo.ParameterType.GenericTypeArguments.First(), httpApp);
                 response.Example = $"{typeName}[]";
@@ -193,7 +193,7 @@ namespace EastFive.Api
                 response.Example = Parameter.GetTypeName(paramInfo.ParameterType.GenericTypeArguments.First(), httpApp);
                 return response;
             }
-            if (paramInfo.ParameterType.IsSubClassOfGeneric(typeof(MultipartResponseAsync<>)))
+            if (paramInfo.ParameterType.IsSubClassOfGeneric(typeof(MultipartAsyncResponse<>)))
             {
                 var typeName = Parameter.GetTypeName(paramInfo.ParameterType.GenericTypeArguments.First(), httpApp);
                 response.Example = $"{typeName}[]";

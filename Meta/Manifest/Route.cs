@@ -9,6 +9,7 @@ using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Reflection;
 using Newtonsoft.Json;
+using EastFive.Api.Auth;
 
 namespace EastFive.Api.Resources
 {
@@ -23,6 +24,9 @@ namespace EastFive.Api.Resources
 
         public bool IsEntryPoint { get; set; }
 
+        [RequiredClaim(
+            System.Security.Claims.ClaimTypes.Role,
+            "superadmin")]
         [EastFive.Api.HttpGet]
         public static IHttpResponse FindAsync(
                 IApplication app,

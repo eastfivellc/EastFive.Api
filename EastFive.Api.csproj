@@ -31,4 +31,8 @@
     <ProjectReference Include="..\EastFive.Web\EastFive.Web.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="FVC\Handlers\" />
+  </ItemGroup>
+
 </Project>

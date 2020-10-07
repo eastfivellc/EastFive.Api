@@ -62,6 +62,12 @@ namespace EastFive.Api
             Location = "Created from secure enthropy")]
         public const string AccessTokenSecret = "EastFive.Api.AccessTokenSecret";
 
+        [ConfigKey("Expiration in minutes for access tokens.",
+            DeploymentOverrides.Optional,
+            DeploymentSecurityConcern = false,
+            Location = "Created from secure enthropy")]
+        public const string AccessTokenExpirationInMinutes = "EastFive.Api.AccessTokenExpirationInMinutes";
+
         [ConfigKey("Enable E5 Cors handlers.",
             DeploymentOverrides.Optional,
             DeploymentSecurityConcern = false,

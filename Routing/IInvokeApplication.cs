@@ -48,7 +48,7 @@ namespace EastFive.Api
         {
             var apiPrefix = GetApiPrefix(request);
             var serverLocation = GetServerLocation(request);
-            var instance = new InvokeApplicationFromRequest(httpApp, request, serverLocation, apiPrefix);
+            var instance = new InvokeApplicationFromRequest(httpApp as HttpApplication, request, serverLocation, apiPrefix);
             return instance;
         }
 

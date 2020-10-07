@@ -985,52 +985,31 @@ namespace EastFive.Api
         private static void MultipartContentResponse<TResource, TResult>(this IApplication application,
             Func<TResource[], TResult> onContents)
         {
-            //application.SetInstigator(
-            //    typeof(MultipartAcceptArrayResponseAsync),
-            //    (thisAgain, requestAgain, paramInfo, onSuccess) =>
+
+            //application.SetInstigatorGeneric(
+            //    typeof(MultipartResponseAsync<>),
+            //    (type, thisAgain, requestAgain, paramInfo, onSuccess) =>
             //    {
-            //        MultipartAcceptArrayResponseAsync created =
-            //            (contents) =>
+            //        var callbackWrapperType = typeof(CallbackWrapper<,>).MakeGenericType(
+            //            paramInfo.ParameterType.GenericTypeArguments.Append(typeof(TResult)).ToArray());
+
+            //        //  new CallbackWrapper<TResource, TResult>(onContents, null, thisAgain, requestAgain, paramInfo, onSuccess);
+            //        var instantiationParams = new object[]
             //            {
-            //                var resources = contents.Cast<TResource>().ToArray();
-            //                // TODO: try catch
-            //                //if (!(content is TResource))
-            //                //    Assert.Fail($"Could not cast {content.GetType().FullName} to {typeof(TResource).FullName}.");
-
-            //                if (onContents.IsDefaultOrNull())
-            //                    return FailureToOverride<TResource>(
-            //                        typeof(MultipartAcceptArrayResponseAsync), 
-            //                        thisAgain, requestAgain, paramInfo, onSuccess).AsTask();
-            //                var result = onContents(resources);
-            //                return new AttachedHttpResponseMessage<TResult>(result).ToTask<IHttpResponse>();
+            //                onContents,
+            //                null,
+            //                thisAgain,
+            //                requestAgain,
+            //                paramInfo,
+            //                onSuccess,
             //            };
-            //        return onSuccess(created);
+            //        var scope = Activator.CreateInstance(callbackWrapperType, instantiationParams);
+
+            //        var multipartResponseMethodInfoGeneric = callbackWrapperType.GetMethod("MultipartResponseAsyncGeneric", BindingFlags.Public | BindingFlags.Instance);
+            //        var multipartResponseMethodInfoBound = multipartResponseMethodInfoGeneric;
+            //        var dele = Delegate.CreateDelegate(type, scope, multipartResponseMethodInfoBound);
+            //        return onSuccess((object)dele);
             //    });
-
-            application.SetInstigatorGeneric(
-                typeof(MultipartResponseAsync<>),
-                (type, thisAgain, requestAgain, paramInfo, onSuccess) =>
-                {
-                    var callbackWrapperType = typeof(CallbackWrapper<,>).MakeGenericType(
-                        paramInfo.ParameterType.GenericTypeArguments.Append(typeof(TResult)).ToArray());
-
-                    //  new CallbackWrapper<TResource, TResult>(onContents, null, thisAgain, requestAgain, paramInfo, onSuccess);
-                    var instantiationParams = new object[]
-                        {
-                            onContents,
-                            null,
-                            thisAgain,
-                            requestAgain,
-                            paramInfo,
-                            onSuccess,
-                        };
-                    var scope = Activator.CreateInstance(callbackWrapperType, instantiationParams);
-
-                    var multipartResponseMethodInfoGeneric = callbackWrapperType.GetMethod("MultipartResponseAsyncGeneric", BindingFlags.Public | BindingFlags.Instance);
-                    var multipartResponseMethodInfoBound = multipartResponseMethodInfoGeneric;
-                    var dele = Delegate.CreateDelegate(type, scope, multipartResponseMethodInfoBound);
-                    return onSuccess((object)dele);
-                });
         }
 
         private static void MultipartContentObjectResponse<TResource, TResult>(this IApplication application,
@@ -1058,20 +1037,20 @@ namespace EastFive.Api
             //        return onSuccess(created);
             //    });
 
-            application.SetInstigatorGeneric(
-                typeof(MultipartResponseAsync<>),
-                (type, thisAgain, requestAgain, paramInfo, onSuccess) =>
-                {
-                    var callbackWrapperInstance = typeof(CallbackWrapper<,>).MakeGenericType(
-                        new Type[] { type.GenericTypeArguments.First(), typeof(TResult) });
-                    //var scope = new CallbackWrapper<TResource, TResult>(null, onContents, thisAgain, requestAgain, paramInfo, onSuccess);
-                    var scope = Activator.CreateInstance(callbackWrapperInstance, 
-                        new object[] { null, onContents, thisAgain, requestAgain, paramInfo, onSuccess });
-                    var multipartResponseMethodInfoGeneric = callbackWrapperInstance.GetMethod("MultipartResponseAsyncGeneric", BindingFlags.Public | BindingFlags.Instance);
-                    var multipartResponseMethodInfoBound = multipartResponseMethodInfoGeneric; // multipartResponseMethodInfoGeneric.MakeGenericMethod(type.GenericTypeArguments);
-                    var dele = Delegate.CreateDelegate(type, scope, multipartResponseMethodInfoBound);
-                    return onSuccess((object)dele);
-                });
+            //application.SetInstigatorGeneric(
+            //    typeof(MultipartResponseAsync<>),
+            //    (type, thisAgain, requestAgain, paramInfo, onSuccess) =>
+            //    {
+            //        var callbackWrapperInstance = typeof(CallbackWrapper<,>).MakeGenericType(
+            //            new Type[] { type.GenericTypeArguments.First(), typeof(TResult) });
+            //        //var scope = new CallbackWrapper<TResource, TResult>(null, onContents, thisAgain, requestAgain, paramInfo, onSuccess);
+            //        var scope = Activator.CreateInstance(callbackWrapperInstance, 
+            //            new object[] { null, onContents, thisAgain, requestAgain, paramInfo, onSuccess });
+            //        var multipartResponseMethodInfoGeneric = callbackWrapperInstance.GetMethod("MultipartResponseAsyncGeneric", BindingFlags.Public | BindingFlags.Instance);
+            //        var multipartResponseMethodInfoBound = multipartResponseMethodInfoGeneric; // multipartResponseMethodInfoGeneric.MakeGenericMethod(type.GenericTypeArguments);
+            //        var dele = Delegate.CreateDelegate(type, scope, multipartResponseMethodInfoBound);
+            //        return onSuccess((object)dele);
+            //    });
         }
 
         public class CallbackWrapper<TResource, TResult>
@@ -1109,7 +1088,7 @@ namespace EastFive.Api
                     var result = callbackObjs(resourcesArray.Cast<object>().ToArray());
                     return new AttachedHttpResponseMessage<TResult>(result);
                 }
-                return FailureToOverride<TResource>(typeof(EastFive.Api.MultipartResponseAsync<>), 
+                return FailureToOverride<TResource>(typeof(EastFive.Api.MultipartAsyncResponse<>), 
                     thisAgain, requestAgain, paramInfo, onSuccess);
             }
             

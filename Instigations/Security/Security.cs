@@ -1,4 +1,5 @@
-﻿using System;
+﻿using EastFive.Linq;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -13,6 +14,7 @@ namespace EastFive.Api
     public struct Security
     {
         public Guid performingAsActorId;
+        public Guid sessionId;
         public System.Security.Claims.Claim[] claims;
     }
 
@@ -30,6 +32,16 @@ namespace EastFive.Api
                         {
                             performingAsActorId = actorId,
                             claims = claims,
+                            sessionId = claims
+                                .Where(claim => claim.Type == Auth.ClaimEnableSessionAttribute.Type)
+                                .First(
+                                    (claim, next) =>
+                                    {
+                                        if (Guid.TryParse(claim.Value, out Guid sId))
+                                            return sId;
+                                        return default;
+                                    },
+                                    () => default(Guid)),
                         };
                         return onSuccess(security);
                     });

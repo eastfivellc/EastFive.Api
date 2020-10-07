@@ -46,21 +46,6 @@ namespace EastFive.Api
             throw new NotImplementedException();
         }
 
-        public static async Task<IHttpResponse> CreateMultipartResponseAsync(this IHttpRequest request,
-            IEnumerable<IHttpRequest> contents)
-        {
-            if (request.TryGetMediaType(out string mediaType))
-            {
-                if (mediaType.ToLower().Contains("multipart/mixed"))
-                    return request.CreateHttpMultipartResponse(contents);
-
-                if (mediaType.ToLower().Contains("application/json+content-array"))
-                    return await request.CreateJsonArrayResponseAsync(contents);
-            }
-            return await request.CreateBrowserMultipartResponse(contents);
-
-        }
-
         private static IHttpResponse CreateHttpMultipartResponse(this IHttpRequest request,
             IEnumerable<IHttpRequest> contents)
         {
@@ -74,74 +59,6 @@ namespace EastFive.Api
             //var response = request.CreateResponse(HttpStatusCode.OK);
             //response.Content = multipartContent;
             //return response;
-        }
-
-        private static async Task<IHttpResponse> CreateJsonArrayResponseAsync(this IHttpRequest request,
-            IEnumerable<IHttpRequest> contents)
-        {
-            throw new NotImplementedException();
-            //var multipartContent = await contents
-            //    .NullToEmpty()
-            //    .Select(
-            //        async (content) =>
-            //        {
-            //            return await content.Content.HasValue(
-            //                async (contentContent) => await contentContent.ReadAsStringAsync(),
-            //                () => content.ReasonPhrase.AsTask());
-            //        })
-            //    .Parallel()
-            //    .ToArrayAsync();
-
-            //var multipartResponse = request.CreateHtmlResponse($"[{multipartContent.Join(',')}]");
-            //multipartResponse.Content.Headers.ContentType =
-            //    new MediaTypeHeaderValue("application/json+content-array");
-            //return multipartResponse;
-        }
-
-        private static async Task<IHttpResponse> CreateBrowserMultipartResponse(this IHttpRequest request,
-            IEnumerable<IHttpRequest> contents)
-        {
-            throw new NotImplementedException();
-            //var multipartContentTasks = contents.NullToEmpty().Select(
-            //    async (content) =>
-            //    {
-            //        return await content.Content.HasValue(
-            //            async (contentContent) =>
-            //            {
-            //                var response = new Response
-            //                {
-            //                    StatusCode = content.StatusCode,
-            //                    ContentType = contentContent.Headers.ContentType,
-            //                    ContentLocation = contentContent.Headers.ContentLocation,
-            //                    Content = await contentContent.ReadAsStringAsync(),
-            //                    ReasonPhrase = content.ReasonPhrase,
-            //                    Location = content.Headers.Location,
-            //                };
-            //                return response;
-            //            },
-            //            () =>
-            //            {
-            //                var response = new Response
-            //                {
-            //                    StatusCode = content.StatusCode,
-            //                    ReasonPhrase = content.ReasonPhrase,
-            //                    Location = content.Headers.Location,
-            //                };
-            //                return Task.FromResult(response);
-            //            });
-            //    });
-
-            //var multipartContents = await Task.WhenAll(multipartContentTasks);
-            //var multipartResponseContent = new MultipartResponse
-            //{
-            //    StatusCode = HttpStatusCode.OK,
-            //    Content = multipartContents,
-            //    Location = request.RequestUri,
-            //};
-
-            //var multipartResponse = request.CreateResponse(HttpStatusCode.OK, multipartResponseContent);
-            //multipartResponse.Content.Headers.ContentType = new MediaTypeHeaderValue("application/x-multipart+json");
-            //return multipartResponse;
         }
 
         public static IHttpResponse CreateFileResponse(this IHttpRequest request, byte[] content, string mediaType,

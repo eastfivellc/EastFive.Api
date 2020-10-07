@@ -189,17 +189,24 @@ namespace EastFive.Api
             return jwtString.GetClaimsJwtString(
                 claims =>
                 {
-                    return claims.First(
-                        (claim, next) =>
-                        {
-                            if (String.Compare(claim.Type, claimType.OriginalString) == 0)
-                            {
-                                if(claim.Value.Split(','.AsArray()).Contains(claimValue))
-                                    return true;
-                            }
-                            return next();
-                        },
-                        () => false);
+                    var providedClaims = claims
+                           .Where(claim => String.Compare(claim.Type, claimType.OriginalString) == 0)
+                           .SelectMany(claim => claim.Value.Split(','.AsArray()))
+                           .ToArray();
+                    var requiredClaims = claimValue.Split(','.AsArray());
+                    var matchedAllClaims = requiredClaims.Except(providedClaims).Count() == 0;
+                    return matchedAllClaims;
+                    //return claims.First(
+                    //    (claim, next) =>
+                    //    {
+                    //        if (String.Compare(claim.Type, claimType.OriginalString) == 0)
+                    //        {
+                    //            if(claim.Value.Split(','.AsArray()).Contains(claimValue))
+                    //                return true;
+                    //        }
+                    //        return next();
+                    //    },
+                    //    () => false);
                 },
                 (why) => false);
         }
