@@ -31,17 +31,18 @@ namespace EastFive.Api.Resources
         {
             this.Routes = lookups
                 .Where(type => type.ContainsAttributeInterface<IDocumentRoute>())
-                .Select(type => type.GetAttributesInterface<IDocumentRoute>().First().GetRoute(type, httpApp))
+                .Select(type => type.GetAttributesInterface<IDocumentRoute>()
+                    .First()
+                    .GetRoute(type, httpApp))
                 .OrderBy(route => route.Name)
                 .ToArray();
         }
 
         public Route[] Routes { get; set; }
 
-
         [EastFive.Api.HttpGet]
         public static IHttpResponse FindAsync(
-                Security security,
+                //Security security,
                 HttpApplication application, IHttpRequest request, IProvideUrl url,
             ContentTypeResponse<WebIdManifest> onFound,
             ContentTypeResponse<Api.Resources.Manifest> onContent,

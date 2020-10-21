@@ -117,7 +117,7 @@ namespace EastFive.Api
                 return new RequestMessage<TResource>(this);
             }
 
-            public override async Task<IHttpResponse> SendAsync(IHttpRequest httpRequest)
+            public override Task<IHttpResponse> SendAsync(IHttpRequest httpRequest)
             {
                 throw new NotImplementedException();
                 //using (var client = new HttpClient())

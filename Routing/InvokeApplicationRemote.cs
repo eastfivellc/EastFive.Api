@@ -21,7 +21,7 @@ namespace EastFive.Api
         {
         }
 
-        public override async Task<IHttpResponse> SendAsync(IHttpRequest httpRequest)
+        public override Task<IHttpResponse> SendAsync(IHttpRequest httpRequest)
         {
             throw new NotImplementedException();
             //using (var client = new HttpClient())
