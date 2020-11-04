@@ -42,6 +42,10 @@ namespace EastFive.Api
 
         string GetResourceName(Type type);
 
+        TResult GetResourceType<TResult>(string resourceType,
+            Func<Type, TResult> onConverted,
+            Func<TResult> onMatchingResourceNotFound);
+
         IEnumerableAsync<T> InstantiateAll<T>();
 
         IHostEnvironment HostEnvironment { get; }

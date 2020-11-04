@@ -55,7 +55,7 @@ namespace EastFive.Api.Serialization
             if (objectType.IsAssignableFrom(typeof(IDictionary<,>)))
                 return true;
 
-            if (objectType.IsSubclassOf(typeof(Type)))
+            if (objectType == typeof(Type))
                 return true;
 
             return false;

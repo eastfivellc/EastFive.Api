@@ -245,57 +245,6 @@ namespace EastFive.Api
                 var value = (string)arguments[1].Resolve();
 
                 return url.AddQueryParameter(key, value);
-
-                //return arguments
-                //    .Zip(
-                //        method.GetParameters(),
-                //        (arg, paramInfo) =>
-                //        {
-                //            KeyValuePair<string, object> Evaluate(Expression expr)
-                //            {
-                //                if (expr is UnaryExpression)
-                //                {
-                //                    var argUnary = expr as UnaryExpression;
-                //                    return Evaluate(argUnary.Operand);
-                //                }
-                //                if (expr is Expression<Func<object>>)
-                //                {
-                //                    var paramExpr = expr as Expression<Func<object>>;
-                //                    return Evaluate(paramExpr.Body);
-                //                }
-                //                if(expr is MemberExpression)
-                //                {
-                //                    var memberExpr = expr as MemberExpression;
-                //                    var paramName = memberExpr.Member.Name;
-                //                    var paramValue = arg.Resolve();
-                //                    return paramName.PairWithValue(paramValue);
-                //                }
-                //                if (expr is BinaryExpression)
-                //                {
-                //                    var memberExpr = expr as BinaryExpression;
-                //                    if (memberExpr.Left is ConstantExpression)
-                //                    {
-                //                        var left = memberExpr.Left as ConstantExpression;
-                //                        var paramName = left.Type == typeof(string)?
-                //                            left.Value as string
-                //                            :
-                //                            (string)left.Resolve();
-                //                        var paramValue = memberExpr.Right.Resolve();
-                //                        return paramName.PairWithValue(paramValue);
-                //                    }
-                //                }
-                //                {
-                //                    var paramValue = expr.Resolve();
-                //                    return paramInfo.Name.PairWithValue(paramValue);
-                //                }
-                //            }
-                //            return Evaluate(arg);
-                //        })
-                //    .Aggregate(url,
-                //        (urlAggr, kvp) =>
-                //        {
-                //            return urlAggr.AddQueryParameter(kvp.Key, kvp.Value.ToString());
-                //        });
             }
 
             public IHttpRequest MutateRequest(IHttpRequest request,

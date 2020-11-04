@@ -33,7 +33,20 @@ namespace EastFive.Api.Bindings
         {
             return BindDirect(type, content,
                 onParsed,
-                onDidNotBind,
+                onDidNotBind: (why) =>
+                {
+                    if (application is IApiApplication)
+                    {
+                        var apiApplication = application as IApiApplication;
+                        if (type == typeof(Type))
+                        {
+                            return apiApplication.GetResourceType(content,
+                                type => onParsed(type),
+                                () => onDidNotBind($"Could not find type:{content}"));
+                        }
+                    }
+                    return onDidNotBind(why);
+                },
                 onBindingFailure);
         }
  
@@ -149,12 +162,12 @@ namespace EastFive.Api.Bindings
                     typeInstance => onParsed(typeInstance),
                     () => onDidNotBind(
                         $"`{content}` is not a recognizable resource type or CLR type."));
-                //return HttpApplication.GetResourceType(content,
-                //    (typeInstance) => onParsed(typeInstance),
-                //    () => content.GetClrType(
-                //        typeInstance => onParsed(typeInstance),
-                //        () => onDidNotBind(
-                //            $"`{content}` is not a recognizable resource type or CLR type.")));
+                //() => HttpApplication.GetResourceType(content,
+                //        (typeInstance) => onParsed(typeInstance),
+                //        () => content.GetClrType(
+                //            typeInstance => onParsed(typeInstance),
+                //            () => onDidNotBind(
+                //                $"`{content}` is not a recognizable resource type or CLR type."))));
             }
             if (type == typeof(Stream))
             {

@@ -18,7 +18,7 @@ namespace EastFive.Api
 
         string ContentType { get; }
 
-        bool DoesHandleRequest(Type type, IHttpRequest request);
+        bool DoesHandleRequest(Type type, IHttpRequest request, out double matchQuality);
 
         Task<IHttpResponse> CreateResponseAsync(Type controllerType, 
             IApplication httpApp, IHttpRequest request);

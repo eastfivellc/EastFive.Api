@@ -146,23 +146,22 @@ namespace EastFive.Api.Core
         {
             var matchingResources = application.Resources
                 .NullToEmpty()
-                .OrderByDescending(res =>
-                    (res.invokeResourceAttr.Route.HasBlackSpace() ? 2 : 0) +
-                    (res.invokeResourceAttr.Namespace.HasBlackSpace() ? 1 : 0))
                 .Select(
                     resource =>
                     {
                         var doesHandleRequest = resource.invokeResourceAttr.DoesHandleRequest(
-                            resource.type, requestMessage);
+                            resource.type, requestMessage, out double matchQuality);
                         return new
                         {
                             doesHandleRequest,
                             resource,
+                            matchQuality,
                         };
                     })
+                .OrderBy(tpl => tpl.matchQuality)
                 .Where(kvp => kvp.doesHandleRequest);
 
-            var debug = matchingResources.ToArray();
+            //var debug = matchingResources.ToArray();
 
             return matchingResources
                 .First(
@@ -180,10 +179,6 @@ namespace EastFive.Api.Core
                                     var response = await invokeResource.CreateResponseAsync(controllerTypeFinal,
                                         httpAppFinal, routeDataFinal);
                                     return response;
-
-                                    //return await resource.invokeResourceAttr.CreateResponseAsync(resource.type,
-                                    //    this.app, httpRequestMessage, cancellationToken,
-                                    //    requestHandler.routeData, extensionMethods);
                                 },
                                 (callback, routeHandler) =>
                                 {

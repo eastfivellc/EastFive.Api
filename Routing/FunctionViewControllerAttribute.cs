@@ -388,18 +388,17 @@ namespace EastFive.Api
                 httpApp);
         }
 
-        public virtual bool DoesHandleRequest(Type type, IHttpRequest request)
+        public virtual bool DoesHandleRequest(Type type, IHttpRequest request, out double matchQuality)
         {
-            if (IsExcluded())
-            {
-                return false;
-            }
+            matchQuality = 
+                (this.Route.HasBlackSpace() ? 0 : 2) +
+                (this.Namespace.HasBlackSpace() ? 0 : 1);
 
-            if (this.Namespace.HasBlackSpace())
-            {
-                if (!DoesMatch(0, this.Namespace))
-                    return false;
-            }
+            if (IsExcluded())
+                return false;
+
+            if (!IsNamespaceCorrect())
+                return false;
 
             if (this.Route.HasBlackSpace())
             {
@@ -423,6 +422,20 @@ namespace EastFive.Api
                 if (!component.Equals(value, StringComparison.OrdinalIgnoreCase))
                     return false;
                 return true;
+            }
+
+            bool IsNamespaceCorrect()
+            {
+                if (this.Namespace.IsNullOrWhiteSpace())
+                    return true;
+
+                if (!Namespace.Contains(','))
+                    return DoesMatch(0, this.Namespace);
+                
+                var doesAnyNamespaceMatch = Namespace
+                    .Split(',')
+                    .Any(ns => DoesMatch(0, ns));
+                return doesAnyNamespaceMatch;
             }
 
             bool IsExcluded()

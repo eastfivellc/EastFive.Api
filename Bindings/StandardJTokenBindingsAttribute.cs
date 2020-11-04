@@ -31,7 +31,53 @@ namespace EastFive.Api.Bindings
         {
             return BindDirect(type, content,
                 onParsed,
-                onDidNotBind, 
+                onDidNotBind:(why) =>
+                {
+                    if (application is IApiApplication)
+                    {
+                        var apiApplication = application as IApiApplication;
+                        if (type == typeof(Type))
+                        {
+                            if (content.Type == JTokenType.String)
+                            {
+                                var stringValue = content.Value<string>();
+                                return apiApplication.GetResourceType(stringValue,
+                                    type => onParsed(type),
+                                    () => onDidNotBind($"Could not find type:{stringValue}"));
+                            }
+                        }
+                    }
+                    return onDidNotBind(why);
+                }, 
+                onBindingFailure);
+        }
+
+        public static TResult BindDirectWithApplication<TResult>(Type type, JToken content,
+                IApplication application,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure)
+        {
+            return BindDirect(type, content,
+                onParsed,
+                onDidNotBind: (why) =>
+                {
+                    if (application is IApiApplication)
+                    {
+                        var apiApplication = application as IApiApplication;
+                        if (type == typeof(Type))
+                        {
+                            if (content.Type == JTokenType.String)
+                            {
+                                var stringValue = content.Value<string>();
+                                return apiApplication.GetResourceType(stringValue,
+                                    type => onParsed(type),
+                                    () => onDidNotBind($"Could not find type:{stringValue}"));
+                            }
+                        }
+                    }
+                    return onDidNotBind(why);
+                },
                 onBindingFailure);
         }
 
@@ -597,6 +643,23 @@ namespace EastFive.Api.Bindings
                     var bytesString = reader.Value as string;
                     var value = bytesString.FromBase64String();
                     return onParsed(value);
+                }
+            }
+
+            if (objectType.IsAssignableFrom(typeof(Type)))
+            {
+                if (application is IApiApplication)
+                {
+                    var apiApplication = application as IApiApplication;
+                    if (reader.TokenType == JsonToken.String)
+                    {
+                        var stringValue = reader.Value as string;
+                        var (success, type) = apiApplication.GetResourceType(stringValue,
+                            type => (true, type),
+                            () => (false, default(Type)));
+                        if (success)
+                            return onParsed(type);
+                    }
                 }
             }
 
