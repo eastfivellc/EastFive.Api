@@ -17,6 +17,7 @@ using EastFive.Api.Bindings;
 using EastFive.Api.Resources;
 using EastFive.Extensions;
 using EastFive.Linq;
+using Microsoft.AspNetCore.Http.Internal;
 
 namespace EastFive.Api
 {
@@ -260,6 +261,24 @@ namespace EastFive.Api
             Func<string, TResult> onFailure)
         {
             var type = paramInfo.ParameterType;
+            return ContentToType(httpApp, type, tokenReader,
+                onParsed,
+                strValue =>
+                {
+                    return httpApp.Bind(strValue, paramInfo,
+                        (value) =>
+                        {
+                            return onParsed(value);
+                        },
+                        why => onFailure(why));
+                });
+        }
+
+        internal static TResult ContentToType<TResult>(IApplication httpApp, Type type,
+                MultipartContentTokenParser tokenReader,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onNeedsStringParsed)
+        {
             if (type.IsAssignableFrom(typeof(Stream)))
             {
                 var streamValue = tokenReader.ReadStream();
@@ -287,12 +306,7 @@ namespace EastFive.Api
                 return onParsed((object)content);
             }
             var strValue = tokenReader.ReadString();
-            return httpApp.Bind(strValue, paramInfo,
-                (value) =>
-                {
-                    return onParsed(value);
-                },
-                why => onFailure(why));
+            return onNeedsStringParsed(strValue);
         }
 
         public TResult ParseContentDelegate<TResult>(IFormCollection formData, 
@@ -312,8 +326,33 @@ namespace EastFive.Api
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure)
         {
-            var type = parameterInfo.ParameterType;
+            return ParseContentDelegate(key, formData,
+                (strValue) =>
+                {
+                    return httpApp.Bind(strValue, parameterInfo,
+                            (value) =>
+                            {
+                                return onParsed(value);
+                            },
+                            why => onFailure(why));
+                },
+                formFile =>
+                {
+                    return httpApp.Bind(formFile, parameterInfo,
+                        (value) =>
+                        {
+                            return onParsed(value);
+                        },
+                        why => onFailure(why));
+                },
+                onFailure: onFailure);
+        }
 
+        public static TResult ParseContentDelegate<TResult>(string key, IFormCollection formData,
+            Func<string, TResult> onStringNeedsBinding,
+            Func<IFormFile, TResult> onFileNeedsBinding,
+            Func<string, TResult> onFailure)
+        {
             if (formData.IsDefaultOrNull())
                 return onFailure("No form data provided");
 
@@ -323,12 +362,7 @@ namespace EastFive.Api
                     (kvp, next) =>
                     {
                         var strValue = (string)kvp.Value;
-                        return httpApp.Bind(strValue, parameterInfo,
-                            (value) =>
-                            {
-                                return onParsed(value);
-                            },
-                            why => onFailure(why));
+                        return onStringNeedsBinding(strValue);
                     },
                     () =>
                     {
@@ -338,12 +372,7 @@ namespace EastFive.Api
                                 (file, next) =>
                                 {
                                     var strValue = (IFormFile)file;
-                                    return httpApp.Bind(strValue, parameterInfo,
-                                        (value) =>
-                                        {
-                                            return onParsed(value);
-                                        },
-                                        why => onFailure(why));
+                                    return onFileNeedsBinding(strValue);
                                 },
                                 () => onFailure("Key not found"));
                     });

@@ -27,12 +27,32 @@ namespace EastFive.Api.Bindings
                 var streamValue = content.OpenReadStream();
                 return onParsed((object)streamValue);
             }
+            if (type.IsAssignableFrom(typeof(Func<Task<Stream>>)))
+            {
+                Func<Task<Stream>> callbackValue = () =>
+                {
+                    var streamValue = content.OpenReadStream();
+                    return streamValue.AsTask();
+                };
+                return onParsed((object)callbackValue);
+            }
             if (type.IsAssignableFrom(typeof(byte[])))
             {
                 var stream = content.OpenReadStream();
                 var bytes = new byte[content.Length];
                 stream.Read(bytes, 0, (int)content.Length);
                 return onParsed((object)bytes);
+            }
+            if (type.IsAssignableFrom(typeof(Func<Task<byte[]>>)))
+            {
+                Func<Task<byte[]>> callbackValue = () =>
+                {
+                    var stream = content.OpenReadStream();
+                    var bytes = new byte[content.Length];
+                    stream.Read(bytes, 0, (int)content.Length);
+                    return bytes.AsTask();
+                };
+                return onParsed((object)callbackValue);
             }
             if (type.IsAssignableFrom(typeof(MediaTypeWithQualityHeaderValue)))
             {
