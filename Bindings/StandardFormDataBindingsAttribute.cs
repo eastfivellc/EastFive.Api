@@ -61,8 +61,9 @@ namespace EastFive.Api.Bindings
             }
             if (type.IsAssignableFrom(typeof(ContentDispositionHeaderValue)))
             {
-                var header = new ContentDispositionHeaderValue(content.ContentDisposition);
-                return onParsed((object)header);
+                if(ContentDispositionHeaderValue.TryParse(content.ContentDisposition,
+                        out ContentDispositionHeaderValue header))
+                    return onParsed((object)header);
             }
             if (type.IsSubClassOfGeneric(typeof(ReadRequestBodyDelegateAsync<>)))
             {

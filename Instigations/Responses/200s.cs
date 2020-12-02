@@ -90,6 +90,81 @@ namespace EastFive.Api
         }
     }
 
+    [WriteStreamResponse]
+    public delegate IHttpResponse WriteStreamResponse(Action<Stream> streamWriter, string filename = default, string contentType = default, bool? inline = default);
+    public class WriteStreamResponseAttribute : HttpFuncDelegateAttribute
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override string Example => "Raw data (Stream)";
+
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
+        {
+            WriteStreamResponse responseDelegate = (streamWriter, filename, contentType, inline) =>
+            {
+                var response = new WriteStreamHttpResponse(request, this.StatusCode,
+                    fileName: filename, contentType: contentType, inline: inline,
+                    streamWriter);
+
+                return UpdateResponse(parameterInfo, httpApp, request, response);
+            };
+            return onSuccess(responseDelegate);
+        }
+    }
+
+    [WriteStreamAsyncResponse]
+    public delegate IHttpResponse WriteStreamAsyncResponse(Func<Stream, Task> streamWriter, string filename = default, string contentType = default, bool? inline = default);
+    public class WriteStreamAsyncResponseAttribute : HttpFuncDelegateAttribute
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override string Example => "Raw data (Stream)";
+
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
+        {
+            WriteStreamAsyncResponse responseDelegate = (streamWriter, filename, contentType, inline) =>
+            {
+                var response = new WriteStreamAsyncHttpResponse(request, this.StatusCode,
+                    fileName: filename, contentType: contentType, inline: inline,
+                    streamWriter);
+
+                return UpdateResponse(parameterInfo, httpApp, request, response);
+            };
+            return onSuccess(responseDelegate);
+        }
+    }
+
+    [WriteStreamSyncAsyncResponse]
+    public delegate IHttpResponse WriteStreamSyncAsyncResponse(
+        Func<Stream, Task> streamWriter,
+        string filename = default, string contentType = default, 
+        bool? inline = default);
+    public class WriteStreamSyncAsyncResponseAttribute : HttpFuncDelegateAttribute
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override string Example => "Raw data (Stream)";
+
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
+        {
+            WriteStreamSyncAsyncResponse responseDelegate = (streamWriter, filename, contentType, inline) =>
+            {
+                var response = new WriteStreamSyncAsyncHttpResponse(request, this.StatusCode,
+                    fileName: filename, contentType: contentType, inline: inline,
+                    streamWriter);
+
+                return UpdateResponse(parameterInfo, httpApp, request, response);
+            };
+            return onSuccess(responseDelegate);
+        }
+    }
+
     [TextResponse]
     public delegate IHttpResponse TextResponse(string content, Encoding encoding = default,
         string filename = default, string contentType = default, bool? inline = default);
