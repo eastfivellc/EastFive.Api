@@ -310,6 +310,7 @@ namespace EastFive.Api
                 width, height, fill, background,
                 contentType, filename) =>
             {
+                image.FixOrientation();
                 var newImage = image.ResizeImage(width, height, fill, background);
                 var codec = contentType.ParseImageCodecInfo();
                 var imageStream = new MemoryStream();
