@@ -1,4 +1,5 @@
 ﻿using EastFive.Extensions;
+using EastFive.Images;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -26,6 +27,7 @@ namespace EastFive.Api
                 TryGetEncoderInfo("image/jpeg", out encoder);
             this.SetFileHeaders(fileName, encoder.MimeType, inline);
 
+            image.FixOrientation();
             var ratio = ((double)image.Size.Width) / ((double)image.Size.Height);
             var newWidth = (int)Math.Round(width.HasValue ?
                     width.Value
