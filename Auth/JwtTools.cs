@@ -1,27 +1,28 @@
-﻿using EastFive.Linq;
+﻿using EastFive.Extensions;
+using EastFive.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EastFive.Api.Auth
 {
     public static class JwtTools
     {
-        public static TResult CreateToken<TResult>(Guid sessionId,
+        public static TResult CreateToken<TResult>(Guid? sessionIdMaybe,
                 Uri scope, TimeSpan duration, IDictionary<string, string> claims,
             Func<string, TResult> tokenCreated,
             Func<string, TResult> missingConfigurationSetting,
             Func<string, string, TResult> invalidConfigurationSetting,
             string configNameOfIssuer = EastFive.Security.AppSettings.TokenIssuer,
-            string configNameOfRSAKey = EastFive.Security.AppSettings.TokenKey)
+            string configNameOfRSAKey = EastFive.Security.AppSettings.TokenKey,
+            string configNameOfRSAAlgorithm = EastFive.Security.AppSettings.TokenAlgorithm,
+            IEnumerable<KeyValuePair<string, string>> tokenHeaders = default)
         {
-            var claimsAuth = (IEnumerable<Claim>)new[]
-            {
-                new Claim(ClaimEnableSessionAttribute.Type, sessionId.ToString()),
-            };
+            IEnumerable<Claim> claimsAuth = new Claim[] { };
+            if (sessionIdMaybe.HasValue)
+                claimsAuth = new Claim(ClaimEnableSessionAttribute.Type, sessionIdMaybe.Value.ToString()).AsArray();
+            
             var claimsCrypt = claims.NullToEmpty()
                 .Select(kvp => new Claim(kvp.Key, kvp.Value));
 
@@ -29,7 +30,7 @@ namespace EastFive.Api.Auth
             var result = BlackBarLabs.Security.Tokens.JwtTools.CreateToken(scope,
                 issued, duration, claimsAuth.Concat(claimsCrypt),
                 tokenCreated, missingConfigurationSetting, invalidConfigurationSetting,
-                configNameOfIssuer, configNameOfRSAKey);
+                configNameOfIssuer, configNameOfRSAKey, configNameOfRSAAlgorithm, tokenHeaders);
             return result;
         }
 
@@ -39,11 +40,13 @@ namespace EastFive.Api.Auth
             Func<string, TResult> missingConfigurationSetting,
             Func<string, string, TResult> invalidConfigurationSetting,
             string configNameOfIssuer = EastFive.Security.AppSettings.TokenIssuer,
-            string configNameOfRSAKey = EastFive.Security.AppSettings.TokenKey)
+            string configNameOfRSAKey = EastFive.Security.AppSettings.TokenKey,
+            string configNameOfRSAAlgorithm = EastFive.Security.AppSettings.TokenAlgorithm,
+            IEnumerable<KeyValuePair<string, string>> tokenHeaders = default)
         {
             return CreateToken(sessionId, scope, duration, default(IDictionary<string, string>),
                 tokenCreated, missingConfigurationSetting, invalidConfigurationSetting,
-                configNameOfIssuer, configNameOfRSAKey);
+                configNameOfIssuer, configNameOfRSAKey, configNameOfRSAAlgorithm, tokenHeaders);
         }
 
         public static TResult CreateToken<TResult>(Guid sessionId, Guid authId, Uri scope,
@@ -53,7 +56,9 @@ namespace EastFive.Api.Auth
             Func<string, TResult> missingConfigurationSetting,
             Func<string, string, TResult> invalidConfigurationSetting,
             string configNameOfIssuer = EastFive.Security.AppSettings.TokenIssuer,
-            string configNameOfRSAKey = EastFive.Security.AppSettings.TokenKey)
+            string configNameOfRSAKey = EastFive.Security.AppSettings.TokenKey,
+            string configNameOfRSAAlgorithm = EastFive.Security.AppSettings.TokenAlgorithm,
+            IEnumerable<KeyValuePair<string, string>> tokenHeaders = default)
         {
             var claimsAuth = new[] {
                 new Claim(ClaimEnableSessionAttribute.Type, sessionId.ToString()),
@@ -66,7 +71,7 @@ namespace EastFive.Api.Auth
                 tokenCreated, 
                 missingConfigurationSetting, 
                 invalidConfigurationSetting,
-                    configNameOfIssuer, configNameOfRSAKey);
+                    configNameOfIssuer, configNameOfRSAKey, configNameOfRSAAlgorithm, tokenHeaders);
             return result;
         }
 
@@ -76,11 +81,13 @@ namespace EastFive.Api.Auth
             Func<string, TResult> missingConfigurationSetting,
             Func<string, string, TResult> invalidConfigurationSetting,
                 string configNameOfIssuer = EastFive.Security.AppSettings.TokenIssuer,
-                string configNameOfRSAKey = EastFive.Security.AppSettings.TokenKey)
+                string configNameOfRSAKey = EastFive.Security.AppSettings.TokenKey,
+            string configNameOfRSAAlgorithm = EastFive.Security.AppSettings.TokenAlgorithm,
+            IEnumerable<KeyValuePair<string, string>> tokenHeaders = default)
         {
             return CreateToken(sessionId, authId, scope, duration, default(IDictionary<string, string>),
                 tokenCreated, missingConfigurationSetting, invalidConfigurationSetting,
-                configNameOfIssuer, configNameOfRSAKey);
+                configNameOfIssuer, configNameOfRSAKey, configNameOfRSAAlgorithm, tokenHeaders);
         }
 
         public static TResult CreateToken<TResult>(Guid sessionId, Guid authId, Uri scope,
@@ -90,11 +97,13 @@ namespace EastFive.Api.Auth
             Func<string, TResult> missingConfigurationSetting,
             Func<string, string, TResult> invalidConfigurationSetting,
             string configNameOfIssuer = EastFive.Security.AppSettings.TokenIssuer,
-            string configNameOfRSAKey = EastFive.Security.AppSettings.TokenKey)
+            string configNameOfRSAKey = EastFive.Security.AppSettings.TokenKey,
+            string configNameOfRSAAlgorithm = EastFive.Security.AppSettings.TokenAlgorithm,
+            IEnumerable<KeyValuePair<string, string>> tokenHeaders = default)
         {
             var claimsCrypt = claims.NullToEmpty().Select(kvp => new Claim(kvp.Key, kvp.Value));
             return CreateToken(sessionId, authId, scope, duration, claimsCrypt, tokenCreated, missingConfigurationSetting, invalidConfigurationSetting,
-                configNameOfIssuer, configNameOfRSAKey);
+                configNameOfIssuer, configNameOfRSAKey, configNameOfRSAAlgorithm, tokenHeaders);
         }
     }
 }
