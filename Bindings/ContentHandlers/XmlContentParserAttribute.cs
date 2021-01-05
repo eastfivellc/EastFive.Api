@@ -5,6 +5,7 @@ using EastFive.Web;
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
@@ -47,9 +48,19 @@ namespace EastFive.Api
                 return await BodyMissing("XML body content was empty");
             
             var xmldoc = new XmlDocument();
+            var settings = new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Ignore, // prevents XXE attacks, such as Billion Laughs
+                MaxCharactersFromEntities = 1024,
+                XmlResolver = null,                   // prevents external entity DoS attacks, such as slow loading links or large file requests
+            };
             try
             {
-                xmldoc.LoadXml(contentString);
+                using (var strReader = new StringReader(contentString))
+                using (var xmlReader = XmlReader.Create(strReader, settings))
+                {
+                    xmldoc.Load(xmlReader);
+                }
             }
             catch (Exception ex)
             {
