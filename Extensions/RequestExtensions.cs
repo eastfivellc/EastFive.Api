@@ -19,6 +19,7 @@ using EastFive.Extensions;
 using EastFive.Web;
 using BlackBarLabs.Api;
 using EastFive.Linq.Async;
+using EastFive.Web.Configuration;
 
 namespace EastFive.Api
 {
@@ -437,12 +438,17 @@ namespace EastFive.Api
                 (claimsEnumerable) =>
                 {
                     var claims = claimsEnumerable.ToArray();
-                    var accountIdClaimType = 
-                        ConfigurationManager.AppSettings[accountIdClaimTypeConfigurationSetting];
-                    var result = claims.GetAccountIdAsync(
-                        request, accountIdClaimType,
-                        (accountId) => success(accountId, claims));
-                    return result;
+                    return accountIdClaimTypeConfigurationSetting.ConfigurationString(
+                        (accountIdClaimType) =>
+                        {
+                            var result = claims.GetAccountIdAsync(
+                                request, accountIdClaimType,
+                                (accountId) => success(accountId, claims));
+                            return result;
+                        },
+                        (why) => request.CreateResponse(HttpStatusCode.ServiceUnavailable)
+                            .AddReason($"Account permission is not configured on this system:{why}")
+                            .AsTask());
                 },
                 () => request.CreateResponse(System.Net.HttpStatusCode.Unauthorized)
                     .AddReason("Authorization header not set").ToTask(),
