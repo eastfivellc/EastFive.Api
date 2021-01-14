@@ -82,7 +82,7 @@ namespace EastFive.Api
             return originalUrl.CreateSignature(sessionId, accountId, secondsAfterEpoch,
                 (accessToken, signature) =>
                 {
-                    var accessTokenString = accessToken.ToBase64String();
+                    var accessTokenString = accessToken.ToBase64String(urlSafe:true);
                     var accessTokenUrl = originalUrl.AddQueryParameter(QueryParameter, accessTokenString);
                     return onSuccess(accessTokenUrl);
                 },
@@ -101,7 +101,9 @@ namespace EastFive.Api
                 return onAccessTokenNotProvided();
             var originalUrl = url.RemoveQueryParameter(QueryParameter);
 
-            var accessTokenBytes = accessTokenString.FromBase64String();
+            if(!accessTokenString.TryParseBase64String(out byte[] accessTokenBytes))
+                return onAccessTokenInvalid();
+
             if (accessTokenBytes.Length != 68)
                 return onAccessTokenInvalid();
 
