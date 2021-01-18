@@ -146,6 +146,25 @@ namespace EastFive.Api
 
         #endregion
 
+        #region UserAgent
+
+        private const string HeaderKeyUserAgent = "User-Agent";
+
+        public static ProductInfoHeaderValue GetUserAgent(this IHttpRequest req)
+            => ProductInfoHeaderValue.Parse(req.GetHeader(HeaderKeyUserAgent));
+
+        public static bool TryGetUserAgent(this IHttpRequest req, out ProductInfoHeaderValue userAgent)
+        {
+            if(!req.TryGetHeader(HeaderKeyUserAgent, out string userAgentString))
+            {
+                userAgent = default;
+                return false;
+            }
+            return ProductInfoHeaderValue.TryParse(userAgentString, out userAgent);
+        }
+
+        #endregion
+
         public static void SetReferer(this IHttpRequest req, Uri referer)
             => req.UpdateHeader("Referer", x => x.Append(referer.AbsoluteUri).ToArray());
 

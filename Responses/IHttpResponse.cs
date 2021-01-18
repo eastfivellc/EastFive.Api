@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 
 using EastFive.Extensions;
+using System.IO;
 
 namespace EastFive.Api
 {
@@ -20,7 +21,11 @@ namespace EastFive.Api
 
         IDictionary<string, string[]> Headers { get; }
 
-        Task WriteResponseAsync(System.IO.Stream responseStream);
+        void WriteCookie(string cookieKey, string cookieValue, TimeSpan? expireTime);
+
+        void WriteCookiesToResponse(HttpContext context);
+
+        Task WriteResponseAsync(Stream stream);
     }
 
     

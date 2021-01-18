@@ -65,5 +65,18 @@ namespace EastFive.Api
         {
             throw new NotImplementedException();
         }
+
+        public TResult ReadCookie<TResult>(string cookieKey, Func<string, TResult> onCookie, Func<TResult> onNotAvailable)
+        {
+            throw new NotImplementedException();
+            //request.Headers
+            //    .GetCookies()
+            //    .NullToEmpty()
+            //       .SelectMany(cookieBucket => cookieBucket.Cookies
+            //           .Select(cookie => (cookie, cookieBucket.Expires)))
+            //       .Where(cookie => cookie.cookie.Name == cookieKey)
+            //       .First(
+            //    )
+        }
     }
 }

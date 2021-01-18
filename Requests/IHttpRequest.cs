@@ -41,6 +41,10 @@ namespace EastFive.Api
         IDictionary<string, string[]> Headers { get; }
 
         IRazorViewEngine RazorViewEngine { get; }
+
+        TResult ReadCookie<TResult>(string cookieKey,
+            Func<string, TResult> onCookie,
+            Func<TResult> onNotAvailable);
     }
 
 }

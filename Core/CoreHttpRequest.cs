@@ -84,6 +84,14 @@ namespace EastFive.Api.Core
             throw new NotImplementedException();
         }
 
+        public TResult ReadCookie<TResult>(string cookieKey, Func<string, TResult> onCookie, Func<TResult> onNotAvailable)
+        {
+            return request.Cookies
+                .Where(cookie => cookie.Key == cookieKey)
+                .First(
+                    (cookie, next) => onCookie(cookie.Value),
+                    onNotAvailable);
+        }
     }
 
     static class CoreHttpRequestExtensions
