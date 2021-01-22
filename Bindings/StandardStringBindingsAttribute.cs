@@ -182,15 +182,9 @@ namespace EastFive.Api.Bindings
             }
             if (type == typeof(byte[]))
             {
-                try
-                {
-                    var byteArrayValue = Convert.FromBase64String(content);
+                if (content.TryParseBase64String(out byte[] byteArrayValue))
                     return onParsed(byteArrayValue);
-                }
-                catch (Exception ex)
-                {
-                    return onDidNotBind($"Failed to convert {content} to `{typeof(byte[]).FullName}` as base64 string:{ex.Message}.");
-                }
+                return onDidNotBind($"Failed to convert {content} to `{typeof(byte[]).FullName}` as base64 string.");
             }
             if (type == typeof(WebId))
             {

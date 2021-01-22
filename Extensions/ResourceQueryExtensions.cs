@@ -148,7 +148,11 @@ namespace EastFive.Api
                         (arg, paramInfo) => paramInfo.PairWithValue(arg))
                     .Select(argument => argument.Key.PairWithValue(argument.Value.Resolve()))
                     .ToArray();
-                var idStr = ((Guid)queryParameters.First().Value).ToString("N");
+                var value = queryParameters.First().Value;
+                var idStr = typeof(Guid).IsAssignableFrom(value.GetType()) ?
+                    ((Guid)value).ToString("N")
+                    :
+                    ((string)value);
                 return url.AppendToPath(idStr);
             }
 
@@ -233,6 +237,22 @@ namespace EastFive.Api
                 query.Expression, Expression.Constant(resourceRef.id.Value));
 
             var requestMessageNewQuery = composibleQuery.FromExpression(condition);
+            return requestMessageNewQuery;
+        }
+
+        [MutateIdQuery]
+        public static IQueryable<TResource> ById<TResource>(this IQueryable<TResource> query, string resourceId)
+            where TResource : IReferenceable
+        {
+            if (!typeof(RequestMessage<TResource>).IsAssignableFrom(query.GetType()))
+                throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{query.GetType().FullName}`", "query");
+            var requestMessageQuery = query as RequestMessage<TResource>;
+
+            var condition = Expression.Call(
+                typeof(ResourceQueryExtensions), "ById", new Type[] { typeof(TResource) },
+                query.Expression, Expression.Constant(resourceId));
+
+            var requestMessageNewQuery = requestMessageQuery.FromExpression(condition);
             return requestMessageNewQuery;
         }
 

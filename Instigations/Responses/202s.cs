@@ -16,7 +16,7 @@ using EastFive.Linq.Async;
 namespace EastFive.Api
 {
     [StatusCodeResponse(StatusCode = HttpStatusCode.Accepted)]
-    public delegate HttpResponseMessage AcceptedResponse();
+    public delegate IHttpResponse AcceptedResponse();
     
     [AcceptedBodyResponse]
     public delegate IHttpResponse AcceptedBodyResponse(object content, string contentType = default(string));

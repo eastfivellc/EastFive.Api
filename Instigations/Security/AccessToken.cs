@@ -24,46 +24,6 @@ namespace EastFive.Api
         public string token;
     }
 
-    //public class AccessTokenAccountAttribute : Attribute, IInstigatable, IBindApiParameter<string>
-    //{
-    //    public TResult Bind<TResult>(Type type, string content,
-    //            IApplication application,
-    //        Func<object, TResult> onParsed, 
-    //        Func<string, TResult> onDidNotBind, 
-    //        Func<string, TResult> onBindingFailure)
-    //    {
-    //        return onParsed(default(AccessTokenAccount));
-    //    }
-
-    //    public Task<IHttpResponse> Instigate(IApplication httpApp,
-    //            IHttpRequest request, ParameterInfo parameterInfo,
-    //        Func<object, Task<IHttpResponse>> onSuccess)
-    //    {
-    //        return request.RequestUri.ValidateAccessTokenAccount(
-    //            accessToken => onSuccess(accessToken),
-    //            () => request
-    //                .CreateResponse(HttpStatusCode.NotImplemented)
-    //                .AddReason($"Missing `{AccessTokenAccountExtensions.QueryParameter}` parameter")
-    //                .AsTask(),
-    //            () => request
-    //                .CreateResponse(HttpStatusCode.BadRequest)
-    //                .AddReason($"Invalid `{AccessTokenAccountExtensions.QueryParameter}` parameter")
-    //                .AsTask(),
-    //            () => request
-    //                .CreateResponse(HttpStatusCode.Unauthorized)
-    //                .AddReason("Access token has expired.")
-    //                .AsTask(),
-    //            () => request
-    //                .CreateResponse(HttpStatusCode.Forbidden)
-    //                .AddReason($"Incorrect signature on `{AccessTokenAccountExtensions.QueryParameter}` parameter")
-    //                .AsTask(),
-    //            () => request
-    //                .CreateResponse(HttpStatusCode.Unauthorized)
-    //                .AddReason("AccountAccessTokens are not configured for this system.")
-    //                .AsTask());
-    //    }
-    //}
-
     public static class AccessTokenAccountExtensions
     {
         public const string QueryParameter = "access_token";
