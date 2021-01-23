@@ -4,8 +4,13 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
-using EastFive.Extensions;
+
 using Microsoft.AspNetCore.Http;
+
+using EastFive;
+using EastFive.Extensions;
+using EastFive.Linq;
+using EastFive.Collections.Generic;
 
 namespace EastFive.Api
 {
@@ -32,6 +37,7 @@ namespace EastFive.Api
         public void WriteCookie(string cookieKey, string cookieValue, TimeSpan? expireTime)
         {
             this.cookies = cookies
+                .NullToEmpty()
                 .Append((cookieKey, cookieValue, expireTime))
                 .ToArray();
         }
