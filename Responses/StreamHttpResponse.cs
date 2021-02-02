@@ -1,4 +1,5 @@
-﻿using System;
+﻿using EastFive.Extensions;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -41,9 +42,10 @@ namespace EastFive.Api
             this.streamWriter = streamWriter;
         }
 
-        public override async Task WriteResponseAsync(Stream responseStream)
+        public override Task WriteResponseAsync(Stream responseStream)
         {
             streamWriter(responseStream);
+            return true.AsTask();
         }
     }
 
