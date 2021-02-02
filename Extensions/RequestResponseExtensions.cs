@@ -173,7 +173,7 @@ namespace EastFive.Api
             newImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
 
             //start the resizing
-            using (var graphics = Graphics.FromImage(newImage))
+            using (var graphics = System.Drawing.Graphics.FromImage(newImage))
             {
                 graphics.CompositingMode = CompositingMode.SourceCopy;
                 var brush = System.Drawing.Brushes.White;

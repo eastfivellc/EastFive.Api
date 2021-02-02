@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.Razor;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -71,6 +72,8 @@ namespace EastFive.Api.Core
             foreach (var header in routeResponse.Headers)
                 context.Response.Headers.Add(header.Key, header.Value);
 
+            routeResponse.WriteCookiesToResponse(context);
+
             await routeResponse.WriteResponseAsync(context.Response.Body);
 
             if (routeResponse is IHaveMoreWork)
@@ -105,7 +108,6 @@ namespace EastFive.Api.Core
             }
         }
 
-
         private class HttpResponse : IHttpResponse
         {
             private readonly RequestDelegate continueAsync;
@@ -134,9 +136,26 @@ namespace EastFive.Api.Core
                 this.continueAsync = continueAsync;
             }
 
-            public virtual Task WriteResponseAsync(System.IO.Stream responseStream)
+            public void WriteCookie(string cookieKey, string cookieValue, TimeSpan? expireTime)
             {
-                return continueAsync(context);
+                CookieOptions option = new CookieOptions();
+
+                if (expireTime.HasValue)
+                    option.Expires = DateTime.Now + expireTime.Value;
+                else
+                    option.Expires = DateTime.Now.AddMilliseconds(10);
+
+                context.Response.Cookies.Append(cookieKey, cookieValue, option);
+            }
+
+            public void WriteCookiesToResponse(HttpContext context)
+            {
+                // Written on the fly above
+            }
+
+            public virtual Task WriteResponseAsync(Stream stream)
+            {
+                return continueAsync(this.context);
             }
         }
 

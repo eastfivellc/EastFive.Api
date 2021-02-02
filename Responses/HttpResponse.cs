@@ -1,10 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
-using EastFive.Extensions;
+
 using Microsoft.AspNetCore.Http;
+
+using EastFive;
+using EastFive.Extensions;
+using EastFive.Linq;
+using EastFive.Collections.Generic;
 
 namespace EastFive.Api
 {
@@ -26,7 +32,34 @@ namespace EastFive.Api
 
         public IDictionary<string, string[]> Headers { get; private set; }
 
-        public virtual Task WriteResponseAsync(System.IO.Stream responseStream)
+        private (string, string, TimeSpan?)[] cookies;
+
+        public void WriteCookie(string cookieKey, string cookieValue, TimeSpan? expireTime)
+        {
+            this.cookies = cookies
+                .NullToEmpty()
+                .Append((cookieKey, cookieValue, expireTime))
+                .ToArray();
+        }
+
+        public void WriteCookiesToResponse(HttpContext context)
+        {
+            if (cookies.IsDefaultNullOrEmpty())
+                return;
+            foreach (var (cookieKey, cookieValue, expireTime) in cookies)
+            {
+                CookieOptions option = new CookieOptions();
+
+                if (expireTime.HasValue)
+                    option.Expires = DateTime.Now + expireTime.Value;
+                else
+                    option.Expires = DateTime.Now.AddMilliseconds(10);
+
+                context.Response.Cookies.Append(cookieKey, cookieValue, option);
+            }
+        }
+
+        public virtual Task WriteResponseAsync(System.IO.Stream stream)
         {
             return StatusCode.AsTask();
         }

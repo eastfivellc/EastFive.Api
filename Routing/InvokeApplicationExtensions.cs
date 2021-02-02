@@ -23,6 +23,7 @@ using EastFive.Collections.Generic;
 using EastFive.Reflection;
 using EastFive.Api.Serialization;
 using EastFive.Api.Bindings.ContentHandlers;
+using Microsoft.AspNetCore.Http;
 
 namespace EastFive.Api
 {
@@ -623,9 +624,19 @@ namespace EastFive.Api
                 return (TResult1)(this.Result as object);
             }
 
-            public Task WriteResponseAsync(Stream responseStream)
+            public void WriteCookie(string cookieKey, string cookieValue, TimeSpan? expireTime)
             {
-                return Inner.WriteResponseAsync(responseStream);
+                Inner.WriteCookie(cookieKey, cookieValue, expireTime);
+            }
+
+            public void WriteCookiesToResponse(HttpContext context)
+            {
+                Inner.WriteCookiesToResponse(context);
+            }
+
+            public Task WriteResponseAsync(Stream stream)
+            {
+                return Inner.WriteResponseAsync(stream);
             }
         }
 
@@ -658,7 +669,17 @@ namespace EastFive.Api
                 throw new Exception(message);
             }
 
-            public Task WriteResponseAsync(Stream responseStream)
+            public void WriteCookie(string cookieKey, string cookieValue, TimeSpan? expireTime)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void WriteCookiesToResponse(HttpContext context)
+            {
+                throw new NotImplementedException();
+            }
+
+            public Task WriteResponseAsync(Stream stream)
             {
                 throw new NotImplementedException();
             }

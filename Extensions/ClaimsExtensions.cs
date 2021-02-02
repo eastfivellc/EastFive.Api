@@ -5,7 +5,9 @@ using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 
+using EastFive;
 using EastFive.Extensions;
+using EastFive.Linq;
 using EastFive.Web.Configuration;
 
 namespace EastFive.Api
@@ -16,14 +18,17 @@ namespace EastFive.Api
                 IHttpRequest request, string sessionIdClaimType,
             Func<Guid, Task<IHttpResponse>> success)
         {
-            var adminClaim = claims
-                .FirstOrDefault((claim) => String.Compare(claim.Type, sessionIdClaimType) == 0);
+            return claims
+                .Where(claim => String.Compare(claim.Type, sessionIdClaimType) == 0)
+                .First(
+                    (adminClaim, next) =>
+                    {
+                        var accountId = Guid.Parse(adminClaim.Value);
+                        return success(accountId);
+                    },
+                    () => request.CreateResponse(HttpStatusCode.Unauthorized).AsTask());
 
-            if (default(System.Security.Claims.Claim) == adminClaim)
-                return request.CreateResponse(HttpStatusCode.Unauthorized).AsTask();
-
-            var accountId = Guid.Parse(adminClaim.Value);
-            return success(accountId);
+            
         }
 
         public static IHttpResponse GetAccountId(this IEnumerable<System.Security.Claims.Claim> claims,
