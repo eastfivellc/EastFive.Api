@@ -124,4 +124,40 @@ namespace EastFive.Api
                 .Invoke(new object[] { });
         }
     }
+
+    public class InstigateIQueryableAttribute : Attribute, IInstigateGeneric
+    {
+        public bool CanInstigate(ParameterInfo parameterInfo)
+        {
+            return parameterInfo.ParameterType.IsSubClassOfGeneric(typeof(IQueryable<>));
+        }
+
+        public Task<IHttpResponse> InstigatorDelegateGeneric(Type type, 
+            IApplication httpApp, IHttpRequest routeData, ParameterInfo parameterInfo, 
+            Func<object, Task<IHttpResponse>> onSuccess)
+        {
+            return type
+                .GetConstructors(BindingFlags.Public | BindingFlags.Instance)
+                .First()
+                .GetParameters()
+                .Aggregate<ParameterInfo, Func<object[], Task<IHttpResponse>>>(
+                    (invocationParameterValues) =>
+                    {
+                        var requestMessage = Activator.CreateInstance(type, invocationParameterValues);
+                        return onSuccess(requestMessage);
+                    },
+                    (next, invocationParameterInfo) =>
+                    {
+                        return (previousParams) =>
+                        {
+                            return httpApp.Instigate(routeData, invocationParameterInfo,
+                                (invocationParameterValue) =>
+                                {
+                                    return next(previousParams.Prepend(invocationParameterValue).ToArray());
+                                });
+                        };
+                    })
+                .Invoke(new object[] { });
+        }
+    }
 }
