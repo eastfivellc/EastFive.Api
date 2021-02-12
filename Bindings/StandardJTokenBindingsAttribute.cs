@@ -330,6 +330,26 @@ namespace EastFive.Api.Bindings
                 return onDidNotBind($"Cannot convert `{content.Type}` to  {typeof(bool).FullName}");
             }
 
+            if (type == typeof(Func<Task<byte[]>>))
+            {
+                if (content.Type == JTokenType.String)
+                {
+                    var stringValue = content.Value<string>();
+                    if (stringValue.TryParseBase64String(out byte[] bytes))
+                    {
+                        Func<Task<byte[]>> callback = () => bytes.AsTask();
+                        return onParsed(callback);
+                    }
+                    return onBindingFailure($"Not a valid base64 string.");
+                }
+                if (content.Type == JTokenType.Bytes)
+                {
+                    var bytes = content.Value<byte[]>();
+                    Func<Task<byte[]>> callback = () => bytes.AsTask();
+                    return onParsed(callback);
+                }
+            }
+
             if (type == typeof(HttpContent) || type.IsSubclassOf(typeof(HttpContent)))
             {
                 if (content.Type == JTokenType.String)
