@@ -194,9 +194,12 @@ namespace EastFive.Api.Core
                             .Aggregate<IHandleRoutes, RouteHandlingDelegate>(
                                 async (controllerTypeFinal, httpAppFinal, routeDataFinal) =>
                                 {
-                                    var invokeResource = controllerTypeFinal.GetAttributesInterface<IInvokeResource>().First();
-                                    var response = await invokeResource.CreateResponseAsync(controllerTypeFinal,
-                                        httpAppFinal, routeDataFinal);
+                                    var invokeResource = controllerTypeFinal
+                                        .GetAttributesInterface<IInvokeResource>()
+                                        .First();
+                                    var response = await invokeResource
+                                        .CreateResponseAsync(controllerTypeFinal,
+                                            httpAppFinal, routeDataFinal);
                                     return response;
                                 },
                                 (callback, routeHandler) =>

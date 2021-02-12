@@ -45,7 +45,7 @@ namespace EastFive.Api
         public override Task WriteResponseAsync(Stream responseStream)
         {
             streamWriter(responseStream);
-            return 1.AsTask();
+            return true.AsTask();
         }
     }
 
