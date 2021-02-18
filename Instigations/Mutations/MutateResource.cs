@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace EastFive.Api
 {
+    [MutateResource]
     public delegate T MutateResource<T>(T resource);
 
     public class MutateResourceAttribute 
