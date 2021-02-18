@@ -27,6 +27,7 @@ using EastFive.Extensions;
 using EastFive.Linq.Async;
 using EastFive.Images;
 using EastFive.Serialization;
+using Microsoft.Extensions.FileProviders;
 
 namespace EastFive.Api
 {
@@ -555,6 +556,53 @@ namespace EastFive.Api
                     return false;
                 }
             }
+        }
+    }
+
+    [WebrootHtmlResponse]
+    public delegate IHttpResponse WebrootHtmlResponse(string filename, 
+        Func<Stream, Task<string>> manipulateHtml);
+
+    public class WebrootHtmlResponseAttribute : HttpFuncDelegateAttribute
+    {
+        public override string Example => "<html></html>";
+
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
+        {
+            WebrootHtmlResponse responseDelegate =
+                (filename, manipulateHtml) =>
+                {
+                    var httpApiApp = httpApp as IApiApplication;
+                    
+                    var response = new CallbackResponse(request, this.StatusCode,
+                            httpApiApp, filename, manipulateHtml);
+                        return UpdateResponse(parameterInfo, httpApp, request, response);
+                };
+            return onSuccess(responseDelegate);
+        }
+
+        class CallbackResponse : HttpResponse
+        {
+            public CallbackResponse(IHttpRequest request, HttpStatusCode statusCode,
+                IApiApplication httpApiApp,
+                string filename, Func<Stream, Task<string>> onFound)
+                : base(request, statusCode,
+                      async outstream =>
+                      {
+                          var fileInfo = httpApiApp.HostEnvironment.ContentRootFileProvider.GetFileInfo(
+                              "wwwroot" + Path.DirectorySeparatorChar + filename);
+                          using (var fileStream = fileInfo.CreateReadStream())
+                          {
+                              var resultHtml = await onFound(fileStream);
+                              var responseBytes = resultHtml.GetBytes();
+                              await outstream.WriteAsync(responseBytes, 0, responseBytes.Length);
+                          }
+                      })
+            {
+            }
+
         }
     }
 
