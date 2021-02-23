@@ -366,7 +366,6 @@ namespace EastFive.Api
                                             callback);
                                     })
                                 .Invoke(ex, method, queryParameters, httpApp, routeData);
-
                         }
 
                     });
