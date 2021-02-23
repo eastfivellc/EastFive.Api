@@ -16,8 +16,8 @@ namespace EastFive.Api.Serialization
     public class ExtrudeDictionarySafeConvert : ExtrudeConvert
     {
 
-        public ExtrudeDictionarySafeConvert(IHttpRequest request)
-            : base(request)
+        public ExtrudeDictionarySafeConvert(IHttpRequest request, IApplication application)
+            : base(request, application)
         {
         }
 

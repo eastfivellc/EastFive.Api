@@ -45,7 +45,7 @@ namespace EastFive.Api
         public virtual Task SerializeAsync(Stream responseStream,
             IApplication httpApp, IHttpRequest request, ParameterInfo paramInfo, object obj)
         {
-            var converter = new Serialization.ExtrudeConvert(request);
+            var converter = new Serialization.ExtrudeConvert(request, httpApp);
             var jsonObj = Newtonsoft.Json.JsonConvert.SerializeObject(obj,
                 new JsonSerializerSettings
                 {
@@ -68,7 +68,7 @@ namespace EastFive.Api
         public override Task SerializeAsync(Stream responseStream,
             IApplication httpApp, IHttpRequest request, ParameterInfo paramInfo, object obj)
         {
-            var converter = new Serialization.ExtrudeDictionarySafeConvert(request);
+            var converter = new Serialization.ExtrudeDictionarySafeConvert(request, httpApp);
             var jsonObj = Newtonsoft.Json.JsonConvert.SerializeObject(obj,
                 new JsonSerializerSettings
                 {

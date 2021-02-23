@@ -17,9 +17,14 @@ namespace EastFive.Api.Serialization
     public class ExtrudeConvert : Newtonsoft.Json.JsonConverter
     {
         IHttpRequest request;
-        public ExtrudeConvert(IHttpRequest request)
+        IConvertJson[] jsonConverters;
+
+        public ExtrudeConvert(IHttpRequest request, IApplication application)
         {
             this.request = request;
+            this.jsonConverters = application.GetType()
+                .GetAttributesInterface<IConvertJson>()
+                .ToArray();
         }
 
         public override bool CanConvert(Type objectType)
@@ -40,7 +45,7 @@ namespace EastFive.Api.Serialization
             }
             if (objectType.IsSubclassOf(typeof(Type)))
                 return true;
-            return false;
+            return jsonConverters.Any(jc => jc.CanConvert(objectType));
         }
 
         protected bool ShouldConvertDictionaryType(Type arg)
@@ -61,6 +66,15 @@ namespace EastFive.Api.Serialization
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {
+            var converters = jsonConverters
+                .Where(jc => jc.CanConvert(value.GetType()));
+            if(converters.Any())
+            {
+                converters.First().Write(writer, value, serializer);
+                return;
+            }
+               
+
             void WriteId(Guid? idMaybe)
             {
                 if (!idMaybe.HasValue)
