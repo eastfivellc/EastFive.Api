@@ -5,6 +5,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="FVC\**" />
+    <EmbeddedResource Remove="FVC\**" />
+    <None Remove="FVC\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Remove="Meta\Manifest\Manifest.cshtml" />
   </ItemGroup>
 
@@ -29,10 +35,6 @@
     <ProjectReference Include="..\EastFive.Core\EastFive.Core.csproj" />
     <ProjectReference Include="..\EastFive.Sheets\EastFive.Sheets.csproj" />
     <ProjectReference Include="..\EastFive.Web\EastFive.Web.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="FVC\Handlers\" />
   </ItemGroup>
 
 </Project>
