@@ -55,6 +55,8 @@ namespace EastFive.Api
         public string GetHeader(string headerKey)
             => string.Empty;
 
+        public IRequestHeaders RequestHeaders => throw new NotImplementedException();
+
         public IEnumerable<string> GetHeaders(string headerKey)
         {
             throw new NotImplementedException();

@@ -37,5 +37,5 @@ namespace EastFive.Api
     }
 
     [StatusCodeResponse(StatusCode = HttpStatusCode.NotModified)]
-    public delegate HttpResponseMessage NotModifiedResponse();
+    public delegate IHttpResponse NotModifiedResponse();
 }
