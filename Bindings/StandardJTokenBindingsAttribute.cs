@@ -340,7 +340,22 @@ namespace EastFive.Api.Bindings
                         Func<Task<byte[]>> callback = () => bytes.AsTask();
                         return onParsed(callback);
                     }
-                    return onBindingFailure($"Not a valid base64 string.");
+                    if (Uri.TryCreate(stringValue, UriKind.Absolute, out Uri url))
+                    {
+                        Func<Task<byte[]>> callback = async () =>
+                        {
+                            using (var client = new HttpClient())
+                            {
+                                using (var response = await client.GetAsync(url))
+                                {
+                                    var bytes = await response.Content.ReadAsByteArrayAsync();
+                                    return bytes;
+                                }
+                            }
+                        };
+                        return onParsed(callback);
+                    }
+                    return onBindingFailure($"Not a valid base64 string or a valid URL.");
                 }
                 if (content.Type == JTokenType.Bytes)
                 {
