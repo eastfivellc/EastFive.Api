@@ -29,10 +29,22 @@ namespace EastFive.Api.Core
             this.CancellationToken = cancellationToken;
             this.Properties = new Dictionary<string, object>();
             this.Headers = request.Headers
-                .Select(kvp =>kvp.Key.PairWithValue((string[])kvp.Value))
+                .Select(kvp => kvp.Key.PairWithValue((string[])kvp.Value))
                 .ToDictionary();
             this.Method = new HttpMethod(request.Method);
             this.RazorViewEngine = razorViewEngine;
+        }
+
+        public IRequestHeaders RequestHeaders => new CoreRequestHeaders(request.Headers);
+
+        public class CoreRequestHeaders : Microsoft.AspNetCore.Http.Headers.RequestHeaders, IRequestHeaders
+        {
+            public CoreRequestHeaders(IHeaderDictionary headers)
+                :
+                base(headers)
+            {
+
+            }
         }
 
         public IDictionary<string, object> Properties { get; private set; }

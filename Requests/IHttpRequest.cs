@@ -16,6 +16,8 @@ namespace EastFive.Api
     {
         Uri RequestUri { get; set; }
 
+        IRequestHeaders RequestHeaders { get; }
+
         string GetHeader(string headerKey);
 
         IEnumerable<string> GetHeaders(string headerKey);
@@ -45,6 +47,39 @@ namespace EastFive.Api
         TResult ReadCookie<TResult>(string cookieKey,
             Func<string, TResult> onCookie,
             Func<TResult> onNotAvailable);
+    }
+
+    public interface IRequestHeaders
+    {
+        public DateTimeOffset? LastModified { get; set; }
+        public DateTimeOffset? IfUnmodifiedSince { get; set; }
+        public Microsoft.Net.Http.Headers.RangeConditionHeaderValue IfRange { get; set; }
+        public IList<Microsoft.Net.Http.Headers.EntityTagHeaderValue> IfNoneMatch { get; set; }
+        public DateTimeOffset? IfModifiedSince { get; set; }
+        public IList<Microsoft.Net.Http.Headers.EntityTagHeaderValue> IfMatch { get; set; }
+        public HostString Host { get; set; }
+        public DateTimeOffset? Expires { get; set; }
+        public DateTimeOffset? Date { get; set; }
+        public IList<Microsoft.Net.Http.Headers.CookieHeaderValue> Cookie { get; set; }
+        public Microsoft.Net.Http.Headers.MediaTypeHeaderValue ContentType { get; set; }
+        public Microsoft.Net.Http.Headers.ContentRangeHeaderValue ContentRange { get; set; }
+        public Microsoft.Net.Http.Headers.RangeHeaderValue Range { get; set; }
+        public long? ContentLength { get; set; }
+        public Microsoft.Net.Http.Headers.CacheControlHeaderValue CacheControl { get; set; }
+        public IList<Microsoft.Net.Http.Headers.StringWithQualityHeaderValue> AcceptLanguage { get; set; }
+        public IList<Microsoft.Net.Http.Headers.StringWithQualityHeaderValue> AcceptEncoding { get; set; }
+        public IList<Microsoft.Net.Http.Headers.StringWithQualityHeaderValue> AcceptCharset { get; set; }
+        public IList<Microsoft.Net.Http.Headers.MediaTypeHeaderValue> Accept { get; set; }
+        public IHeaderDictionary Headers { get; }
+        public Microsoft.Net.Http.Headers.ContentDispositionHeaderValue ContentDisposition { get; set; }
+        public Uri Referer { get; set; }
+
+        public void Append(string name, object value);
+        public void AppendList<T>(string name, IList<T> values);
+        public T Get<T>(string name);
+        public IList<T> GetList<T>(string name);
+        public void Set(string name, object value);
+        public void SetList<T>(string name, IList<T> values);
     }
 
 }
