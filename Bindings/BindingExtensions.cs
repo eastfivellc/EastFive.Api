@@ -15,6 +15,37 @@ namespace EastFive.Api.Bindings
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailureToBind)
         {
+            //return parameter.Bind(provider, application,
+            //    onParsed,
+            //    why =>
+            //    {
+            //        return application.GetType()
+            //            .GetAttributesInterface<IBindApiParameter<TProvider>>(true)
+            //            .First(
+            //                (paramBinder, next) =>
+            //                {
+            //                    return paramBinder.Bind(parameter.ParameterType, provider,
+            //                            application,
+            //                        onParsed,
+            //                        (why) =>
+            //                        {
+            //                            return next();
+            //                        },
+            //                        (why) => next());
+            //                },
+            //                () =>
+            //                {
+            //                    return parameter.ParameterType.Bind(provider,
+            //                            application,
+            //                        onParsed,
+            //                        onDidNotBind: (why2) =>
+            //                        {
+            //                            return onFailureToBind($"{why} or {why2}");
+            //                        });
+            //                });
+            //    });
+
+
             return application.GetType()
                 .GetAttributesInterface<IBindApiParameter<TProvider>>(true)
                 .First(
@@ -69,7 +100,7 @@ namespace EastFive.Api.Bindings
                     //() => onFailureToBind($"{application.GetType().FullName} does not have binding attributes"));
         }
 
-        public static TResult Bind<TProvider, TResult>(this ParameterInfo parameter,
+        private static TResult Bind<TProvider, TResult>(this ParameterInfo parameter,
                 TProvider provider,
                 IApplication application,
             Func<object, TResult> onParsed,
@@ -93,6 +124,11 @@ namespace EastFive.Api.Bindings
                             application,
                         onParsed,
                         onDidNotBind));
+                    //() => onDidNotBind(
+                    //    $"`{parameter.ParameterType} {parameter.Name}`" + 
+                    //    " does not contain an attribute that implements "+
+                    //    nameof(IBindApiParameter<TProvider>)));
+
         }
 
         public static TResult Bind<TProvider, TResult>(this Type type,

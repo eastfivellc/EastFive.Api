@@ -100,6 +100,20 @@ namespace EastFive.Api
                                     return contentRef.id.ToString();
                                 }
                             }
+                            if (memberType.IsSubClassOfGeneric(typeof(IReferenceableOptional)))
+                            {
+                                if (content.IsDefaultOrNull())
+                                    return "null";
+                                var contentType = content.GetType();
+                                if (contentType.IsSubClassOfGeneric(typeof(IReferenceableOptional)))
+                                {
+                                    var contentRefOptional = (IReferenceableOptional)content;
+                                    if (!contentRefOptional.HasValue)
+                                        return "empty";
+                                    return contentRefOptional.id.Value.ToString();
+                                }
+                            }
+
 
                             if (typeof(DateTime).IsAssignableFrom(memberType))
                             {
