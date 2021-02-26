@@ -383,7 +383,7 @@ namespace EastFive.Api
 
         public virtual Method GetMethod(Route route, MethodInfo methodInfo, HttpApplication httpApp)
         {
-            var path = new Uri($"/api/{route.Name}", UriKind.Relative);
+            var path = new Uri($"/{route.Namespace}/{route.Name}", UriKind.Relative);
             return new Method(this.Method, methodInfo, path, httpApp);
         }
     }

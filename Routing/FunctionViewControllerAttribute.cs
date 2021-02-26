@@ -381,7 +381,8 @@ namespace EastFive.Api
                 .Where(method => method.ContainsAttributeInterface<IMatchRoute>(true))
                 .ToArray();
 
-            return new Route(type, this.Route,
+            var ns = this.Namespace.HasBlackSpace() ? this.Namespace : "api";
+            return new Route(type, ns, this.Route,
                 actionMethods,
                 type.GetMembers(BindingFlags.Public | BindingFlags.FlattenHierarchy | BindingFlags.Instance),
                 httpApp);

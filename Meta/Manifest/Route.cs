@@ -16,6 +16,8 @@ namespace EastFive.Api.Resources
     [FunctionViewController(Route = "ManifestRoute")]
     public class Route
     {
+        public string Namespace { get; set; }
+
         public string Name { get; set; }
 
         public Method[] Methods { get; set; }
@@ -37,52 +39,53 @@ namespace EastFive.Api.Resources
             return onContent(manifest.Routes);
         }
 
-        public Route(Type type, string name, KeyValuePair<HttpMethod, MethodInfo[]>[] methods,
-            HttpApplication httpApp)
-        {
-            this.IsEntryPoint = type.ContainsAttributeInterface<IDisplayEntryPoint>();
-            this.Name = name;
-            this.Methods = methods
-                .SelectMany(kvp => kvp.Value.Select(m => m.PairWithKey(kvp.Key)))
-                .Select(
-                    verb =>
-                    {
-                        return verb.Value
-                            .GetAttributesInterface<IDocumentMethod>()
-                            .First(
-                                (methodDoc, next) => methodDoc.GetMethod(this, verb.Value, httpApp),
-                                () =>
-                                {
-                                    var path = new Uri($"/api/{name}", UriKind.Relative);
-                                    return new Method(verb.Key.Method, verb.Value,
-                                        path, httpApp);
-                                });
-                    })
-                .ToArray();
-            this.Properties = methods
-                .First(
-                    (methodKvp, next) =>
-                    {
-                        return methodKvp.Value
-                            .First(
-                                (method, nextInner) =>
-                                {
-                                    return method.DeclaringType
-                                        .GetPropertyOrFieldMembers()
-                                        .Where(property => property.ContainsCustomAttribute<JsonPropertyAttribute>())
-                                        .Select(member => new Property(member, httpApp))
-                                        .ToArray();
-                                    //return new Property[] { };
-                                },
-                                () => new Property[] { });
-                    },
-                    () => new Property[] { });
-        }
+        //public Route(Type type, string name, KeyValuePair<HttpMethod, MethodInfo[]>[] methods,
+        //    HttpApplication httpApp)
+        //{
+        //    this.IsEntryPoint = type.ContainsAttributeInterface<IDisplayEntryPoint>();
+        //    this.Name = name;
+        //    this.Methods = methods
+        //        .SelectMany(kvp => kvp.Value.Select(m => m.PairWithKey(kvp.Key)))
+        //        .Select(
+        //            verb =>
+        //            {
+        //                return verb.Value
+        //                    .GetAttributesInterface<IDocumentMethod>()
+        //                    .First(
+        //                        (methodDoc, next) => methodDoc.GetMethod(this, verb.Value, httpApp),
+        //                        () =>
+        //                        {
+        //                            var path = new Uri($"/api/{name}", UriKind.Relative);
+        //                            return new Method(verb.Key.Method, verb.Value,
+        //                                path, httpApp);
+        //                        });
+        //            })
+        //        .ToArray();
+        //    this.Properties = methods
+        //        .First(
+        //            (methodKvp, next) =>
+        //            {
+        //                return methodKvp.Value
+        //                    .First(
+        //                        (method, nextInner) =>
+        //                        {
+        //                            return method.DeclaringType
+        //                                .GetPropertyOrFieldMembers()
+        //                                .Where(property => property.ContainsCustomAttribute<JsonPropertyAttribute>())
+        //                                .Select(member => new Property(member, httpApp))
+        //                                .ToArray();
+        //                            //return new Property[] { };
+        //                        },
+        //                        () => new Property[] { });
+        //            },
+        //            () => new Property[] { });
+        //}
 
-        public Route(Type type, string name, MethodInfo[] methods, MemberInfo[] properties,
+        public Route(Type type, string nameSpace, string name, MethodInfo[] methods, MemberInfo[] properties,
             HttpApplication httpApp)
         {
             this.IsEntryPoint = type.ContainsAttributeInterface<IDisplayEntryPoint>();
+            this.Namespace = nameSpace;
             this.Name = name;
             this.Methods = methods
                 .Where(method => method.ContainsAttributeInterface<IDocumentMethod>())

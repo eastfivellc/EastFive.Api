@@ -435,6 +435,8 @@ namespace EastFive.Api
 
     public class ViewFileTypedResponseAttribute : HttpGenericDelegateAttribute
     {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
         public override string Example => "<html></html>";
 
         [InstigateMethod]
@@ -565,6 +567,8 @@ namespace EastFive.Api
 
     public class WebrootHtmlResponseAttribute : HttpFuncDelegateAttribute
     {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
         public override string Example => "<html></html>";
 
         public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,

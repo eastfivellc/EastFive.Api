@@ -1,11 +1,15 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
+
+using Newtonsoft.Json;
+
+using EastFive.Api.Meta.OpenApi;
 
 namespace EastFive.Api.Meta.Postman
 {
     [FunctionViewController(Route = "PostmanLink")]
+    [OpenApiRoute(Collection = "EastFive.Api.Meta")]
     public class PostmanLink : IReferenceable
     {
         #region Properties

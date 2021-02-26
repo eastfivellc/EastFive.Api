@@ -62,8 +62,8 @@ namespace EastFive.Api
 
         public override Method GetMethod(Route route, MethodInfo methodInfo, HttpApplication httpApp)
         {
-            var path = new Uri($"/api/{route.Name}/{Action}", UriKind.Relative);
-            return new Method(this.Method, methodInfo, path, httpApp);
+            var path = new Uri($"/{route.Namespace}/{route.Name}/{Action}", UriKind.Relative);
+            return new Method(HttpMethod.Get.Method, methodInfo, path, httpApp);
         }
     }
 }

@@ -108,6 +108,7 @@ namespace EastFive.Api
                 Required = true,
                 Type = Parameter.GetTypeName(paramInfo.ParameterType, httpApp),
                 Where = "QUERY",
+                OpenApiType = Parameter.GetOpenApiTypeName(paramInfo.ParameterType, httpApp),
             };
         }
 
@@ -232,6 +233,7 @@ namespace EastFive.Api
                 Required = true,
                 Type = $"Hashed({Parameter.GetTypeName(paramInfo.ParameterType.GenericTypeArguments.First(), httpApp)})",
                 Where = "QUERY",
+                OpenApiType = Parameter.GetOpenApiTypeName(paramInfo.ParameterType, httpApp),
             };
         }
     }

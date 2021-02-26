@@ -1,11 +1,22 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
+
+using EastFive;
+using EastFive.Extensions;
+using EastFive.Linq;
+using EastFive.Collections;
+using EastFive.Collections.Generic;
+using System.IO;
 
 namespace EastFive.Api.Meta.OpenApi
 {
-    [FunctionViewController(Route = "PostmanLink")]
+    [FunctionViewController(
+        Route = "OpenApiSchema",
+        Namespace = "meta")]
+    [OpenApiRoute(Collection = "EastFive.Api.Meta")]
     public class OpenApiSchema : IReferenceable
     {
         #region Properties
@@ -23,24 +34,239 @@ namespace EastFive.Api.Meta.OpenApi
         public Info info;
 
         public Server[] servers { get; set; }
-        public Paths paths { get; set; }
+        public Path[] paths { get; set; }
         public Components components { get; set; }
 
         #endregion
 
-        //[EastFive.Api.HttpGet]
-        //public static IHttpResponse List(
-        //        //Security security,
-        //        HttpApplication application, IHttpRequest request, IProvideUrl url,
-        //    NoContentResponse onSuccess,
-        //    ViewFileResponse<Api.Resources.Manifest> onHtml)
-        //{
-        //    application
-        //        .GetResources()
-        //         ;
-        //}
-    }
+        [EastFive.Api.HttpGet]
+        public static IHttpResponse GetSchema(
+                [OptionalQueryParameter]string collections,
+                //Security security,
+                IInvokeApplication invokeApplication,
+                HttpApplication httpApp, IHttpRequest request, IProvideUrl url,
+            TextResponse onSuccess)
+        {
+            var lookups = httpApp
+                .GetResources()
+                .Where(
+                    resource =>
+                    {
+                        if (collections.IsNullOrWhiteSpace())
+                            return true;
+                        var collection = resource.TryGetAttributeInterface(out IDocumentOpenApiRoute documentOpenApiRoute) ?
+                            documentOpenApiRoute.Collection
+                            :
+                            resource.Namespace;
+                        return collection.StartsWith(collections, StringComparison.OrdinalIgnoreCase);
+                    })
+                .ToArray();
+            var manifest = new EastFive.Api.Resources.Manifest(lookups, httpApp);
 
+            var sb = new StringBuilder();
+            var sw = new StringWriter(sb);
+            var jsonSerializer = new JsonSerializer();
+
+            var server = new Server
+            {
+                url = invokeApplication.ServerLocation.AbsoluteUri,
+            };
+            var info = new Info
+            {
+                license = new License
+                {
+                    name = "Private"
+                },
+                title = "East Five API",
+                version = "1.2.3",
+            };
+
+            using (JsonWriter writer = new JsonTextWriter(sw))
+            {
+                writer.Formatting = Formatting.Indented;
+
+                writer.WriteStartObject();
+                writer.WritePropertyName("openapi");
+                writer.WriteValue("3.0.0");
+                writer.WritePropertyName("info");
+                jsonSerializer.Serialize(writer, info);
+                writer.WritePropertyName("servers");
+                jsonSerializer.Serialize(writer, server.AsArray());
+                writer.WritePropertyName("paths");
+                writer.WriteStartObject();
+
+                var schemas = new Dictionary<string, Resources.Parameter[]>();
+
+                foreach(var route in manifest.Routes)
+                {
+                    foreach(var methodPathGrp in route.Methods.GroupBy(method => method.Path.OriginalString))
+                    {
+                        writer.WritePropertyName(methodPathGrp.Key);
+                        writer.WriteStartObject();
+                        foreach(var actionGrp in methodPathGrp.GroupBy(method => method.HttpMethod))
+                        {
+                            var action = actionGrp.First();
+                            var responses = action.Responses.GroupBy(response => response.StatusCode);
+                            if (!responses.Any())
+                                continue;
+                            writer.WritePropertyName(actionGrp.Key.ToLower());
+                            writer.WriteStartObject();
+                            writer.WritePropertyName("description");
+                            writer.WriteValue(action.Description);
+                            writer.WritePropertyName("operationId");
+                            writer.WriteValue(action.Name);
+                            var queryParams = action.Parameters
+                                .Where(p => "QUERY".Equals(p.Where, StringComparison.OrdinalIgnoreCase))
+                                .ToArray();
+                            if (queryParams.Any())
+                            {
+                                writer.WritePropertyName("parameters");
+                                writer.WriteStartArray();
+                                foreach (var parameter in queryParams)
+                                {
+                                    writer.WriteStartObject();
+                                    writer.WritePropertyName("name");
+                                    writer.WriteValue(parameter.Name);
+                                    writer.WritePropertyName("in");
+                                    writer.WriteValue(parameter.Where.ToLower());
+                                    if (parameter.Description.HasBlackSpace())
+                                    {
+                                        writer.WritePropertyName("description");
+                                        writer.WriteValue(parameter.Description);
+                                    }
+                                    writer.WritePropertyName("required");
+                                    writer.WriteValue(parameter.Required);
+                                    //writer.WritePropertyName("style");
+                                    //writer.WriteValue("form");
+                                    writer.WritePropertyName("schema");
+                                    writer.WriteStartObject();
+                                    if (parameter.OpenApiType.array)
+                                    {
+                                        writer.WritePropertyName("type");
+                                        writer.WriteValue("array");
+                                        writer.WritePropertyName("items");
+                                        writer.WriteStartObject();
+                                        writer.WritePropertyName("type");
+                                        writer.WriteValue(parameter.OpenApiType.type);
+                                        writer.WriteEndObject();
+                                    }
+                                    else
+                                    {
+                                        writer.WritePropertyName("type");
+                                        writer.WriteValue(parameter.OpenApiType.type);
+                                        if (parameter.OpenApiType.format.HasBlackSpace())
+                                        {
+                                            writer.WritePropertyName("format");
+                                            writer.WriteValue(parameter.OpenApiType.format);
+                                        }
+                                        if (parameter.OpenApiType.contentEncoding.HasBlackSpace())
+                                        {
+                                            writer.WritePropertyName("contentEncoding");
+                                            writer.WriteValue(parameter.OpenApiType.contentEncoding);
+                                        }
+                                    }
+                                    writer.WriteEndObject();
+                                    writer.WriteEndObject();
+                                }
+                                writer.WriteEndArray();
+                            }
+
+                            var formParams = action.Parameters
+                                .Where(p => "BODY".Equals(p.Where, StringComparison.OrdinalIgnoreCase))
+                                .ToArray();
+                            if(formParams.Any())
+                            {
+                                var key = $"{route.Name}{action.Name}";
+                                writer.WritePropertyName("requestBody");
+                                writer.WriteStartObject();
+                                writer.WritePropertyName("content");
+                                writer.WriteStartObject();
+                                writer.WritePropertyName("application/json");
+                                writer.WriteStartObject();
+                                writer.WritePropertyName("schema");
+                                writer.WriteStartObject();
+                                writer.WritePropertyName("$ref");
+                                writer.WriteValue($"#/components/schemas/{key}");
+                                writer.WriteEndObject();
+                                writer.WriteEndObject();
+                                writer.WriteEndObject();
+                                writer.WriteEndObject();
+                                schemas.TryAdd(key, formParams);
+                            }
+
+                            writer.WritePropertyName("responses");
+                            writer.WriteStartObject();
+                            foreach(var responseGrp in responses)
+                            {
+                                writer.WritePropertyName($"{(int)responseGrp.Key}");
+                                writer.WriteStartObject();
+                                writer.WritePropertyName("description");
+                                var description = responseGrp.Select(response => response.Name).Join(" or ");
+                                writer.WriteValue(description);
+                                writer.WriteEndObject();
+                            }
+                            writer.WriteEndObject();
+
+                            writer.WriteEndObject();
+                        }
+                        writer.WriteEndObject();
+                    }
+                }
+
+                writer.WriteEndObject();
+
+                writer.WritePropertyName("components");
+                writer.WriteStartObject();
+                writer.WritePropertyName("schemas");
+                writer.WriteStartObject();
+                foreach(var schema in schemas)
+                {
+                    writer.WritePropertyName(schema.Key);
+                    writer.WriteStartObject();
+                    writer.WritePropertyName("type");
+                    writer.WriteValue("object");
+                    var requiredArray = schema.Value
+                        .Where(s => s.Required)
+                        .Select(s => s.Name)
+                        .ToArray();
+                    if (requiredArray.Any())
+                    {
+                        writer.WritePropertyName("required");
+                        jsonSerializer.Serialize(writer, requiredArray);
+                    }
+                    writer.WritePropertyName("properties");
+                    writer.WriteStartObject();
+                    foreach(var prop in schema.Value)
+                    {
+                        writer.WritePropertyName(prop.Name);
+                        writer.WriteStartObject();
+                        writer.WritePropertyName("type");
+                        writer.WriteValue(prop.OpenApiType.type);
+                        if (prop.OpenApiType.format.HasBlackSpace())
+                        {
+                            writer.WritePropertyName("format");
+                            writer.WriteValue(prop.OpenApiType.format);
+                        }
+                        if (prop.OpenApiType.contentEncoding.HasBlackSpace())
+                        {
+                            writer.WritePropertyName("contentEncoding");
+                            writer.WriteValue(prop.OpenApiType.contentEncoding);
+                        }
+                        writer.WriteEndObject();
+                    }
+                    writer.WriteEndObject();
+                    writer.WriteEndObject();
+                }
+                writer.WriteEndObject();
+                writer.WriteEndObject();
+
+                writer.WriteEndObject();
+            }
+
+            var json = sb.ToString();
+            return onSuccess(json, contentType: "application/json");
+        }
+    }
 
     public class Info
     {
@@ -54,60 +280,45 @@ namespace EastFive.Api.Meta.OpenApi
         public string name { get; set; }
     }
 
-    public class Paths
+    public class Path
     {
-        public Pets pets { get; set; }
-        public PetsPetid petspetId { get; set; }
-    }
+        public string name;
 
-    public class Pets
-    {
-        public Get get { get; set; }
-        public Post post { get; set; }
-    }
+        public System.Net.Http.HttpMethod method;
 
-    //public class Pets
-    //{
-    //    public string type { get; set; }
-    //    public Items items { get; set; }
-    //}
-
-    public class Get
-    {
         public string summary { get; set; }
         public string operationId { get; set; }
         public string[] tags { get; set; }
         public Parameter[] parameters { get; set; }
-        public Responses responses { get; set; }
-    }
-
-    public class Responses
-    {
-        public _200 _200 { get; set; }
-        public Default _default { get; set; }
-    }
-
-    public class _200
-    {
-        public string description { get; set; }
-        public Headers headers { get; set; }
-        public Content content { get; set; }
-    }
-
-    public class Headers
-    {
-        public XNext xnext { get; set; }
-    }
-
-    public class XNext
-    {
-        public string description { get; set; }
-        public Schema schema { get; set; }
+        public Response[] responses { get; set; }
     }
 
     public class Schema
     {
         public string type { get; set; }
+        public string[] required { get; set; }
+        public Properties properties { get; set; }
+    }
+
+    public class Response
+    {
+        public System.Net.HttpStatusCode? code;
+        public string description;
+        public Header[] headers;
+        public Content content;
+    }
+
+    public class Header
+    {
+        public string name;
+        public string description;
+        public HeaderSchema schema;
+    }
+
+    public class HeaderSchema
+    {
+        public string type { get; set; }
+        public string format { get; set; }
     }
 
     public class Content
@@ -117,31 +328,10 @@ namespace EastFive.Api.Meta.OpenApi
 
     public class ApplicationJson
     {
-        public Schema1 schema { get; set; }
+        public JsonSchema schema { get; set; }
     }
 
-    public class Schema1
-    {
-        public string _ref { get; set; }
-    }
-
-    public class Default
-    {
-        public string description { get; set; }
-        public Content1 content { get; set; }
-    }
-
-    public class Content1
-    {
-        public ApplicationJson1 applicationjson { get; set; }
-    }
-
-    public class ApplicationJson1
-    {
-        public Schema2 schema { get; set; }
-    }
-
-    public class Schema2
+    public class JsonSchema
     {
         public string _ref { get; set; }
     }
@@ -152,148 +342,17 @@ namespace EastFive.Api.Meta.OpenApi
         public string _in { get; set; }
         public string description { get; set; }
         public bool required { get; set; }
-        public Schema3 schema { get; set; }
-    }
-
-    public class Schema3
-    {
-        public string type { get; set; }
-        public string format { get; set; }
-    }
-
-    public class Post
-    {
-        public string summary { get; set; }
-        public string operationId { get; set; }
-        public string[] tags { get; set; }
-        public Responses1 responses { get; set; }
-    }
-
-    public class Responses1
-    {
-        public _201 _201 { get; set; }
-        public Default1 _default { get; set; }
-    }
-
-    public class _201
-    {
-        public string description { get; set; }
-    }
-
-    public class Default1
-    {
-        public string description { get; set; }
-        public Content2 content { get; set; }
-    }
-
-    public class Content2
-    {
-        public ApplicationJson2 applicationjson { get; set; }
-    }
-
-    public class ApplicationJson2
-    {
-        public Schema4 schema { get; set; }
-    }
-
-    public class Schema4
-    {
-        public string _ref { get; set; }
-    }
-
-    public class PetsPetid
-    {
-        public Get1 get { get; set; }
-    }
-
-    public class Get1
-    {
-        public string summary { get; set; }
-        public string operationId { get; set; }
-        public string[] tags { get; set; }
-        public Parameter1[] parameters { get; set; }
-        public Responses2 responses { get; set; }
-    }
-
-    public class Responses2
-    {
-        public _2001 _200 { get; set; }
-        public Default2 _default { get; set; }
-    }
-
-    public class _2001
-    {
-        public string description { get; set; }
-        public Content3 content { get; set; }
-    }
-
-    public class Content3
-    {
-        public ApplicationJson3 applicationjson { get; set; }
-    }
-
-    public class ApplicationJson3
-    {
-        public Schema5 schema { get; set; }
-    }
-
-    public class Schema5
-    {
-        public string _ref { get; set; }
-    }
-
-    public class Default2
-    {
-        public string description { get; set; }
-        public Content4 content { get; set; }
-    }
-
-    public class Content4
-    {
-        public ApplicationJson4 applicationjson { get; set; }
-    }
-
-    public class ApplicationJson4
-    {
-        public Schema6 schema { get; set; }
-    }
-
-    public class Schema6
-    {
-        public string _ref { get; set; }
-    }
-
-    public class Parameter1
-    {
-        public string name { get; set; }
-        public string _in { get; set; }
-        public bool required { get; set; }
-        public string description { get; set; }
-        public Schema7 schema { get; set; }
-    }
-
-    public class Schema7
-    {
-        public string type { get; set; }
+        public HeaderSchema schema { get; set; }
     }
 
     public class Components
     {
-        public Schemas schemas { get; set; }
+        public ComponentSchema[] schemas;
     }
 
-    public class Schemas
+    public class ComponentSchema
     {
-        public Pet Pet { get; set; }
-        public Pets Pets { get; set; }
         public Error Error { get; set; }
-    }
-
-    public class Pet
-    {
-        public string type { get; set; }
-        public string[] required { get; set; }
-        public Properties properties { get; set; }
     }
 
     public class Properties
@@ -319,19 +378,14 @@ namespace EastFive.Api.Meta.OpenApi
         public string type { get; set; }
     }
 
-    public class Items
-    {
-        public string _ref { get; set; }
-    }
-
     public class Error
     {
         public string type { get; set; }
         public string[] required { get; set; }
-        public Properties1 properties { get; set; }
+        public Property[] properties { get; set; }
     }
 
-    public class Properties1
+    public class Property
     {
         public Code code { get; set; }
         public Message message { get; set; }

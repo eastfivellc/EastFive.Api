@@ -180,6 +180,7 @@ namespace EastFive.Api
                 Required = true,
                 Type = Parameter.GetTypeName(paramInfo.ParameterType, httpApp),
                 Where = "BODY",
+                OpenApiType = Parameter.GetOpenApiTypeName(paramInfo.ParameterType, httpApp),
             };
         }
 

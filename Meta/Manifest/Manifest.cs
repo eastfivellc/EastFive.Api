@@ -1,4 +1,5 @@
-﻿using EastFive.Extensions;
+﻿using EastFive.Api.Meta.OpenApi;
+using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Reflection;
 using Newtonsoft.Json;
@@ -12,6 +13,7 @@ using System.Threading.Tasks;
 namespace EastFive.Api.Resources
 {
     [FunctionViewController(Route = "Manifest")]
+    [OpenApiRoute(Collection = "EastFive.Api.Meta")]
     public class Manifest
     {
         [System.Runtime.Serialization.DataContract]
@@ -19,11 +21,6 @@ namespace EastFive.Api.Resources
         {
             [JsonProperty(PropertyName = "endpoints")]
             public BlackBarLabs.Api.Resources.WebId[] Endpoints { get; set; }
-        }
-
-        public Manifest()
-        {
-
         }
 
         public Manifest(IEnumerable<Type> lookups,
