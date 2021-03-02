@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -16,9 +17,15 @@ namespace EastFive.Api.Resources
     [OpenApiRoute(Collection = "EastFive.Api.Meta")]
     public class Manifest
     {
-        [System.Runtime.Serialization.DataContract]
-        public class WebIdManifest : BlackBarLabs.Api.ResourceBase
+        [DataContract]
+        public class WebIdManifest
         {
+
+            public const string IdPropertyName = "id";
+            [JsonProperty(PropertyName = IdPropertyName)]
+            [DataMember(Name = IdPropertyName)]
+            public BlackBarLabs.Api.Resources.WebId Id { get; set; }
+
             [JsonProperty(PropertyName = "endpoints")]
             public BlackBarLabs.Api.Resources.WebId[] Endpoints { get; set; }
         }
