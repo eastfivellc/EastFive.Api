@@ -398,7 +398,7 @@ namespace EastFive.Api
             application.RefNotFoundTypeResponse(onRefDoesNotExistsType);
 
             application.HtmlResponse<TResource, TResult>(onHtml);
-            application.XlsResponse<TResource, TResult>(onXls);
+            //application.XlsResponse<TResource, TResult>(onXls);
 
             application.UnauthorizedResponse<TResource, TResult>(onUnauthorized);
             application.GeneralConflictResponse<TResource, TResult>(onFailure);
@@ -727,24 +727,24 @@ namespace EastFive.Api
                 });
         }
 
-        private static void XlsResponse<TResource, TResult>(this IApplication application,
-            Func<byte[], string, TResult> onXls)
-        {
-            application.SetInstigator(
-                typeof(XlsxResponse),
-                (thisAgain, requestAgain, paramInfo, onSuccess) =>
-                {
-                    XlsxResponse created =
-                        (content, name) =>
-                        {
-                            if (onXls.IsDefaultOrNull())
-                                return FailureToOverride<TResource>(typeof(EastFive.Api.XlsxResponse), thisAgain, requestAgain, paramInfo, onSuccess);
-                            var result = onXls(content, name);
-                            return new AttachedHttpResponseMessage<TResult>(result);
-                        };
-                    return onSuccess(created);
-                });
-        }
+        //private static void XlsResponse<TResource, TResult>(this IApplication application,
+        //    Func<byte[], string, TResult> onXls)
+        //{
+        //    application.SetInstigator(
+        //        typeof(XlsxResponse),
+        //        (thisAgain, requestAgain, paramInfo, onSuccess) =>
+        //        {
+        //            XlsxResponse created =
+        //                (content, name) =>
+        //                {
+        //                    if (onXls.IsDefaultOrNull())
+        //                        return FailureToOverride<TResource>(typeof(EastFive.Api.XlsxResponse), thisAgain, requestAgain, paramInfo, onSuccess);
+        //                    var result = onXls(content, name);
+        //                    return new AttachedHttpResponseMessage<TResult>(result);
+        //                };
+        //            return onSuccess(created);
+        //        });
+        //}
 
         private static void BadRequestResponse<TResource, TResult>(this IApplication application,
             Func<TResult> onBadRequest)
