@@ -831,30 +831,30 @@ namespace EastFive.Api
 
     #endregion
 
-    [XlsxResponse()]
-    public delegate IHttpResponse XlsxResponse(byte[] content, string name);
-    public class XlsxResponseAttribute : HttpFuncDelegateAttribute
-    {
-        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+    //[XlsxResponse()]
+    //public delegate IHttpResponse XlsxResponse(byte[] content, string name);
+    //public class XlsxResponseAttribute : HttpFuncDelegateAttribute
+    //{
+    //    public override HttpStatusCode StatusCode => HttpStatusCode.OK;
 
-        public override string Example => "<xml></xml>";
+    //    public override string Example => "<xml></xml>";
 
-        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
-                IHttpRequest request, ParameterInfo parameterInfo,
-            Func<object, Task<IHttpResponse>> onSuccess)
-        {
-            XlsxResponse responseDelegate = (xlsxData, filename) =>
-            {
-                var response = new BytesHttpResponse(request, this.StatusCode,
-                    fileName: filename.IsNullOrWhiteSpace() ? $"sheet.xlsx" : filename, 
-                    contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.template",
-                    inline: false,
-                    xlsxData);
-                return UpdateResponse(parameterInfo, httpApp, request, response);
-            };
-            return onSuccess((object)responseDelegate);
-        }
-    }
+    //    public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+    //            IHttpRequest request, ParameterInfo parameterInfo,
+    //        Func<object, Task<IHttpResponse>> onSuccess)
+    //    {
+    //        XlsxResponse responseDelegate = (xlsxData, filename) =>
+    //        {
+    //            var response = new BytesHttpResponse(request, this.StatusCode,
+    //                fileName: filename.IsNullOrWhiteSpace() ? $"sheet.xlsx" : filename, 
+    //                contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.template",
+    //                inline: false,
+    //                xlsxData);
+    //            return UpdateResponse(parameterInfo, httpApp, request, response);
+    //        };
+    //        return onSuccess((object)responseDelegate);
+    //    }
+    //}
 
     #region Multipart
 
