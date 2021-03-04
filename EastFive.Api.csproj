@@ -33,7 +33,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\EastFive.Core\EastFive.Core.csproj" />
-    <ProjectReference Include="..\EastFive.Sheets\EastFive.Sheets.csproj" />
     <ProjectReference Include="..\EastFive.Web\EastFive.Web.csproj" />
   </ItemGroup>
 

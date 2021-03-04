@@ -46,35 +46,45 @@ namespace EastFive.Api
                 await streamWriter.WriteAsync('[');
                 await streamWriter.FlushAsync();
                 bool first = true;
-                while (await enumerator.MoveNextAsync())
+                try
                 {
-                    if (!first)
+                    while (await enumerator.MoveNextAsync())
                     {
-                        await streamWriter.WriteAsync(',');
+                        if (!first)
+                        {
+                            await streamWriter.WriteAsync(',');
+                            await streamWriter.FlushAsync();
+                        }
+                        first = false;
+
+                        var obj = enumerator.Current;
+                        var objType = obj.GetType();
+                        if (!objType.ContainsAttributeInterface<IProvideSerialization>())
+                        {
+                            var contentJsonString = JsonConvert.SerializeObject(obj, settings);
+                            await streamWriter.WriteAsync(contentJsonString);
+                            await streamWriter.FlushAsync();
+                            continue;
+                        }
+
+                        var serializationProvider = objType
+                            .GetAttributesInterface<IProvideSerialization>()
+                            .OrderByDescending(x => x.GetPreference(this.Request))
+                            .First();
+                        await serializationProvider.SerializeAsync(responseStream,
+                            application, this.Request, this.parameterInfo, obj);
                         await streamWriter.FlushAsync();
                     }
-                    first = false;
-
-                    var obj = enumerator.Current;
-                    var objType = obj.GetType();
-                    if (!objType.ContainsAttributeInterface<IProvideSerialization>())
-                    {
-                        var contentJsonString = JsonConvert.SerializeObject(obj, settings);
-                        await streamWriter.WriteAsync(contentJsonString);
-                        await streamWriter.FlushAsync();
-                        continue;
-                    }
-
-                    var serializationProvider = objType
-                        .GetAttributesInterface<IProvideSerialization>()
-                        .OrderByDescending(x => x.GetPreference(this.Request))
-                        .First();
-                    await serializationProvider.SerializeAsync(responseStream,
-                        application, this.Request, this.parameterInfo, obj);
+                }
+                catch (Exception ex)
+                {
+                    await streamWriter.WriteAsync(ex.Message);
+                }
+                finally
+                {
+                    await streamWriter.WriteAsync(']');
                     await streamWriter.FlushAsync();
                 }
-                await streamWriter.WriteAsync(']');
-                await streamWriter.FlushAsync();
             }
         }
     }

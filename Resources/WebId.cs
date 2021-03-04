@@ -60,9 +60,9 @@ namespace BlackBarLabs.Api.Resources
             return value.GetWebIdUUID();
         }
 
-        public static implicit operator WebId(ResourceBase value)
-        {
-            return (default(ResourceBase) == value) ? default(WebId) : value.Id;
-        }
+        //public static implicit operator WebId(ResourceBase value)
+        //{
+        //    return (default(ResourceBase) == value) ? default(WebId) : value.Id;
+        //}
     }
 }

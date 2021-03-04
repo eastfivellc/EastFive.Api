@@ -106,7 +106,9 @@ namespace EastFive.Api.Meta.OpenApi
                         foreach(var actionGrp in methodPathGrp.GroupBy(method => method.HttpMethod))
                         {
                             var action = actionGrp.First();
-                            var responses = action.Responses.GroupBy(response => response.StatusCode);
+                            var responses = action.Responses
+                                .Where(response => !response.StatusCode.IsDefault())
+                                .GroupBy(response => response.StatusCode);
                             if (!responses.Any())
                                 continue;
                             writer.WritePropertyName(actionGrp.Key.ToLower());
@@ -225,7 +227,10 @@ namespace EastFive.Api.Meta.OpenApi
                     writer.WriteStartObject();
                     writer.WritePropertyName("type");
                     writer.WriteValue("object");
-                    var requiredArray = schema.Value
+                    var properties = schema.Value
+                        .Distinct(s => s.Name)
+                        .ToArray();
+                    var requiredArray = properties
                         .Where(s => s.Required)
                         .Select(s => s.Name)
                         .ToArray();
@@ -236,7 +241,7 @@ namespace EastFive.Api.Meta.OpenApi
                     }
                     writer.WritePropertyName("properties");
                     writer.WriteStartObject();
-                    foreach(var prop in schema.Value)
+                    foreach(var prop in properties)
                     {
                         writer.WritePropertyName(prop.Name);
                         writer.WriteStartObject();
