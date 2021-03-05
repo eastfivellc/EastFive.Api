@@ -24,17 +24,21 @@ namespace EastFive.Api
 
         public override async Task WriteResponseAsync(Stream responseStream)
         {
-            using (var archive = new ZipArchive(responseStream, ZipArchiveMode.Create, true))
+            using (var syncStream = new StreamAsyncWrapper(responseStream))
             {
-                foreach (var file in files)
+                using (var archive = new ZipArchive(syncStream, ZipArchiveMode.Create, true))
                 {
-                    var fileBytes = file.Item2;
-                    var fileName = file.Item1.Name;
-                    var zipArchiveEntry = archive.CreateEntry(
-                        fileName, CompressionLevel.Fastest);
-                    using (var zipStream = zipArchiveEntry.Open())
-                        await zipStream.WriteAsync(fileBytes, 0, fileBytes.Length);
+                    foreach (var file in files)
+                    {
+                        var fileBytes = file.Item2;
+                        var fileName = file.Item1.Name;
+                        var zipArchiveEntry = archive.CreateEntry(
+                            fileName, CompressionLevel.Fastest);
+                        using (var zipStream = zipArchiveEntry.Open())
+                            await zipStream.WriteAsync(fileBytes, 0, fileBytes.Length);
+                    }
                 }
+                await syncStream.CompleteAsync();
             }
         }
     }
