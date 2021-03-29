@@ -15,7 +15,7 @@ namespace EastFive.Api
 {
     public interface IBindJsonApiValue
     {
-        TResult ParseContentDelegate<TResult>(Newtonsoft.Json.Linq.JObject contentJObject,
+        TResult ParseContentDelegate<TResult>(Newtonsoft.Json.Linq.JContainer contentJObject,
                 string contentString, Serialization.BindConvert bindConvert,
                 ParameterInfo parameterInfo,
                 IApplication httpApp, IHttpRequest routeData,
@@ -65,6 +65,30 @@ namespace EastFive.Api
                         .Select(jProperty => jProperty.Name)
                         .ToArray();
                 return await onParsedContentValues(parser, keys);
+            }
+            catch (Newtonsoft.Json.JsonReaderException)
+            {
+                try
+                {
+                    var contentJArray = Newtonsoft.Json.Linq.JArray.Parse(contentString);
+                    CastDelegate parser =
+                        (paramInfo, onParsed, onFailure) =>
+                        {
+                            return paramInfo
+                                .GetAttributeInterface<IBindJsonApiValue>()
+                                .ParseContentDelegate(contentJArray,
+                                        contentString, bindConvert,
+                                        paramInfo, httpApp, request,
+                                    onParsed,
+                                    onFailure);
+                        };
+                    var keys = new string[] { };
+                    return await onParsedContentValues(parser, keys);
+                }
+                catch (Exception ex)
+                {
+                    return await BodyMissing(ex.Message);
+                }
             }
             catch (Exception ex)
             {

@@ -35,13 +35,17 @@ namespace EastFive.Api
             return base.GetKey(paramInfo);
         }
 
-        public TResult ParseContentDelegate<TResult>(JObject contentJObject, string contentString, 
+        public TResult ParseContentDelegate<TResult>(JContainer contentJContainer, string contentString, 
                 BindConvert bindConvert, 
                 ParameterInfo parameterInfo, 
                 IApplication httpApp, IHttpRequest request, 
             Func<object, TResult> onParsed, 
             Func<string, TResult> onFailure)
         {
+            if (!(contentJContainer is JObject))
+                return onFailure($"JSON Content is {contentJContainer.Type} and headers can only be parsed from objects.");
+            var contentJObject = contentJContainer as JObject;
+
             var key = Content;
             if (!contentJObject.TryGetValue(key, out JToken valueToken))
                 return onFailure($"Key[{key}] was not found in JSON");

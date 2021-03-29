@@ -39,13 +39,17 @@ namespace EastFive.Api
             };
         }
 
-        public TResult ParseContentDelegate<TResult>(JObject contentJObject,
+        public TResult ParseContentDelegate<TResult>(JContainer contentJContainer,
                 string contentString, Serialization.BindConvert bindConvert,
                 ParameterInfo paramInfo,
                 IApplication httpApp, IHttpRequest request,
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure)
         {
+            if (!(contentJContainer is JObject))
+                return onFailure($"JSON Content is {contentJContainer.Type} and ID property for updating can only be parsed from objects.");
+            var contentJObject = contentJContainer as JObject;
+
             var key = this.GetKey(paramInfo);
             return PropertyAttribute.ParseJsonContentDelegate(contentJObject,
                     contentString, bindConvert,
