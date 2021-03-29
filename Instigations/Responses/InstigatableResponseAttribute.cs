@@ -19,7 +19,11 @@ namespace EastFive.Api
             IApplication httpApp, IHttpRequest request,
             IHttpResponse response)
         {
+<<<<<<< HEAD
             if(!response.Headers.ContainsKey(Core.Middleware.HeaderStatusName))
+=======
+            if (!response.Headers.ContainsKey(Core.Middleware.HeaderStatusName))
+>>>>>>> e2c04d1fac48b1d1e04c75a3e635bfba6aa491da
                 response.Headers.Add(Core.Middleware.HeaderStatusName, parameterInfo.ParameterType.FullName.AsArray());
             if (!response.Headers.ContainsKey(Core.Middleware.HeaderStatusInstance))
                 response.Headers.Add(Core.Middleware.HeaderStatusInstance, parameterInfo.Name.AsArray());

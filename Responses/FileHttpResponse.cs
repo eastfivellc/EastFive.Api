@@ -21,8 +21,6 @@ namespace EastFive.Api
             this.writeResponseAsync = writeResponseAsync;
         }
 
-        
-
         public override Task WriteResponseAsync(Stream responseStream)
         {
             return writeResponseAsync(responseStream);

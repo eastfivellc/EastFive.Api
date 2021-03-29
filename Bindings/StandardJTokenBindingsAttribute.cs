@@ -332,6 +332,12 @@ namespace EastFive.Api.Bindings
 
             if (type == typeof(Func<Task<byte[]>>))
             {
+                if (content.Type == JTokenType.Bytes)
+                {
+                    var bytes = content.Value<byte[]>();
+                    Func<Task<byte[]>> callback = () => bytes.AsTask();
+                    return onParsed(callback);
+                }
                 if (content.Type == JTokenType.String)
                 {
                     var stringValue = content.Value<string>();
@@ -355,13 +361,13 @@ namespace EastFive.Api.Bindings
                         };
                         return onParsed(callback);
                     }
-                    return onBindingFailure($"Not a valid base64 string or a valid URL.");
-                }
-                if (content.Type == JTokenType.Bytes)
-                {
-                    var bytes = content.Value<byte[]>();
-                    Func<Task<byte[]>> callback = () => bytes.AsTask();
-                    return onParsed(callback);
+                    return GetHttpContentFromBase64(stringValue,
+                        context =>
+                        {
+                            Func<Task<byte[]>> callback = context.ReadAsByteArrayAsync;
+                            return onParsed(callback);
+                        },
+                        (prefix) => onBindingFailure($"Not a valid base64 string or a valid URL."));
                 }
             }
 
@@ -387,7 +393,65 @@ namespace EastFive.Api.Bindings
                                 $"Could not decode JSON Binary prefix:{contentEncodedBase64String.Substring(0, 25)}")));
                     
                 }
-                return onDidNotBind($"Cannot convert `{content.Type}` to  {typeof(bool).FullName}");
+                return onDidNotBind($"Cannot convert `{content.Type}` to  {typeof(HttpContent).FullName}");
+            }
+
+            if (type == typeof(Func<Task<HttpContent>>))
+            {
+                if (content.Type == JTokenType.String)
+                {
+                    var stringValue = content.Value<string>();
+                    return GetHttpContentFromBase64(stringValue,
+                        (content) =>
+                        {
+                            Func<Task<HttpContent>> func = () => content.AsTask();
+                            return onParsed(content);
+                        },
+                        (prefix) =>
+                        {
+                            if (Uri.TryCreate(stringValue, UriKind.Absolute, out Uri url))
+                            {
+                                Func<Task<HttpContent>> callback = async () =>
+                                {
+                                    using (var client = new HttpClient())
+                                    {
+                                        using (var response = await client.GetAsync(url))
+                                        {
+                                            // Resource disposal creates issues so a copy is needed
+                                            var data = await response.Content.ReadAsByteArrayAsync();
+                                            var httpContent = new ByteArrayContent(data);
+                                            foreach(var header in response.Content.Headers)
+                                                httpContent.Headers.Add(header.Key, header.Value);
+                                            return httpContent;
+                                        }
+                                    }
+                                };
+                                return onParsed(callback);
+                            }
+                            return onBindingFailure($"Not a valid base64 string or a valid URL.");
+                        });
+                }
+                return onDidNotBind($"Cannot convert `{content.Type}` to  {typeof(Func<Task<HttpContent>>).FullName}");
+            }
+
+            TResult GetHttpContentFromBase64(string contentEncodedBase64String,
+                Func<HttpContent, TResult> onSuccess,
+                Func<string, TResult> onFailure)
+            {
+                return contentEncodedBase64String.MatchRegexInvoke(
+                    "data:(?<contentType>[^;]+);base64,(?<base64Data>.+)",
+                    (contentType, base64Data) => base64Data.PairWithValue(contentType),
+                    types => types.First(
+                        (ct, next) =>
+                        {
+                            var base64EncodedData = ct.Key;
+                            var data = base64EncodedData.FromBase64String();
+                            var contentType = ct.Value;
+                            var httpContent = new ByteArrayContent(data);
+                            httpContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+                            return onSuccess(httpContent);
+                        },
+                        () => onFailure(contentEncodedBase64String.Substring(0, 25))));
             }
 
             if (type.IsNullable())

@@ -14,17 +14,20 @@ using System.IO;
 using System.Threading.Tasks;
 using EastFive.Extensions;
 using Microsoft.AspNetCore.Mvc.Razor;
+using Microsoft.Extensions.Primitives;
 
 namespace EastFive.Api.Core
 {
     public class CoreHttpRequest : IHttpRequest
     {
+        private Uri uri;
         public Microsoft.AspNetCore.Http.HttpRequest request;
 
         public CoreHttpRequest(Microsoft.AspNetCore.Http.HttpRequest request,
             IRazorViewEngine razorViewEngine,
             CancellationToken cancellationToken)
         {
+            this.uri = request.GetAbsoluteUri();
             this.request = request;
             this.CancellationToken = cancellationToken;
             this.Properties = new Dictionary<string, object>();
@@ -35,7 +38,11 @@ namespace EastFive.Api.Core
             this.RazorViewEngine = razorViewEngine;
         }
 
-        public IRequestHeaders RequestHeaders => new CoreRequestHeaders(request.Headers);
+        public IRequestHeaders RequestHeaders => new CoreRequestHeaders(
+            new HeaderDictionary(
+                this.Headers
+                    .Select(kvp => kvp.Key.PairWithValue(new StringValues(kvp.Value)))
+                    .ToDictionary()));
 
         public class CoreRequestHeaders : Microsoft.AspNetCore.Http.Headers.RequestHeaders, IRequestHeaders
         {
@@ -53,11 +60,11 @@ namespace EastFive.Api.Core
         {
             get
             {
-                return request.GetAbsoluteUri();
+                return this.uri;
             }
             set
             {
-                throw new NotImplementedException();
+                this.uri = value;
             }
         }
 
@@ -83,17 +90,22 @@ namespace EastFive.Api.Core
 
         public IRazorViewEngine RazorViewEngine { get; private set; }
 
-        public string GetHeader(string headerKey)
-            => request.GetHeader(headerKey);
+        public string GetHeader(string headerKey) => Headers
+            .Where(kvp => kvp.Key.ToLower() == headerKey.ToLower())
+            .First(
+                (v, next) => v.Value.Any() ? v.Value.First() : string.Empty,
+                () => string.Empty);
 
-        public IEnumerable<string> GetHeaders(string headerKey)
-            => request.GetHeaders(headerKey)
+        public IEnumerable<string> GetHeaders(string headerKey) => Headers
+            .Where(kvp => kvp.Key.ToLower() == headerKey.ToLower())
+            .SelectMany(kvp => kvp.Value.ToArray())
             .SelectMany(header => header.Split(','))
             .Select(header => header.Trim());
 
         public void UpdateHeader(string headerKey, Func<string[], string[]> callback)
         {
-            throw new NotImplementedException();
+            Headers.TryGetValue(headerKey, out string[] headers);
+            Headers[headerKey] = callback(headers.NullToEmpty().ToArray());
         }
 
         public TResult ReadCookie<TResult>(string cookieKey, Func<string, TResult> onCookie, Func<TResult> onNotAvailable)

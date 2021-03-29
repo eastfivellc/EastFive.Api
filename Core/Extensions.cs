@@ -106,7 +106,7 @@ namespace EastFive.Api.Core
             await resp.SetBodyAsync(msg);
         }
 
-        private static Microsoft.AspNetCore.Http.HttpResponse SetStatusCode(this Microsoft.AspNetCore.Http.HttpResponse resp, HttpResponseMessage msg)
+        public static Microsoft.AspNetCore.Http.HttpResponse SetStatusCode(this Microsoft.AspNetCore.Http.HttpResponse resp, HttpResponseMessage msg)
             => resp.Set(r => r.StatusCode = (int)msg.StatusCode);
 
         private static Microsoft.AspNetCore.Http.HttpResponse SetHeaders(this Microsoft.AspNetCore.Http.HttpResponse resp, HttpResponseMessage msg)
@@ -129,6 +129,14 @@ namespace EastFive.Api.Core
             => resp.Set(
                 r => r.ContentType = msg.Content.Headers.GetValues("Content-Type").Single(),
                 applyIf: (!msg.Content.IsDefaultOrNull()) && msg.Content.Headers.Contains("Content-Type"));
+
+        public static Microsoft.AspNetCore.Http.HttpResponse Redirect(this Microsoft.AspNetCore.Http.HttpResponse resp,
+            Uri locationHeader)
+        {
+            resp.StatusCode = (int)System.Net.HttpStatusCode.Redirect;
+            resp.GetTypedHeaders().Location = locationHeader;
+            return resp;
+        }
 
         private static Microsoft.AspNetCore.Http.HttpResponse Set(this Microsoft.AspNetCore.Http.HttpResponse msg, Action<Microsoft.AspNetCore.Http.HttpResponse> config, bool applyIf = true)
         {

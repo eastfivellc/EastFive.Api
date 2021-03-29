@@ -610,6 +610,74 @@ namespace EastFive.Api
         }
     }
 
+    [GalleryResponse]
+    public delegate IHttpResponse GalleryResponse(IEnumerable<Image> files,
+        string mimeType = default, int? imagesPerLine = default(int?));
+    public class GalleryResponseAttribute : HttpFuncDelegateAttribute
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override string Example => "Raw data (byte [])";
+
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
+        {
+            GalleryResponse responseDelegate = (files, mimeType, imagesPerLine) =>
+            {
+                var response = new GalleryHttpResponse(request,
+                    images: files, mimeType: mimeType, imagesPerLine: imagesPerLine);
+
+                return UpdateResponse(parameterInfo, httpApp, request, response);
+            };
+            return onSuccess(responseDelegate);
+        }
+    }
+
+    [LinkedGalleryResponse]
+    public delegate IHttpResponse LinkedGalleryResponse(IEnumerable<(Image, Uri)> files,
+        string mimeType = default, int? imagesPerLine = default(int?));
+    public class LinkedGalleryResponseAttribute : HttpFuncDelegateAttribute
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override string Example => "Raw data (byte [])";
+
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
+        {
+            LinkedGalleryResponse responseDelegate = (files, mimeType, imagesPerLine) =>
+            {
+                var response = new LinkedGalleryHttpResponse(request,
+                    images: files, mimeType: mimeType, imagesPerLine: imagesPerLine);
+
+                return UpdateResponse(parameterInfo, httpApp, request, response);
+            };
+            return onSuccess(responseDelegate);
+        }
+    }
+
+    [LinksResponse]
+    public delegate IHttpResponse LinksResponse(IEnumerable<Uri> links);
+    public class LinksResponseAttribute : HttpFuncDelegateAttribute
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
+        {
+            LinksResponse responseDelegate = (links) =>
+            {
+                var response = new LinksHttpResponse(request, links: links);
+
+                return UpdateResponse(parameterInfo, httpApp, request, response);
+            };
+            return onSuccess(responseDelegate);
+        }
+    }
+
     //public class ViewFileResponseAttribute : HtmlResponseAttribute
     //{
     //    public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
@@ -915,6 +983,35 @@ namespace EastFive.Api
             return UpdateResponse(parameterInfo, httpApp, request, response);
         }
 
+    }
+
+    #endregion
+
+    #region Zip
+
+    [ZipResponse]
+    public delegate IHttpResponse ZipResponse(IEnumerable<(FileInfo, byte[])> files,
+        string filename = default, bool? inline = default);
+    public class ZipResponseAttribute : HttpFuncDelegateAttribute
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override string Example => "Raw data (byte [])";
+
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
+        {
+            ZipResponse responseDelegate = (files, filename, inline) =>
+            {
+                var response = new ZipHttpResponse(request,
+                    fileName: filename, inline: inline,
+                    files);
+
+                return UpdateResponse(parameterInfo, httpApp, request, response);
+            };
+            return onSuccess(responseDelegate);
+        }
     }
 
     #endregion
