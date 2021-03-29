@@ -19,8 +19,10 @@ namespace EastFive.Api
             IApplication httpApp, IHttpRequest request,
             IHttpResponse response)
         {
-            response.Headers.Add(Core.Middleware.HeaderStatusName, parameterInfo.ParameterType.FullName.AsArray());
-            response.Headers.Add(Core.Middleware.HeaderStatusInstance, parameterInfo.Name.AsArray());
+            if (!response.Headers.ContainsKey(Core.Middleware.HeaderStatusName))
+                response.Headers.Add(Core.Middleware.HeaderStatusName, parameterInfo.ParameterType.FullName.AsArray());
+            if (!response.Headers.ContainsKey(Core.Middleware.HeaderStatusInstance))
+                response.Headers.Add(Core.Middleware.HeaderStatusInstance, parameterInfo.Name.AsArray());
             return httpApp.GetType()
                 .GetAttributesInterface<IHandleResponses>(true, true)
                 .Aggregate<IHandleResponses, ResponseHandlingDelegate>(
