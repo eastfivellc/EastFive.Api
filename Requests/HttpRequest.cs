@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.Razor;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading;
@@ -16,6 +17,7 @@ namespace EastFive.Api
         {
             this.RequestUri = absoluteUri;
             this.CancellationToken = cancellationToken;
+            this.Headers = new Dictionary<string, string[]>();
         }
 
         public Uri RequestUri { get; set; }
@@ -46,7 +48,7 @@ namespace EastFive.Api
 
         public IFormCollection Form => throw new NotImplementedException();
 
-        public IDictionary<string, string[]> Headers => throw new NotImplementedException();
+        public IDictionary<string, string[]> Headers { get; private set; }
 
         public IRazorViewEngine RazorViewEngine => throw new NotImplementedException();
 
@@ -59,13 +61,22 @@ namespace EastFive.Api
 
         public IEnumerable<string> GetHeaders(string headerKey)
         {
-            throw new NotImplementedException();
+            if (Headers.ContainsKey(headerKey))
+                return Headers[headerKey];
+            return Enumerable.Empty<string>();
         }
 
         public void UpdateHeader(string headerKey,
             Func<string[], string[]> callback)
         {
-            throw new NotImplementedException();
+            var currentHeaders = GetHeaders(headerKey).ToArray();
+            var updatedHeaders = callback(currentHeaders);
+            if (Headers.ContainsKey(headerKey))
+            {
+                Headers[headerKey] = updatedHeaders;
+                return;
+            }
+            Headers.Add(headerKey, updatedHeaders);
         }
 
         public TResult ReadCookie<TResult>(string cookieKey, Func<string, TResult> onCookie, Func<TResult> onNotAvailable)
