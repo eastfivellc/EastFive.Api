@@ -21,10 +21,15 @@ namespace EastFive.Api
             this.SetFileHeaders(fileName, contentType, inline);
         }
 
-        public override Task WriteResponseAsync(Stream responseStream)
+        public override async Task WriteResponseAsync(Stream responseStream)
         {
-            return responseStream.WriteAsync(data, 0, data.Length,
-                this.Request.CancellationToken);
+            try
+            {
+                await responseStream.WriteAsync(data, 0, data.Length,
+                    this.Request.CancellationToken);
+            } catch(OperationCanceledException ex)
+            {
+            }
         }
     }
 }
