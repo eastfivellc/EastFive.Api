@@ -33,7 +33,7 @@ namespace EastFive.Api
                 (why) => SelectParameterResult.FailureBody(why, string.Empty, parameterRequiringValidation));
         }
 
-        public TResult ParseContentDelegate<TResult>(JObject contentJObject,
+        public TResult ParseContentDelegate<TResult>(JContainer contentJObject,
                 string contentString, BindConvert bindConvert, ParameterInfo parameterInfo, 
                 IApplication httpApp, IHttpRequest request,
             Func<object, TResult> onParsed,

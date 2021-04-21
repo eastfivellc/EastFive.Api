@@ -155,8 +155,10 @@ namespace EastFive.Api
                 .Where(
                     method =>
                     {
-                        var routeMatcher = method.GetAttributesInterface<IMatchRoute>().Single();
-                        return routeMatcher.IsMethodMatch(method, request, httpApp);
+                        var isMatch = method
+                            .GetAttributesInterface<IMatchRoute>()
+                            .Any(routeMatcher => routeMatcher.IsMethodMatch(method, request, httpApp));
+                        return isMatch;
                     });
             return matchingActionMethods;
         }

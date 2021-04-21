@@ -138,7 +138,7 @@ namespace EastFive.Api
                 .GetMethod("HttpPatch", BindingFlags.Static | BindingFlags.Public)
                 .MakeGenericMethod(typeof(TResource));
             var resourceExpr = Expression.Constant(resource, typeof(TResource));
-            var headersExpr = Expression.Constant(headers, typeof(System.Net.Http.Headers.HttpRequestHeaders));
+            var headersExpr = Expression.Constant(headers, typeof(KeyValuePair<string, string>[]));
             var condition = Expression.Call(methodInfo, requestQuery.Expression, resourceExpr, headersExpr);
 
             var requestMessageNewQuery = requestMessageQuery.FromExpression(condition);
@@ -152,7 +152,7 @@ namespace EastFive.Api
                 var httpMethod = new HttpMethod("Patch");
                 var resource = arguments[0].Resolve();
                 var headers = (KeyValuePair<string, string>[])arguments[1].Resolve();
-                return WriteResource(request, httpMethod, resource, headers.ToArray(), DefaultValueHandling.Ignore);
+                return WriteResource(request, httpMethod, resource, headers.NullToEmpty().ToArray(), DefaultValueHandling.Ignore);
             }
         }
 
