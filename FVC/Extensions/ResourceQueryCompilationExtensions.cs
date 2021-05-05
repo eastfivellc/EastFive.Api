@@ -46,8 +46,6 @@ namespace EastFive.Api
             HttpRequestMessage relativeTo = default)
         {
             var httpRequest = GetHttpRequest();
-            var baseUrl = BaseUrl(urlQuery);
-            httpRequest.RequestUri = baseUrl;
 
             return urlQuery.Compile<HttpRequestMessage, IBuildHttpRequests>(
                     httpRequest,
@@ -68,17 +66,26 @@ namespace EastFive.Api
 
             HttpRequestMessage GetHttpRequest()
             {
+                var baseUrl = BaseUrl(urlQuery);
                 if (!relativeTo.IsDefaultOrNull())
-                    return relativeTo;
+                {
+                    try
+                    {
+                        relativeTo.RequestUri = baseUrl;  // this will fail if the request has been disposed
+                        return relativeTo;
+                    }
+                    catch { }
+                }
 
-                if (urlQuery is RequestMessage<TResource>)
-                    return (urlQuery as RequestMessage<TResource>)
+                var req = urlQuery is RequestMessage<TResource> 
+                    ? (urlQuery as RequestMessage<TResource>)
                         .InvokeApplication
-                        .GetHttpRequest();
+                        .GetHttpRequest()
+                    : new HttpRequestMessage();
 
-                return new HttpRequestMessage();
+                req.RequestUri = baseUrl;
+                return req;
             }
-
         }
 
         private static Uri BaseUrl<TResource>(IQueryable<TResource> urlQuery)
