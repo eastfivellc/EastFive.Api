@@ -58,7 +58,10 @@ namespace EastFive.Api
                         first = false;
 
                         var obj = enumerator.Current;
-                        var objType = obj.GetType();
+                        var objType = (obj == null)?
+                            typeof(T)
+                            :
+                            obj.GetType();
                         if (!objType.ContainsAttributeInterface<IProvideSerialization>())
                         {
                             var contentJsonString = JsonConvert.SerializeObject(obj, settings);
