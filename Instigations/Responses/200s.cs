@@ -28,6 +28,7 @@ using EastFive.Linq.Async;
 using EastFive.Images;
 using EastFive.Serialization;
 using Microsoft.Extensions.FileProviders;
+using System.Web;
 
 namespace EastFive.Api
 {
@@ -494,6 +495,7 @@ namespace EastFive.Api
                                         .Append(Assembly.Load(new AssemblyName("netstandard")))
                                         .Append(Assembly.Load(new AssemblyName("System.Runtime")))
                                         .Append(typeof(HttpStatusCode).Assembly)
+                                        .Append(typeof(HttpUtility).Assembly)
                                         .Distinct(assembly => assembly.FullName);
 
                                       foreach (var assembly in assemblies)
