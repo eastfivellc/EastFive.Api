@@ -67,45 +67,12 @@ namespace EastFive.Api.Core
                     return new HttpResponse(context, continueAsync);
                 });
 
-            context.Response.StatusCode = (int)routeResponse.StatusCode;
-            routeResponse = AddReason(routeResponse);
-            foreach (var header in routeResponse.Headers)
-                context.Response.Headers.Add(header.Key, header.Value);
-
-            routeResponse.WriteCookiesToResponse(context);
-
-            await routeResponse.WriteResponseAsync(context.Response.Body);
+            await routeResponse.WriteResponseAsync(context);
 
             if (routeResponse is IHaveMoreWork)
                 taskQueue.QueueBackgroundWorkItem(
                     (cancellationToken) => (routeResponse as IHaveMoreWork)
                         .ProcessWorkAsync(cancellationToken));
-
-            IHttpResponse AddReason(IHttpResponse response)
-            {
-                var reason = response.ReasonPhrase;
-                if (string.IsNullOrEmpty(reason))
-                    return response;
-
-                var reasonPhrase = reason.Replace('\n', ';').Replace("\r", "");
-                if (reasonPhrase.Length > 510)
-                    reasonPhrase = new string(reasonPhrase.Take(510).ToArray());
-                
-                response.SetHeader("X-Reason", reasonPhrase);
-
-                var responseFeature = context.Features.Get<IHttpResponseFeature>();
-                if (!responseFeature.IsDefaultOrNull())
-                    responseFeature.ReasonPhrase = reason;
-
-                //if (response.StatusCode == HttpStatusCode.Unauthorized)
-                //    response.WriteResponseAsync = (stream) => JsonHttpResponse<int>.WriteResponseAsync(
-                //        stream, new { Message = reason })
-                //    {
-                //        var messageResponse = JsonConvert.SerializeObject();
-
-                //    };
-                return response;
-            }
         }
 
         private class HttpResponse : IHttpResponse
@@ -136,7 +103,7 @@ namespace EastFive.Api.Core
                 this.continueAsync = continueAsync;
             }
 
-            public void WriteCookie(string cookieKey, string cookieValue, TimeSpan? expireTime)
+            public void AddCookie(string cookieKey, string cookieValue, TimeSpan? expireTime)
             {
                 CookieOptions option = new CookieOptions();
 
@@ -148,14 +115,19 @@ namespace EastFive.Api.Core
                 context.Response.Cookies.Append(cookieKey, cookieValue, option);
             }
 
-            public void WriteCookiesToResponse(HttpContext context)
-            {
-                // Written on the fly above
-            }
-
-            public virtual Task WriteResponseAsync(Stream stream)
+            public Task WriteResponseAsync(HttpContext context)
             {
                 return continueAsync(this.context);
+            }
+
+            public void WritePreamble(HttpContext context)
+            {
+                // Cookies Written on the fly above
+            }
+
+            public Task WriteResponseAsync(Stream stream)
+            {
+                throw new NotImplementedException();
             }
         }
 

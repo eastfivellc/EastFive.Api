@@ -624,14 +624,19 @@ namespace EastFive.Api
                 return (TResult1)(this.Result as object);
             }
 
-            public void WriteCookie(string cookieKey, string cookieValue, TimeSpan? expireTime)
+            public void AddCookie(string cookieKey, string cookieValue, TimeSpan? expireTime)
             {
-                Inner.WriteCookie(cookieKey, cookieValue, expireTime);
+                Inner.AddCookie(cookieKey, cookieValue, expireTime);
             }
 
-            public void WriteCookiesToResponse(HttpContext context)
+            public Task WriteResponseAsync(HttpContext context)
             {
-                Inner.WriteCookiesToResponse(context);
+                return Inner.WriteResponseAsync(context);
+            }
+
+            public void WritePreamble(HttpContext context)
+            {
+                Inner.WritePreamble(context);
             }
 
             public Task WriteResponseAsync(Stream stream)
@@ -669,12 +674,17 @@ namespace EastFive.Api
                 throw new Exception(message);
             }
 
-            public void WriteCookie(string cookieKey, string cookieValue, TimeSpan? expireTime)
+            public void AddCookie(string cookieKey, string cookieValue, TimeSpan? expireTime)
             {
                 throw new NotImplementedException();
             }
 
-            public void WriteCookiesToResponse(HttpContext context)
+            public Task WriteResponseAsync(HttpContext context)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void WritePreamble(HttpContext context)
             {
                 throw new NotImplementedException();
             }

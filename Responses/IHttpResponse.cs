@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
 using Microsoft.AspNetCore.Http;
 
+using EastFive;
 using EastFive.Extensions;
-using System.IO;
 
 namespace EastFive.Api
 {
@@ -21,9 +22,11 @@ namespace EastFive.Api
 
         IDictionary<string, string[]> Headers { get; }
 
-        void WriteCookie(string cookieKey, string cookieValue, TimeSpan? expireTime);
+        void AddCookie(string cookieKey, string cookieValue, TimeSpan? expireTime);
 
-        void WriteCookiesToResponse(HttpContext context);
+        Task WriteResponseAsync(HttpContext context);
+
+        void WritePreamble(HttpContext context);
 
         Task WriteResponseAsync(Stream stream);
     }

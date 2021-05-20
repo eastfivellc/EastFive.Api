@@ -11,6 +11,7 @@ using EastFive;
 using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Collections.Generic;
+using Microsoft.AspNetCore.Http.Features;
 
 namespace EastFive.Api
 {
@@ -26,7 +27,7 @@ namespace EastFive.Api
 
         public IHttpRequest Request { get; private set; }
 
-        public HttpStatusCode StatusCode { get; set; }
+        public virtual HttpStatusCode StatusCode { get; set; }
 
         public string ReasonPhrase { get; set; }
 
@@ -34,7 +35,7 @@ namespace EastFive.Api
 
         private (string, string, TimeSpan?)[] cookies;
 
-        public void WriteCookie(string cookieKey, string cookieValue, TimeSpan? expireTime)
+        public void AddCookie(string cookieKey, string cookieValue, TimeSpan? expireTime)
         {
             this.cookies = cookies
                 .NullToEmpty()
@@ -42,7 +43,57 @@ namespace EastFive.Api
                 .ToArray();
         }
 
-        public void WriteCookiesToResponse(HttpContext context)
+        public virtual Task WriteResponseAsync(HttpContext context)
+        {
+            WritePreamble(context);
+            return WriteResponseAsync(context.Response.Body);
+        }
+
+        #region Preamble
+
+        public virtual void WritePreamble(HttpContext context)
+        {
+            WriteStatusCode(context);
+            WriteReason(context);
+            WriteHeaders(context);
+            WriteCookies(context);
+        }
+
+        public virtual void WriteStatusCode(HttpContext context)
+        {
+            context.Response.StatusCode = (int)this.StatusCode;
+        }
+
+        public virtual void WriteReason(HttpContext context)
+        {
+            WriteReason(context, this.ReasonPhrase);
+
+        }
+
+        public void WriteReason(HttpContext context, string reason)
+        {
+            if (string.IsNullOrEmpty(reason))
+                return;
+
+            var reasonPhrase = reason.Replace('\n', ';').Replace("\r", "");
+            if (reasonPhrase.Length > 510)
+                reasonPhrase = new string(reasonPhrase.Take(510).ToArray());
+
+            context.Response.Headers.Add("X-Reason", reasonPhrase);
+
+            var responseFeature = context.Features.Get<IHttpResponseFeature>();
+            if (!responseFeature.IsDefaultOrNull())
+                responseFeature.ReasonPhrase = reason;
+
+        }
+
+        public virtual void WriteHeaders(HttpContext context)
+        {
+            foreach (var header in this.Headers)
+                context.Response.Headers.Add(header.Key, header.Value);
+        }
+
+        public virtual void WriteCookies(HttpContext context)
         {
             if (cookies.IsDefaultNullOrEmpty())
                 return;
@@ -59,9 +110,13 @@ namespace EastFive.Api
             }
         }
 
+        #endregion
+
         public virtual Task WriteResponseAsync(System.IO.Stream stream)
         {
             return StatusCode.AsTask();
         }
+
+        
     }
 }
