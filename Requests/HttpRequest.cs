@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using EastFive.Linq;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Razor;
 using System;
 using System.Collections.Generic;
@@ -55,7 +56,14 @@ namespace EastFive.Api
         IDictionary<string, object> IHttpRequest.Properties { get; }
 
         public string GetHeader(string headerKey)
-            => string.Empty;
+        {
+            if (Headers.ContainsKey(headerKey))
+            {
+                var values = Headers[headerKey];
+                return values.AnyNullSafe() ? values[0] : string.Empty;
+            }
+            return String.Empty;
+        }
 
         public IRequestHeaders RequestHeaders => throw new NotImplementedException();
 
