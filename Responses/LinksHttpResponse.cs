@@ -30,15 +30,15 @@ namespace EastFive.Api
 
         public override async Task WriteResponseAsync(Stream responseStream)
         {
-            var bytesToWritePreamble = $"<html><head><style></style></head><body>".GetBytes();
+            var bytesToWritePreamble = $"<html><head><style></style></head><body><ul>".GetBytes();
             await responseStream.WriteAsync(bytesToWritePreamble);
             foreach (var link in links)
             {
-                var img = $"<a href=\"{link.OriginalString}\" />";
+                var img = $"<li><a href=\"{link.OriginalString}\">{link}</a></li>";
                 var bytesToWrite = img.GetBytes();
                 await responseStream.WriteAsync(bytesToWrite);
             }
-            var bytesToWriteEnd = "</body></html>".GetBytes();
+            var bytesToWriteEnd = "</ul></body></html>".GetBytes();
             await responseStream.WriteAsync(bytesToWriteEnd);
         }
     }

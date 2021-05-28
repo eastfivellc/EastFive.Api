@@ -19,4 +19,16 @@ namespace EastFive.Api
         }
 
     }
+
+    public class JsonStringHttpResponse : StringHttpResponse
+    {
+        public JsonStringHttpResponse(IHttpRequest request, HttpStatusCode statusCode,
+            string json)
+            : base(request, statusCode,
+                  default, "application/json", default,
+                  json, default)
+        {
+        }
+
+    }
 }

@@ -26,11 +26,13 @@ namespace EastFive.Api
 
         HttpMethod Method { get; set; }
 
-        Func<Stream, Task> WriteBody { get; set; }
+        Func<Stream, Task> WriteBodyAsync { get; set; }
 
         void UpdateHeader(string headerKey, Func<string[], string[]> callback);
 
-        Stream Body { get; }
+        Task<string> ReadContentAsStringAsync();
+
+        Task<byte[]> ReadContentAsync();
 
         bool HasBody { get; }
 

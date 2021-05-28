@@ -70,7 +70,7 @@ namespace EastFive.Api
             {
                 request.UpdateHeader(header.Key, x => x.Append(header.Value).ToArray());
             }
-            request.WriteBody =
+            request.WriteBodyAsync =
                 (stream) =>
                 {
                     var settings = new JsonSerializerSettings();

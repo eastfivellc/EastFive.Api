@@ -75,6 +75,32 @@ namespace EastFive.Api
                     HeaderKeyContentType, 
                     x => x.Append(contentType).ToArray());
 
+        public static bool IsTextType(this Microsoft.Net.Http.Headers.MediaTypeHeaderValue mediaType)
+            => new MediaTypeHeaderValue(mediaType.MediaType.Value).IsTextType();
+
+        public static bool IsTextType(this MediaTypeWithQualityHeaderValue mediaType)
+            => new MediaTypeHeaderValue(mediaType.MediaType).IsTextType();
+
+        public static bool IsTextType(this MediaTypeHeaderValue mediaType)
+        {
+            if (mediaType.IsDefaultOrNull())
+                return false;
+            var typeString = mediaType.MediaType;
+            if (typeString.IsNullOrWhiteSpace())
+                return false;
+            if (typeString.Contains("json", StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (typeString.Contains("text", StringComparison.OrdinalIgnoreCase))
+                return true; 
+            if (typeString.Contains("html", StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (typeString.Contains("xml", StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (typeString.Contains("csv", StringComparison.OrdinalIgnoreCase))
+                return true;
+            return false;
+        }
+
         #endregion
 
         private const string HeaderKeyAcceptCharset = "Accept-Charset";

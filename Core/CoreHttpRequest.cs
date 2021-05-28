@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 using EastFive.Extensions;
 using Microsoft.AspNetCore.Mvc.Razor;
 using Microsoft.Extensions.Primitives;
+using EastFive.Serialization;
 
 namespace EastFive.Api.Core
 {
@@ -72,11 +73,107 @@ namespace EastFive.Api.Core
 
         public HttpMethod Method { get; set; }
 
-        public Func<Stream, Task> WriteBody { get; set; }
-
-        public Stream Body => this.request.Body;
+        public Func<Stream, Task> WriteBodyAsync { get; set; }
 
         public bool HasBody => this.request.ContentLength.HasValue;
+
+        private byte[] bodyData;
+        private AutoResetEvent bodyDataLock = new AutoResetEvent(true);
+        private bool hasBodyBeenRead = false;
+
+        public async Task<byte []> ReadContentAsync()
+        {
+            await WriteBodyAsync();
+
+            try
+            { 
+                bodyDataLock.WaitOne();
+                if (hasBodyBeenRead)
+                    return bodyData;
+                bodyData = await request.Body.ToBytesAsync();
+                hasBodyBeenRead = true;
+                return bodyData;
+            }
+            finally
+            {
+                bodyDataLock.Set();
+            }
+
+            async Task WriteBodyAsync()
+            {
+                //if (this.WriteBodyAsync.IsDefaultOrNull())
+                //    return;
+
+                //if (hasWrittenBody)
+                //    return;
+
+                //using (var stream = new MemoryStream())
+                //{
+                //    await this.WriteBodyAsync(stream);
+                //    Content = stream.ToArray();
+                //}
+            }
+
+            //if (request.Body.CanSeek)
+            //    if (request.Body.Position > 0)
+            //        request.Body.Seek(0, System.IO.SeekOrigin.Begin);
+            ////return await BodyMissing($"JSON body position was {request.Body.Position}");
+
+            //if (contentString.IsNullOrWhiteSpace())
+            //{
+            //    if (request is CoreHttpRequest)
+            //    {
+            //        var coreRequest = request as CoreHttpRequest;
+            //        var contentLength = coreRequest.request.ContentLength.Value;
+            //        if (contentLength > 0)
+            //        {
+            //            var buffer = new byte[contentLength];
+            //            var contentBytesCount = await request.Body.ReadAsync(
+            //                buffer, 0, (int)contentLength);
+            //            var bufferNotDefault = buffer.Where(b => !b.IsDefault()).Count();
+            //            return await BodyMissing(
+            //                $"JSON body of length {contentLength} read {contentBytesCount} not default = {bufferNotDefault}");
+            //        }
+            //        return await BodyMissing(
+            //            $"JSON body of type {coreRequest.request.ContentType} has length {coreRequest.request.ContentLength} -- {coreRequest.request}");
+            //    }
+            //    return await BodyMissing("JSON body content is empty");
+            //}
+        }
+
+        public async Task<string> ReadContentAsStringAsync()
+        {
+            var bytes = await ReadContentAsync();
+
+            var encoding = GetEncoding();
+            return bytes.GetString(encoding);
+
+            Encoding GetEncoding()
+            {
+                var typedHeaders = this.request.GetTypedHeaders();
+                if (!typedHeaders.IsNotDefaultOrNull())
+                    return Encoding.ASCII;
+
+                var contentType = typedHeaders.ContentType;
+                if (!contentType.IsNotDefaultOrNull())
+                    return Encoding.ASCII;
+
+                var charset = contentType.Charset;
+                if (charset.Value.IsNullOrWhiteSpace())
+                    return Encoding.ASCII;
+
+                try
+                {
+                    var charsetStr = charset.Value;
+                    return Encoding.GetEncoding(charsetStr);
+                } catch(ArgumentException)
+                {
+                    return Encoding.ASCII;
+                }
+            }
+
+
+        }
 
         public bool HasFormContentType => this.request.HasFormContentType;
 

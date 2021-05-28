@@ -3,6 +3,7 @@ using EastFive.Api.Services;
 using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using EastFive.Linq;
+using EastFive.Serialization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc.Razor;
@@ -48,31 +49,39 @@ namespace EastFive.Api.Core
 
         public async Task InvokeAsync(HttpContext context)
         {
-            var matchesResources = pathLookups.Any(pathLookup => context.Request.Path.StartsWithSegments('/' + pathLookup));
-            if (!matchesResources)
+            try
             {
-                await continueAsync(context);
-                return;
-            }
-
-            var requestLifetime = context.Features.Get<IHttpRequestLifetimeFeature>();
-            var cancellationToken = requestLifetime.IsDefaultOrNull()?
-                new CancellationToken()
-                :
-                requestLifetime.RequestAborted;
-            var request = new CoreHttpRequest(context.Request, this.razorViewEngine, cancellationToken);
-            var routeResponse = await InvokeRequestAsync(request, this.app,
-                () =>
+                var matchesResources = pathLookups.Any(pathLookup => context.Request.Path.StartsWithSegments('/' + pathLookup));
+                if (!matchesResources)
                 {
-                    return new HttpResponse(context, continueAsync);
-                });
+                    await continueAsync(context);
+                    return;
+                }
 
-            await routeResponse.WriteResponseAsync(context);
+                var requestLifetime = context.Features.Get<IHttpRequestLifetimeFeature>();
+                var cancellationToken = requestLifetime.IsDefaultOrNull() ?
+                    new CancellationToken()
+                    :
+                    requestLifetime.RequestAborted;
+                context.Request.EnableBuffering();
+                var request = new CoreHttpRequest(context.Request, this.razorViewEngine, cancellationToken);
+                var routeResponse = await InvokeRequestAsync(request, this.app,
+                    () =>
+                    {
+                        return new HttpResponse(context, continueAsync);
+                    });
 
-            if (routeResponse is IHaveMoreWork)
-                taskQueue.QueueBackgroundWorkItem(
-                    (cancellationToken) => (routeResponse as IHaveMoreWork)
-                        .ProcessWorkAsync(cancellationToken));
+                await routeResponse.WriteResponseAsync(context);
+
+                if (routeResponse is IHaveMoreWork)
+                    taskQueue.QueueBackgroundWorkItem(
+                        (cancellationToken) => (routeResponse as IHaveMoreWork)
+                            .ProcessWorkAsync(cancellationToken));
+            } catch(Exception ex)
+            {
+                var stackTraceBytes = $"{ex.Message}\n\n{ex.StackTrace}".GetBytes();
+                await context.Response.Body.WriteAsync(stackTraceBytes, 0, stackTraceBytes.Length);
+            }
         }
 
         private class HttpResponse : IHttpResponse

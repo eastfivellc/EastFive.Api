@@ -42,7 +42,7 @@ namespace EastFive.Api
             if (!request.HasBody)
                 return await BodyMissing("Body was not provided");
 
-            var contentString = await request.Body.ReadAsStringAsync();
+            var contentString = await request.ReadContentAsStringAsync();
 
             if (contentString.IsNullOrWhiteSpace())
                 return await BodyMissing("XML body content was empty");

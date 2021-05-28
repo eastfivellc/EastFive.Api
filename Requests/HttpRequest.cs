@@ -1,7 +1,4 @@
-﻿using EastFive.Linq;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc.Razor;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,6 +6,13 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.Razor;
+
+using EastFive.Extensions;
+using EastFive.Linq;
+using EastFive.Serialization;
 
 namespace EastFive.Api
 {
@@ -26,22 +30,57 @@ namespace EastFive.Api
         public CancellationToken CancellationToken { get; private set; }
 
         public HttpMethod Method { get; set; }
-        
-        public Func<Stream, Task> WriteBody { get; set; }
+
+        private byte[] content;
+        public byte[] Content
+        {
+            get => content;
+            set
+            {
+                this.HasBody = !value.IsDefaultNullOrEmpty();
+                content = value;
+            }
+        }
+
+        private bool hasWrittenBody;
+        private Func<Stream, Task> writeBody;
+        public Func<Stream, Task> WriteBodyAsync
+        {
+            get => writeBody;
+            set
+            {
+                hasWrittenBody = false;
+                HasBody = true;
+                writeBody = value;
+            }
+        }
 
         public bool HasBody { get; private set; }
 
-        private Stream body;
-        public Stream Body
+        public async Task<string> ReadContentAsStringAsync()
         {
-            get
+            var contentBytes = await ReadContentAsync();
+            return contentBytes.GetString(Encoding.UTF8);
+        }
+
+        public async Task<byte[]> ReadContentAsync()
+        {
+            await WriteBodyAsync();
+            return Content;
+
+            async Task WriteBodyAsync()
             {
-                return body;
-            }
-            set
-            {
-                HasBody = true;
-                body = value;
+                if (this.WriteBodyAsync.IsDefaultOrNull())
+                    return;
+
+                if (hasWrittenBody)
+                    return;
+
+                using (var stream = new MemoryStream())
+                {
+                    await this.WriteBodyAsync(stream);
+                    Content = stream.ToArray();
+                }
             }
         }
 

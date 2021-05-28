@@ -40,11 +40,7 @@ namespace EastFive.Api
             if (!request.HasBody)
                 return await BodyMissing("Body was not provided");
 
-            //if(request.Body.CanSeek)
-            //    if(request.Body.Position > 0)
-            //        return await BodyMissing($"JSON body position was {request.Body.Position}");
-
-            var contentString = await request.Body.ReadAsStringAsync();
+            var contentString = await request.ReadContentAsStringAsync();
 
             if (contentString.IsNullOrWhiteSpace())
                 return await BodyMissing("JSON body content is empty");

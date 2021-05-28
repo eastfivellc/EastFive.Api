@@ -408,6 +408,27 @@ namespace EastFive.Api
 
     #endregion
 
+    [JsonStringResponse]
+    public delegate IHttpResponse JsonStringResponse(string content);
+    public class JsonStringResponseAttribute : HttpFuncDelegateAttribute
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override string Example => "{ }";
+
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
+        {
+            JsonStringResponse responseDelegate = (json) =>
+            {
+                var response = new JsonStringHttpResponse(request, this.StatusCode, json);
+                return UpdateResponse(parameterInfo, httpApp, request, response);
+            };
+            return onSuccess(responseDelegate);
+        }
+    }
+
     #region HTML
 
     [HtmlResponse]
