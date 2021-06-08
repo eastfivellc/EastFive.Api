@@ -966,15 +966,6 @@ namespace EastFive.Api
             return UpdateResponse(parameterInfo, httpApp, request, response);
         }
     }
-    public static class MultipartAsyncResponseExtensions
-    {
-        public static IHttpResponse HttpResponse<TResource>(
-            this IEnumerableAsync<TResource> resources,
-            MultipartAsyncResponse<TResource> responseDelegate)
-        {
-            return responseDelegate(resources);
-        }
-    }
 
     [MultipartAcceptArrayResponse]
     public delegate IHttpResponse MultipartAcceptArrayResponse(IEnumerable<object> responses);
