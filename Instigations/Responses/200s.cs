@@ -490,6 +490,7 @@ namespace EastFive.Api
                                   {
                                       await output.WriteAsync($"<html><head><title>Could not find file with path:{fullViewPath}</title></head>");
                                       await output.WriteAsync($"<body><div>Could not find file with path:{fullViewPath}</div></body></html>");
+                                      return;
                                   }
                               }
                               
@@ -571,10 +572,11 @@ namespace EastFive.Api
                     var fullDirPath = env.ContentRootPath + Path.DirectorySeparatorChar + directoryPath;
                     foreach (var dirInfo in Directory.EnumerateDirectories(fullDirPath))
                     {
-                        var tryPath = $"{directoryPath}/{dirInfo}";
+                        var dirName = dirInfo.Substring(fullDirPath.Length).Trim('\\');
+                        var tryPath = $"{directoryPath}/{dirName}";
                         if (TryPath(tryPath, out pathFound))
                             return true;
-                        if (TrySearchView(directoryPath + Path.DirectorySeparatorChar + directoryPath, out pathFound))
+                        if (TrySearchView(directoryPath + Path.DirectorySeparatorChar + dirName, out pathFound))
                             return true;
                     }
                     pathFound = default;
