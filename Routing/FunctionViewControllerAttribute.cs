@@ -100,10 +100,10 @@ namespace EastFive.Api
         }
 
         public async virtual Task<IHttpResponse> CreateResponseAsync(Type controllerType,
-            IApplication httpApp, IHttpRequest request)
+            IApplication httpApp, IHttpRequest request, string[] componentsMatched)
         {
             var matchingActionMethods = GetHttpMethods(controllerType,
-                httpApp, request);
+                httpApp, request, componentsMatched);
             if (!matchingActionMethods.Any())
                 return request.CreateResponse(HttpStatusCode.NotImplemented);
 
@@ -116,7 +116,7 @@ namespace EastFive.Api
                         return contentParser.ParseContentValuesAsync(httpApp, request,
                             (bodyCastDelegate, bodyValues) =>
                                 InvokeMethod(
-                                    matchingActionMethods,
+                                    matchingActionMethods, componentsMatched,
                                     httpApp, request,
                                     bodyCastDelegate, bodyValues));
                     },
@@ -128,7 +128,7 @@ namespace EastFive.Api
                                 (paramInfo, onParsed, onFailure) => onFailure(
                                     $"Request did not contain any content.");
                             return InvokeMethod(
-                                matchingActionMethods,
+                                matchingActionMethods, componentsMatched,
                                 httpApp, request,
                                 parserEmpty, new string[] { });
                         }
@@ -137,7 +137,7 @@ namespace EastFive.Api
                             (paramInfo, onParsed, onFailure) => onFailure(
                                 $"Could not parse content of type {mediaType}");
                         return InvokeMethod(
-                            matchingActionMethods,
+                            matchingActionMethods, componentsMatched,
                             httpApp, request,
                             parser, new string[] { });
                     });
@@ -146,7 +146,7 @@ namespace EastFive.Api
         #region Invoke correct method
 
         protected virtual IEnumerable<MethodInfo> GetHttpMethods(Type controllerType,
-            IApplication httpApp, IHttpRequest request)
+            IApplication httpApp, IHttpRequest request, string [] componentsMatched)
         {
             var matchingActionMethods = controllerType
                 .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
@@ -157,7 +157,8 @@ namespace EastFive.Api
                     {
                         var isMatch = method
                             .GetAttributesInterface<IMatchRoute>()
-                            .Any(routeMatcher => routeMatcher.IsMethodMatch(method, request, httpApp));
+                            .Any(routeMatcher => routeMatcher.IsMethodMatch(
+                                method, request, httpApp, componentsMatched));
                         return isMatch;
                     });
             return matchingActionMethods;
@@ -165,6 +166,7 @@ namespace EastFive.Api
 
         protected virtual async Task<IHttpResponse> InvokeMethod(
             IEnumerable<MethodInfo> matchingActionMethods,
+            string[] componentsMatched,
             IApplication httpApp, IHttpRequest routeData,
             CastDelegate bodyCastDelegate, string[] bodyValues)
         {
@@ -173,7 +175,7 @@ namespace EastFive.Api
                     method =>
                     {
                         var routeMatcher = method.GetAttributesInterface<IMatchRoute>().Single();
-                        return routeMatcher.IsRouteMatch(method, this, routeData, httpApp,
+                        return routeMatcher.IsRouteMatch(method, componentsMatched, this, routeData, httpApp,
                             bodyValues, bodyCastDelegate);
                     });
 
@@ -390,21 +392,31 @@ namespace EastFive.Api
                 httpApp);
         }
 
-        public virtual bool DoesHandleRequest(Type type, IHttpRequest request, out double matchQuality)
+        public virtual bool DoesHandleRequest(Type type, IHttpRequest request,
+            out double matchQuality, out string [] componentsMatched)
         {
             matchQuality = 
                 (this.Route.HasBlackSpace() ? 0 : 2) +
                 (this.Namespace.HasBlackSpace() ? 0 : 1);
-
+            componentsMatched = (
+                this.Namespace.HasBlackSpace() ?
+                        this.Namespace.Split('/')
+                        :
+                        new string[] { })
+                .Concat(this.Route.HasBlackSpace() ?
+                    this.Route.Split('/')
+                    :
+                    new string[] { })
+                .ToArray();
             if (IsExcluded())
                 return false;
 
-            if (!IsNamespaceCorrect())
+            if (!IsNamespaceCorrect(out int nsComponentCount))
                 return false;
 
             if (this.Route.HasBlackSpace())
             {
-                var doesMatch = DoesMatch(1, this.Route);
+                var doesMatch = DoesMatch(nsComponentCount, this.Route);
                 return doesMatch;
             }
 
@@ -414,23 +426,33 @@ namespace EastFive.Api
             {
                 var requestUrl = request.GetAbsoluteUri();
                 var path = requestUrl.AbsolutePath;
+                while (path.Contains("//"))
+                    path = path.Replace("//", "/");
+                var valueComponents = value.Split('/');
+
                 var pathParameters = path
                     .Split('/'.AsArray())
                     .Where(v => v.HasBlackSpace())
                     .ToArray();
-                if (pathParameters.Length <= index)
+                if (pathParameters.Length < index + valueComponents.Length)
                     return false;
-                var component = pathParameters[index];
-                if (!component.Equals(value, StringComparison.OrdinalIgnoreCase))
+                var components = pathParameters.Skip(index).Take(valueComponents.Length);
+                
+                if (!valueComponents.SequenceEqual(components, StringComparison.OrdinalIgnoreCase))
                     return false;
+
                 return true;
             }
 
-            bool IsNamespaceCorrect()
+            bool IsNamespaceCorrect(out int nsComponentCount)
             {
                 if (this.Namespace.IsNullOrWhiteSpace())
+                {
+                    nsComponentCount = 1;
                     return true;
+                }
 
+                nsComponentCount = this.Namespace.Split('/').Length;
                 if (!Namespace.Contains(','))
                     return DoesMatch(0, this.Namespace);
                 

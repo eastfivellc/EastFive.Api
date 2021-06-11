@@ -150,12 +150,14 @@ namespace EastFive.Api.Core
                     resource =>
                     {
                         var doesHandleRequest = resource.invokeResourceAttr.DoesHandleRequest(
-                            resource.type, requestMessage, out double matchQuality);
+                            resource.type, requestMessage, 
+                            out double matchQuality, out string[] componentsMatched);
                         return new
                         {
                             doesHandleRequest,
                             resource,
                             matchQuality,
+                            componentsMatched,
                         };
                     })
                 .OrderBy(tpl => tpl.matchQuality)
@@ -180,7 +182,8 @@ namespace EastFive.Api.Core
                                         .First();
                                     var response = await invokeResource
                                         .CreateResponseAsync(controllerTypeFinal,
-                                            httpAppFinal, routeDataFinal);
+                                            httpAppFinal, routeDataFinal,
+                                            requestHandler.componentsMatched);
                                     return response;
                                 },
                                 (callback, routeHandler) =>

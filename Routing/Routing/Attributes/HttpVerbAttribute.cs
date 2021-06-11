@@ -81,17 +81,19 @@ namespace EastFive.Api
 
         public abstract string Method { get; }
 
-        public virtual bool IsMethodMatch(MethodInfo method, IHttpRequest request, IApplication httpApp)
+        public virtual bool IsMethodMatch(MethodInfo method, IHttpRequest request, IApplication httpApp,
+            string[] componentsMatched)
         {
             var isMethodMatch = String.Compare(this.Method, request.Method.Method, true) == 0;
             return isMethodMatch;
         }
 
         public RouteMatch IsRouteMatch(
-            MethodInfo method, IInvokeResource resourceInvoker, IHttpRequest request, IApplication httpApp,
+            MethodInfo method, string[] componentsMatched, 
+            IInvokeResource resourceInvoker, IHttpRequest request, IApplication httpApp,
             IEnumerable<string> bodyKeys, CastDelegate fetchBodyParam)
         {
-            var fileNameCastDelegate = GetFileNameCastDelegate(request, httpApp, out string [] pathKeys);
+            var fileNameCastDelegate = GetFileNameCastDelegate(request, httpApp, componentsMatched, out string [] pathKeys);
             var fetchQueryParam = GetQueryCastDelegate(request, httpApp, out string [] queryKeys);
             var parametersCastResults = method
                 .GetParameters()
@@ -161,7 +163,7 @@ namespace EastFive.Api
         }
 
         protected virtual CastDelegate GetFileNameCastDelegate(
-            IHttpRequest request, IApplication httpApp, out string [] pathKeys)
+            IHttpRequest request, IApplication httpApp, string [] componentsMatched, out string [] pathKeys)
         {
             var path = request.RequestUri.Segments
                 .Skip(1)

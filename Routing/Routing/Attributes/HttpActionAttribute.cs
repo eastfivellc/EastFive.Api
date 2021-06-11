@@ -24,38 +24,42 @@ namespace EastFive.Api
 
         public override string Method => Action;
 
-        public override bool IsMethodMatch(MethodInfo method, IHttpRequest request, IApplication httpApp)
+        public override bool IsMethodMatch(MethodInfo method, IHttpRequest request, IApplication httpApp,
+            string[] componentsMatched)
         {
             var path = request.RequestUri.Segments
-                .Skip(1)
+                .Select(segment => segment.Trim('/'))
+                .Where(segment => segment.HasBlackSpace())
+                .Skip(componentsMatched.Length)
                 .Select(segment => segment.Trim('/'.AsArray()))
                 .Where(pathPart => !pathPart.IsNullOrWhiteSpace())
                 .ToArray();
-            if (path.Length < 3)
+            if (!path.Any())
                 return false;
-            var action = path.Skip(2).First();
+            var action = path.First();
 
             var isMethodMatch = String.Compare(Action, action, true) == 0;
             return isMethodMatch;
         }
 
         protected override CastDelegate GetFileNameCastDelegate(
-            IHttpRequest request, IApplication httpApp, out string[] pathKeys)
+            IHttpRequest request, IApplication httpApp, string[] componentsMatched, out string[] pathKeys)
         {
-            var path = request.RequestUri.Segments
-                .Skip(1)
-                .Select(segment => segment.Trim('/'.AsArray()))
-                .Where(pathPart => !pathPart.IsNullOrWhiteSpace())
+            pathKeys = request.RequestUri.Segments
+                .Where(seg => seg.Trim('/').HasBlackSpace())
+                .Skip(componentsMatched.Length + 1)
                 .ToArray();
-            pathKeys = path.Skip(3).ToArray();
+            var paths = pathKeys;
             CastDelegate fileNameCastDelegate =
                 (paramInfo, onParsed, onFailure) =>
                 {
-                    if (path.Length < 4)
+                    if (!paths.Any())
                         return onFailure("No URI filename value provided.");
-                    return httpApp.Bind(path[3], paramInfo,
-                            v => onParsed(v),
-                            (why) => onFailure(why));
+                    if (paths.Length > 1)
+                        return onFailure($"More than 1 path key `{paths.Join(',')}` not supported.");
+                    return httpApp.Bind(paths.First(), paramInfo,
+                        v => onParsed(v),
+                        (why) => onFailure(why));
                 };
             return fileNameCastDelegate;
         }

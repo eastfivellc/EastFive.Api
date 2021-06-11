@@ -531,6 +531,7 @@ namespace EastFive.Api
                                       instance.Model = model;
                                   });
 
+                              //using (var output = new StreamWriter(new StreamAsyncWrapper(responseStream)))
                               using (var output = new StreamWriter(responseStream))
                               {
                                   await output.WriteAsync(html);
