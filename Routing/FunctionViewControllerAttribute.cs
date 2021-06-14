@@ -398,67 +398,81 @@ namespace EastFive.Api
             matchQuality = 
                 (this.Route.HasBlackSpace() ? 0 : 2) +
                 (this.Namespace.HasBlackSpace() ? 0 : 1);
-            componentsMatched = (
-                this.Namespace.HasBlackSpace() ?
-                        this.Namespace.Split('/')
-                        :
-                        new string[] { })
-                .Concat(this.Route.HasBlackSpace() ?
-                    this.Route.Split('/')
-                    :
-                    new string[] { })
-                .ToArray();
-            if (IsExcluded())
-                return false;
 
-            if (!IsNamespaceCorrect(out int nsComponentCount))
+            var requestUrl = request.GetAbsoluteUri();
+            var path = requestUrl.AbsolutePath;
+            while (path.Contains("//"))
+                path = path.Replace("//", "/");
+            var pathParameters = path
+                .Split('/'.AsArray())
+                .Where(v => v.HasBlackSpace())
+                .ToArray();
+
+            if (IsExcluded())
+            {
+                componentsMatched = new string[] { };
                 return false;
+            }
+
+            if (!IsNamespaceCorrect(out string [] nsComponents))
+            {
+                componentsMatched = new string[] { };
+                return false;
+            }
 
             if (this.Route.HasBlackSpace())
             {
-                var doesMatch = DoesMatch(nsComponentCount, this.Route);
+                var doesMatch = DoesMatch(nsComponents.Length, this.Route, out string [] routeComponents);
+                componentsMatched = nsComponents
+                    .Concat(routeComponents)
+                    .ToArray();
                 return doesMatch;
             }
 
+            componentsMatched = nsComponents;
             return true;
 
-            bool DoesMatch(int index, string value)
+            bool DoesMatch(int index, string value, out string [] matchComponents)
             {
-                var requestUrl = request.GetAbsoluteUri();
-                var path = requestUrl.AbsolutePath;
-                while (path.Contains("//"))
-                    path = path.Replace("//", "/");
                 var valueComponents = value.Split('/');
 
-                var pathParameters = path
-                    .Split('/'.AsArray())
-                    .Where(v => v.HasBlackSpace())
-                    .ToArray();
                 if (pathParameters.Length < index + valueComponents.Length)
+                {
+                    matchComponents = default;
                     return false;
-                var components = pathParameters.Skip(index).Take(valueComponents.Length);
+                }
+                matchComponents = pathParameters.Skip(index).Take(valueComponents.Length).ToArray();
                 
-                if (!valueComponents.SequenceEqual(components, StringComparison.OrdinalIgnoreCase))
+                if (!valueComponents.SequenceEqual(matchComponents, StringComparison.OrdinalIgnoreCase))
                     return false;
 
                 return true;
             }
 
-            bool IsNamespaceCorrect(out int nsComponentCount)
+            bool IsNamespaceCorrect(out string [] nsComponents)
             {
                 if (this.Namespace.IsNullOrWhiteSpace())
                 {
-                    nsComponentCount = 1;
+                    nsComponents = pathParameters.Take(1).ToArray();
                     return true;
                 }
 
-                nsComponentCount = this.Namespace.Split('/').Length;
                 if (!Namespace.Contains(','))
-                    return DoesMatch(0, this.Namespace);
-                
-                var doesAnyNamespaceMatch = Namespace
+                {
+                    return DoesMatch(0, this.Namespace, out nsComponents);
+                }
+
+                bool doesAnyNamespaceMatch;
+                (doesAnyNamespaceMatch, nsComponents) = Namespace
                     .Split(',')
-                    .Any(ns => DoesMatch(0, ns));
+                    .First(
+                        (ns, next) =>
+                        {
+                            if (!DoesMatch(0, ns, out string[] nsInner))
+                                return next();
+                            return (true, nsInner);
+                        },
+                        () => (false, new string[] { }));
                 return doesAnyNamespaceMatch;
             }
 
@@ -472,7 +486,7 @@ namespace EastFive.Api
                     .First(
                         (exNs, next) =>
                         {
-                            if (DoesMatch(0, exNs))
+                            if (DoesMatch(0, exNs, out string [] discard))
                                 return true;
                             return next();
                         },
