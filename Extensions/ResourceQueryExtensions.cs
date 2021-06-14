@@ -163,10 +163,15 @@ namespace EastFive.Api
                     .Select(argument => argument.Key.PairWithValue(argument.Value.Resolve()))
                     .ToArray();
                 var value = queryParameters.First().Value;
-                var idStr = typeof(Guid).IsAssignableFrom(value.GetType()) ?
-                    ((Guid)value).ToString("N")
-                    :
-                    ((string)value);
+                
+                var idStr =
+                    value.IsDefaultOrNull()?
+                        "null"
+                        :
+                        typeof(Guid).IsAssignableFrom(value.GetType()) ?
+                            ((Guid)value).ToString("N")
+                            :
+                            ((string)value);
                 return url.AppendToPath(idStr);
             }
 
@@ -262,9 +267,26 @@ namespace EastFive.Api
                 throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{query.GetType().FullName}`", "query");
             var requestMessageQuery = query as RequestMessage<TResource>;
 
-            var condition = Expression.Call(
-                typeof(ResourceQueryExtensions), "ById", new Type[] { typeof(TResource) },
-                query.Expression, Expression.Constant(resourceId));
+            var method = typeof(ResourceQueryExtensions)
+                .GetMethods(BindingFlags.Public | BindingFlags.Static)
+                .Where(m => m.Name == nameof(ById))
+                .Where(
+                    m =>
+                    {
+                        var ps = m.GetParameters();
+                        if (ps.Length < 2)
+                            return false;
+                        var p = ps[1];
+                        if (p.Name != nameof(resourceId))
+                            return false;
+
+                        return p.ParameterType == typeof(string);
+                    })
+                .First()
+                .MakeGenericMethod(new Type[] { typeof(TResource) });
+
+            var condition = Expression.Call(method,
+                query.Expression, Expression.Constant(resourceId, typeof(string)));
 
             var requestMessageNewQuery = requestMessageQuery.FromExpression(condition);
             return requestMessageNewQuery;
