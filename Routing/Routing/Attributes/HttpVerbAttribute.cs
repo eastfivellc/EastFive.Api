@@ -162,10 +162,17 @@ namespace EastFive.Api
                 });
         }
 
+
+        protected static string[] PathComponents(IHttpRequest request)
+            => request.RequestUri.Segments
+                .Select(segment => System.Web.HttpUtility.UrlDecode(segment).Trim('/').Trim())
+                .Where(segment => segment.HasBlackSpace())
+                .ToArray();
+
         protected virtual CastDelegate GetFileNameCastDelegate(
             IHttpRequest request, IApplication httpApp, string [] componentsMatched, out string [] pathKeys)
         {
-            var path = request.RequestUri.Segments
+            var path = PathComponents(request)
                 .Skip(1)
                 .Select(segment => segment.Trim('/'.AsArray()))
                 .Where(pathPart => !pathPart.IsNullOrWhiteSpace())

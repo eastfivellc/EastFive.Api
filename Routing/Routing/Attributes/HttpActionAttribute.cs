@@ -28,7 +28,7 @@ namespace EastFive.Api
             string[] componentsMatched)
         {
             var path = request.RequestUri.Segments
-                .Select(segment => segment.Trim('/'))
+                .Select(segment => System.Web.HttpUtility.UrlDecode(segment).Trim('/').Trim())
                 .Where(segment => segment.HasBlackSpace())
                 .Skip(componentsMatched.Length)
                 .Select(segment => segment.Trim('/'.AsArray()))
@@ -63,6 +63,12 @@ namespace EastFive.Api
                 };
             return fileNameCastDelegate;
         }
+
+        protected static string[] PathComponents(IHttpRequest request)
+            => request.RequestUri.Segments
+                .Select(segment => System.Web.HttpUtility.UrlDecode(segment).Trim('/').Trim())
+                .Where(segment => segment.HasBlackSpace())
+                .ToArray();
 
         public override Method GetMethod(Route route, MethodInfo methodInfo, HttpApplication httpApp)
         {
