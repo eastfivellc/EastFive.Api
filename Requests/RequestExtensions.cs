@@ -76,7 +76,10 @@ namespace EastFive.Api
                     x => x.Append(contentType).ToArray());
 
         public static bool IsTextType(this Microsoft.Net.Http.Headers.MediaTypeHeaderValue mediaType)
-            => new MediaTypeHeaderValue(mediaType.MediaType.Value).IsTextType();
+            => mediaType.IsNotDefaultOrNull()?
+                new MediaTypeHeaderValue(mediaType.MediaType.Value).IsTextType()
+                :
+                false;
 
         public static bool IsTextType(this MediaTypeWithQualityHeaderValue mediaType)
             => new MediaTypeHeaderValue(mediaType.MediaType).IsTextType();
