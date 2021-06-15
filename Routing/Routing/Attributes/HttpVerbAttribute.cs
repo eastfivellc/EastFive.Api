@@ -172,18 +172,17 @@ namespace EastFive.Api
         protected virtual CastDelegate GetFileNameCastDelegate(
             IHttpRequest request, IApplication httpApp, string [] componentsMatched, out string [] pathKeys)
         {
-            var path = PathComponents(request)
-                .Skip(1)
-                .Select(segment => segment.Trim('/'.AsArray()))
-                .Where(pathPart => !pathPart.IsNullOrWhiteSpace())
+            pathKeys = PathComponents(request)
+                .Skip(componentsMatched.Length)
                 .ToArray();
-            pathKeys = path.Skip(2).ToArray();
+            var path = pathKeys;
             CastDelegate fileNameCastDelegate =
                 (paramInfo, onParsed, onFailure) =>
                 {
-                    if (path.Length < 3)
+                    if (!path.Any())
                         return onFailure("No URI filename value provided.");
-                    return httpApp.Bind(path[2], paramInfo,
+                    var fileName = path.First();
+                    return httpApp.Bind(fileName, paramInfo,
                         v => onParsed(v),
                         (why) => onFailure(why));
                 };

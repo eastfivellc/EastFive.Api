@@ -27,9 +27,7 @@ namespace EastFive.Api
         public override bool IsMethodMatch(MethodInfo method, IHttpRequest request, IApplication httpApp,
             string[] componentsMatched)
         {
-            var path = request.RequestUri.Segments
-                .Select(segment => System.Web.HttpUtility.UrlDecode(segment).Trim('/').Trim())
-                .Where(segment => segment.HasBlackSpace())
+            var path = PathComponents(request)
                 .Skip(componentsMatched.Length)
                 .Select(segment => segment.Trim('/'.AsArray()))
                 .Where(pathPart => !pathPart.IsNullOrWhiteSpace())
@@ -45,8 +43,7 @@ namespace EastFive.Api
         protected override CastDelegate GetFileNameCastDelegate(
             IHttpRequest request, IApplication httpApp, string[] componentsMatched, out string[] pathKeys)
         {
-            pathKeys = request.RequestUri.Segments
-                .Where(seg => seg.Trim('/').HasBlackSpace())
+            pathKeys = PathComponents(request)
                 .Skip(componentsMatched.Length + 1)
                 .ToArray();
             var paths = pathKeys;
@@ -63,12 +60,6 @@ namespace EastFive.Api
                 };
             return fileNameCastDelegate;
         }
-
-        protected static string[] PathComponents(IHttpRequest request)
-            => request.RequestUri.Segments
-                .Select(segment => System.Web.HttpUtility.UrlDecode(segment).Trim('/').Trim())
-                .Where(segment => segment.HasBlackSpace())
-                .ToArray();
 
         public override Method GetMethod(Route route, MethodInfo methodInfo, HttpApplication httpApp)
         {
