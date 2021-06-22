@@ -279,17 +279,11 @@ namespace EastFive.Api.Bindings
 
             if (type.IsEnum)
             {
-                object value;
-                try
-                {
-                    value = Enum.Parse(type, content);
-                }
-                catch (Exception)
-                {
-                    var validValues = Enum.GetNames(type).Join(", ");
-                    return onDidNotBind($"Value `{content}` is not a valid value for `{type.FullName}.` Valid values are [{validValues}].");
-                }
-                return onParsed(value);
+                if(Enum.TryParse(type, content, out object value))
+                    return onParsed(value);
+
+                var validValues = Enum.GetNames(type).Join(", ");
+                return onDidNotBind($"Value `{content}` is not a valid value for `{type.FullName}.` Valid values are [{validValues}].");
             }
 
             return onDidNotBind($"No binding for type `{type.FullName}` provided by {typeof(StandardStringBindingsAttribute).FullName}.");

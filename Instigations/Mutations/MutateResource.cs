@@ -137,44 +137,61 @@ namespace EastFive.Api
                 return onFailure($"JSON Content is {contentJContainer.Type} and mutation can only be performed from objects.");
             var contentJObject = contentJContainer as JObject;
 
-            Func<string, Type, (object, bool)> getPropertyValue =
-                (key, parameterType) =>
-                {
-                    if (!contentJObject.TryGetValue(key, out JToken valueToken))
-                        return ($"Key[{key}] was not found in JSON", false);
+            return ParseContentDelegate(GetPropertyValue, parameterInfo,
+                onParsed,
+                onFailure);
 
-                    try
-                    {
-                        //var tokenParser = new Serialization.JsonTokenParser(valueToken);
-                        return httpApp.Bind(valueToken, parameterType,
-                            obj => (obj, true),
-                            (why) =>
+            (object, bool)  GetPropertyValue(string key, Type parameterType)
+            {
+                if (!contentJObject.TryGetValue(key, out JToken valueToken))
+                    return ($"Key[{key}] was not found in JSON", false);
+
+                try
+                {
+                    //var tokenParser = new Serialization.JsonTokenParser(valueToken);
+                    return httpApp.Bind(valueToken, parameterType,
+                        obj => (obj, true),
+                        (why) =>
+                        {
+                            // TODO: Get BindConvert to StandardJTokenBindingAttribute
+                            if (valueToken.Type == JTokenType.Object || valueToken.Type == JTokenType.Array)
                             {
-                                // TODO: Get BindConvert to StandardJTokenBindingAttribute
-                                if (valueToken.Type == JTokenType.Object || valueToken.Type == JTokenType.Array)
+                                if (parameterType.IsSubClassOfGeneric(typeof(Property<>)))
                                 {
                                     try
                                     {
                                         var value = Newtonsoft.Json.JsonConvert.DeserializeObject(
-                                            valueToken.ToString(), parameterType, bindConvert);
-                                        return (value, true);
+                                            valueToken.ToString(),
+                                            parameterType.GetGenericArguments().First(),
+                                            bindConvert);
+                                        var propertyValue = Activator.CreateInstance(parameterType, value);
+                                        return (propertyValue, true);
                                     }
                                     catch (Newtonsoft.Json.JsonSerializationException jsEx)
                                     {
                                         return (jsEx.Message, false);
                                     }
                                 }
-                                return (why, false);
-                            });
-                    }
-                    catch (Exception ex)
-                    {
-                        return (ex.Message, false);
-                    }
-                };
-            return ParseContentDelegate(getPropertyValue, parameterInfo,
-                onParsed,
-                onFailure);
+
+                                try
+                                {
+                                    var value = Newtonsoft.Json.JsonConvert.DeserializeObject(
+                                        valueToken.ToString(), parameterType, bindConvert);
+                                    return (value, true);
+                                }
+                                catch (Newtonsoft.Json.JsonSerializationException jsEx)
+                                {
+                                    return (jsEx.Message, false);
+                                }
+                            }
+                            return (why, false);
+                        });
+                }
+                catch (Exception ex)
+                {
+                    return (ex.Message, false);
+                }
+            }
         }
 
         public TResult ParseContentDelegate<TResult>(

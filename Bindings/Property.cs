@@ -13,6 +13,12 @@ namespace EastFive.Api
     [PropertyJsonBinder]
     public struct Property<T>
     {
+        public Property(T value)
+        {
+            specified = true;
+            this.value = value;
+        }
+
         public bool specified;
         public T value;
     }
