@@ -74,7 +74,7 @@ namespace EastFive.Api.Bindings
             var bytesGeneric = content.OpenReadStream().ToBytesAsync().Result;
             return application.Bind(bytesGeneric, type,
                 (v) => onParsed(v),
-                why => throw new Exception(why));
+                why => onDidNotBind(why));
             //return onDidNotBind(
             //    $"{type.FullName} is not supported from Form Data. Consider wrapping it as a ReadRequestBodyDelegateAsync<>");
         }

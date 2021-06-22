@@ -314,7 +314,7 @@ namespace EastFive.Api
             return onNeedsStringParsed(strValue);
         }
 
-        public TResult ParseContentDelegate<TResult>(IFormCollection formData, 
+        public virtual TResult ParseContentDelegate<TResult>(IFormCollection formData, 
                 ParameterInfo parameterInfo, IApplication httpApp, IHttpRequest routeData,
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure)

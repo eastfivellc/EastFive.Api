@@ -548,6 +548,7 @@ namespace EastFive.Api
                           }
                       })
             {
+                this.SetContentType("text/html");
             }
 
             private static bool TryFindView(Microsoft.Extensions.Hosting.IHostEnvironment env, string viewPath,
