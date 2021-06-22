@@ -429,8 +429,15 @@ namespace EastFive.Api
                 return doesMatch;
             }
 
-            componentsMatched = nsComponents;
-            return true;
+            {
+                //var route = pathParameters
+                //    .Skip(nsComponents.Length)
+                //    .First();
+                componentsMatched = nsComponents;
+                        //.Append(route)
+                        //.ToArray();
+                return true;
+            }
 
             bool DoesMatch(int index, string value, out string [] matchComponents)
             {

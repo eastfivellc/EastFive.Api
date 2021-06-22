@@ -93,8 +93,8 @@ namespace EastFive.Api
             IInvokeResource resourceInvoker, IHttpRequest request, IApplication httpApp,
             IEnumerable<string> bodyKeys, CastDelegate fetchBodyParam)
         {
-            var fileNameCastDelegate = GetFileNameCastDelegate(request, httpApp, componentsMatched, out string [] pathKeys);
-            var fetchQueryParam = GetQueryCastDelegate(request, httpApp, out string [] queryKeys);
+            var fileNameCastDelegate = GetFileNameCastDelegate(request, httpApp, componentsMatched, out string[] pathKeys);
+            var fetchQueryParam = GetQueryCastDelegate(request, httpApp, out string[] queryKeys);
             var parametersCastResults = method
                 .GetParameters()
                 .Where(param => param.ContainsAttributeInterface<IBindApiValue>())
