@@ -83,7 +83,7 @@ namespace EastFive.Api.Core
 
         public async Task<byte []> ReadContentAsync()
         {
-            await WriteBodyAsync();
+            //await WriteBodyAsync();
 
             try
             { 
@@ -99,20 +99,20 @@ namespace EastFive.Api.Core
                 bodyDataLock.Set();
             }
 
-            async Task WriteBodyAsync()
-            {
-                //if (this.WriteBodyAsync.IsDefaultOrNull())
-                //    return;
+            //async Task WriteBodyAsync()
+            //{
+            //    //if (this.WriteBodyAsync.IsDefaultOrNull())
+            //    //    return;
 
-                //if (hasWrittenBody)
-                //    return;
+            //    //if (hasWrittenBody)
+            //    //    return;
 
-                //using (var stream = new MemoryStream())
-                //{
-                //    await this.WriteBodyAsync(stream);
-                //    Content = stream.ToArray();
-                //}
-            }
+            //    //using (var stream = new MemoryStream())
+            //    //{
+            //    //    await this.WriteBodyAsync(stream);
+            //    //    Content = stream.ToArray();
+            //    //}
+            //}
 
             //if (request.Body.CanSeek)
             //    if (request.Body.Position > 0)
