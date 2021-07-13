@@ -40,7 +40,7 @@ namespace EastFive.Api
             {
                 var settings = new JsonSerializerSettings();
                 settings.Converters.Add(new Serialization.Converter(this.Request));
-                settings.DefaultValueHandling = DefaultValueHandling.Ignore;
+                settings.DefaultValueHandling = DefaultValueHandling.Include;
 
                 var enumerator = objectsAsync.GetEnumerator();
                 await streamWriter.WriteAsync('[');
