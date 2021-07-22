@@ -11,6 +11,7 @@ using Newtonsoft.Json;
 
 using EastFive.Linq;
 using EastFive.Reflection;
+using EastFive.Extensions;
 
 namespace EastFive.Api.Serialization
 {
@@ -44,6 +45,8 @@ namespace EastFive.Api.Serialization
                     return true;
             }
             if (objectType.IsSubclassOf(typeof(Type)))
+                return true;
+            if (objectType.IsEnum)
                 return true;
             return jsonConverters.Any(jc => jc.CanConvert(objectType));
         }
@@ -119,13 +122,12 @@ namespace EastFive.Api.Serialization
                 return;
             }
 
-            if(value == null)
+            if(!value.TryGetType(out Type valueType))
             {
                 writer.WriteNull();
                 return;
             }
 
-            var valueType = value.GetType();
             if (valueType.IsSubClassOfGeneric(typeof(IDictionary<,>)))
             {
                 writer.WriteStartObject();
@@ -166,6 +168,13 @@ namespace EastFive.Api.Serialization
                 }
                 var stringType = typeValue.GetClrString();
                 writer.WriteValue(stringType);
+                return;
+            }
+
+            if(valueType.IsEnum)
+            {
+                var stringValue = Enum.GetName(valueType, value);
+                writer.WriteValue(stringValue);
                 return;
             }
 
