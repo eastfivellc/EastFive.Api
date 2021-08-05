@@ -29,8 +29,8 @@ namespace EastFive.Api.Core
         private readonly string[] pathLookups;
         private readonly IBackgroundTaskQueue taskQueue;
 
+        public const string HeaderStatusType = "X-StatusType";
         public const string HeaderStatusName = "X-StatusName";
-        public const string HeaderStatusInstance = "X-StatusInstance";
 
         public Middleware(RequestDelegate next, IApplication app,
             IRazorViewEngine razorViewEngine,

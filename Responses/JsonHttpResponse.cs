@@ -13,6 +13,7 @@ using Newtonsoft.Json;
 using EastFive.Extensions;
 using System.IO;
 using EastFive.Api.Bindings.ContentHandlers;
+using Microsoft.AspNetCore.Http.Headers;
 
 namespace EastFive.Api
 {
@@ -25,7 +26,14 @@ namespace EastFive.Api
             : base(request, statusCode)
         {
             this.content = content;
-            this.Headers.Add("Content-Type", "application/json".AsArray());
+            // this.Headers.Add("Content-Type", "application/json".AsArray());
+        }
+
+        public override void WriteHeaders(HttpContext context, ResponseHeaders headers)
+        {
+            base.WriteHeaders(context, headers);
+            headers.ContentType = new Microsoft.Net.Http.Headers.MediaTypeHeaderValue(
+                "application/json");
         }
 
         public override Task WriteResponseAsync(System.IO.Stream responseStream)

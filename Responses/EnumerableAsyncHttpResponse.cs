@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 
 using EastFive.Extensions;
 using EastFive.Linq.Async;
+using Microsoft.AspNetCore.Http.Headers;
 using Newtonsoft.Json;
 
 namespace EastFive.Api
@@ -28,6 +29,12 @@ namespace EastFive.Api
             this.application = application;
             this.objectsAsync = objectsAsync;
             this.parameterInfo = parameterInfo;
+        }
+
+        public override void WriteHeaders(Microsoft.AspNetCore.Http.HttpContext context, ResponseHeaders headers)
+        {
+            base.WriteHeaders(context, headers);
+            headers.ContentType = new Microsoft.Net.Http.Headers.MediaTypeHeaderValue("application/json");
         }
 
         public override async Task WriteResponseAsync(Stream responseStream)

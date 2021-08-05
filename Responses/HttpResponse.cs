@@ -55,7 +55,8 @@ namespace EastFive.Api
         {
             WriteStatusCode(context);
             WriteReason(context);
-            WriteHeaders(context);
+            var typedHeaders = context.Response.GetTypedHeaders();
+            WriteHeaders(context, typedHeaders);
             WriteCookies(context);
         }
 
@@ -87,7 +88,8 @@ namespace EastFive.Api
 
         }
 
-        public virtual void WriteHeaders(HttpContext context)
+        public virtual void WriteHeaders(HttpContext context,
+            Microsoft.AspNetCore.Http.Headers.ResponseHeaders headers)
         {
             foreach (var header in this.Headers)
                 context.Response.Headers.Add(header.Key, header.Value);
