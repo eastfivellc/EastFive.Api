@@ -134,8 +134,10 @@ namespace EastFive.Api
                         .Where(
                             accept =>
                             {
-                                return accept.MediaType.Equals(
-                                    serializationProvider.ContentType,
+                                var contentType = serializationProvider.ContentType;
+                                if (contentType.IsNullOrWhiteSpace())
+                                    return false;
+                                return accept.MediaType.Equals(contentType,
                                     StringComparison.OrdinalIgnoreCase);
                             })
                         .Any();
@@ -144,8 +146,10 @@ namespace EastFive.Api
                         .Where(
                             accept =>
                             {
-                                return accept.MediaType.Equals(
-                                    serializationProvider.MediaType,
+                                var mediaType = serializationProvider.MediaType;
+                                if (mediaType.IsNullOrWhiteSpace())
+                                    return false;
+                                return accept.MediaType.Equals(mediaType,
                                     StringComparison.OrdinalIgnoreCase);
                             })
                         .Any();
