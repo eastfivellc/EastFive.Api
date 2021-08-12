@@ -247,16 +247,7 @@ namespace EastFive.Api
             if (!resourceRef.HasValue)
                 return query;
 
-            if (!typeof(IComposibleQuery<TResource>).IsAssignableFrom(query.GetType()))
-                throw new ArgumentException($"Query must be of type `{typeof(IComposibleQuery<TResource>).FullName}` not `{query.GetType().FullName}`", "query");
-            var composibleQuery = query as IComposibleQuery<TResource>;
-
-            var condition = Expression.Call(
-                typeof(ResourceQueryExtensions), "ById", new Type[] { typeof(TResource) },
-                query.Expression, Expression.Constant(resourceRef.id.Value));
-
-            var requestMessageNewQuery = composibleQuery.FromExpression(condition);
-            return requestMessageNewQuery;
+            return query.ById(resourceRef.Ref);
         }
 
         [MutateIdQuery]
