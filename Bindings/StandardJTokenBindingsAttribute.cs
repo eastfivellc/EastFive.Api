@@ -790,8 +790,9 @@ namespace EastFive.Api.Bindings
                 if (reader.TokenType == JsonToken.String)
                 {
                     var guidString = reader.Value as string;
-                    var guid = Guid.Parse(guidString);
-                    return onGot(guid);
+                    if(Guid.TryParse(guidString, out Guid guid))
+                        return onGot(guid);
+                    return onFailed($"Cannot parse `{guidString}` as a Guid.");
                 }
                 if (reader.TokenType == JsonToken.StartObject)
                 {

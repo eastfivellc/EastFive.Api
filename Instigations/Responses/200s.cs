@@ -34,6 +34,7 @@ namespace EastFive.Api
 {
     #region Objects
 
+    [Meta.Flows.WorkflowResponseDefinition]
     [BodyTypeResponse(StatusCode = HttpStatusCode.OK)]
     public delegate IHttpResponse ContentTypeResponse<TResource>(TResource content, string contentType = default(string));
     
@@ -953,6 +954,7 @@ namespace EastFive.Api
 
     #region Multipart
 
+    [Meta.Flows.WorkflowResponseDefinition]
     [MultipartAsyncResponseGeneric]
     public delegate IHttpResponse MultipartAsyncResponse<TResource>(IEnumerableAsync<TResource> responses);
     public class MultipartAsyncResponseGenericAttribute : HttpGenericDelegateAttribute
@@ -994,6 +996,7 @@ namespace EastFive.Api
         }
     }
 
+    [Meta.Flows.WorkflowResponseDefinition]
     [MultipartAcceptArrayResponseType]
     public delegate IHttpResponse MultipartAcceptArrayResponse<TResource>(IEnumerable<TResource> responses);
     public class MultipartAcceptArrayResponseTypeAttribute : HttpGenericDelegateAttribute

@@ -22,7 +22,8 @@ namespace EastFive.Api
 {
     [StatusCodeResponse(StatusCode = HttpStatusCode.Created)]
     public delegate IHttpResponse CreatedResponse();
-    
+
+    [Meta.Flows.WorkflowResponseDefinition]
     [BodyTypeResponse(StatusCode = HttpStatusCode.Created)]
     public delegate IHttpResponse CreatedBodyResponse<TResource>(TResource content, string contentType = default);
     

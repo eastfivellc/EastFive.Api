@@ -1,8 +1,4 @@
-﻿using BlackBarLabs.Api;
-using EastFive.Extensions;
-using EastFive.Linq;
-using EastFive.Web.Configuration;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -13,8 +9,16 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
+using EastFive.Extensions;
+using EastFive.Linq;
+using EastFive.Web.Configuration;
+using EastFive.Api.Meta.Flows;
+
 namespace EastFive.Api
 {
+    [WorkflowHeaderRequired("{{AuthorizationHeaderName}}", "{{TOKEN}}")]
+        //$"{{{{{EastFive.Azure.Workflows.AuthorizationFlow.Variables.AuthHeaderName}}}}}", 
+        //$"{{{{{Workflows.AuthorizationFlow.Variables.TokenName}}}}}")]
     [SessionToken]
     public struct SessionToken
     {

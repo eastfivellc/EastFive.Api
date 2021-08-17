@@ -191,6 +191,7 @@ namespace EastFive.Api.Resources
     {
         public Response(ParameterInfo paramInfo)
         {
+            this.ParamInfo = paramInfo;
             this.Name = paramInfo.Name;
             this.StatusCode = System.Net.HttpStatusCode.OK;
             //this.Example = "TODO: JSON serialize response type";
@@ -201,6 +202,8 @@ namespace EastFive.Api.Resources
         {
         }
 
+        public ParameterInfo ParamInfo { get; set; }
+
         public string Name { get; set; }
 
         public System.Net.HttpStatusCode StatusCode { get; set; }
@@ -208,5 +211,21 @@ namespace EastFive.Api.Resources
         public string Example { get; set; }
 
         public KeyValuePair<string, string>[] Headers { get; set; }
+
+        public bool IsMultipart
+        {
+            get
+            {
+                if (this.ParamInfo.ParameterType
+                    .IsSubClassOfGeneric(typeof(MultipartAsyncResponse<>)))
+                    return true;
+
+                if (this.ParamInfo.ParameterType
+                    .IsSubClassOfGeneric(typeof(MultipartAcceptArrayResponse<>)))
+                    return true;
+
+                return false;
+            }
+        }
     }
 }

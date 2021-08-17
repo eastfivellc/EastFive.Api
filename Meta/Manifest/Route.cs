@@ -26,6 +26,8 @@ namespace EastFive.Api.Resources
 
         public bool IsEntryPoint { get; set; }
 
+        public Type Type { get; private set; }
+
         [RequiredClaim(
             System.Security.Claims.ClaimTypes.Role,
             "superadmin")]
@@ -84,6 +86,7 @@ namespace EastFive.Api.Resources
         public Route(Type type, string nameSpace, string name, MethodInfo[] methods, MemberInfo[] properties,
             HttpApplication httpApp)
         {
+            this.Type = type;
             this.IsEntryPoint = type.ContainsAttributeInterface<IDisplayEntryPoint>();
             this.Namespace = nameSpace;
             this.Name = name;

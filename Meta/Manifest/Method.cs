@@ -14,8 +14,10 @@ namespace EastFive.Api.Resources
 
     public class Method
     {
-        public Method(string httpMethod, MethodInfo methodInfo, Uri path, HttpApplication httpApp)
+        public Method(string httpMethod, MethodInfo methodInfo, Route route, Uri path, HttpApplication httpApp)
         {
+            this.MethodPoco = methodInfo;
+            this.Route = route;
             this.HttpMethod = httpMethod;
             this.Name = methodInfo.Name;
             this.Path = path;
@@ -56,7 +58,11 @@ namespace EastFive.Api.Resources
                 .ToArray();
         }
 
+        public MethodInfo MethodPoco { get; set; }
+
         public string HttpMethod { get; set; }
+
+        public Route Route { get; set; }
 
         public string Name { get; set; }
 

@@ -76,6 +76,7 @@ namespace EastFive.Api
         {
             var response = new Response()
             {
+                ParamInfo = paramInfo,
                 Name = paramInfo.Name,
                 StatusCode = this.StatusCode,
                 Example = this.Example,
