@@ -20,6 +20,7 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
         public string raw { get; set; }
         public string[] host { get; set; }
         public string[] path { get; set; }
+        public QueryItem[] query { get; set; }
     }
 
     public class Header
@@ -27,6 +28,12 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
         public string key { get; set; }
         public string value { get; set; }
         public string type { get; set; }
+    }
+
+    public class QueryItem
+    {
+        public string key { get; set; }
+        public string value { get; set; }
     }
 
 }

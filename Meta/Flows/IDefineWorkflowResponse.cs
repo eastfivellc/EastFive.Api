@@ -84,7 +84,7 @@ namespace EastFive.Api.Meta.Flows
                 out string resourceNameName)
             {
                 var resourceName = method.Route.Name;
-                resourceTypeName = $"E5_AUTH_{resourceName}";
+                resourceTypeName = $"{resourceName}";
 
                 var idProperties = method.Route.Properties.Where(prop => prop.IsIdentfier).ToArray();
                 if (!idProperties.Any())

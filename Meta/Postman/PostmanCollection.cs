@@ -63,10 +63,11 @@ namespace EastFive.Api.Meta.Postman
 
             return manifest.Routes
                 .SelectMany(route => route.Methods)
-                .TryWhere(
-                    (Api.Resources.Method method, out IDefineFlow flowAttr) =>
-                        method.MethodPoco.TryGetAttributeInterface(out flowAttr))
-                .GroupBy(methodAndFlow => methodAndFlow.@out.FlowName)
+                .SelectMany(method => method.MethodPoco
+                    .GetAttributesInterface<IDefineFlow>(multiple:true)
+                    .Select(attr => (method, attr)))
+                .GroupBy(methodAndFlow => methodAndFlow.attr.FlowName)
+                .Where(grp => grp.Key.HasBlackSpace())
                 .Where(grp => grp.Key.Equals(flow, StringComparison.OrdinalIgnoreCase))
                 .First(
                     (methodAndFlowGrp, next) =>
@@ -79,9 +80,9 @@ namespace EastFive.Api.Meta.Postman
                         };
 
                         var items = methodAndFlowGrp
-                            .OrderBy(methodAndFlow => methodAndFlow.@out.Step)
+                            .OrderBy(methodAndFlow => methodAndFlow.attr.Step)
                             .Select(
-                                methodAndFlow => methodAndFlow.@out.GetItem(methodAndFlow.item))
+                                methodAndFlow => methodAndFlow.attr.GetItem(methodAndFlow.method))
                             .ToArray();
 
                         var collection = new Resources.Collection.Collection()

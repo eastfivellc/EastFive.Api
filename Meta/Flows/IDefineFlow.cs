@@ -175,7 +175,8 @@ namespace EastFive.Api.Meta.Flows
         }
     }
 
-    
+    public class WorkflowStep2Attribute : WorkflowStepAttribute
+    {
 
-    
+    }
 }
