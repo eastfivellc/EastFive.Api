@@ -91,15 +91,45 @@ namespace EastFive.Api.Bindings
             }
             if (type == typeof(DateTime))
             {
-                if (DateTime.TryParse(content, out DateTime dateValue))
-                    return onParsed(dateValue);
-                if (content.HasBlackSpace())
+                return ParseDate(content,
+                    (currentDateString) => onDidNotBind(
+                        $"Failed to convert {content} to `{typeof(DateTime).FullName}`."));
+
+                TResult ParseDate(string dateString, Func<string, TResult> onParseFailed)
                 {
-                    var decodedContent = System.Net.WebUtility.UrlDecode(content);
-                    if (DateTime.TryParse(decodedContent, out DateTime dateValueDecoded))
-                        return onParsed(dateValueDecoded);
+                    if(dateString.IsNullOrWhiteSpace())
+                        return onParseFailed(dateString);
+
+                    if (DateTime.TryParse(dateString, out DateTime dateValue))
+                        return onParsed(dateValue);
+
+                    // Common format not supported by TryParse
+                    if (DateTime.TryParseExact(dateString, "ddd MMM d yyyy HH:mm:ss 'GMT'K",
+                            null, System.Globalization.DateTimeStyles.AllowWhiteSpaces, out dateValue))
+                        return onParsed(dateValue);
+
+                    var startOfDescText = dateString.IndexOf('(');
+                    if (startOfDescText > 0)
+                    {
+                        var cleanerText = content.Substring(0, startOfDescText);
+                        return ParseDate(cleanerText,
+                            failedText =>
+                            {
+                                var decodedContent = System.Net.WebUtility.UrlDecode(failedText);
+                                if (decodedContent != failedText)
+                                    return ParseDate(decodedContent,
+                                        (failedDecodedText) => onParseFailed(failedDecodedText));
+                                return onParseFailed(failedText);
+                            });
+                    }
+
+                    var decodedContent = System.Net.WebUtility.UrlDecode(dateString);
+                    if (decodedContent != dateString)
+                        return ParseDate(decodedContent,
+                            (failedDecodedText) => onParseFailed(failedDecodedText));
+                    return onParseFailed(dateString);
                 }
-                return onDidNotBind($"Failed to convert {content} to `{typeof(DateTime).FullName}`.");
+
             }
             if (type == typeof(DateTimeOffset))
             {
