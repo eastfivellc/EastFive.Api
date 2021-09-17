@@ -13,11 +13,13 @@ using Microsoft.AspNetCore.Http;
 
 using Newtonsoft.Json.Linq;
 
+using EastFive;
+using EastFive.Reflection;
 using EastFive.Api.Bindings;
 using EastFive.Api.Resources;
 using EastFive.Extensions;
 using EastFive.Linq;
-using Microsoft.AspNetCore.Http.Internal;
+
 
 namespace EastFive.Api
 {
@@ -153,18 +155,20 @@ namespace EastFive.Api
                     //    item => item.ToString());
                     //var typeConverted = casted.Cast<int>().ToArray();
 
-                    var casted = Array.ConvertAll(array,
-                        item => Convert(httpApp, elementType, item, (v) => v, (why) => elementType.GetDefault()));
-                    var typeConvertedEnumerable = typeof(System.Linq.Enumerable)
-                        .GetMethod("Cast", BindingFlags.Static | BindingFlags.Public)
-                        .MakeGenericMethod(new Type[] { elementType })
-                        .Invoke(null, new object[] { casted });
-                    var typeConvertedArray = typeof(System.Linq.Enumerable)
-                        .GetMethod("ToArray", BindingFlags.Static | BindingFlags.Public)
-                        .MakeGenericMethod(new Type[] { elementType })
-                        .Invoke(null, new object[] { typeConvertedEnumerable });
+                    var casted = Array
+                        .ConvertAll(array,
+                            item => Convert(httpApp, elementType, item, (v) => v, (why) => elementType.GetDefault()))
+                        .CastArray(elementType);
+                    //var typeConvertedEnumerable = typeof(System.Linq.Enumerable)
+                    //    .GetMethod("Cast", BindingFlags.Static | BindingFlags.Public)
+                    //    .MakeGenericMethod(new Type[] { elementType })
+                    //    .Invoke(null, new object[] { casted });
+                    //var typeConvertedArray = typeof(System.Linq.Enumerable)
+                    //    .GetMethod("ToArray", BindingFlags.Static | BindingFlags.Public)
+                    //    .MakeGenericMethod(new Type[] { elementType })
+                    //    .Invoke(null, new object[] { typeConvertedEnumerable });
 
-                    return onCasted(typeConvertedArray);
+                    return onCasted(casted);
                 }
             }
 
@@ -191,17 +195,48 @@ namespace EastFive.Api
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure)
         {
-            if (!(contentJContainer is JObject))
-                return onFailure($"JSON Content is {contentJContainer.Type} and properties can only be parsed from objects.");
-            var contentJObject = contentJContainer as JObject;
+            if (contentJContainer is JObject)
+            {
+                var contentJObject = contentJContainer as JObject;
 
-            var key = this.GetKey(paramInfo);
-            return ParseJsonContentDelegate(contentJObject,
-                    contentString, bindConvert,
-                    key, paramInfo,
-                    httpApp, request,
-                onParsed,
-                onFailure);
+                var key = this.GetKey(paramInfo);
+                return ParseJsonContentDelegate(contentJObject,
+                        contentString, bindConvert,
+                        key, paramInfo,
+                        httpApp, request,
+                    onParsed,
+                    onFailure);
+            }
+
+            if(contentJContainer is JArray)
+            {
+                var contentJArray = contentJContainer as JArray;
+                var paramType = paramInfo.ParameterType;
+                var key = this.GetKey(paramInfo);
+                if (paramType.IsArray)
+                {
+                    var elementType = paramType.GetElementType();
+                    var arrayOfType = contentJArray
+                        .Select(
+                            contentJToken =>
+                            {
+                                if (contentJToken is JObject)
+                                {
+                                    var contentJObject = (JObject)contentJToken;
+                                    if (!contentJObject.TryGetValue(key, out JToken valueToken))
+                                        return elementType.GetDefault();
+                                    return httpApp.Bind(valueToken, elementType,
+                                        obj => obj,
+                                        why => elementType.GetDefault());
+                                }
+                                return elementType.GetDefault();
+                            })
+                        .CastArray(elementType);
+                    return onParsed(arrayOfType);
+                }
+            }
+
+            return onFailure($"JSON Content is {contentJContainer.Type} and non-array properties can only be parsed from objects.");
         }
 
         public static TResult ParseJsonContentDelegate<TResult>(JObject contentJObject,
