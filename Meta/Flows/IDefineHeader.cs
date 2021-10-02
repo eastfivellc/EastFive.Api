@@ -3,6 +3,7 @@ using EastFive.Api.Resources;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -10,7 +11,7 @@ namespace EastFive.Api.Meta.Flows
 {
     public interface IDefineHeader
     {
-        Header GetHeader(Api.Resources.Method method);
+        Header GetHeader(Api.Resources.Method method, ParameterInfo parameter);
     }
 
     public class WorkflowHeaderRequiredAttribute : Attribute, IDefineHeader
@@ -24,7 +25,7 @@ namespace EastFive.Api.Meta.Flows
             this.headerValue = headerValue;
         }
 
-        public Header GetHeader(Method method)
+        public Header GetHeader(Api.Resources.Method method, ParameterInfo parameter)
         {
             return new Header()
             {

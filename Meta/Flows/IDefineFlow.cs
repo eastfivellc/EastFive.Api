@@ -118,7 +118,7 @@ namespace EastFive.Api.Meta.Flows
                                 return true;
                             return false;
                         })
-                    .Select(tpl => tpl.@out.GetHeader(method))
+                    .Select(tpl => tpl.@out.GetHeader(method, tpl.item))
                     .ToArray(),
                 body = body,
                 url = new Url()

@@ -58,6 +58,10 @@ namespace EastFive.Api.Serialization
             if (objectType == typeof(Type))
                 return true;
 
+
+            if (objectType == typeof(DateTime))
+                return true;
+
             return false;
         }
 
@@ -65,7 +69,10 @@ namespace EastFive.Api.Serialization
         {
             return this.application.Bind(reader, objectType,
                 v => v,
-                (why) => existingValue);
+                (why) =>
+                {
+                    return existingValue;
+                });
         }
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)

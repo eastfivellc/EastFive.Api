@@ -13,12 +13,10 @@ using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Web.Configuration;
 using EastFive.Api.Meta.Flows;
+using EastFive.Api.Meta.Postman.Resources.Collection;
 
 namespace EastFive.Api
 {
-    [WorkflowHeaderRequired("{{AuthorizationHeaderName}}", "{{TOKEN}}")]
-        //$"{{{{{EastFive.Azure.Workflows.AuthorizationFlow.Variables.AuthHeaderName}}}}}", 
-        //$"{{{{{Workflows.AuthorizationFlow.Variables.TokenName}}}}}")]
     [SessionToken]
     public struct SessionToken
     {
@@ -41,7 +39,7 @@ namespace EastFive.Api
         }
     }
 
-    public class SessionTokenAttribute : Attribute, IInstigatable
+    public class SessionTokenAttribute : Attribute, IInstigatable, IDefineHeader
     {
         public Task<IHttpResponse> Instigate(IApplication httpApp,
                 IHttpRequest request, ParameterInfo parameterInfo,
@@ -78,6 +76,24 @@ namespace EastFive.Api
                     .CreateResponse(HttpStatusCode.Unauthorized)
                     .AddReason(why)
                     .AsTask());
+        }
+
+        public Header GetHeader(Api.Resources.Method method, ParameterInfo parameter)
+        {
+            if(!method.MethodPoco.TryGetAttributeInterface(out IValidateHttpRequest requestValidator))
+                return new Header()
+                {
+                    key = "{{AuthorizationHeaderName}}",
+                    value = "{{TOKEN}}",
+                    type = "text",
+                };
+
+            return new Header()
+            {
+                key = $"api-voucher",
+                value = "{{VoucherToken}}",
+                type = "text",
+            };
         }
     }
 
