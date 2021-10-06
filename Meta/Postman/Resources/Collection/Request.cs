@@ -30,10 +30,10 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
         public string type { get; set; }
     }
 
-    public class QueryItem
+    public struct QueryItem
     {
-        public string key { get; set; }
-        public string value { get; set; }
+        public string key;
+        public string value;
     }
 
 }

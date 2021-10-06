@@ -102,6 +102,22 @@ namespace EastFive.Api.Meta.Flows
                 :
                 PopulateBody();
 
+            var paramQueryItems = method.MethodPoco
+                        .GetParameters()
+                        .TryWhere((ParameterInfo paramInfo, out IDefineQueryItem requestProperty) =>
+                            paramInfo.TryGetAttributeInterface(out requestProperty))
+                        .Select(tpl => tpl.@out.GetQueryItem(method, tpl.item))
+                        .SelectWhereHasValue();
+            var attrQueryItems = method
+                .MethodPoco
+                .CustomAttributes
+                .SelectMany(
+                    attr =>
+                    {
+                        return attr.AttributeType.GetAttributesInterface<IDefineQueryItem>();
+                    })
+                .SelectMany(attr => attr.GetQueryItems(method));
+
             return new Request()
             {
                 method = method.HttpMethod,
@@ -125,10 +141,12 @@ namespace EastFive.Api.Meta.Flows
                 {
                     raw = $"{{{{HOST}}}}/api/{method.Route.Name}",
                     host = "{{HOST}}".AsArray(),
-                    path = new string[] { "api", method.Route.Name }
+                    path = new string[] { "api", method.Route.Name },
+                    query = paramQueryItems.Concat(attrQueryItems).ToArray(),
                 },
                 description = GetDescription(),
             };
+
 
             Body PopulateBody()
             {
@@ -176,6 +194,11 @@ namespace EastFive.Api.Meta.Flows
     }
 
     public class WorkflowStep2Attribute : WorkflowStepAttribute
+    {
+
+    }
+
+    public class WorkflowStep3Attribute : WorkflowStepAttribute
     {
 
     }

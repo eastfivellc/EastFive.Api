@@ -12,9 +12,9 @@ namespace EastFive.Api.Auth
 {
     public class RequiredClaimAttribute : Attribute, IValidateHttpRequest
     {
-        public Uri ClaimType { get; set; }
+        public virtual Uri ClaimType { get; set; }
 
-        public string ClaimValue { get; set; }
+        public virtual string ClaimValue { get; set; }
 
         public RequiredClaimAttribute(string requiredClaimType, string requiredClaimValue)
         {

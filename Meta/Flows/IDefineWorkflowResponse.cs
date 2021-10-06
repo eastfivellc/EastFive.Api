@@ -97,7 +97,13 @@ namespace EastFive.Api.Meta.Flows
                 resourceNameName = resourceType
                     .GetPropertyAndFieldsWithAttributesInterface<ITitleResource>()
                     .First(
-                        (tpl, next) => tpl.Item1.Name,
+                        (tpl, next) =>
+                        {
+                            return tpl.Item1.TryGetAttributeInterface(out IProvideApiValue apiValueProvider) ?
+                                apiValueProvider.PropertyName
+                                :
+                                tpl.Item1.Name;
+                        },
                         () => idProperty);
 
                 var varResourceId = $"\t\tlet resourceId = resource.{idProperty};\r";
