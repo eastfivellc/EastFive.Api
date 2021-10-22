@@ -206,11 +206,14 @@ namespace EastFive.Api
                 .Where(
                     (resource) =>
                     {
-                        if (resource.invokeResourceAttr.ContentType.Equals(resourceType.Trim(), StringComparison.OrdinalIgnoreCase))
-                            return true;
-                        if (resource.invokeResourceAttr.Route.Equals(resourceType.Trim(), StringComparison.OrdinalIgnoreCase))
-                            return true;
-                        if (resource.type.Name.Equals(resourceType.Trim(), StringComparison.OrdinalIgnoreCase))
+                        if(resource.invokeResourceAttr.ContentType.HasBlackSpace())
+                            if (resource.invokeResourceAttr.ContentType.Equals(resourceType.Trim(), StringComparison.OrdinalIgnoreCase))
+                                return true;
+                        if (resource.invokeResourceAttr.Route.HasBlackSpace())
+                            if (resource.invokeResourceAttr.Route.Equals(resourceType.Trim(), StringComparison.OrdinalIgnoreCase))
+                                return true;
+                        if (resource.type.Name.HasBlackSpace())
+                            if (resource.type.Name.Equals(resourceType.Trim(), StringComparison.OrdinalIgnoreCase))
                             return true;
                         return false;
                     })
