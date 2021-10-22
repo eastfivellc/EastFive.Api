@@ -14,7 +14,6 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
         public FormData[] formdata { get; set; }
     }
 
-
     public class Options
     {
         public Raw raw { get; set; }
@@ -31,5 +30,6 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
         public string type { get; set; }
         public string src { get; set; }
         public string value { get; set; }
+        public string description { get; set; }
     }
 }

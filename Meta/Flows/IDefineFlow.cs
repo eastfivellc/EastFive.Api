@@ -31,7 +31,7 @@ namespace EastFive.Api.Meta.Flows
 
         public double Step { get; set; }
 
-        public string Scope { get; }
+        public string Scope { get; set; }
 
         public Item GetItem(Method method)
         {
