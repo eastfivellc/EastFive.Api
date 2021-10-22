@@ -95,7 +95,8 @@ namespace EastFive.Api.Meta.Flows
             var bodyProperties = method.MethodPoco
                 .GetParameters()
                 .TryWhere((ParameterInfo paramInfo, out IDefineWorkflowRequestProperty requestProperty) =>
-                    paramInfo.TryGetAttributeInterface(out requestProperty));
+                    paramInfo.TryGetAttributeInterface(out requestProperty))
+                .ToArray();
 
             var body = bodyProperties.IsDefaultNullOrEmpty() ?
                 default(Body)
@@ -149,6 +150,81 @@ namespace EastFive.Api.Meta.Flows
 
 
             Body PopulateBody()
+            {
+
+                //if (IsFormDataCapable())
+                //    return PopulateJsonBody();
+
+                var formdata = FormDataBody();
+                var rawJsonBody = RawJsonBody();
+
+                var mode = IsFormDataCapable() ?
+                    "formdata"
+                    :
+                    "raw";
+
+                return new Body()
+                {
+                    mode = mode,
+                    options = new Options()
+                    {
+                        raw = new Raw()
+                        {
+                            language = "json",
+                        }
+                    },
+                    formdata = formdata,
+                    raw = rawJsonBody,
+                };
+
+                bool IsFormDataCapable() => formdata.Length == bodyProperties.Length;
+
+                FormData[] FormDataBody()
+                {
+                    return bodyProperties
+                        .Where(
+                            tpl => typeof(IDefineWorkflowRequestPropertyFormData)
+                                .IsAssignableFrom(tpl.@out.GetType()))
+                        .Select(tpl => ((IDefineWorkflowRequestPropertyFormData)tpl.@out, tpl.item))
+                        .SelectMany(attr => attr.Item1.GetFormData(attr.item))
+                        .ToArray();
+                }
+
+                string RawJsonBody()
+                {
+                    var sb = new StringBuilder();
+                    using (var sw = new StringWriter(sb))
+                    {
+                        var jsonSerializer = new JsonSerializer();
+                        using (var writer = new JsonTextWriter(sw)
+                        {
+                            Formatting = Formatting.Indented,
+                        })
+                        {
+                            writer.WriteStartObject();
+                            foreach (var requestProperty in bodyProperties)
+                            {
+                                requestProperty.@out.AddProperties(writer, requestProperty.item);
+                            }
+                            writer.WriteEndObject();
+                        }
+                        return sb.ToString();
+                    }
+                }
+
+                bool IsBodyEmpty()
+                {
+                    if (!formdata.AnyNullSafe())
+                        return false;
+
+                    if (rawJsonBody.Trim(new char[] {'{','}'}).HasBlackSpace())
+                        return false;
+
+                    return true;
+                }
+            } 
+
+            Body PopulateJsonBody()
             {
                 return new Body()
                 {

@@ -17,7 +17,15 @@ namespace EastFive.Api.Meta.Flows
         void AddProperties(JsonWriter requestObj, ParameterInfo parameter);
     }
 
-    public class WorkflowParameterAttribute : System.Attribute, IDefineWorkflowRequestProperty, IDefineQueryItem
+    public interface IDefineWorkflowRequestPropertyFormData : IDefineWorkflowRequestProperty
+    {
+        FormData[] GetFormData(ParameterInfo parameter);
+    }
+
+    public class WorkflowParameterAttribute : System.Attribute,
+        IDefineWorkflowRequestProperty,
+        IDefineQueryItem,
+        IDefineWorkflowRequestPropertyFormData
     {
         public string Value { get; set; }
         public string Scope { get; set; }
@@ -33,6 +41,28 @@ namespace EastFive.Api.Meta.Flows
                 requestObj.WritePropertyName(propertyName);
                 requestObj.WriteValue(this.Value);
             }
+        }
+
+        public FormData[] GetFormData(ParameterInfo parameter)
+        {
+            if (!parameter.ContainsAttributeInterface<IBindFormDataApiValue>(inherit: true))
+                if (!parameter.ContainsAttributeInterface<IBindMultipartApiValue>(inherit: true))
+                    return new FormData[] { };
+
+            var propertyName = parameter.TryGetAttributeInterface(out IBindApiValue apiBinder) ?
+                apiBinder.GetKey(parameter)
+                :
+                parameter.Name;
+
+            return new FormData[]
+            {
+                new FormData
+                {
+                    key = propertyName,
+                    value = this.Value,
+                    type = "text",
+                }
+            };
         }
 
         public QueryItem? GetQueryItem(Method method, ParameterInfo parameter)
@@ -57,7 +87,9 @@ namespace EastFive.Api.Meta.Flows
         }
     }
 
-    public class WorkflowNewIdAttribute : System.Attribute, IDefineWorkflowRequestProperty
+    public class WorkflowNewIdAttribute : System.Attribute,
+        IDefineWorkflowRequestProperty,
+        IDefineWorkflowRequestPropertyFormData
     {
         public string Scope { get; set; }
 
@@ -70,9 +102,32 @@ namespace EastFive.Api.Meta.Flows
             requestObj.WritePropertyName(propertyName);
             requestObj.WriteValue("{{$guid}}");
         }
+
+        public FormData[] GetFormData(ParameterInfo parameter)
+        {
+            if (!parameter.ContainsAttributeInterface<IBindFormDataApiValue>(inherit: true))
+                if (!parameter.ContainsAttributeInterface<IBindMultipartApiValue>(inherit: true))
+                    return new FormData[] { };
+
+            var propertyName = parameter.TryGetAttributeInterface(out IBindApiValue apiBinder) ?
+                    apiBinder.GetKey(parameter)
+                    :
+                    parameter.Name;
+
+            return new FormData[]
+            {
+                new FormData
+                {
+                    key = propertyName,
+                    value = "{{$guid}}",
+                    type = "text",
+                }
+            };
+        }
     }
 
-    public class WorkflowObjectParameterAttribute : System.Attribute, IDefineWorkflowRequestProperty
+    public class WorkflowObjectParameterAttribute : System.Attribute,
+        IDefineWorkflowRequestProperty
     {
         public string Scope { get; set; }
 
