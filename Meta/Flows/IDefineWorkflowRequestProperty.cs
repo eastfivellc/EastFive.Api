@@ -32,6 +32,8 @@ namespace EastFive.Api.Meta.Flows
 
         public string Description { get; set; }
 
+        public bool Disabled { get; set; } = false;
+
         protected abstract string GetValue(ParameterInfo parameter);
 
         protected virtual string GetDescription(ParameterInfo parameter)
@@ -85,6 +87,7 @@ namespace EastFive.Api.Meta.Flows
                     value = value,
                     type = "text",
                     description = description,
+                    disabled = this.Disabled,
                 }
             };
         }
