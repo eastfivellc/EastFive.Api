@@ -30,7 +30,7 @@ namespace EastFive.Api
         public string Namespace { get; set; }
         public string ExcludeNamespaces { get; set; }
         public string Route { get; set; }
-        public string Prefix { get; set; }
+        // public string Prefix { get; set; }
         [Obsolete]
         public Type Resource { get; set; }
         public string ContentType { get; set; }
