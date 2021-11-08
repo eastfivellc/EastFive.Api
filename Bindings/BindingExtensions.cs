@@ -52,10 +52,11 @@ namespace EastFive.Api.Bindings
                             onParsed,
                             (why) =>
                             {
-                                return type.Bind(provider,
-                                        application,
-                                    onParsed,
-                                    onFailureToBind);
+                                return next(); // type.Bind(provider,
+                                        //
+                                        //application,
+                                    //onParsed,
+                                    //onFailureToBind);
                             },
                             onFailureToBind);
                     },

@@ -59,13 +59,12 @@ namespace EastFive.Api
             Func<string, TResult> onFailure)
         {
             var paramType = parameterInfo.ParameterType;
-            var obj = paramType.GetMembers()
+            var obj = paramType
+                .GetPropertyAndFieldsWithAttributesInterface<IProvideApiValue>(true)
                 .Aggregate(Activator.CreateInstance(paramType),
-                    (param, member) =>
+                    (param, memberProvideApiValueTpl) =>
                     {
-                        if (!member.ContainsAttributeInterface<IProvideApiValue>(true))
-                            return param;
-                        var provideApiValue = member.GetAttributeInterface<IProvideApiValue>(true);
+                        var (member, provideApiValue) = memberProvideApiValueTpl;
 
                         if (!content.ContainsKey(provideApiValue.PropertyName))
                             return param;
@@ -130,13 +129,12 @@ namespace EastFive.Api
             Func<string, TResult> onFailure)
         {
             var paramType = parameterInfo.ParameterType;
-            var obj = paramType.GetMembers()
+            var obj = paramType
+                .GetPropertyAndFieldsWithAttributesInterface<IProvideApiValue>(true)
                 .Aggregate(Activator.CreateInstance(paramType),
-                    (param, member) =>
+                    (param, memberProvideApiValueTpl) =>
                     {
-                        if (!member.ContainsAttributeInterface<IProvideApiValue>(true))
-                            return param;
-                        var provideApiValue = member.GetAttributeInterface<IProvideApiValue>(true);
+                        var (member, provideApiValue) = memberProvideApiValueTpl;
 
                         return ParseFormContentDelegate(provideApiValue.PropertyName, formData,
                                 member.GetMemberType(), httpApp,
