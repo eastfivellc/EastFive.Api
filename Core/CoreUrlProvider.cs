@@ -16,8 +16,11 @@ namespace EastFive.Api.Core
 
         public Uri Link(string routeName, string controllerName, string action = null, string id = null)
         {
+            if ("DefaultApi".Equals(routeName))
+                routeName = "api";
+
             var request = this.context.Request;
-            var urlString = $"{request.Scheme}://{context.Request.Host}/api/{controllerName}";
+            var urlString = $"{request.Scheme}://{context.Request.Host}/{routeName}/{controllerName}";
             if (action.HasBlackSpace())
                 urlString = urlString + $"/{action}";
             if (id.HasBlackSpace())

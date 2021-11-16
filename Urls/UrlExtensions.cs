@@ -74,11 +74,13 @@ namespace EastFive.Api
         }
         
         public static Uri GetLocation(this IProvideUrl url, Type controllerType,
-            string routeName = "DefaultApi")
+            string routeName = default)
         {
-            if (String.IsNullOrWhiteSpace(routeName))
+            if(routeName.IsNullOrWhiteSpace())
             {
-                    routeName = "DefaultApi";
+                routeName = controllerType.GetCustomAttribute<FunctionViewControllerAttribute, string>(
+                    (attr) => attr.Namespace,
+                    () => "api");
             }
 
             var controllerName = controllerType.GetCustomAttribute<FunctionViewControllerAttribute, string>(
@@ -186,9 +188,7 @@ namespace EastFive.Api
             string routeName = "DefaultApi")
         {
             if (String.IsNullOrWhiteSpace(routeName))
-            {
-                    routeName = "DefaultApi";
-            }
+                routeName = "DefaultApi";
 
             var controllerName =
                 controllerType.Name.TrimEnd("Controller",
