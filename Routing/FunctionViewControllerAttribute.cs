@@ -27,7 +27,21 @@ namespace EastFive.Api
     public class FunctionViewControllerAttribute 
         : Attribute, IInvokeResource, IDocumentRoute, IProvideSerialization
     {
-        public string Namespace { get; set; }
+        private string ns;
+        public string Namespace
+        {
+            get
+            {
+                if (ns.HasBlackSpace())
+                    return ns;
+                return "api";
+            }
+            set
+            {
+                ns = value;
+            }
+        }
+
         public string ExcludeNamespaces { get; set; }
         public string Route { get; set; }
         // public string Prefix { get; set; }
