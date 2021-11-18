@@ -17,7 +17,6 @@ using Newtonsoft.Json.Serialization;
 using EastFive;
 using EastFive.Extensions;
 using EastFive.Linq;
-using EastFive.Linq.Expressions;
 using EastFive.Linq.Async;
 using EastFive.Collections.Generic;
 using EastFive.Reflection;
