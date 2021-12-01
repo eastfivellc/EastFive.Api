@@ -75,10 +75,10 @@ namespace EastFive.Api
 
             string GetServerUrl()
             {
-                if (urlQuery is RequestMessage<TResource>)
+                if (urlQuery is IProvideServerLocation)
                 {
-                    var requestMessage = urlQuery as RequestMessage<TResource>;
-                    return requestMessage.InvokeApplication.ServerLocation.AbsoluteUri.TrimEnd('/'.AsArray());
+                    var serverLocationProvider = urlQuery as IProvideServerLocation;
+                    return serverLocationProvider.ServerLocation.OriginalString;
                 }
                 throw new ArgumentException("Could not determine value for server location.");
             }

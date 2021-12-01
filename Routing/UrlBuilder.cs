@@ -14,15 +14,25 @@ using EastFive.Api.Core;
 
 namespace EastFive.Api
 {
-    public class UrlBuilder : IBuildUrls
+    public interface IProvideServerLocation
+    {
+        Uri ServerLocation { get; }
+    }
+
+    public class UrlBuilder : IBuildUrls, IProvideServerLocation
     {
         private IProvideUrl urlHelper;
         private IApplication httpApp;
+        private Uri baseUrl;
 
-        public UrlBuilder(IHttpRequest context, IApplication httpApp)
+        public UrlBuilder(IHttpRequest httpRequest, IApplication httpApp)
         {
             this.httpApp = httpApp;
-            this.urlHelper = new CoreUrlProvider((context as CoreHttpRequest).request.HttpContext);
+            this.urlHelper = new CoreUrlProvider((httpRequest as CoreHttpRequest).request.HttpContext);
+            var uriBuilder = new UriBuilder(httpRequest.RequestUri);
+            uriBuilder.Path = String.Empty;
+            uriBuilder.Query = String.Empty;
+            this.baseUrl = uriBuilder.Uri;
         }
 
         public IQueryable<T> Resources<T>()
@@ -35,6 +45,8 @@ namespace EastFive.Api
         {
             throw new NotImplementedException();
         }
+
+        public Uri ServerLocation { get => baseUrl; }
 
         private class RenderableQueryProvider : IQueryProvider
         {

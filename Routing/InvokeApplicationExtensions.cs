@@ -228,9 +228,9 @@ namespace EastFive.Api
             string actionName,
             System.Net.Http.Headers.HttpRequestHeaders headers = default)
         {
-            if (!typeof(RequestMessage<TResource>).IsAssignableFrom(requestQuery.GetType()))
-                throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{requestQuery.GetType().FullName}`", "query");
-            var requestMessageQuery = requestQuery as RequestMessage<TResource>;
+            if (!typeof(IProvideRequestExpression<TResource>).IsAssignableFrom(requestQuery.GetType()))
+                throw new ArgumentException($"query must be of type `{nameof(IProvideRequestExpression<TResource>)}` not `{requestQuery.GetType().FullName}`", "query");
+            var requestMessageQuery = requestQuery as IProvideRequestExpression<TResource>;
 
             var methodInfo = typeof(InvokeApplicationExtensions)
                 .GetMethod("HttpAction", BindingFlags.Static | BindingFlags.Public)
@@ -428,7 +428,7 @@ namespace EastFive.Api
             var stream = new MemoryStream();
             await response.WriteResponseAsync(stream);
             var json = await stream.ReadAsStringAsync();
-            var converter = new BindConvert(httpApp);
+            var converter = new BindConvert(response.Request, httpApp);
             return JsonConvert.DeserializeObject<TResource>(json, converter);
         }
 

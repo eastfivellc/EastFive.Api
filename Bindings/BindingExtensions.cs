@@ -1,4 +1,5 @@
 ﻿using EastFive.Linq;
+using EastFive.Reflection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,25 +16,87 @@ namespace EastFive.Api.Bindings
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailureToBind)
         {
-            return application.GetType()
-                .GetAttributesInterface<IBindApiParameter<TProvider>>(true)
+            return parameter
+                .GetAttributesInterface<IBindApiParameter<TProvider>>()
                 .First(
                     (paramBinder, next) =>
                     {
-                        return paramBinder.Bind(parameter.ParameterType, provider,
+                        return paramBinder.Bind(parameter, provider,
                                 application,
                             onParsed,
                             (why) =>
                             {
                                 return next();
                             },
-                            (why) => next());
+                            (why) => onFailureToBind(why));
                     },
                     () =>
                     {
-                        return parameter.Bind(provider, application,
-                                    onParsed,
-                                    onFailureToBind);
+                        return application.GetType()
+                            .GetAttributesInterface<IBindApiParameter<TProvider>>(true)
+                            .First(
+                                (paramBinder, next) =>
+                                {
+                                    return paramBinder.Bind(parameter, provider,
+                                            application,
+                                        onParsed,
+                                        (why) =>
+                                        {
+                                            return next();
+                                        },
+                                        (why) => next());
+                                },
+                                () =>
+                                {
+                                    return application.Bind(provider, parameter.ParameterType,
+                                                onParsed,
+                                                onFailureToBind);
+                                });
+                    });
+        }
+
+        public static TResult Bind<TProvider, TResult>(this IApplication application,
+                TProvider provider, MemberInfo propertyOrFieldInfo,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onFailureToBind)
+        {
+            return propertyOrFieldInfo
+                .GetAttributesInterface<IBindApiPropertyOrField<TProvider>>()
+                .First(
+                    (propBinder, next) =>
+                    {
+                        return propBinder.Bind<TResult>(propertyOrFieldInfo, provider,
+                                application,
+                            onParsed,
+                            (why) =>
+                            {
+                                return next();
+                            },
+                            (why) => onFailureToBind(why));
+                    },
+                    () =>
+                    {
+                        return application.GetType()
+                            .GetAttributesInterface<IBindApiPropertyOrField<TProvider>>(true)
+                            .First(
+                                (paramBinder, next) =>
+                                {
+                                    return paramBinder.Bind(propertyOrFieldInfo, provider,
+                                            application,
+                                        onParsed,
+                                        (why) =>
+                                        {
+                                            return next();
+                                        },
+                                        (why) => next());
+                                },
+                                () =>
+                                {
+                                    var type = propertyOrFieldInfo.GetPropertyOrFieldType();
+                                    return application.Bind(provider, type,
+                                                onParsed,
+                                                onFailureToBind);
+                                });
                     });
         }
 
@@ -43,7 +106,7 @@ namespace EastFive.Api.Bindings
             Func<string, TResult> onFailureToBind)
         {
             return application.GetType()
-                .GetAttributesInterface<IBindApiParameter<TProvider>>(true)
+                .GetAttributesInterface<IBindParameter<TProvider>>(true)
                 .First(
                     (paramBinder, next) =>
                     {
@@ -60,65 +123,14 @@ namespace EastFive.Api.Bindings
                             },
                             onFailureToBind);
                     },
-                    () =>
-                    {
-                        return type.Bind(provider,
-                                application,
-                            onParsed,
-                            onFailureToBind);
-                    });
-                    //() => onFailureToBind($"{application.GetType().FullName} does not have binding attributes"));
-        }
-
-        private static TResult Bind<TProvider, TResult>(this ParameterInfo parameter,
-                TProvider provider,
-                IApplication application,
-            Func<object, TResult> onParsed,
-            Func<string, TResult> onDidNotBind)
-        {
-            return parameter
-                .GetAttributesInterface<IBindApiParameter<TProvider>>()
-                .First(
-                    (paramBinder, next) =>
-                    {
-                        return paramBinder.Bind(parameter.ParameterType, provider,
-                                application,
-                            onParsed,
-                            (why) =>
-                            {
-                                return next();
-                            },
-                            (why) => next());
-                    },
-                    () => parameter.ParameterType.Bind(provider,
-                            application,
-                        onParsed,
-                        onDidNotBind));
-                    //() => onDidNotBind(
-                    //    $"`{parameter.ParameterType} {parameter.Name}`" + 
-                    //    " does not contain an attribute that implements "+
-                    //    nameof(IBindApiParameter<TProvider>)));
-
-        }
-
-        public static TResult Bind<TProvider, TResult>(this Type type,
-                TProvider provider,
-                IApplication application,
-            Func<object, TResult> onParsed,
-            Func<string, TResult> onDidNotBind)
-        {
-            return type
-                .GetAttributesInterface<IBindApiParameter<TProvider>>()
-                .First(
-                    (paramBinder, next) =>
-                    {
-                        return paramBinder.Bind(type, provider,
-                                application,
-                            onParsed,
-                            onDidNotBind,
-                            onDidNotBind);
-                    },
-                    () => onDidNotBind($"No bindings from {typeof(TProvider).FullName} => {type.FullName}"));
+                    //() =>
+                    //{
+                    //    return type.Bind(provider,
+                    //            application,
+                    //        onParsed,
+                    //        onFailureToBind);
+                    //});
+                    () => onFailureToBind($"{application.GetType().FullName} does not have binding attribute that can bind {type.FullName}"));
         }
     }
 }

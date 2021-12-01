@@ -60,6 +60,14 @@ namespace EastFive.Api
             string routeName = "DefaultApi")
         {
             var baseUrl = url.GetLocation(typeof(TResource), routeName);
+            return baseUrl.SetParameters(parameters, application, routeName: routeName);
+        }
+
+        public static Uri SetParameters<TResource>(this Uri baseUrl,
+            Expression<Action<TResource>>[] parameters,
+            IApiApplication application,
+            string routeName = "DefaultApi")
+        {
             var queryParams = parameters
                 .Select(param => param.GetUrlAssignment(
                     (queryParamName, value) =>
@@ -72,7 +80,7 @@ namespace EastFive.Api
             var queryUrl = baseUrl.SetQuery(queryParams);
             return queryUrl;
         }
-        
+
         public static Uri GetLocation(this IProvideUrl url, Type controllerType,
             string routeName = default)
         {

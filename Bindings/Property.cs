@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -24,8 +25,18 @@ namespace EastFive.Api
     }
 
     public class PropertyJsonBinderAttribute : Attribute,
-            IBindApiParameter<JToken>
+            IBindParameter<JToken>, IBindApiParameter<JToken>
     {
+        public TResult Bind<TResult>(ParameterInfo parameter, JToken content,
+                IApplication application,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure) => Bind(parameter.ParameterType, content,
+                application: application,
+                onParsed: onParsed,
+                onDidNotBind: onDidNotBind,
+                onBindingFailure: onBindingFailure);
+
         public TResult Bind<TResult>(Type type, JToken content,
                 IApplication application,
             Func<object, TResult> onParsed,

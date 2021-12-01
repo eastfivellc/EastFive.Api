@@ -12,7 +12,7 @@ using Microsoft.AspNetCore.Mvc.Razor;
 
 namespace EastFive.Api
 {
-    public interface IHttpRequest
+    public interface IHttpRequest : IProvideServerLocation
     {
         Uri RequestUri { get; set; }
 

@@ -16,10 +16,8 @@ using Microsoft.AspNetCore.Http;
 namespace EastFive.Api
 {
     [IInvokeApplication]
-    public interface IInvokeApplication
+    public interface IInvokeApplication : IProvideServerLocation
     {
-        Uri ServerLocation { get; }
-
         string ApiRouteName { get; }
 
         IDictionary<string, string> Headers { get; }
