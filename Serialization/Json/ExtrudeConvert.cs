@@ -383,49 +383,50 @@ namespace EastFive.Api.Serialization
             IHttpRequest httpRequest, IApplication application)
         {
             var type = member.GetPropertyOrFieldType();
-            
-            if(memberValue == null)
-            {
-                await writer.WriteNullAsync();
-                return;
-            }
 
-            if (typeof(string).IsAssignableFrom(type))
+            await WriteForTypeAsync(type, memberValue);
+
+            async Task WriteForTypeAsync(Type type, object memberValue)
             {
-                await writer.WriteValueAsync((string)memberValue);
-                return;
-            }
-            if (type.IsNumeric())
-            {
-                await writer.WriteValueAsync(memberValue);
-                return;
-            }
-            if (type.IsEnum)
-            {
-                var enumString = Enum.GetName(type, memberValue);
-                await writer.WriteValueAsync(enumString);
-                return;
-            }
-            if (typeof(DateTime).IsAssignableFrom(type))
-            {
-                await writer.WriteValueAsync((DateTime)memberValue);
-                return;
-            }
-            bool written = await type.IsNullable(
-                async baseType =>
+                if (memberValue == null)
                 {
-                    var baseValue = memberValue.GetNullableValue();
-                    await WriteAsync(writer, serializer, member, paramInfo, apiValueProvider,
-                        objectValue, baseValue,
-                        httpRequest, application);
-                    return true;
-                },
-                () =>
+                    await writer.WriteNullAsync();
+                    return;
+                }
+
+                if (typeof(string).IsAssignableFrom(type))
                 {
-                    throw new ArgumentException($"{nameof(CastJsonBasicTypesAttribute)}..{nameof(CastJsonBasicTypesAttribute.CanConvert)} said yes but the truth is no.");
-                });
-
-
+                    await writer.WriteValueAsync((string)memberValue);
+                    return;
+                }
+                if (type.IsNumeric())
+                {
+                    await writer.WriteValueAsync(memberValue);
+                    return;
+                }
+                if (type.IsEnum)
+                {
+                    var enumString = Enum.GetName(type, memberValue);
+                    await writer.WriteValueAsync(enumString);
+                    return;
+                }
+                if (typeof(DateTime).IsAssignableFrom(type))
+                {
+                    await writer.WriteValueAsync((DateTime)memberValue);
+                    return;
+                }
+                bool written = await type.IsNullable(
+                    async baseType =>
+                    {
+                        var baseValue = memberValue.GetNullableValue();
+                        await WriteForTypeAsync(baseType, baseValue);
+                        return true;
+                    },
+                    () =>
+                    {
+                        throw new ArgumentException($"{nameof(CastJsonBasicTypesAttribute)}..{nameof(CastJsonBasicTypesAttribute.CanConvert)} said yes but the truth is no.");
+                    });
+            }
         }
 
     }
