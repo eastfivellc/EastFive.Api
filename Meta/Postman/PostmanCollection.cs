@@ -34,6 +34,33 @@ namespace EastFive.Api.Meta.Postman
 
         #endregion
 
+        [EastFive.Api.HttpOptions]
+        public static IHttpResponse ListFlows(
+                //Security security,
+                IInvokeApplication invokeApplication,
+                HttpApplication httpApp, IHttpRequest request, IProvideUrl url,
+            ContentTypeResponse<string []> onSuccess,
+            NotFoundResponse onNotFound)
+        {
+            var lookups = httpApp
+                .GetResources()
+                .ToArray();
+
+            var manifest = new EastFive.Api.Resources.Manifest(lookups, httpApp);
+
+            var flows = manifest.Routes
+                .SelectMany(route => route.Methods)
+                .SelectMany(method => method.MethodPoco
+                    .GetAttributesInterface<IDefineFlow>(multiple: true)
+                    .Select(attr => (method, attr)))
+                .GroupBy(methodAndFlow => methodAndFlow.attr.FlowName)
+                .Where(grp => grp.Key.HasBlackSpace())
+                .Select(grp => grp.Key)
+                .ToArray();
+
+            return onSuccess(flows);
+        }
+
         [EastFive.Api.HttpGet]
         public static IHttpResponse GetSchema(
                 [QueryParameter] string flow,
