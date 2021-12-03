@@ -73,5 +73,15 @@ namespace EastFive.Api
             DeploymentSecurityConcern = false,
             Location = "Configuration based on desired behavior")]
         public const string CorsCorrection = "EastFive.Api.CorsCorrection";
+
+        public static class Postman
+        {
+            [ConfigKey("Postman API Key",
+                DeploymentOverrides.Optional,
+                DeploymentSecurityConcern = false,
+                Location = "https://{Organization}.postman.co/settings/me/api-keys")]
+            public const string ApiKey = "EastFive.Api.Postman.ApiKey";
+
+        }
     }
 }

@@ -69,7 +69,7 @@ namespace EastFive.Api.Meta.OpenApi
 
             var server = new Server
             {
-                url = invokeApplication.ServerLocation.AbsoluteUri,
+                url = invokeApplication.ServerLocation.AbsoluteUri.TrimEnd('/'),
             };
             var info = new Info
             {
@@ -77,7 +77,7 @@ namespace EastFive.Api.Meta.OpenApi
                 {
                     name = "Private"
                 },
-                title = "East Five API",
+                title = $"{httpApp.GetType().Namespace}",
                 version = "1.2.3",
             };
 
