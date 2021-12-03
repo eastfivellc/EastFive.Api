@@ -33,7 +33,7 @@ namespace EastFive.Api.Meta.Flows
 
         public string Scope { get; set; }
 
-        public Item GetItem(Method method)
+        public virtual Item GetItem(Method method)
         {
             return new Item
             {
@@ -47,7 +47,9 @@ namespace EastFive.Api.Meta.Flows
                         script = new Script()
                         {
                             type = "text/javascript",
-                            exec = GetScriptSteps(method),
+                            exec = method.HasValue(
+                                (v) => GetScriptSteps(v),
+                                () => default(string[])),
                         },
                     }
                 }
@@ -56,11 +58,70 @@ namespace EastFive.Api.Meta.Flows
 
         private string [] GetScriptSteps(Method method)
         {
-            return method.Responses
+            if (method.IsDefaultOrNull())
+                return new string[] { };
+
+            var queryParamTestLines = new string[] { };
+            var queryParamLineParams = method.MethodPoco
+                .GetParametersAndAttributesInterface<IDefineWorkflowRequestVariable>()
+                .ToArray();
+            if (queryParamLineParams.Any())
+            {
+                var lineVarQuery = "var query = {};\r";
+                var linePopulateQuery = "pm.request.url.query.all().forEach((param) => { query[param.key] = param.value});\r";
+                var linesQueryVariables = queryParamLineParams
+                    .SelectMany(
+                        tpl =>
+                        {
+                            var (parameterInfo, attr) = tpl;
+                            var (name, value) = attr.GetNameAndValue(parameterInfo, method);
+                            var lineExtract = $"var queryParam_{name} = query[\"{value}\"];\r";
+                            var lineMakeGlobal = $"pm.environment.set(\"{name}\", queryParam_{name});\r";
+                            return new string[] { lineExtract, lineMakeGlobal, "\r" };
+                        })
+                    .ToArray();
+                queryParamTestLines = linesQueryVariables
+                    .Prepend(linePopulateQuery)
+                    .Prepend(lineVarQuery)
+                    .ToArray();
+            }
+
+
+            var headerParamTestLines = new string[] { };
+            var headerLineParams = method.Responses
+                .TryWhere((Resources.Response response, out IDefineWorkflowVariableFromHeader workflowResponse) =>
+                    response.ParamInfo.TryGetAttributeInterface(out workflowResponse, inherit: true))
+                .ToArray();
+            if(headerLineParams.Any())
+            {
+                var lineVarHeaders = "var headers = {};\r";
+                var linePopulateHeaders = "pm.response.headers.all().forEach((header) => { headers[header.key] = header.value });\r";
+                var linesQueryHeaders = headerLineParams
+                    .SelectMany(
+                        itemAttrTpl =>
+                        {
+                            var (responseParameter, attr) = itemAttrTpl;
+                            var (name, value) = attr.GetNameAndValue(responseParameter, method);
+                            var lineExtract = $"var headerParam_{name} = headers[\"{value}\"];\r";
+                            var lineMakeGlobal = $"pm.environment.set(\"{name}\", headerParam_{name});\r";
+                            return new string[] { lineExtract, lineMakeGlobal, "\r" };
+                        })
+                    .ToArray();
+                headerParamTestLines = linesQueryHeaders
+                    .Prepend(linePopulateHeaders)
+                    .Prepend(lineVarHeaders)
+                    .ToArray();
+            }
+
+            var paramTypeTestLines = method.Responses
                 .TryWhere((Resources.Response response, out IDefineWorkflowResponse workflowResponse) =>
-                    response.ParamInfo.ParameterType.TryGetAttributeInterface(out workflowResponse))
+                    response.ParamInfo.ParameterType.TryGetAttributeInterface(out workflowResponse, inherit: true))
                 .SelectMany(tpl => tpl.@out.GetPostmanTestLines(tpl.item, method))
                 .ToArray();
+
+            return queryParamTestLines
+                .Concat(headerParamTestLines)
+                .Concat(paramTypeTestLines).ToArray();
         }
 
         private string GetStepName(Method method)
@@ -90,7 +151,7 @@ namespace EastFive.Api.Meta.Flows
             return method.Route.Name;
         }
 
-        private Request GetRequest(Method method)
+        protected virtual Request GetRequest(Method method)
         {
             var bodyProperties = method.MethodPoco
                 .GetParameters()
@@ -275,6 +336,83 @@ namespace EastFive.Api.Meta.Flows
     }
 
     public class WorkflowStep3Attribute : WorkflowStepAttribute
+    {
+
+    }
+
+    public class WorkflowStepCustomAttribute : WorkflowStepAttribute
+    {
+        public string HttpMethod { get; set; }
+
+        public string[] HeaderKeys { get; set; }
+
+        public string[] HeaderValues { get; set; }
+
+        public string BodyRaw { get; set; }
+
+        public bool IsBodyFile { get; set; }
+
+        public string Url { get; set; }
+
+        public string Description { get; set; }
+
+        protected override Request GetRequest(Method method)
+        {
+            bool didParseUrl = Uri.TryCreate(this.Url, UriKind.RelativeOrAbsolute, out Uri parsedUri);
+            return new Request()
+            {
+                method = this.HttpMethod,
+                header = this.HeaderKeys
+                    .CollateSimple(this.HeaderValues)
+                    .Select(tpl => new Header() { key = tpl.Item1, value = tpl.Item2  })
+                    .ToArray(),
+                body = this.BodyRaw.HasBlackSpace()?
+                    new Body
+                    {
+                        mode = "raw",
+                        raw = this.BodyRaw,
+                    }
+                    :
+                    this.IsBodyFile?
+                        new Body {
+                            mode = "file",
+                            file = new object() { },
+                        }
+                        :
+                        default(Body),
+                url = //didParseUrl?
+                    //parsedUri.IsAbsoluteUri?
+                    //    new Url()
+                    //    {
+                    //        raw = $"{{{{HOST}}}}/{this.Url}",
+                    //        host = "{{HOST}}".AsArray(),
+                    //        path = parsedUri.PathAndQuery
+                    //            .Split('/')
+                    //            .Where(item => !item.Contains('?'))
+                    //            .ToArray(),
+                    //        query = parsedUri
+                    //            .ParseQuery()
+                    //            .Select(kvp => new QueryItem() { key = kvp.Key, value = kvp.Value })
+                    //            .ToArray(),
+                    //    }
+                    //    :
+                    //    new Url()
+                    //    {
+                    //        raw = this.Url,
+                    //        host = this.Url.AsArray(),
+                    //    }
+                    //:
+                        new Url()
+                        {
+                            raw = this.Url,
+                            host = this.Url.AsArray(),
+                        },
+                description = this.Description,
+            };
+        }
+    }
+
+    public class WorkflowStepCustom2Attribute : WorkflowStepCustomAttribute
     {
 
     }

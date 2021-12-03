@@ -79,10 +79,17 @@ namespace EastFive.Api.Meta.Postman
                             schema = "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
                         };
 
+                        var customItems = manifest.Routes
+                            .SelectMany(route => route.Type.GetAttributesInterface<IDefineFlow>(multiple: true))
+                            .Select(flowAttr => (flowAttr, flowAttr.GetItem(default(Api.Resources.Method))))
+                            .ToArray();
+
                         var items = methodAndFlowGrp
-                            .OrderBy(methodAndFlow => methodAndFlow.attr.Step)
                             .Select(
-                                methodAndFlow => methodAndFlow.attr.GetItem(methodAndFlow.method))
+                                methodAndFlow => (methodAndFlow.attr, methodAndFlow.attr.GetItem(methodAndFlow.method)))
+                            .Concat(customItems)
+                            .OrderBy(methodAndFlow => methodAndFlow.Item1.Step)
+                            .Select(tpl => tpl.Item2)
                             .ToArray();
 
                         var collection = new Resources.Collection.Collection()

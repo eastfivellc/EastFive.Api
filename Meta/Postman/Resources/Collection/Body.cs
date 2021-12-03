@@ -12,6 +12,7 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
         public string raw { get; set; }
         public Options options { get; set; }
         public FormData[] formdata { get; set; }
+        public object file { get; set; }
     }
 
     public class Options
