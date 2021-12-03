@@ -8,11 +8,9 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 
-using Microsoft.AspNetCore.Mvc.Routing;
 
 using EastFive.Linq;
 using BlackBarLabs.Api;
-using BlackBarLabs.Extensions;
 using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using System.IO;
@@ -142,7 +140,7 @@ namespace EastFive.Api
         protected virtual Task<Initialized> InitializeAsync()
         {
             initializationLock.Set();
-            return Initialized.Create().ToTask();
+            return Initialized.Create().AsTask();
         }
 
         protected void InitializationWait()
@@ -617,7 +615,7 @@ namespace EastFive.Api
 
                                 return routeData.CreateResponse(HttpStatusCode.Unauthorized).AsTask();
                             },
-                            (why) => routeData.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).ToTask());
+                            (why) => routeData.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).AsTask());
                     }
                 },
 

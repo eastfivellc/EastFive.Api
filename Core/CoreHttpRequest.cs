@@ -21,6 +21,20 @@ namespace EastFive.Api.Core
 {
     public class CoreHttpRequest : IHttpRequest
     {
+
+        public Uri ServerLocation
+        {
+            get
+            {
+                var builder = new UriBuilder(this.uri);
+                builder.Query = default;
+                builder.Path = default;
+                builder.Password = default;
+                builder.UserName = default;
+                return builder.Uri;
+            }
+        }
+
         private Uri uri;
         public Microsoft.AspNetCore.Http.HttpRequest request;
 

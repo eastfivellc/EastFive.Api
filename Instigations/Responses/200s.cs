@@ -37,7 +37,8 @@ namespace EastFive.Api
     [Meta.Flows.WorkflowResponseDefinition]
     [BodyTypeResponse(StatusCode = HttpStatusCode.OK)]
     public delegate IHttpResponse ContentTypeResponse<TResource>(TResource content, string contentType = default(string));
-    
+
+    [Meta.Flows.WorkflowResponseDefinition]
     [BodyResponse(StatusCode = System.Net.HttpStatusCode.OK)]
     public delegate IHttpResponse ContentResponse(object content, string contentType = default(string));
 

@@ -45,7 +45,7 @@ namespace EastFive.Api
             if (contentString.IsNullOrWhiteSpace())
                 return await BodyMissing("JSON body content is empty");
 
-            var bindConvert = new BindConvert(httpApp as HttpApplication);
+            var bindConvert = new BindConvert(request, httpApp as HttpApplication);
             try
             {
                 var contentJObject = Newtonsoft.Json.Linq.JObject.Parse(contentString);

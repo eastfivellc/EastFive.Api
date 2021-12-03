@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -10,6 +11,15 @@ namespace EastFive.Api.Meta.Flows
     public interface IDefineWorkflowVariable
     {
         (string, string) GetNameAndValue(Resources.Response response, Method method);
+    }
+
+    public interface IDefineWorkflowVariableFromHeader : IDefineWorkflowVariable
+    {
+    }
+
+    public interface IDefineWorkflowVariableFromQueryParameter
+    {
+        (string, string) GetNameAndValue(ParameterInfo response, Method method);
     }
 
     public class WorkflowVariableAttribute
@@ -49,6 +59,16 @@ namespace EastFive.Api.Meta.Flows
     {
         public WorkflowVariable3Attribute(string variableName, string propertyName)
             : base(variableName, propertyName)
+        {
+
+        }
+    }
+
+    public class WorkflowVariableFromHeaderAttribute
+        : WorkflowVariableAttribute, IDefineWorkflowVariableFromHeader
+    {
+        public WorkflowVariableFromHeaderAttribute(string variableName, string headerName)
+            : base(variableName, headerName)
         {
 
         }

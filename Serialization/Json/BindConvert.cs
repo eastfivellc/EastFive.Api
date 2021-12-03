@@ -1,6 +1,9 @@
-﻿using EastFive.Api.Bindings;
+﻿using EastFive;
+using EastFive.Linq;
+using EastFive.Api.Bindings;
 using EastFive.Collections.Generic;
 using EastFive.Extensions;
+
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -13,13 +16,26 @@ using System.Threading.Tasks;
 
 namespace EastFive.Api.Serialization
 {
+    public interface IBindJsonData
+    {
+        Type[] TypesCast { get; }
+
+        bool CanConvert(Type objectType);
+    }
+
     public class BindConvert : Newtonsoft.Json.JsonConverter
     {
+        IHttpRequest request;
         HttpApplication application;
+        IConvertJson[] jsonConverters;
 
-        public BindConvert(HttpApplication httpApplication)
+        public BindConvert(IHttpRequest request, HttpApplication httpApplication)
         {
+            this.request = request;
             this.application = httpApplication;
+            this.jsonConverters = application.GetType()
+                .GetAttributesInterface<IConvertJson>()
+                .ToArray();
         }
 
         public override bool CanConvert(Type objectType)
@@ -58,15 +74,25 @@ namespace EastFive.Api.Serialization
             if (objectType == typeof(Type))
                 return true;
 
-
             if (objectType == typeof(DateTime))
                 return true;
 
-            return false;
+            return jsonConverters
+                .Any(jc => jc.CanConvert(objectType, this.request, this.application));
         }
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
+            var converters = jsonConverters
+                .Where(jc => jc.CanConvert(objectType, this.request, this.application));
+            if (converters.Any())
+            {
+                return converters
+                    .First()
+                    .Read(reader, objectType, existingValue, serializer,
+                        this.request, this.application);
+            }
+
             return this.application.Bind(reader, objectType,
                 v => v,
                 (why) =>

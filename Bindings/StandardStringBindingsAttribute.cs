@@ -10,12 +10,13 @@ using EastFive.Extensions;
 using EastFive.Text;
 using EastFive;
 using System.Runtime.InteropServices;
+using System.Reflection;
 
 namespace EastFive.Api.Bindings
 {
     public class StandardStringBindingsAttribute : Attribute,
-        IBindApiParameter<string>,
-        IBindApiParameter<byte[]>
+        IBindParameter<string>, IBindApiParameter<string>,
+        IBindParameter<byte[]>, IBindApiParameter<byte[]>
     {
         public delegate object BindingDelegate(
                 StandardStringBindingsAttribute httpApp,
@@ -24,6 +25,16 @@ namespace EastFive.Api.Bindings
             Func<string, object> notConvertable);
 
         #region Strings
+
+        public TResult Bind<TResult>(ParameterInfo parameter, string content,
+                IApplication application,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure) => Bind(parameter.ParameterType, content,
+                application: application,
+                onParsed: onParsed,
+                onDidNotBind: onDidNotBind,
+                onBindingFailure: onBindingFailure);
 
         public TResult Bind<TResult>(Type type, string content,
                 IApplication application,
@@ -322,6 +333,16 @@ namespace EastFive.Api.Bindings
         #endregion
 
         #region Bytes
+
+        public TResult Bind<TResult>(ParameterInfo parameter, byte [] content,
+                IApplication application,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure) => Bind(parameter.ParameterType, content,
+                application: application,
+                onParsed: onParsed,
+                onDidNotBind: onDidNotBind,
+                onBindingFailure: onBindingFailure);
 
         public TResult Bind<TResult>(Type type, byte[] content,
                 IApplication application,

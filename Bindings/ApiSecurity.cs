@@ -20,7 +20,7 @@ namespace EastFive.Api.Controllers
 
     public class ApiSecurityAttribute : Attribute, IInstigatable, IBindApiParameter<string>
     {
-        public TResult Bind<TResult>(Type type, string content,
+        public TResult Bind<TResult>(ParameterInfo parameter, string content,
                 IApplication application,
             Func<object, TResult> onParsed,
             Func<string, TResult> onDidNotBind,

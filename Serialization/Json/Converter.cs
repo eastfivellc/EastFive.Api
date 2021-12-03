@@ -4,6 +4,9 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using EastFive;
+using EastFive.Extensions;
+using EastFive.Linq;
 using EastFive.Linq.Async;
 using EastFive.Reflection;
 using Newtonsoft.Json;
@@ -24,17 +27,21 @@ namespace EastFive.Api.Serialization
             if (value is Type)
             {
                 var typeValue = (value as Type);
-                var serializationAttrs = typeValue
+                bool wroteWithoutBase = typeValue
                     .GetAttributesInterface<IProvideSerialization>()
-                    .Where(x => x.ContentType.ToLower().Contains("json"));
-                if (serializationAttrs.Any())
-                {
-                    var serializationAttr = serializationAttrs
-                        .OrderByDescending(x => x.GetPreference(this.request))
-                        .First();
-                    writer.WriteValue(serializationAttr.ContentType);
-                    return;
-                }
+                    .Where(x => x.ContentType.ToLower().Contains("json"))
+                    .MaxOrEmpty(
+                        x => x.GetPreference(this.request),
+                        (serializationAttr, discardRank) =>
+                        {
+                            writer.WriteValue(serializationAttr.ContentType);
+                            return true;
+                        },
+                        () =>
+                        {
+                            base.WriteJson(writer, value, serializer);
+                            return false;
+                        });
             }
             base.WriteJson(writer, value, serializer);
         }
