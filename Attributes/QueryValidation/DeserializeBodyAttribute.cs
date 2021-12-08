@@ -7,17 +7,36 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
+using Microsoft.AspNetCore.Http;
+
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
 using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Api.Serialization;
-using Newtonsoft.Json.Linq;
 using EastFive.Reflection;
 using EastFive.Api.Bindings;
-using Microsoft.AspNetCore.Http;
 
 namespace EastFive.Api
 {
-    public class ResourceAttribute : System.Attribute, 
+    public interface IDeserializeFromBody<TBodyProvider>
+    {
+        object UpdateInstance(string propertyKey, TBodyProvider reader,
+            object instance,
+            ParameterInfo parameterInfo, MemberInfo memberInfo,
+            IApplication httpApp, IHttpRequest request);
+    }
+
+    public interface IDeserializeFromApiBody<TBodyProvider>
+        : IDeserializeFromBody<TBodyProvider>
+    {
+        bool IsMatch(string propertyKey,
+            ParameterInfo parameterInfo, MemberInfo member,
+            IApplication httpApp, IHttpRequest request);
+    }
+
+    public class DeserializeBodyAttribute : System.Attribute, 
         IBindApiValue, IBindJsonApiValue, IBindMultipartApiValue, IBindFormDataApiValue
     {
         public string GetKey(ParameterInfo paramInfo)
@@ -41,9 +60,36 @@ namespace EastFive.Api
         {
             try
             {
-                var rootObject = Newtonsoft.Json.JsonConvert.DeserializeObject(
-                    contentString, parameterInfo.ParameterType, bindConvert);
-                return onParsed(rootObject);
+                var parameterType = parameterInfo.ParameterType;
+                var typeMembers = parameterType
+                    .GetPropertyAndFieldsWithAttributesInterface<IDeserializeFromApiBody<JsonReader>>()
+                    .ToArray();
+                var instance = Activator.CreateInstance(parameterType);
+                using (var reader = contentJObject.CreateReader())
+                {
+                    while(reader.Read())
+                    {
+                        if(reader.TokenType == JsonToken.PropertyName)
+                        {
+                            var propertyKey = (string)reader.Value;
+                            if (!reader.Read())
+                                continue;
+                            instance = typeMembers
+                                .Where(tm => tm.Item2.IsMatch(propertyKey, parameterInfo, tm.Item1,
+                                    httpApp, request))
+                                .Aggregate(instance,
+                                    (instance, tpl) =>
+                                    {
+                                        var (memberInfo, deserializer) = tpl;
+                                        return deserializer.UpdateInstance(
+                                            propertyKey, reader,
+                                            instance,
+                                            parameterInfo, memberInfo, httpApp, request);
+                                    });
+                        }
+                    }
+                    return onParsed(instance);
+                }
             }
             catch (Exception ex)
             {
@@ -70,7 +116,7 @@ namespace EastFive.Api
                             return param;
                         
                         var tokenParser = content[provideApiValue.PropertyName];
-                        return ContentToType(httpApp, member.GetMemberType(), parameterInfo,
+                        return ContentToType(httpApp, member.GetMemberType(),
                             tokenParser,
                             paramValue =>
                             {
@@ -82,8 +128,7 @@ namespace EastFive.Api
             return onParsed(obj);
         }
 
-        internal static TResult ContentToType<TResult>(IApplication httpApp,
-                Type type, ParameterInfo parameterInfo,
+        internal static TResult ContentToType<TResult>(IApplication httpApp, Type type,
                 MultipartContentTokenParser tokenReader,
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure)
@@ -115,7 +160,7 @@ namespace EastFive.Api
                 return onParsed((object)content);
             }
             var strValue = tokenReader.ReadString();
-            return httpApp.Bind(strValue, parameterInfo,
+            return httpApp.Bind(strValue, type,
                 (value) =>
                 {
                     return onParsed(value);
@@ -138,7 +183,7 @@ namespace EastFive.Api
                         var (member, provideApiValue) = memberProvideApiValueTpl;
 
                         return ParseFormContentDelegate(provideApiValue.PropertyName, formData,
-                                member.GetMemberType(), parameterInfo, httpApp,
+                                member.GetMemberType(), httpApp,
                             paramValue =>
                             {
                                 member.SetValue(ref param, paramValue);
@@ -146,7 +191,7 @@ namespace EastFive.Api
                             },
                             why =>
                             {
-                                return httpApp.Bind<string, object>(default(string), member,
+                                return httpApp.Bind(default(string), member.GetMemberType(),
                                     defaultValue =>
                                     {
                                         member.SetValue(ref param, defaultValue);
@@ -159,7 +204,7 @@ namespace EastFive.Api
         }
 
         public static TResult ParseFormContentDelegate<TResult>(string key, IFormCollection formData,
-                Type type, ParameterInfo parameter, IApplication httpApp,
+                Type type, IApplication httpApp,
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure)
         {
@@ -172,7 +217,7 @@ namespace EastFive.Api
                     (kvp, next) =>
                     {
                         var strValue = (string)kvp.Value;
-                        return httpApp.Bind(strValue, parameter,
+                        return httpApp.Bind(strValue, type,
                             (value) =>
                             {
                                 return onParsed(value);

@@ -14,9 +14,15 @@ using EastFive.Collections.Generic;
 using EastFive.Linq;
 using EastFive.Reflection;
 using Microsoft.AspNetCore.Http;
+using EastFive.Extensions;
 
 namespace EastFive.Api
 {
+    public interface IProvideRequestExpression<TResource>
+    {
+        IQueryable<TResource> FromExpression(Expression condition);
+    }
+
     [RequestMessage]
     public class RequestMessage<TResource>
         : 
@@ -24,7 +30,9 @@ namespace EastFive.Api
                 TResource, 
                 RequestMessage<TResource>.RequestMessageProvideQuery>,
             IQueryable<TResource>,
-            Linq.ISupplyQueryProvider<RequestMessage<TResource>>
+            Linq.ISupplyQueryProvider<RequestMessage<TResource>>,
+            IProvideServerLocation,
+            IProvideRequestExpression<TResource>
     {
         public RequestMessage(IInvokeApplication invokeApplication)
             : base(new RequestMessageProvideQuery(invokeApplication))
@@ -43,6 +51,17 @@ namespace EastFive.Api
         public RequestMessage<TRelatedResource> Related<TRelatedResource>()
         {
             return new RequestMessage<TRelatedResource>(this.InvokeApplication);
+        }
+
+        public Uri ServerLocation
+        {
+            get
+            {
+                var requestMessage = this;
+                var uriString = requestMessage.InvokeApplication.ServerLocation.AbsoluteUri
+                    .TrimEnd('/'.AsArray());
+                return new Uri(uriString);
+            }
         }
 
         public class RequestMessageProvideQuery :
@@ -69,7 +88,7 @@ namespace EastFive.Api
             }
         }
 
-        internal virtual RequestMessage<TResource> FromExpression(Expression condition)
+        public virtual RequestMessage<TResource> FromExpression(Expression condition)
         {
             return new RequestMessage<TResource>(
                   this.InvokeApplication,
@@ -92,6 +111,9 @@ namespace EastFive.Api
         {
             return FromExpression(expression);
         }
+
+        IQueryable<TResource> IProvideRequestExpression<TResource>.FromExpression(Expression condition)
+            => FromExpression(condition);
     }
 
     public class RequestMessageAttribute : Attribute, IInstigatableGeneric

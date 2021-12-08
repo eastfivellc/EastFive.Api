@@ -20,9 +20,29 @@ using System.Net.Http.Headers;
 namespace EastFive.Api.Bindings
 {
     public class StandardJTokenBindingsAttribute : Attribute,
-        IBindApiParameter<JToken>,
-        IBindApiParameter<JsonReader>
+        IBindParameter<JToken>, IBindApiParameter<JToken>,
+        IBindParameter<JsonReader>, IBindApiParameter<JsonReader>
     {
+        public TResult Bind<TResult>(ParameterInfo parameter, JToken content,
+                IApplication application,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure) => Bind(parameter.ParameterType, content,
+                application: application,
+                onParsed: onParsed,
+                onDidNotBind: onDidNotBind,
+                onBindingFailure: onBindingFailure);
+
+        public TResult Bind<TResult>(ParameterInfo parameter, JsonReader content,
+                IApplication application,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure) => Bind(parameter.ParameterType, content,
+                application: application,
+                onParsed: onParsed,
+                onDidNotBind: onDidNotBind,
+                onBindingFailure: onBindingFailure);
+
         public TResult Bind<TResult>(Type type, JToken content,
                 IApplication application,
             Func<object, TResult> onParsed,

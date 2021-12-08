@@ -51,17 +51,7 @@ namespace EastFive.Api
             string routeName = "DefaultApi")
         {
             var baseUrl = url.GetLocation(typeof(TResource), routeName);
-            var queryParams = parameters
-                .Select(param => param.GetUrlAssignment(
-                    (queryParamName, value) =>
-                    {
-                        return queryParamName
-                            .PairWithValue((string)application.CastResourceProperty(value, typeof(String)));
-                    }))
-                .ToDictionary();
-
-            var queryUrl = baseUrl.SetQuery(queryParams);
-            return queryUrl;
+            return baseUrl.SetParameters(parameters, application, routeName: routeName);
         }
         
         public static TResult GetUrlAssignment<TObject, TResult>(this Expression<Action<TObject>> expression,

@@ -34,6 +34,33 @@ namespace EastFive.Api.Meta.Postman
 
         #endregion
 
+        [EastFive.Api.HttpOptions]
+        public static IHttpResponse ListFlows(
+                //Security security,
+                IInvokeApplication invokeApplication,
+                HttpApplication httpApp, IHttpRequest request, IProvideUrl url,
+            ContentTypeResponse<string []> onSuccess,
+            NotFoundResponse onNotFound)
+        {
+            var lookups = httpApp
+                .GetResources()
+                .ToArray();
+
+            var manifest = new EastFive.Api.Resources.Manifest(lookups, httpApp);
+
+            var flows = manifest.Routes
+                .SelectMany(route => route.Methods)
+                .SelectMany(method => method.MethodPoco
+                    .GetAttributesInterface<IDefineFlow>(multiple: true)
+                    .Select(attr => (method, attr)))
+                .GroupBy(methodAndFlow => methodAndFlow.attr.FlowName)
+                .Where(grp => grp.Key.HasBlackSpace())
+                .Select(grp => grp.Key)
+                .ToArray();
+
+            return onSuccess(flows);
+        }
+
         [EastFive.Api.HttpGet]
         public static IHttpResponse GetSchema(
                 [QueryParameter] string flow,
@@ -79,10 +106,17 @@ namespace EastFive.Api.Meta.Postman
                             schema = "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
                         };
 
+                        var customItems = manifest.Routes
+                            .SelectMany(route => route.Type.GetAttributesInterface<IDefineFlow>(multiple: true))
+                            .Select(flowAttr => (flowAttr, flowAttr.GetItem(default(Api.Resources.Method))))
+                            .ToArray();
+
                         var items = methodAndFlowGrp
-                            .OrderBy(methodAndFlow => methodAndFlow.attr.Step)
                             .Select(
-                                methodAndFlow => methodAndFlow.attr.GetItem(methodAndFlow.method))
+                                methodAndFlow => (methodAndFlow.attr, methodAndFlow.attr.GetItem(methodAndFlow.method)))
+                            .Concat(customItems)
+                            .OrderBy(methodAndFlow => methodAndFlow.Item1.Step)
+                            .Select(tpl => tpl.Item2)
                             .ToArray();
 
                         var collection = new Resources.Collection.Collection()

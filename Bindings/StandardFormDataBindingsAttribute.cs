@@ -14,9 +14,20 @@ using System.Reflection;
 namespace EastFive.Api.Bindings
 {
     public class StandardFormDataBindingsAttribute :
-        Attribute, IBindApiParameter<IFormFile>
+        Attribute, IBindParameter<IFormFile>, IBindApiParameter<IFormFile>
     {
-        public TResult Bind<TResult>(Type type, IFormFile content,
+        public TResult Bind<TResult>(ParameterInfo parameter, IFormFile content,
+                IApplication application,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure) => Bind(parameter.ParameterType, content,
+                application: application,
+                onParsed: onParsed,
+                onDidNotBind: onDidNotBind,
+                onBindingFailure: onBindingFailure);
+
+        public TResult Bind<TResult>(Type type,
+                IFormFile content,
                 IApplication application,
             Func<object, TResult> onParsed,
             Func<string, TResult> onDidNotBind,
