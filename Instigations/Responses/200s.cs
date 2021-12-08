@@ -29,6 +29,7 @@ using EastFive.Images;
 using EastFive.Serialization;
 using Microsoft.Extensions.FileProviders;
 using System.Web;
+using EastFive.Api.Resources;
 
 namespace EastFive.Api
 {
@@ -971,6 +972,13 @@ namespace EastFive.Api
                 objectsAsync);
             return UpdateResponse(parameterInfo, httpApp, request, response);
         }
+
+        public override Response GetResponse(ParameterInfo paramInfo, HttpApplication httpApp)
+        {
+            var baseResponse = base.GetResponse(paramInfo, httpApp);
+            baseResponse.IsMultipart = true;
+            return baseResponse;
+        }
     }
 
     [MultipartAcceptArrayResponse]
@@ -1013,6 +1021,12 @@ namespace EastFive.Api
             return UpdateResponse(parameterInfo, httpApp, request, response);
         }
 
+        public override Response GetResponse(ParameterInfo paramInfo, HttpApplication httpApp)
+        {
+            var baseResponse = base.GetResponse(paramInfo, httpApp);
+            baseResponse.IsMultipart = true;
+            return baseResponse;
+        }
     }
 
     #endregion

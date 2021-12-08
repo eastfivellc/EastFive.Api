@@ -167,5 +167,14 @@ namespace EastFive.Api
                         stream, httpApp, request, parameterInfo, obj);
             }
         }
+
+        public override Response GetResponse(ParameterInfo paramInfo, HttpApplication httpApp)
+        {
+            var baseResponse = base.GetResponse(paramInfo, httpApp);
+            if (paramInfo.ParameterType.GenericTypeArguments.IsSingle())
+                baseResponse.IsMultipart = paramInfo.ParameterType.GenericTypeArguments.First().IsArray;
+            
+            return baseResponse;
+        }
     }
 }
