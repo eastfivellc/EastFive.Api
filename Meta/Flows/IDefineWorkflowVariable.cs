@@ -37,10 +37,15 @@ namespace EastFive.Api.Meta.Flows
 
         public (string, string) GetNameAndValue(Resources.Response response, Method method)
         {
-            //method.Route.Properties
-            //    .Where(prop => prop.Name == this.PropertyName)
-            //    .First(
-            //        (prop, next) => prop.)
+            if(response.ParamInfo.ParameterType.IsArray)
+            {
+                
+                //method.Route.Properties
+                //    .Where(prop => prop.Name == this.PropertyName)
+                //    .First(
+                //        (prop, next) => prop.)
+
+            }
 
             return (this.VariableName, PropertyName);
         }

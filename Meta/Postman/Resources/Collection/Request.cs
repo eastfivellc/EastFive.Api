@@ -36,6 +36,8 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
     {
         public string key;
         public string value;
+        public string description;
+        public bool disabled;
     }
 
 }

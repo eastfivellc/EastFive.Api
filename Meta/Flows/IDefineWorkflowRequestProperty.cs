@@ -106,11 +106,14 @@ namespace EastFive.Api.Meta.Flows
                     :
                     parameter.Name;
             var value = GetValue(parameter);
+            var description = GetDescription(parameter);
 
             return new QueryItem
             {
                 key = propertyName,
                 value = value,
+                description = description,
+                disabled = this.Disabled,
             };
         }
 

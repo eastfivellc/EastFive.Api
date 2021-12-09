@@ -212,20 +212,6 @@ namespace EastFive.Api.Resources
 
         public KeyValuePair<string, string>[] Headers { get; set; }
 
-        public bool IsMultipart
-        {
-            get
-            {
-                if (this.ParamInfo.ParameterType
-                    .IsSubClassOfGeneric(typeof(MultipartAsyncResponse<>)))
-                    return true;
-
-                if (this.ParamInfo.ParameterType
-                    .IsSubClassOfGeneric(typeof(MultipartAcceptArrayResponse<>)))
-                    return true;
-
-                return false;
-            }
-        }
+        public bool IsMultipart { get; set; }
     }
 }
