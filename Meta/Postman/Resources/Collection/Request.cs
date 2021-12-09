@@ -17,6 +17,8 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
 
     public class Url
     {
+        public const string VariableHostName = "{{HOST}}";
+
         public string raw { get; set; }
         public string[] host { get; set; }
         public string[] path { get; set; }

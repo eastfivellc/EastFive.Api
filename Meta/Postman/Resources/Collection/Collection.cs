@@ -19,18 +19,18 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
         public Item[] item { get; set; }
         public Variable[] variable { get; set; }
 
-        public static Task<TResult> GetAsync<TResult>(IRef<Collection> collectionRef,
+        public static Task<TResult> GetAsync<TResult>(string collectionId,
             Func<Collection, TResult> onFound,
             Func<TResult> onNotFound)
         {
             return EastFive.Api.AppSettings.Postman.ApiKey.ConfigurationString(
                 apiKey =>
                 {
-                    Uri.TryCreate($"https://api.getpostman.com/collections/{collectionRef.id}", UriKind.Absolute, out Uri getCollectionsUri);
+                    Uri.TryCreate($"https://api.getpostman.com/collections/{collectionId}", UriKind.Absolute, out Uri getCollectionsUri);
                     return getCollectionsUri.HttpClientGetResourceAsync(
-                        (Collection collection) =>
+                        (CollectionCollection collection) =>
                         {
-                            return onFound(collection);
+                            return onFound(collection.collection);
                         },
                         mutateRequest: (request) =>
                         {
@@ -47,7 +47,7 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
         }
 
         public Task<TResult> CreateAsync<TResult>(
-            Func<Collection, TResult> onFound)
+            Func<CollectionSummary, TResult> onCreated)
         {
             var collection = new CollectionCollection() { collection = this };
             return EastFive.Api.AppSettings.Postman.ApiKey.ConfigurationString(
@@ -55,9 +55,9 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
                 {
                     Uri.TryCreate($"https://api.getpostman.com/collections", UriKind.Absolute, out Uri getCollectionsUri);
                     return getCollectionsUri.HttpClientPostResourceAsync(collection,
-                        (CollectionCollection collectionUpdated) =>
+                        (CollectionSummaryParent collectionUpdated) =>
                         {
-                            return onFound(collectionUpdated.collection);
+                            return onCreated(collectionUpdated.collection);
                         },
                         mutateRequest: (request) =>
                         {
@@ -74,13 +74,14 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
 
 
         public Task<TResult> UpdateAsync<TResult>(
-            Func<Collection, TResult> onFound)
+            Func<Collection, TResult> onFound,
+            Func<string, TResult> onFailure)
         {
-            var collection = this;
+            var collection = new CollectionCollection() { collection = this };
             return EastFive.Api.AppSettings.Postman.ApiKey.ConfigurationString(
                 apiKey =>
                 {
-                    Uri.TryCreate($"https://api.getpostman.com/collections/{collection.id}", UriKind.Absolute, out Uri getCollectionsUri);
+                    Uri.TryCreate($"https://api.getpostman.com/collections/{collection.collection.id}", UriKind.Absolute, out Uri getCollectionsUri);
                     return getCollectionsUri.HttpClientPutResourceAsync(collection,
                         (Collection collectionUpdated) =>
                         {
@@ -90,7 +91,8 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
                         {
                             request.Headers.Add("X-API-Key", apiKey);
                             return request;
-                        });
+                        },
+                        onFailureWithBody:(statusCode, body) => onFailure(body));
                 });
         }
     }

@@ -16,8 +16,9 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
         public Request request { get; set; }
 
         public Response[] response { get; set; }
-    }
 
+        public Item[] item { get; set; }
+    }
 
     public class Event
     {

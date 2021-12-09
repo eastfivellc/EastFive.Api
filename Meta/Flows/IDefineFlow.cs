@@ -202,7 +202,7 @@ namespace EastFive.Api.Meta.Flows
                 url = new Url()
                 {
                     raw = $"{{{{HOST}}}}/api/{method.Route.Name}",
-                    host = "{{HOST}}".AsArray(),
+                    host = Url.VariableHostName.AsArray(),
                     path = new string[] { "api", method.Route.Name },
                     query = paramQueryItems.Concat(attrQueryItems).ToArray(),
                 },

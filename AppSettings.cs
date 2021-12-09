@@ -82,6 +82,11 @@ namespace EastFive.Api
                 Location = "https://{Organization}.postman.co/settings/me/api-keys")]
             public const string ApiKey = "EastFive.Api.Postman.ApiKey";
 
+            [ConfigKey("ID of Postman Collection that receives monitoring request items",
+                DeploymentOverrides.Optional,
+                DeploymentSecurityConcern = false,
+                Location = "Click three dots next to a collection in Postman and choose Edit. Collection ID will be displayed under Collection Details.")]
+            public const string MonitoringCollectionId = "EastFive.Api.Postman.MonitoringCollectionId";
         }
     }
 }
