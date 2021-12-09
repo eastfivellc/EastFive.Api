@@ -67,6 +67,11 @@ namespace EastFive.Api
 
         private static Uri BaseUrl<TResource>(IQueryable<TResource> urlQuery)
         {
+            var routeAttrs = typeof(TResource).GetAttributesInterface<IInvokeResource>();
+            if (!routeAttrs.Any())
+                throw new ArgumentException($"`{typeof(TResource).FullName}` is not invocable (needs attribute that implements {typeof(IInvokeResource).FullName})");
+            var routeAttr = routeAttrs.First();
+
             var serverUrl = GetServerUrl();
             var prefix = GetRoutePrefix().Trim('/'.AsArray());
             var controllerName = GetControllerName().TrimStart('/'.AsArray());
@@ -85,7 +90,10 @@ namespace EastFive.Api
 
             string GetRoutePrefix()
             {
-                return "api";
+                return routeAttr.Namespace.HasBlackSpace()?
+                    routeAttr.Namespace
+                    :
+                    "api";
             }
 
             string GetControllerName()
@@ -93,7 +101,7 @@ namespace EastFive.Api
                 var routeAttrs = typeof(TResource).GetAttributesInterface<IInvokeResource>();
                 if (!routeAttrs.Any())
                     throw new ArgumentException($"`{typeof(TResource).FullName}` is not invocable (needs attribute that implements {typeof(IInvokeResource).FullName})");
-                return routeAttrs.First().Route;
+                return routeAttr.Route;
                 //return typeof(TResource).Name
                 //    .TrimEnd("Controller",
                 //        (trimmedName) => trimmedName,
