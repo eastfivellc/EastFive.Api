@@ -133,7 +133,7 @@ namespace EastFive.Api
                 (why) =>
                 {
                     if (onNotConfigured.IsDefaultOrNull())
-                        throw new ConfigurationException(AppSettings.ActorIdClaimType, typeof(Guid), why);
+                        throw new ConfigurationException(AppSettings.AccessTokenSecret, typeof(Guid), why);
 
                     return onNotConfigured();
                 });
