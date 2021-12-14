@@ -9,6 +9,7 @@ namespace EastFive.Api
     public class ResourceAlreadyExistsException : ResourceConflictException, IHttpResponseMessageException
     {
         public ResourceAlreadyExistsException()
+            : base("The resource already exists.")
         {
         }
     }
