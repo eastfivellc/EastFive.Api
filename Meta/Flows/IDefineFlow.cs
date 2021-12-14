@@ -2,6 +2,7 @@
 using EastFive.Api.Resources;
 using EastFive.Extensions;
 using EastFive.Linq;
+using EastFive.Serialization;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -20,7 +21,7 @@ namespace EastFive.Api.Meta.Flows
 
         public double Step { get; }
 
-        Item GetItem(Api.Resources.Method method);
+        Item GetItem(Api.Resources.Method method, bool preferJson);
     }
 
     public class WorkflowStepAttribute : System.Attribute, IDefineFlow
@@ -33,12 +34,12 @@ namespace EastFive.Api.Meta.Flows
 
         public string Scope { get; set; }
 
-        public virtual Item GetItem(Method method)
+        public virtual Item GetItem(Method method, bool preferJson)
         {
             return new Item
             {
                 name = GetStepName(method),
-                request = GetRequest(method),
+                request = GetRequest(method, preferJson),
                 _event = new Event []
                 {
                     new Event()
@@ -61,67 +62,128 @@ namespace EastFive.Api.Meta.Flows
             if (method.IsDefaultOrNull())
                 return new string[] { };
 
-            var queryParamTestLines = new string[] { };
-            var queryParamLineParams = method.MethodPoco
-                .GetParametersAndAttributesInterface<IDefineWorkflowRequestVariable>()
+            var methodSteps = GetSteps(method.AsArray(),
+                method => method.MethodPoco.GetAttributesInterface<IDefineWorkflowScriptMethod>(),
+                (method, attr) => attr.GetScriptLines(method));
+
+            var parameterSteps = GetSteps(method.Parameters,
+                param => param.PocoParameter
+                    .GetAttributesInterface<IDefineWorkflowScriptParam>(),
+                (param, attr) => attr.GetScriptLines(param, method));
+
+            var responseSteps = GetSteps(method.Responses,
+                response => response.ParamInfo
+                        .GetAttributesInterface<IDefineWorkflowScriptResponse>(),
+                (response, attr) => attr.GetScriptLines(response, method));
+
+            return methodSteps
+                .Concat(parameterSteps)
+                .Concat(responseSteps)
                 .ToArray();
-            if (queryParamLineParams.Any())
+
+
+            string [] GetSteps<T, TAttr>(IEnumerable<T> items,
+                Func<T, TAttr[]> getAttrs,
+                Func<T, TAttr, string []> getLines)
+                where TAttr : IDefineWorkflowScript<T>
             {
-                var lineVarQuery = "var query = {};\r";
-                var linePopulateQuery = "pm.request.url.query.all().forEach((param) => { query[param.key] = param.value});\r";
-                var linesQueryVariables = queryParamLineParams
-                    .SelectMany(
-                        tpl =>
-                        {
-                            var (parameterInfo, attr) = tpl;
-                            var (name, value) = attr.GetNameAndValue(parameterInfo, method);
-                            var lineExtract = $"var queryParam_{name} = query[\"{value}\"];\r";
-                            var lineMakeGlobal = $"pm.environment.set(\"{name}\", queryParam_{name});\r";
-                            return new string[] { lineExtract, lineMakeGlobal, "\r" };
-                        })
+                var itemAttrs = items
+                    .SelectMany(item => getAttrs(item)
+                        .Select(attr => (item, attr)))
                     .ToArray();
-                queryParamTestLines = linesQueryVariables
-                    .Prepend(linePopulateQuery)
-                    .Prepend(lineVarQuery)
+
+                var initLines = itemAttrs
+                    .SelectMany(tpl => tpl.attr.GetInitializationLines(tpl.item, method))
+                    .Distinct(line => line.MD5HashGuid())
+                    .ToArray();
+
+                var assignmentLines = itemAttrs
+                    .SelectMany(tpl => getLines(tpl.item, tpl.attr))
+                    .ToArray();
+
+                return initLines
+                    .Concat(assignmentLines)
                     .ToArray();
             }
 
+            //var queryParamTestLines = new string[] { };
+            //var queryParamLineParams = method.MethodPoco
+            //    .GetParametersAndAttributesInterface<IDefineWorkflowRequestVariable>()
+            //    .Where(paramTpl => !paramTpl.Item1.ContainsAttributeInterface<IBindQueryApiValue>())
+            //    .ToArray();
+            //if (queryParamLineParams.Any())
+            //{
+            //    var lineVarQuery = "var query = {};\r";
+            //    var linePopulateQuery = "pm.request.url.query.all().forEach((param) => { query[param.key] = param.value});\r";
+            //    var linesQueryVariables = queryParamLineParams
+            //        .SelectMany(
+            //            tpl =>
+            //            {
+            //                var (parameterInfo, attr) = tpl;
+            //                var (name, value) = attr.GetNameAndValue(parameterInfo, method);
+            //                var lineExtract = $"var queryParam_{name} = query[\"{value}\"];\r";
+            //                var lineMakeGlobal = $"pm.environment.set(\"{name}\", queryParam_{name});\r";
+            //                return new string[] { lineExtract, lineMakeGlobal, "\r" };
+            //            })
+            //        .ToArray();
+            //    queryParamTestLines = linesQueryVariables
+            //        .Prepend(linePopulateQuery)
+            //        .Prepend(lineVarQuery)
+            //        .ToArray();
+            //}
 
-            var headerParamTestLines = new string[] { };
-            var headerLineParams = method.Responses
-                .TryWhere((Resources.Response response, out IDefineWorkflowVariableFromHeader workflowResponse) =>
-                    response.ParamInfo.TryGetAttributeInterface(out workflowResponse, inherit: true))
-                .ToArray();
-            if(headerLineParams.Any())
-            {
-                var lineVarHeaders = "var headers = {};\r";
-                var linePopulateHeaders = "pm.response.headers.all().forEach((header) => { headers[header.key] = header.value });\r";
-                var linesQueryHeaders = headerLineParams
-                    .SelectMany(
-                        itemAttrTpl =>
-                        {
-                            var (responseParameter, attr) = itemAttrTpl;
-                            var (name, value) = attr.GetNameAndValue(responseParameter, method);
-                            var lineExtract = $"var headerParam_{name} = headers[\"{value}\"];\r";
-                            var lineMakeGlobal = $"pm.environment.set(\"{name}\", headerParam_{name});\r";
-                            return new string[] { lineExtract, lineMakeGlobal, "\r" };
-                        })
-                    .ToArray();
-                headerParamTestLines = linesQueryHeaders
-                    .Prepend(linePopulateHeaders)
-                    .Prepend(lineVarHeaders)
-                    .ToArray();
-            }
+            //var requestJsonPropertyLineParams = method.MethodPoco
+            //    .GetParametersAndAttributesInterface<IDefineWorkflowRequestVariable>()
+            //    .Where(paramTpl => paramTpl.Item1.ContainsAttributeInterface<IBindJsonApiValue>())
+            //    .ToArray();
+            //if (requestJsonPropertyLineParams.Any())
+            //{
+            //    var lineVarQuery = "let requestResource = JSON.parse(pm.request.body.raw);\r";
+            //    var linesJsonPropertyVariables = requestJsonPropertyLineParams
+            //        .Select(
+            //            tpl =>
+            //            {
+            //                var (parameterInfo, attr) = tpl;
+            //                var (name, value) = attr.GetNameAndValue(parameterInfo, method);
+            //                var lineMakeGlobal = $"pm.environment.set(\"{name}\", requestResource.{value});\r";
+            //                return lineMakeGlobal;
+            //            })
+            //        .ToArray();
+            //    queryParamTestLines = queryParamTestLines
+            //        .Append(lineVarQuery)
+            //        .Concat(linesJsonPropertyVariables)
+            //        .ToArray();
+            //}
 
-            var paramTypeTestLines = method.Responses
-                .TryWhere((Resources.Response response, out IDefineWorkflowResponse workflowResponse) =>
-                    response.ParamInfo.ParameterType.TryGetAttributeInterface(out workflowResponse, inherit: true))
-                .SelectMany(tpl => tpl.@out.GetPostmanTestLines(tpl.item, method))
-                .ToArray();
+            //var headerParamTestLines = new string[] { };
+            //var headerLineParams = method.Responses
+            //    .TryWhere((Resources.Response response, out IDefineWorkflowVariableFromHeader workflowResponse) =>
+            //        response.ParamInfo.TryGetAttributeInterface(out workflowResponse, inherit: true))
+            //    .ToArray();
+            //if(headerLineParams.Any())
+            //{
+            //    var lineVarHeaders = "var headers = {};\r";
+            //    var linePopulateHeaders = "pm.response.headers.all().forEach((header) => { headers[header.key] = header.value });\r";
+            //    var linesQueryHeaders = headerLineParams
+            //        .SelectMany(
+            //            itemAttrTpl =>
+            //            {
+            //                var (responseParameter, attr) = itemAttrTpl;
+            //                var (name, value) = attr.GetNameAndValue(responseParameter, method);
+            //                var lineExtract = $"var headerParam_{name} = headers[\"{value}\"];\r";
+            //                var lineMakeGlobal = $"pm.environment.set(\"{name}\", headerParam_{name});\r";
+            //                return new string[] { lineExtract, lineMakeGlobal, "\r" };
+            //            })
+            //        .ToArray();
+            //    headerParamTestLines = linesQueryHeaders
+            //        .Prepend(linePopulateHeaders)
+            //        .Prepend(lineVarHeaders)
+            //        .ToArray();
+            //}
 
-            return queryParamTestLines
-                .Concat(headerParamTestLines)
-                .Concat(paramTypeTestLines).ToArray();
+            //return queryParamTestLines
+            //    .Concat(headerParamTestLines)
+            //    .Concat(paramTypeTestLines).ToArray();
         }
 
         private string GetStepName(Method method)
@@ -151,7 +213,7 @@ namespace EastFive.Api.Meta.Flows
             return method.Route.Name;
         }
 
-        protected virtual Request GetRequest(Method method)
+        protected virtual Request GetRequest(Method method, bool preferJson)
         {
             var bodyProperties = method.MethodPoco
                 .GetParameters()
@@ -162,7 +224,10 @@ namespace EastFive.Api.Meta.Flows
             var body = bodyProperties.IsDefaultNullOrEmpty() ?
                 default(Body)
                 :
-                PopulateBody();
+                preferJson?
+                    PopulateJsonBody()
+                    :
+                    PopulateBody();
 
             var paramQueryItems = method.MethodPoco
                         .GetParameters()
@@ -180,10 +245,7 @@ namespace EastFive.Api.Meta.Flows
                     })
                 .SelectMany(attr => attr.GetQueryItems(method));
 
-            return new Request()
-            {
-                method = method.HttpMethod,
-                header = method.MethodPoco
+            var headersFromParameters = method.MethodPoco
                     .GetParameters()
                     .TryWhere(
                         (ParameterInfo paramInfo, out IDefineHeader headerDefinition) =>
@@ -197,7 +259,12 @@ namespace EastFive.Api.Meta.Flows
                             return false;
                         })
                     .Select(tpl => tpl.@out.GetHeader(method, tpl.item))
-                    .ToArray(),
+                    .ToArray();
+
+            return new Request()
+            {
+                method = method.HttpMethod,
+                header = headersFromParameters,
                 body = body,
                 url = new Url()
                 {
@@ -212,11 +279,11 @@ namespace EastFive.Api.Meta.Flows
 
             Body PopulateBody()
             {
-
-                //if (IsFormDataCapable())
-                //    return PopulateJsonBody();
-
                 var formdata = FormDataBody();
+
+                if (!IsFormDataCapable())
+                    return PopulateJsonBody();
+
                 var rawJsonBody = RawJsonBody();
 
                 var mode = IsFormDataCapable() ?
@@ -356,7 +423,7 @@ namespace EastFive.Api.Meta.Flows
 
         public string Description { get; set; }
 
-        protected override Request GetRequest(Method method)
+        protected override Request GetRequest(Method method, bool preferJson)
         {
             bool didParseUrl = Uri.TryCreate(this.Url, UriKind.RelativeOrAbsolute, out Uri parsedUri);
             return new Request()

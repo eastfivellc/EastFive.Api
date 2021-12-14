@@ -10,10 +10,9 @@ namespace EastFive.Api
 {
     public interface IBindQueryApiValue
     {
-        TResult ParseContentDelegate<TResult>(Newtonsoft.Json.Linq.JObject contentJObject,
-                string contentString, Serialization.BindConvert bindConvert,
+        TResult ParseContentDelegate<TResult>(IDictionary<string, string> pairs,
                 ParameterInfo parameterInfo,
-                IApplication httpApp, HttpRequestMessage request,
+                IApplication httpApp, IHttpRequest routeData,
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure);
     }

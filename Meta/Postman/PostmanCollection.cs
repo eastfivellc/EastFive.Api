@@ -65,6 +65,7 @@ namespace EastFive.Api.Meta.Postman
         public static IHttpResponse GetSchema(
                 [QueryParameter] string flow,
                 [OptionalQueryParameter]string collections,
+                [OptionalQueryParameter]bool? preferJson,
                 //Security security,
                 IInvokeApplication invokeApplication,
                 HttpApplication httpApp, IHttpRequest request, IProvideUrl url,
@@ -108,12 +109,14 @@ namespace EastFive.Api.Meta.Postman
 
                         var customItems = manifest.Routes
                             .SelectMany(route => route.Type.GetAttributesInterface<IDefineFlow>(multiple: true))
-                            .Select(flowAttr => (flowAttr, flowAttr.GetItem(default(Api.Resources.Method))))
+                            .Select(flowAttr => (flowAttr, flowAttr.GetItem(default(Api.Resources.Method),
+                                preferJson.HasValue? preferJson.Value : false)))
                             .ToArray();
 
                         var items = methodAndFlowGrp
                             .Select(
-                                methodAndFlow => (methodAndFlow.attr, methodAndFlow.attr.GetItem(methodAndFlow.method)))
+                                methodAndFlow => (methodAndFlow.attr, methodAndFlow.attr.GetItem(methodAndFlow.method,
+                                    preferJson.HasValue ? preferJson.Value : false)))
                             .Concat(customItems)
                             .OrderBy(methodAndFlow => methodAndFlow.Item1.Step)
                             .Select(tpl => tpl.Item2)

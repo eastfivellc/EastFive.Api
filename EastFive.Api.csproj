@@ -8,6 +8,8 @@
     <Compile Remove="FVC\**" />
     <EmbeddedResource Remove="FVC\**" />
     <None Remove="FVC\**" />
+    <None Remove="Auth\Tokens\" />
+    <None Remove="Auth\Claims\" />
   </ItemGroup>
 
   <ItemGroup>
@@ -36,4 +38,8 @@
     <ProjectReference Include="..\EastFive.Web\EastFive.Web.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Auth\Tokens\" />
+    <Folder Include="Auth\Claims\" />
+  </ItemGroup>
 </Project>

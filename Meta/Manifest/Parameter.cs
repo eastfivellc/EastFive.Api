@@ -27,8 +27,9 @@ namespace EastFive.Api.Resources
 
     public class Parameter
     {
-        public Parameter()
+        public Parameter(ParameterInfo pocoParameter)
         {
+            this.PocoParameter = pocoParameter;
         }
 
         public static string GetTypeName(Type type, HttpApplication httpApp)
@@ -95,6 +96,7 @@ namespace EastFive.Api.Resources
         public bool Default { get; set; }
         public string Where { get; set; }
         public string Type { get; set; }
+        public ParameterInfo PocoParameter { get; set; }
         public OpenApiType OpenApiType { get; set; }
     }
 }

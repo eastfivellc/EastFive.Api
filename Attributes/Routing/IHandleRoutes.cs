@@ -17,7 +17,7 @@ namespace EastFive.Api
 
     public interface IHandleRoutes
     {
-        Task<IHttpResponse> HandleRouteAsync(Type controllerType,
+        Task<IHttpResponse> HandleRouteAsync(Type controllerType, IInvokeResource resourceInvoker,
             IApplication httpApp, IHttpRequest request,
             RouteHandlingDelegate continueExecution);
     }

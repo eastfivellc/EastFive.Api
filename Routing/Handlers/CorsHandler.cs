@@ -15,7 +15,7 @@ namespace EastFive.Api
 {
     public class CorsHandlerAttribute : Attribute, IHandleRoutes
     {
-        public Task<IHttpResponse> HandleRouteAsync(Type controllerType,
+        public Task<IHttpResponse> HandleRouteAsync(Type controllerType, IInvokeResource resourceInvoker,
             IApplication httpApp, IHttpRequest request,
             RouteHandlingDelegate continueExecution)
         {

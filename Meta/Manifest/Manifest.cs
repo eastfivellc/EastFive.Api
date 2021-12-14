@@ -187,6 +187,11 @@ namespace EastFive.Api.Resources
         #endregion
     }
 
+    public interface IProvideResponseType
+    {
+        Type GetResponseType(ParameterInfo parameterInfo);
+    }
+
     public class Response
     {
         public Response(ParameterInfo paramInfo)

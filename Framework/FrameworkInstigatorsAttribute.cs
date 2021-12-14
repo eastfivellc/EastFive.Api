@@ -1,6 +1,7 @@
 ﻿using EastFive.Api.Core;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
@@ -13,8 +14,8 @@ namespace EastFive.Api.Framework
         public bool CanInstigate(ParameterInfo parameterInfo)
         {
             return parameterInfo.ParameterType.IsAssignableFrom(typeof(IProvideUrl))
-                ||
-                parameterInfo.ParameterType.IsAssignableFrom(typeof(HttpRequestMessage));
+                || parameterInfo.ParameterType.IsAssignableFrom(typeof(HttpRequestMessage))
+                || parameterInfo.ParameterType.IsAssignableFrom(typeof(Microsoft.Net.Http.Headers.MediaTypeHeaderValue[]));
         }
 
         public Task<IHttpResponse> Instigate(
@@ -33,6 +34,12 @@ namespace EastFive.Api.Framework
             {
                 var httpRequest = (request as Core.CoreHttpRequest).request.ToHttpRequestMessage();
                 return onSuccess(httpRequest);
+            }
+
+            if (parameterInfo.ParameterType.IsAssignableFrom(typeof(Microsoft.Net.Http.Headers.MediaTypeHeaderValue[])))
+            {
+                var acceptHeaders = request.RequestHeaders.Accept.ToArray();
+                return onSuccess(acceptHeaders);
             }
 
             throw new Exception();

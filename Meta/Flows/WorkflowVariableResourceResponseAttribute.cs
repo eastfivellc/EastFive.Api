@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,18 +14,27 @@ using EastFive.Api.Resources;
 
 namespace EastFive.Api.Meta.Flows
 {
-    public interface IDefineWorkflowResponse
+    public interface IDefineWorkflowVariable
     {
-        string[] GetPostmanTestLines(Resources.Response item, Method method);
+        (string, string) GetNameAndValue(Resources.Response response, Method method);
     }
 
-    public class WorkflowResponseDefinition : System.Attribute, IDefineWorkflowResponse
+    public class WorkflowVariableResourceResponseAttribute : System.Attribute, IDefineWorkflowScriptResponse
     {
-        public string[] GetPostmanTestLines(Resources.Response response, Method method)
+        public string[] GetInitializationLines(Response response, Method method)
         {
-            var resourceType = method.Route.Type;
+            return new string[] { };
+        }
+
+        public string[] GetScriptLines(Response response, Method method)
+        {
+            var resourceType = response.ParamInfo.ParameterType.TryGetAttributeInterface(out IProvideResponseType responseTypeProvider) ?
+                responseTypeProvider.GetResponseType(response.ParamInfo)
+                :
+                method.Route.Type;
             var ifCheckStart = $"if(pm.response.headers.members.some(function(element) {{ return element.key == \"{Core.Middleware.HeaderStatusName}\" && element.value == \"{response.ParamInfo.Name}\" }})) {{";
             var ifCheckEnd = "}\r";
+
             if (response.IsMultipart)
             {
                 var parseLine = "\tlet resourceList = pm.response.json();\r";
@@ -36,21 +46,23 @@ namespace EastFive.Api.Meta.Flows
                 var loopEnd = "\t}\r";
 
                 return new string[][]
-                {
-                    new string []
-                    {
-                        ifCheckStart,
-                        parseLine,
-                        loopBegin,
-                        varResource,
-                    },
-                    resourceAssignments,
-                    new string []
-                    {
-                        loopEnd,
-                        ifCheckEnd,
-                    },
-                }.SelectMany().ToArray();
+                        {
+                            new string []
+                            {
+                                ifCheckStart,
+                                parseLine,
+                                loopBegin,
+                                varResource,
+                            },
+                            resourceAssignments,
+                            new string []
+                            {
+                                loopEnd,
+                                ifCheckEnd,
+                            },
+                        }
+                    .SelectMany()
+                    .ToArray();
             }
 
             {

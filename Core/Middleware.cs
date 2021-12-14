@@ -160,8 +160,8 @@ namespace EastFive.Api.Core
                             componentsMatched,
                         };
                     })
-                .OrderBy(tpl => tpl.matchQuality)
-                .Where(kvp => kvp.doesHandleRequest);
+                .Where(kvp => kvp.doesHandleRequest)
+                .OrderBy(tpl => tpl.matchQuality);
 
             //var debug = matchingResources.ToArray();
 
@@ -189,7 +189,7 @@ namespace EastFive.Api.Core
                                 (callback, routeHandler) =>
                                 {
                                     return (controllerTypeCurrent, httpAppCurrent, routeNameCurrent) =>
-                                        routeHandler.HandleRouteAsync(controllerTypeCurrent,
+                                        routeHandler.HandleRouteAsync(controllerTypeCurrent, resource.invokeResourceAttr,
                                             httpAppCurrent, routeNameCurrent,
                                             callback);
                                 })

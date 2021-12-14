@@ -30,6 +30,38 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
         public string key { get; set; }
         public string value { get; set; }
         public string type { get; set; }
+        public bool disabled;
+
+        public static bool IsGeneratedHeader(string key)
+        {
+            if (IsCalculatedHeader(key))
+                return true;
+
+            if ("Cache-Control".Equals(key, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if ("User-Agent".Equals(key, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if ("Accept".Equals(key, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if ("Accept-Encoding".Equals(key, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if ("Connection".Equals(key, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            return false;
+        }
+
+        public static bool IsCalculatedHeader(string key)
+        {
+            if ("Content-Length".Equals(key, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if ("Postman-Token".Equals(key, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if ("Host".Equals(key, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            return false;
+        }
     }
 
     public struct QueryItem

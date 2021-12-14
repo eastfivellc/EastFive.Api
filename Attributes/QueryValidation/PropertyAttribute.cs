@@ -177,7 +177,7 @@ namespace EastFive.Api
 
         public virtual Parameter GetParameter(ParameterInfo paramInfo, HttpApplication httpApp)
         {
-            return new Parameter()
+            return new Parameter(paramInfo)
             {
                 Default = false,
                 Name = this.GetKey(paramInfo),

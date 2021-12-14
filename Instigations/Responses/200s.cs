@@ -35,11 +35,9 @@ namespace EastFive.Api
 {
     #region Objects
 
-    [Meta.Flows.WorkflowResponseDefinition]
     [BodyTypeResponse(StatusCode = HttpStatusCode.OK)]
     public delegate IHttpResponse ContentTypeResponse<TResource>(TResource content, string contentType = default(string));
 
-    [Meta.Flows.WorkflowResponseDefinition]
     [BodyResponse(StatusCode = System.Net.HttpStatusCode.OK)]
     public delegate IHttpResponse ContentResponse(object content, string contentType = default(string));
 
@@ -956,10 +954,9 @@ namespace EastFive.Api
 
     #region Multipart
 
-    [Meta.Flows.WorkflowResponseDefinition]
     [MultipartAsyncResponseGeneric]
     public delegate IHttpResponse MultipartAsyncResponse<TResource>(IEnumerableAsync<TResource> responses);
-    public class MultipartAsyncResponseGenericAttribute : HttpGenericDelegateAttribute
+    public class MultipartAsyncResponseGenericAttribute : HttpGenericDelegateAttribute, IProvideResponseType
     {
         public override HttpStatusCode StatusCode => HttpStatusCode.OK;
 
@@ -979,6 +976,11 @@ namespace EastFive.Api
             var baseResponse = base.GetResponse(paramInfo, httpApp);
             baseResponse.IsMultipart = true;
             return baseResponse;
+        }
+
+        public Type GetResponseType(ParameterInfo parameterInfo)
+        {
+            return parameterInfo.ParameterType.GenericTypeArguments.First();
         }
     }
 
@@ -1005,10 +1007,9 @@ namespace EastFive.Api
         }
     }
 
-    [Meta.Flows.WorkflowResponseDefinition]
     [MultipartAcceptArrayResponseType]
     public delegate IHttpResponse MultipartAcceptArrayResponse<TResource>(IEnumerable<TResource> responses);
-    public class MultipartAcceptArrayResponseTypeAttribute : HttpGenericDelegateAttribute
+    public class MultipartAcceptArrayResponseTypeAttribute : HttpGenericDelegateAttribute, IProvideResponseType
     {
         public override HttpStatusCode StatusCode => HttpStatusCode.OK;
 
@@ -1027,6 +1028,11 @@ namespace EastFive.Api
             var baseResponse = base.GetResponse(paramInfo, httpApp);
             baseResponse.IsMultipart = true;
             return baseResponse;
+        }
+
+        public Type GetResponseType(ParameterInfo parameterInfo)
+        {
+            return parameterInfo.ParameterType.GenericTypeArguments.First();
         }
     }
 

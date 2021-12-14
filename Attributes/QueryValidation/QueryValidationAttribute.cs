@@ -13,10 +13,12 @@ using BlackBarLabs.Api;
 using BlackBarLabs.Extensions;
 using EastFive.Api.Core;
 using EastFive.Api.Resources;
+using EastFive.Api.Serialization;
 using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Reflection;
 using EastFive.Serialization;
+using Newtonsoft.Json.Linq;
 
 namespace EastFive.Api
 {
@@ -83,7 +85,7 @@ namespace EastFive.Api
 
     }
 
-    public class QueryParameterAttribute : QueryValidationAttribute, IDocumentParameter
+    public class QueryParameterAttribute : QueryValidationAttribute, IDocumentParameter, IBindQueryApiValue
     {
         public bool CheckFileName { get; set; }
 
@@ -101,7 +103,7 @@ namespace EastFive.Api
 
         public virtual Parameter GetParameter(ParameterInfo paramInfo, HttpApplication httpApp)
         {
-            return new Parameter()
+            return new Parameter(paramInfo)
             {
                 Default = CheckFileName,
                 Name = this.GetKey(paramInfo),
@@ -139,6 +141,20 @@ namespace EastFive.Api
                     return queryResult;
                 });
         }
+
+        // TODO: This is the approach we'll be moving to
+        public TResult ParseContentDelegate<TResult>(IDictionary<string, string> pairs,
+                ParameterInfo parameterInfo, IApplication httpApp, IHttpRequest routeData,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onFailure)
+        {
+            throw new NotImplementedException();
+        }
+
+        //public TResult ParseContentDelegate<TResult>(JObject contentJObject, string contentString, BindConvert bindConvert, ParameterInfo parameterInfo, IApplication httpApp, HttpRequestMessage request, Func<object, TResult> onParsed, Func<string, TResult> onFailure)
+        //{
+        //    throw new NotImplementedException();
+        //}
     }
 
     public class OptionalQueryParameterAttribute : QueryParameterAttribute
@@ -226,7 +242,7 @@ namespace EastFive.Api
 
         public virtual Parameter GetParameter(ParameterInfo paramInfo, HttpApplication httpApp)
         {
-            return new Parameter()
+            return new Parameter(paramInfo)
             {
                 Default = true,
                 Name = this.GetKey(paramInfo),

@@ -28,7 +28,7 @@ namespace EastFive.Api
 
         public Parameter GetParameter(ParameterInfo paramInfo, HttpApplication httpApp)
         {
-            return new Parameter()
+            return new Parameter(paramInfo)
             {
                 Default = true,
                 Name = this.GetKey(paramInfo),

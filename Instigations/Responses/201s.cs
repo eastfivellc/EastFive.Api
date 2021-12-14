@@ -17,17 +17,18 @@ using EastFive.Extensions;
 using EastFive.Linq.Async;
 using EastFive.Reflection;
 using EastFive.Api.Resources;
+using EastFive.Api.Meta.Flows;
 
 namespace EastFive.Api
 {
     [StatusCodeResponse(StatusCode = HttpStatusCode.Created)]
     public delegate IHttpResponse CreatedResponse();
 
-    [Meta.Flows.WorkflowResponseDefinition]
     [BodyTypeResponse(StatusCode = HttpStatusCode.Created)]
     public delegate IHttpResponse CreatedBodyResponse<TResource>(TResource content, string contentType = default);
     
-    public class BodyTypeResponseAttribute : HttpGenericDelegateAttribute
+    public class BodyTypeResponseAttribute : HttpGenericDelegateAttribute,
+        IProvideResponseType, IDefineWorkflowResponseVariable
     {
         public override string Example => "serialized object";
 
@@ -175,6 +176,23 @@ namespace EastFive.Api
                 baseResponse.IsMultipart = paramInfo.ParameterType.GenericTypeArguments.First().IsArray;
             
             return baseResponse;
+        }
+
+        public Type GetResponseType(ParameterInfo parameterInfo)
+        {
+            return parameterInfo.ParameterType.GenericTypeArguments.First();
+        }
+
+        public string[] GetInitializationLines(Response item, Method method)
+        {
+            return "let responseResource = pm.response.json();\r".AsArray();
+        }
+
+        public string[] GetScriptLines(
+            string variableName, string propertyName,
+            Response response, Method method)
+        {
+            return $"pm.environment.set(\"{variableName}\", responseResource.{propertyName});\r".AsArray();
         }
     }
 }
