@@ -236,6 +236,15 @@ namespace EastFive.Api
                 (why) => false);
         }
 
+        public static bool IsAuthorizedForRole(this IHttpRequest request, string claimValue)
+        {
+            var rollClaim = new Uri(System.Security.Claims.ClaimTypes.Role);
+            if (request.IsAuthorizedFor(rollClaim, claimValue))
+                return true;
+
+            return request.IsAuthorizedFor(rollClaim, EastFive.Api.Auth.ClaimValues.RoleType + claimValue);
+        }
+
         public static bool IsAuthorizedFor(this IHttpRequest request,
             Uri claimType, string claimValue)
         {
