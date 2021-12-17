@@ -12,7 +12,7 @@ namespace EastFive.Api.Meta.Flows
 {
     public interface IDefineQueryItem
     {
-        QueryItem? GetQueryItem(Api.Resources.Method method, ParameterInfo parameter);
+        QueryItem[] GetQueryItem(Api.Resources.Method method, ParameterInfo parameter);
         QueryItem[] GetQueryItems(Api.Resources.Method method);
     }
 
@@ -37,13 +37,13 @@ namespace EastFive.Api.Meta.Flows
             .AsArray();
         }
 
-        public QueryItem? GetQueryItem(Api.Resources.Method method, ParameterInfo parameter)
+        public QueryItem[] GetQueryItem(Api.Resources.Method method, ParameterInfo parameter)
         {
             return new QueryItem()
             {
                 key = queryKey,
                 value = queryValue,
-            };
+            }.AsArray();
         }
     }
 }

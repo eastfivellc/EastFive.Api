@@ -1,8 +1,4 @@
-﻿using EastFive.Api.Meta.Flows;
-using EastFive.Api.Meta.Postman.Resources.Collection;
-using EastFive.Api.Resources;
-using EastFive.Linq;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -11,9 +7,17 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
+using EastFive;
+using EastFive.Api.Auth;
+using EastFive.Api.Meta.Flows;
+using EastFive.Api.Meta.Postman.Resources.Collection;
+using EastFive.Api.Resources;
+using EastFive.Linq;
+
 namespace EastFive.Api
 {
     [Security]
+    [AuthorizationToken]
     public struct Security
     {
         public Guid performingAsActorId;
@@ -21,7 +25,7 @@ namespace EastFive.Api
         public System.Security.Claims.Claim[] claims;
     }
 
-    public class SecurityAttribute : Attribute, IInstigatable, IDefineHeader
+    public class SecurityAttribute : Attribute, IInstigatable
     {
         public Task<IHttpResponse> Instigate(IApplication httpApp,
                 IHttpRequest request, ParameterInfo parameterInfo, 
@@ -48,24 +52,6 @@ namespace EastFive.Api
                         };
                         return onSuccess(security);
                     });
-        }
-
-        public Header GetHeader(Api.Resources.Method method, ParameterInfo parameter)
-        {
-            if (!method.MethodPoco.TryGetAttributeInterface(out IValidateHttpRequest requestValidator))
-                return new Header()
-                {
-                    key = "{{AuthorizationHeaderName}}",
-                    value = "{{TOKEN}}",
-                    type = "text",
-                };
-
-            return new Header()
-            {
-                key = $"api-voucher",
-                value = "{{VoucherToken}}",
-                type = "text",
-            };
         }
     }
 }

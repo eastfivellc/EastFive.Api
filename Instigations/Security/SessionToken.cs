@@ -14,10 +14,12 @@ using EastFive.Linq;
 using EastFive.Web.Configuration;
 using EastFive.Api.Meta.Flows;
 using EastFive.Api.Meta.Postman.Resources.Collection;
+using EastFive.Api.Auth;
 
 namespace EastFive.Api
 {
     [SessionToken]
+    [AuthorizationToken]
     public struct SessionToken
     {
         public Guid sessionId;
@@ -39,7 +41,7 @@ namespace EastFive.Api
         }
     }
 
-    public class SessionTokenAttribute : Attribute, IInstigatable, IDefineHeader
+    public class SessionTokenAttribute : Attribute, IInstigatable
     {
         public Task<IHttpResponse> Instigate(IApplication httpApp,
                 IHttpRequest request, ParameterInfo parameterInfo,
@@ -77,27 +79,10 @@ namespace EastFive.Api
                     .AddReason(why)
                     .AsTask());
         }
-
-        public Header GetHeader(Api.Resources.Method method, ParameterInfo parameter)
-        {
-            if(!method.MethodPoco.TryGetAttributeInterface(out IValidateHttpRequest requestValidator))
-                return new Header()
-                {
-                    key = "{{AuthorizationHeaderName}}",
-                    value = "{{TOKEN}}",
-                    type = "text",
-                };
-
-            return new Header()
-            {
-                key = $"api-voucher",
-                value = "{{VoucherToken}}",
-                type = "text",
-            };
-        }
     }
 
     [SessionTokenMaybe]
+    [AuthorizationToken]
     public struct SessionTokenMaybe
     {
         public Guid? sessionId;

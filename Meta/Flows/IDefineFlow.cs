@@ -233,8 +233,8 @@ namespace EastFive.Api.Meta.Flows
                         .GetParameters()
                         .TryWhere((ParameterInfo paramInfo, out IDefineQueryItem requestProperty) =>
                             paramInfo.TryGetAttributeInterface(out requestProperty))
-                        .Select(tpl => tpl.@out.GetQueryItem(method, tpl.item))
-                        .SelectWhereHasValue();
+                        .SelectMany(tpl => tpl.@out.GetQueryItem(method, tpl.item).NullToEmpty())
+                        .ToArray();
             var attrQueryItems = method
                 .MethodPoco
                 .CustomAttributes

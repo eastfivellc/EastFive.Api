@@ -85,7 +85,7 @@ namespace EastFive.Api.Meta.Flows
             };
         }
 
-        public QueryItem? GetQueryItem(Method method, ParameterInfo parameter)
+        public QueryItem[] GetQueryItem(Method method, ParameterInfo parameter)
         {
             if (parameter.ContainsAttributeInterface<IBindJsonApiValue>(inherit: true))
                 return default;
@@ -107,7 +107,7 @@ namespace EastFive.Api.Meta.Flows
                 value = value,
                 description = description,
                 disabled = this.Disabled,
-            };
+            }.AsArray();
         }
 
         public QueryItem[] GetQueryItems(Method method)
