@@ -27,7 +27,7 @@ namespace EastFive.Api.Auth
         {
             Func<string, bool> roleInterigator =
                 request.Properties.TryGetValueNullSafe(Token.PropertyName, out object tokenObj) ?
-                    (roll) => ((Token)tokenObj).IsAuthorizedForRole(roll)
+                    (roll) => ((Token)tokenObj).IsAuthorizedForRoll(roll)
                     :
                     (roll) => request.IsAuthorizedForRole(roll);
 

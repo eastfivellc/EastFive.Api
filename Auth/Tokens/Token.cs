@@ -15,6 +15,23 @@ namespace EastFive.Api.Auth
 
         public object source;
 
+        public bool IsAuthorizedForRoll(string claimValue,
+            StringComparison stringComparison = StringComparison.Ordinal)
+        {
+            return claims.First(
+                (claim, next) =>
+                {
+                    if (!ClaimTypes.Role.Equals(claim.Type, stringComparison))
+                        return next();
+
+                    if (!claimValue.Equals(claim.Value, stringComparison))
+                        return next();
+
+                    return true;
+                },
+                () => false);
+        }
+
         public bool IsAuthorizedFor(string claimType, string claimValue,
             StringComparison stringComparison = StringComparison.Ordinal)
         {
