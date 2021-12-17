@@ -4,13 +4,16 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
-using BlackBarLabs.Api.Resources;
-using EastFive.Extensions;
-using EastFive.Text;
-using EastFive;
 using System.Runtime.InteropServices;
 using System.Reflection;
+
+using BlackBarLabs.Api.Resources;
+using EastFive;
+using EastFive.Extensions;
+using EastFive.Reflection;
+using EastFive.Text;
+using EastFive.Collections.Generic;
+using EastFive.Linq;
 
 namespace EastFive.Api.Bindings
 {
@@ -325,6 +328,69 @@ namespace EastFive.Api.Bindings
 
                 var validValues = Enum.GetNames(type).Join(", ");
                 return onDidNotBind($"Value `{content}` is not a valid value for `{type.FullName}.` Valid values are [{validValues}].");
+            }
+
+            if(type.IsArray)
+            {
+                return content.MatchRegexInvoke(
+                    "\\[(?<index>[0-9]+)\\]=(?<value>([^\\;]|(?<=\\\\)\\;)*)",
+                    (index, value) => index.PairWithValue(value),
+                    onMatched: tpls =>
+                    {
+                        var matchesDictionary = tpls
+                            .TryWhere(
+                                (KeyValuePair<string, string> kvp, out int indexedValue) =>
+                                    int.TryParse(kvp.Key, out indexedValue))
+                            .Select(
+                                match => match.item.Value.PairWithKey(match.@out))
+                            .ToDictionary();
+
+
+                        // matchesDictionary.Keys will throw if empty
+                        var ordered = matchesDictionary.IsDefaultNullOrEmpty()?
+                            new (bool, string)[] { }
+                            :
+                            Enumerable
+                                .Range(0, matchesDictionary.Keys.Max() + 1)
+                                .Select(
+                                    (index) =>
+                                    {
+                                        if (!matchesDictionary.TryGetValue(index, out string value))
+                                            return (false, $"Missing index {index}");
+                                        return (true, value);
+                                    })
+                                .ToArray();
+
+                        var arrayType = type.GetElementType();
+                        return ordered
+                            .Where(tpl => !tpl.Item1)
+                            .First(
+                                (tpl, next) => onBindingFailure(tpl.Item2),
+                                () =>
+                                {
+                                    var parsed = ordered
+                                        .SelectWhere()
+                                        .Select(value => BindDirect(arrayType, value,
+                                            v => (0, v),
+                                            why => (1, why),
+                                            why => (2, why)))
+                                        .ToArray();
+                                    return parsed
+                                        .Where(tpl => tpl.Item1 != 0)
+                                        .First(
+                                            (tpl, next) => onBindingFailure((string)tpl.Item2),
+                                            () =>
+                                            {
+                                                var value = parsed
+                                                    .Select(tpl => tpl.Item2)
+                                                    .ToArray()
+                                                    .CastArray(arrayType);
+                                                return onParsed(value);
+                                            });
+                                });
+                         
+                    });
+                // return onDidNotBind($"Array not formatted correctly. It must be [0]=asdf;[1]=qwer;[2]=zxcv");
             }
 
             return onDidNotBind($"No binding for type `{type.FullName}` provided by {typeof(StandardStringBindingsAttribute).FullName}.");
