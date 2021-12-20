@@ -123,14 +123,16 @@ namespace EastFive.Api.Bindings
                             },
                             onFailureToBind);
                     },
-                    //() =>
-                    //{
-                    //    return type.Bind(provider,
-                    //            application,
-                    //        onParsed,
-                    //        onFailureToBind);
-                    //});
                     () => onFailureToBind($"{application.GetType().FullName} does not have binding attribute that can bind {type.FullName}"));
+
+            //() =>
+            //{
+            //    return type.Bind(provider,
+            //            application,
+            //        onParsed,
+            //        onFailureToBind);
+            //});
+            //() => onFailureToBind($"{application.GetType().FullName} does not have binding attribute that can bind {type.FullName}"));
         }
     }
 }
