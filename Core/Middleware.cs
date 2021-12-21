@@ -79,6 +79,14 @@ namespace EastFive.Api.Core
                             .ProcessWorkAsync(cancellationToken));
             } catch(Exception ex)
             {
+                try
+                {
+                    context.Response.StatusCode = 500;
+                } catch(Exception)
+                {
+
+                }
+
                 var stackTraceBytes = $"{ex.Message}\n\n{ex.StackTrace}".GetBytes();
                 await context.Response.Body.WriteAsync(stackTraceBytes, 0, stackTraceBytes.Length);
             }

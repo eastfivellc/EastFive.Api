@@ -167,11 +167,17 @@ namespace EastFive.Api
         public static IEnumerable<MediaTypeWithQualityHeaderValue> GetAcceptTypes(this IHttpRequest req)
             => req.GetHeaders("accept")
             .SelectMany(acceptString => acceptString.Split(','))
-            .Select(acceptString => new MediaTypeWithQualityHeaderValue(acceptString));
+            .TryWhere(
+                (string acceptString, out MediaTypeWithQualityHeaderValue acceptHeader) =>
+                    MediaTypeWithQualityHeaderValue.TryParse(acceptString, out acceptHeader))
+            .Select(tpl => tpl.@out);
 
         public static IEnumerable<StringWithQualityHeaderValue> GetAcceptLanguage(this IHttpRequest req)
             => req.GetHeaders("Accept-Language")
-            .Select(acceptString => new StringWithQualityHeaderValue(acceptString));
+            .TryWhere(
+                (string acceptString, out StringWithQualityHeaderValue acceptHeader) =>
+                    StringWithQualityHeaderValue.TryParse(acceptString, out acceptHeader))
+            .Select(tpl => tpl.@out);
 
         #endregion
 
