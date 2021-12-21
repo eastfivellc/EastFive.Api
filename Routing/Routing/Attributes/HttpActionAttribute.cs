@@ -1,4 +1,6 @@
 ﻿using EastFive.Api.Bindings;
+using EastFive.Api.Meta.Flows;
+using EastFive.Api.Meta.Postman.Resources.Collection;
 using EastFive.Api.Resources;
 using EastFive.Api.Serialization;
 using EastFive.Extensions;
@@ -13,7 +15,7 @@ using System.Threading.Tasks;
 namespace EastFive.Api
 {
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Method)]
-    public class HttpActionAttribute : HttpVerbAttribute
+    public class HttpActionAttribute : HttpVerbAttribute, IProvideWorkflowUrl
     {
         public HttpActionAttribute(string method)
         {
@@ -65,6 +67,17 @@ namespace EastFive.Api
         {
             var path = new Uri($"/{route.Namespace}/{route.Name}/{Action}", UriKind.Relative);
             return new Method(HttpMethod.Get.Method, methodInfo, route, path, httpApp);
+        }
+
+        public Url GetUrl(Api.Resources.Method method, QueryItem[] queryItems)
+        {
+            return new Url()
+            {
+                raw = $"{Url.VariableHostName}/{method.Route.Namespace}/{method.Route.Name}/{this.Action}",
+                host = Url.VariableHostName.AsArray(),
+                path = new string[] { method.Route.Namespace, method.Route.Name, this.Action },
+                query = queryItems,
+            };
         }
     }
 }

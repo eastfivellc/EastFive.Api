@@ -261,18 +261,25 @@ namespace EastFive.Api.Meta.Flows
                     .Select(tpl => tpl.@out.GetHeader(method, tpl.item))
                     .ToArray();
 
+            var queryItems = paramQueryItems.Concat(attrQueryItems).ToArray();
+
+            var url = method.MethodPoco.TryGetAttributeInterface(out IProvideWorkflowUrl workflowUrlProvider) ?
+                    workflowUrlProvider.GetUrl(method, queryItems)
+                :
+                    new Url()
+                    {
+                        raw = $"{{{{HOST}}}}/{method.Route.Namespace}/{method.Route.Name}",
+                        host = Url.VariableHostName.AsArray(),
+                        path = new string[] { method.Route.Namespace, method.Route.Name },
+                        query = queryItems,
+                    };
+
             return new Request()
             {
                 method = method.HttpMethod,
                 header = headersFromParameters,
                 body = body,
-                url = new Url()
-                {
-                    raw = $"{{{{HOST}}}}/{method.Route.Namespace}/{method.Route.Name}",
-                    host = Url.VariableHostName.AsArray(),
-                    path = new string[] { method.Route.Namespace, method.Route.Name },
-                    query = paramQueryItems.Concat(attrQueryItems).ToArray(),
-                },
+                url = url,
                 description = GetDescription(),
             };
 
