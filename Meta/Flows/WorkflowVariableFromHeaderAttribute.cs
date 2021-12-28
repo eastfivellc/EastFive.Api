@@ -4,7 +4,8 @@ using EastFive.Api.Resources;
 
 namespace EastFive.Api.Meta.Flows
 {
-    public class WorkflowVariableFromHeaderAttribute : IDefineWorkflowScriptResponse
+    public class WorkflowVariableFromHeaderAttribute
+        : System.Attribute, IDefineWorkflowScriptResponse
     {
         public string VariableName { get; set; }
 

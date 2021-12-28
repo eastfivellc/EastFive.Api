@@ -32,30 +32,44 @@ namespace EastFive.Api.Bindings
                     },
                     () =>
                     {
-                        return application.Bind(provider, parameter.ParameterType,
-                            onParsed,
-                            onFailureToBind);
-
-                        //return application.GetType()
-                        //    .GetAttributesInterface<IBindApiParameter<TProvider>>(true)
-                        //    .First(
-                        //        (paramBinder, next) =>
-                        //        {
-                        //            return paramBinder.Bind(parameter, provider,
-                        //                    application,
-                        //                onParsed,
-                        //                (why) =>
-                        //                {
-                        //                    return next();
-                        //                },
-                        //                (why) => next());
-                        //        },
-                        //        () =>
-                        //        {
-                        //            return application.Bind(provider, parameter.ParameterType,
-                        //                        onParsed,
-                        //                        onFailureToBind);
-                        //        });
+                        return application.GetType()
+                            .GetAttributesInterface<IBindApiParameter<TProvider>>(true)
+                            .First(
+                                (paramBinder, next) =>
+                                {
+                                    return paramBinder.Bind(parameter, provider,
+                                            application,
+                                        onParsed,
+                                        (why) =>
+                                        {
+                                            return next();
+                                        },
+                                        (why) => onFailureToBind(why));
+                                },
+                                () =>
+                                {
+                                    var parameterType = parameter.ParameterType;
+                                    return parameterType
+                                        .GetAttributesInterface<IBindApiParameter<TProvider>>(inherit: true)
+                                        .First(
+                                            (paramBinder, next) =>
+                                            {
+                                                return paramBinder.Bind(parameter, provider,
+                                                        application,
+                                                    onParsed,
+                                                    (why) =>
+                                                    {
+                                                        return next();
+                                                    },
+                                                    (why) => onFailureToBind(why));
+                                            },
+                                            () =>
+                                            {
+                                                return application.Bind(provider, parameterType,
+                                                    onParsed,
+                                                    onFailureToBind);
+                                            });
+                                });
                     });
         }
 
