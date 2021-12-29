@@ -215,16 +215,18 @@ namespace EastFive.Api
             {
                 if (width.HasValue || height.HasValue || fill.HasValue)
                 {
-                    var image = System.Drawing.Image.FromStream(new MemoryStream(imageData));
-                    var resizedResponse = new ImageHttpResponse(request, this.StatusCode,
-                        image, width, height, fill, filename);
-                    return UpdateResponse(parameterInfo, httpApp, request, resizedResponse);
+                    try
+                    {
+                        var image = System.Drawing.Image.FromStream(new MemoryStream(imageData));
+                        var resizedResponse = new ImageHttpResponse(request, this.StatusCode,
+                            image, width, height, fill, filename);
+                        return UpdateResponse(parameterInfo, httpApp, request, resizedResponse);
+                    } catch(TypeInitializationException) 
+                    {
+                        // Was not Windoze
+                    }
                 }
-                var contentTypeFinal = contentType.NullToEmpty()
-                    .StartsWith("image", StringComparison.OrdinalIgnoreCase) ?
-                        contentType
-                        :
-                        System.Drawing.Image.FromStream(new MemoryStream(imageData)).GetMimeType();
+                var contentTypeFinal = GetContentType();
                 var response = new BytesHttpResponse(request, this.StatusCode,
                     filename,
                     contentTypeFinal, 
@@ -233,6 +235,22 @@ namespace EastFive.Api
                 //response.SetContentType(contentTypeFinal);
 
                 return UpdateResponse(parameterInfo, httpApp, request, response);
+
+                string GetContentType()
+                {
+                    if (contentType.NullToEmpty().StartsWith("image", StringComparison.OrdinalIgnoreCase))
+                        return contentType;
+
+                    try
+                    {
+                        return System.Drawing.Image.FromStream(new MemoryStream(imageData))
+                            .GetMimeType();
+                    }
+                    catch (TypeInitializationException)
+                    {
+                        return contentType;
+                    }
+                }
             };
             return onSuccess((object)responseDelegate);
         }
