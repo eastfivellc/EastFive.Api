@@ -21,7 +21,8 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
 
         public static Task<TResult> GetAsync<TResult>(string collectionId,
             Func<Collection, TResult> onFound,
-            Func<TResult> onNotFound)
+            Func<TResult> onNotFound,
+            Func<string, TResult> onFailure = default)
         {
             return EastFive.Api.AppSettings.Postman.ApiKey.ConfigurationString(
                 apiKey =>
@@ -43,7 +44,8 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
                                 return onNotFound();
                             throw new Exception(body);
                         });
-                });
+                },
+                onUnspecified:onFailure.AsAsyncFunc());
         }
 
         public Task<TResult> CreateAsync<TResult>(
