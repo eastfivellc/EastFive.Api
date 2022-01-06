@@ -224,6 +224,13 @@ namespace EastFive.Api
                     } catch(TypeInitializationException) 
                     {
                         // Was not Windoze
+
+                        if (imageData.TryReadImage(out SixLabors.ImageSharp.Image image))
+                        {
+                            var resizedResponse = new ImageSharpHttpResponse(request, this.StatusCode,
+                                image, width, height, fill, filename);
+                            return UpdateResponse(parameterInfo, httpApp, request, resizedResponse);
+                        }
                     }
                 }
                 var contentTypeFinal = GetContentType();
