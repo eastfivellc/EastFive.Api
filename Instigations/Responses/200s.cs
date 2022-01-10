@@ -30,6 +30,7 @@ using EastFive.Serialization;
 using Microsoft.Extensions.FileProviders;
 using System.Web;
 using EastFive.Api.Resources;
+using SixLabors.ImageSharp.Formats;
 
 namespace EastFive.Api
 {
@@ -225,7 +226,7 @@ namespace EastFive.Api
                     {
                         // Was not Windoze
 
-                        if (imageData.TryReadImage(out SixLabors.ImageSharp.Image image))
+                        if (imageData.TryReadImage(out SixLabors.ImageSharp.Image image, out IImageFormat format))
                         {
                             var resizedResponse = new ImageSharpHttpResponse(request, this.StatusCode,
                                 image, width, height, fill, filename);
