@@ -216,14 +216,14 @@ namespace EastFive.Api
             {
                 if (width.HasValue || height.HasValue || fill.HasValue)
                 {
-                    try
-                    {
-                        var image = System.Drawing.Image.FromStream(new MemoryStream(imageData));
-                        var resizedResponse = new ImageHttpResponse(request, this.StatusCode,
-                            image, width, height, fill, filename);
-                        return UpdateResponse(parameterInfo, httpApp, request, resizedResponse);
-                    } catch(TypeInitializationException) 
-                    {
+                    //try
+                    //{
+                    //    var image = System.Drawing.Image.FromStream(new MemoryStream(imageData));
+                    //    var resizedResponse = new ImageHttpResponse(request, this.StatusCode,
+                    //        image, width, height, fill, filename);
+                    //    return UpdateResponse(parameterInfo, httpApp, request, resizedResponse);
+                    //} catch(TypeInitializationException) 
+                    //{
                         // Was not Windoze
 
                         if (imageData.TryReadImage(out SixLabors.ImageSharp.Image image, out IImageFormat format))
@@ -232,7 +232,7 @@ namespace EastFive.Api
                                 image, width, height, fill, filename);
                             return UpdateResponse(parameterInfo, httpApp, request, resizedResponse);
                         }
-                    }
+                    //}
                 }
                 var contentTypeFinal = GetContentType();
                 var response = new BytesHttpResponse(request, this.StatusCode,
