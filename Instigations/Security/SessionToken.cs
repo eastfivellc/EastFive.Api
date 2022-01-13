@@ -34,8 +34,10 @@ namespace EastFive.Api
                 {
                     if (String.Compare(claim.Type, claimType) != 0)
                         return next();
-                    var accountId = Guid.Parse(claim.Value);
-                    return accountId;
+                    if(Guid.TryParse(claim.Value, out Guid accountId))
+                        return accountId;
+
+                    return default(Guid?);
                 },
                 () => default(Guid?));
         }
