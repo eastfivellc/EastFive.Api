@@ -545,6 +545,7 @@ namespace EastFive.Api
                                         .Append(Assembly.Load(new AssemblyName("System.Runtime")))
                                         .Append(typeof(HttpStatusCode).Assembly)
                                         .Append(typeof(HttpUtility).Assembly)
+                                        .Append(typeof(Uri).Assembly)
                                         .Distinct(assembly => assembly.FullName);
 
                                       foreach (var assembly in assemblies)
@@ -977,6 +978,37 @@ namespace EastFive.Api
     //        return onSuccess((object)responseDelegate);
     //    }
     //}
+
+    [MultipartAsyncResponseGenericCSV]
+    public delegate IHttpResponse MultipartAsyncResponseCsv<TResource>(IEnumerableAsync<TResource> responses);
+    public class MultipartAsyncResponseGenericCSVAttribute : HttpGenericDelegateAttribute, IProvideResponseType
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override string Example => "[]";
+
+        [InstigateMethod]
+        public IHttpResponse EnumerableAsyncHttpResponse<T>(IEnumerableAsync<T> objectsAsync)
+        {
+            var response = new EnumerableAsyncCsvResponse<T>(this.httpApp, request, this.parameterInfo,
+                this.StatusCode,
+                objectsAsync);
+            return UpdateResponse(parameterInfo, httpApp, request, response);
+        }
+
+        public override Response GetResponse(ParameterInfo paramInfo, HttpApplication httpApp)
+        {
+            var baseResponse = base.GetResponse(paramInfo, httpApp);
+            baseResponse.IsMultipart = true;
+            return baseResponse;
+        }
+
+        public Type GetResponseType(ParameterInfo parameterInfo)
+        {
+            return parameterInfo.ParameterType.GenericTypeArguments.First();
+        }
+    }
+
 
     #region Multipart
 
