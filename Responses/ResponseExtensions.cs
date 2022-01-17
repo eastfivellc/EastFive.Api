@@ -13,6 +13,10 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 
 using Microsoft.AspNetCore.Mvc.Routing;
+using Microsoft.AspNetCore.Http.Headers;
+using Microsoft.Net.Http.Headers;
+using MediaTypeHeaderValue = Microsoft.Net.Http.Headers.MediaTypeHeaderValue;
+using ContentDispositionHeaderValue = Microsoft.Net.Http.Headers.ContentDispositionHeaderValue;
 
 using Newtonsoft.Json;
 
@@ -116,13 +120,50 @@ namespace EastFive.Api
             if (contentType.HasBlackSpace())
                 response.SetContentType(contentType);
 
-            if (inline.HasValue)
+            if (inline.HasValue || fileName.HasBlackSpace())
             {
-                var dispHeader = new ContentDispositionHeaderValue(inline.Value ? "inline" : "attachment")
+                var dispositionType = GetDispositiontype();
+                var dispHeader = new ContentDispositionHeaderValue(dispositionType)
                 {
                     FileName = fileName,
                 };
-                response.SetHeader("Content-Disposition", dispHeader.ToString());
+                var dispositionHeaderValue = dispHeader.ToString();
+                response.SetHeader("Content-Disposition", dispositionHeaderValue);
+
+                string GetDispositiontype()
+                {
+                    if (inline.HasValue)
+                        if(inline.Value)
+                            return "inline";
+
+                    return "attachment";
+                }
+            }
+        }
+
+        public static void SetFileHeaders(this ResponseHeaders headers,
+            string fileName, string contentType, bool? inline)
+        {
+            if (contentType.HasBlackSpace())
+                if (MediaTypeHeaderValue.TryParse(contentType, out MediaTypeHeaderValue contentTypeHeader))
+                    headers.ContentType = contentTypeHeader;
+
+            if (fileName.HasBlackSpace())
+            {
+                var dispositionType = GetDispositiontype();
+                headers.ContentDisposition = new ContentDispositionHeaderValue(dispositionType)
+                {
+                    FileName = fileName,
+                };
+
+                string GetDispositiontype()
+                {
+                    if (inline.HasValue)
+                        if (inline.Value)
+                            return "inline";
+
+                    return "attachment";
+                }
             }
         }
 

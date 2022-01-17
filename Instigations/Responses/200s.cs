@@ -980,7 +980,8 @@ namespace EastFive.Api
     //}
 
     [MultipartAsyncResponseGenericCSV]
-    public delegate IHttpResponse MultipartAsyncResponseCsv<TResource>(IEnumerableAsync<TResource> responses);
+    public delegate IHttpResponse MultipartAsyncResponseCsv<TResource>(IEnumerableAsync<TResource> responses,
+        string fileName = default, bool includeHeaders = true, bool inline = false);
     public class MultipartAsyncResponseGenericCSVAttribute : HttpGenericDelegateAttribute, IProvideResponseType
     {
         public override HttpStatusCode StatusCode => HttpStatusCode.OK;
@@ -988,11 +989,13 @@ namespace EastFive.Api
         public override string Example => "[]";
 
         [InstigateMethod]
-        public IHttpResponse EnumerableAsyncHttpResponse<T>(IEnumerableAsync<T> objectsAsync)
+        public IHttpResponse EnumerableAsyncHttpResponse<T>(IEnumerableAsync<T> objectsAsync,
+            string fileName, bool includeHeaders, bool inline)
         {
             var response = new EnumerableAsyncCsvResponse<T>(this.httpApp, request, this.parameterInfo,
                 this.StatusCode,
-                objectsAsync);
+                objectsAsync,
+                fileName:fileName, includeHeaders:includeHeaders, inline:inline);
             return UpdateResponse(parameterInfo, httpApp, request, response);
         }
 

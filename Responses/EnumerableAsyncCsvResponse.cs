@@ -23,21 +23,27 @@ namespace EastFive.Api
         private IEnumerableAsync<T> objectsAsync;
         private IApplication application;
         private ParameterInfo parameterInfo;
+        private string fileName;
+        private bool includeHeaders;
+        private bool inline;
 
         public EnumerableAsyncCsvResponse(IApplication application,
-            IHttpRequest request, ParameterInfo parameterInfo, HttpStatusCode statusCode,
-            IEnumerableAsync<T> objectsAsync)
+                IHttpRequest request, ParameterInfo parameterInfo, HttpStatusCode statusCode,
+                IEnumerableAsync<T> objectsAsync, string fileName, bool includeHeaders, bool inline)
             : base(request, statusCode)
         {
             this.application = application;
             this.objectsAsync = objectsAsync;
             this.parameterInfo = parameterInfo;
+            this.fileName = fileName;
+            this.inline = inline;
+            this.includeHeaders = includeHeaders;
         }
 
         public override void WriteHeaders(Microsoft.AspNetCore.Http.HttpContext context, ResponseHeaders headers)
         {
             base.WriteHeaders(context, headers);
-            headers.ContentType = new Microsoft.Net.Http.Headers.MediaTypeHeaderValue("text/csv");
+            headers.SetFileHeaders(fileName, "text/csv", inline);
         }
 
         public override async Task WriteResponseAsync(Stream responseStream)
@@ -57,20 +63,31 @@ namespace EastFive.Api
                         .GetPropertyAndFieldsWithAttributesInterface<ICast<string>>()
                         .ToArray();
 
-                    var headerCsvStrings = castings
-                        .Select(
-                            tpl => tpl.Item1.TryGetAttributeInterface(out IProvideApiValue apiValueProvider)?
-                                apiValueProvider.PropertyName.Replace('_', ' ')
-                                :
-                                " ")
-                        .Join(",");
-                    await streamWriter.WriteAsync(headerCsvStrings);
-                    await streamWriter.FlushAsync();
+                    bool first = true;
+                    if (includeHeaders)
+                    {
+                        var headerCsvStrings = castings
+                            .Select(
+                                tpl => tpl.Item1.TryGetAttributeInterface(out IProvideApiValue apiValueProvider) ?
+                                    apiValueProvider.PropertyName.Replace('_', ' ')
+                                    :
+                                    " ")
+                            .Join(",");
+                        await streamWriter.WriteAsync(headerCsvStrings);
+                        await streamWriter.FlushAsync();
+
+                        first = false;
+                    }
 
                     while (await enumerator.MoveNextAsync())
                     {
-                        await streamWriter.WriteAsync('\r');
-                        await streamWriter.FlushAsync();
+                        if (!first)
+                        {
+                            await streamWriter.WriteAsync('\r');
+                            await streamWriter.FlushAsync();
+                        }
+                        first = false;
+
                         var obj = enumerator.Current;
 
                         var contentCsvStrings = castings
