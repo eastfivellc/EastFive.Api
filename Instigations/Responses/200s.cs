@@ -515,8 +515,8 @@ namespace EastFive.Api
                               {
                                   using (var output = new StreamWriter(responseStream))
                                   {
-                                      await output.WriteAsync($"<html><head><title>Could not find file with path:{fullViewPath}</title></head>");
-                                      await output.WriteAsync($"<body><div>Could not find file with path:{fullViewPath}</div></body></html>");
+                                      await output.WriteAsync($"<html><head><title>Could not find file with path:{viewPath}</title></head>");
+                                      await output.WriteAsync($"<body><div>Could not find file with path:{viewPath}</div></body></html>");
                                       await output.FlushAsync();
                                       return;
                                   }
