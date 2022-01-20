@@ -133,10 +133,10 @@ namespace EastFive.Api
                 string GetDispositiontype()
                 {
                     if (inline.HasValue)
-                        if(inline.Value)
-                            return "inline";
+                        if(!inline.Value)
+                            return "attachment";
 
-                    return "attachment";
+                    return "inline";
                 }
             }
         }
