@@ -249,15 +249,10 @@ namespace EastFive.Api
                     if (contentType.NullToEmpty().StartsWith("image", StringComparison.OrdinalIgnoreCase))
                         return contentType;
 
-                    try
-                    {
-                        return System.Drawing.Image.FromStream(new MemoryStream(imageData))
-                            .GetMimeType();
-                    }
-                    catch (TypeInitializationException)
-                    {
-                        return contentType;
-                    }
+                    if (imageData.TryReadImage(out SixLabors.ImageSharp.Image image, out IImageFormat format))
+                        return format.DefaultMimeType;
+
+                    return contentType;
                 }
             };
             return onSuccess((object)responseDelegate);
@@ -515,9 +510,8 @@ namespace EastFive.Api
                               {
                                   using (var output = new StreamWriter(responseStream))
                                   {
-                                      await output.WriteAsync($"<html><head><title>Could not find file with path:{viewPath}</title></head>");
-                                      await output.WriteAsync($"<body><div>Could not find file with path:{viewPath}</div></body></html>");
-                                      await output.FlushAsync();
+                                      await output.WriteAsync($"<html><head><title>Could not find file with path:{fullViewPath}</title></head>");
+                                      await output.WriteAsync($"<body><div>Could not find file with path:{fullViewPath}</div></body></html>");
                                       return;
                                   }
                               }
@@ -546,7 +540,6 @@ namespace EastFive.Api
                                         .Append(Assembly.Load(new AssemblyName("System.Runtime")))
                                         .Append(typeof(HttpStatusCode).Assembly)
                                         .Append(typeof(HttpUtility).Assembly)
-                                        .Append(typeof(Uri).Assembly)
                                         .Distinct(assembly => assembly.FullName);
 
                                       foreach (var assembly in assemblies)
@@ -979,40 +972,6 @@ namespace EastFive.Api
     //        return onSuccess((object)responseDelegate);
     //    }
     //}
-
-    [MultipartAsyncResponseGenericCSV]
-    public delegate IHttpResponse MultipartAsyncResponseCsv<TResource>(IEnumerableAsync<TResource> responses,
-        string fileName = default, bool includeHeaders = true, bool inline = false);
-    public class MultipartAsyncResponseGenericCSVAttribute : HttpGenericDelegateAttribute, IProvideResponseType
-    {
-        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
-
-        public override string Example => "[]";
-
-        [InstigateMethod]
-        public IHttpResponse EnumerableAsyncHttpResponse<T>(IEnumerableAsync<T> objectsAsync,
-            string fileName, bool includeHeaders, bool inline)
-        {
-            var response = new EnumerableAsyncCsvResponse<T>(this.httpApp, request, this.parameterInfo,
-                this.StatusCode,
-                objectsAsync,
-                fileName:fileName, includeHeaders:includeHeaders, inline:inline);
-            return UpdateResponse(parameterInfo, httpApp, request, response);
-        }
-
-        public override Response GetResponse(ParameterInfo paramInfo, HttpApplication httpApp)
-        {
-            var baseResponse = base.GetResponse(paramInfo, httpApp);
-            baseResponse.IsMultipart = true;
-            return baseResponse;
-        }
-
-        public Type GetResponseType(ParameterInfo parameterInfo)
-        {
-            return parameterInfo.ParameterType.GenericTypeArguments.First();
-        }
-    }
-
 
     #region Multipart
 
