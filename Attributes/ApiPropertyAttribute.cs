@@ -14,12 +14,13 @@ using EastFive.Extensions;
 using EastFive.Linq.Expressions;
 using EastFive.Reflection;
 using EastFive.Api.Bindings;
+using EastFive.Serialization;
 
 namespace EastFive.Api
 {
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class ApiPropertyAttribute : System.Attribute,
-        IProvideApiValue, IDocumentProperty, IDeserializeFromApiBody<JsonReader>
+        IProvideApiValue, IDocumentProperty, IDeserializeFromApiBody<JsonReader>, ICast<string>
     {
         public ApiPropertyAttribute()
         {
@@ -28,6 +29,35 @@ namespace EastFive.Api
         public string PropertyName { get; set; }
 
         public StringComparison MatchQualification { get; set; } = StringComparison.Ordinal;
+
+        public TResult Cast<TResult>(object value,
+                Type valueType, string path, MemberInfo member,
+            Func<string, TResult> onValue,
+            Func<TResult> onNoCast)
+        {
+            if(typeof(Guid).IsAssignableFrom(valueType))
+            {
+                var gValue = (Guid)value;
+                return onValue(gValue.ToString());
+            }
+            if (typeof(IReferenceable).IsAssignableFrom(valueType))
+            {
+                var refValue = (IReferenceable)value;
+                return onValue(refValue.id.ToString());
+            }
+            if (typeof(DateTime).IsAssignableFrom(valueType))
+            {
+                var dtValue = (DateTime)value;
+                return onValue(dtValue.ToString());
+            }
+            if (typeof(string).IsAssignableFrom(valueType))
+            {
+                var strValue = (string)value;
+                return onValue(strValue);
+            }
+
+            return onValue(value.ToString());
+        }
 
         public Property GetProperty(MemberInfo member, HttpApplication httpApp)
         {

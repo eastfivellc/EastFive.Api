@@ -263,6 +263,7 @@ namespace EastFive.Api
                     var providedClaims = claims
                            .Where(claim => String.Compare(claim.Type, claimType.OriginalString) == 0)
                            .SelectMany(claim => claim.Value.Split(','.AsArray()))
+                           .Select(claimValue => claimValue.Trim())
                            .ToArray();
                     var requiredClaims = claimValue.Split(','.AsArray());
                     var matchedAllClaims = requiredClaims.Except(providedClaims).Count() == 0;
