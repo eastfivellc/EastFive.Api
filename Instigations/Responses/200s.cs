@@ -199,7 +199,7 @@ namespace EastFive.Api
 
     [ImageRawResponse]
     public delegate IHttpResponse ImageRawResponse(byte[] bytes,
-        int? width, int? height, bool? fill,
+        int? width = default(int?), int? height = default(int?), bool? fill = default(bool?),
         string filename = default, string contentType = default);
     public class ImageRawResponseAttribute : HttpFuncDelegateAttribute
     {

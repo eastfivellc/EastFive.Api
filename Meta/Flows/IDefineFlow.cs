@@ -490,4 +490,14 @@ namespace EastFive.Api.Meta.Flows
     {
 
     }
+
+    public class WorkflowStepCustom3Attribute : WorkflowStepCustomAttribute
+    {
+
+    }
+
+    public class WorkflowStepCustom4Attribute : WorkflowStepCustomAttribute
+    {
+
+    }
 }
