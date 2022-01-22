@@ -333,11 +333,18 @@ namespace EastFive.Api.Bindings
             if(type.IsArray)
             {
                 return content.MatchRegexInvoke(
-                    "\\[(?<index>[0-9]+)\\]=(?<value>([^\\;]|(?<=\\\\)\\;)*)",
+                    @"(\[(?<index>[0-9]+)\]=)?(?<value>([^\;]|(?<=\\)\;)+)",
                     (index, value) => index.PairWithValue(value),
                     onMatched: tpls =>
                     {
-                        var matchesDictionary = tpls
+                        // either abc;def
+                        // or [0]=abc;[1]=def
+                        var matchesDictionary = tpls.Any(kvp => string.IsNullOrEmpty(kvp.Key))
+                            ? tpls
+                            .Select(
+                                (kvp, index) => kvp.Value.PairWithKey(index))
+                            .ToDictionary()
+                            : tpls
                             .TryWhere(
                                 (KeyValuePair<string, string> kvp, out int indexedValue) =>
                                     int.TryParse(kvp.Key, out indexedValue))
