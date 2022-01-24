@@ -347,20 +347,24 @@ namespace EastFive.Api.Meta.Flows
                     }
                 }
 
-                bool IsBodyEmpty()
-                {
-                    if (!formdata.AnyNullSafe())
-                        return false;
+                //bool IsBodyEmpty()
+                //{
+                //    if (!formdata.AnyNullSafe())
+                //        return false;
 
-                    if (rawJsonBody.Trim(new char[] {'{','}'}).HasBlackSpace())
-                        return false;
+                //    if (rawJsonBody.Trim(new char[] {'{','}'}).HasBlackSpace())
+                //        return false;
 
-                    return true;
-                }
+                //    return true;
+                //}
             } 
 
             Body PopulateJsonBody()
             {
+                var rawJsonBody = RawJsonBody();
+                if (IsBodyEmpty())
+                    return default(Body?);
+
                 return new Body()
                 {
                     mode = "raw",
@@ -371,7 +375,7 @@ namespace EastFive.Api.Meta.Flows
                             language = "json",
                         }
                     },
-                    raw = RawJsonBody(),
+                    raw = rawJsonBody,
                 };
 
                 string RawJsonBody()
@@ -394,6 +398,14 @@ namespace EastFive.Api.Meta.Flows
                         }
                         return sb.ToString();
                     }
+                }
+
+                bool IsBodyEmpty()
+                {
+                    if (rawJsonBody.Trim(new char[] { '{', '}' }).HasBlackSpace())
+                        return false;
+
+                    return true;
                 }
             }
 
