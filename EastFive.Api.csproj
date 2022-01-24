@@ -10,6 +10,7 @@
     <None Remove="FVC\**" />
     <None Remove="Auth\Tokens\" />
     <None Remove="Auth\Claims\" />
+    <None Remove="Diagnositcs\" />
   </ItemGroup>
 
   <ItemGroup>
@@ -41,5 +42,6 @@
   <ItemGroup>
     <Folder Include="Auth\Tokens\" />
     <Folder Include="Auth\Claims\" />
+    <Folder Include="Diagnositcs\" />
   </ItemGroup>
 </Project>
