@@ -68,26 +68,28 @@ namespace EastFive.Api.Diagnositcs
             public IMeasure StartInternal(string message = null)
             {
                 var startedAt = stopWatch.Elapsed;
-                Events.Add(startedAt, $"BEGIN:{message}");
-                return new Measurer(this, startedAt);
+                return new Measurer(this, startedAt, message);
             }
 
             private class Measurer : IMeasure
             {
                 private Profiler profiler;
                 private TimeSpan startedAt;
+                private string message;
 
-                public Measurer(Profiler profiler, TimeSpan startedAt)
+                public Measurer(Profiler profiler, TimeSpan startedAt, string message)
                 {
                     this.profiler = profiler;
                     this.startedAt = startedAt;
+                    this.message = message;
                 }
 
                 public void EndInternal()
                 {
                     var endedAt = this.profiler.stopWatch.Elapsed;
                     var duration = endedAt - this.startedAt;
-                    profiler.Events.Add(endedAt, $"COMPLETED duration={duration}");
+                    profiler.Events.Add(startedAt, $"BEGIN[{message}] duration={duration}");
+                    profiler.Events.Add(endedAt, $"END[{message}] duration={duration}");
                 }
             }
         }
