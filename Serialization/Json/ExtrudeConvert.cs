@@ -368,7 +368,11 @@ namespace EastFive.Api.Serialization
                     return true;
                 if (type.IsEnum)
                     return true;
+                if (typeof(bool).IsAssignableFrom(type))
+                    return true;
                 if (typeof(DateTime).IsAssignableFrom(type))
+                    return true;
+                if (typeof(TimeSpan).IsAssignableFrom(type))
                     return true;
                 return type.IsNullable(
                     baseType => CanConvert(baseType),
@@ -399,6 +403,11 @@ namespace EastFive.Api.Serialization
                     await writer.WriteValueAsync((string)memberValue);
                     return;
                 }
+                if (typeof(bool).IsAssignableFrom(type))
+                {
+                    await writer.WriteValueAsync((bool)memberValue);
+                    return;
+                }
                 if (type.IsNumeric())
                 {
                     await writer.WriteValueAsync(memberValue);
@@ -413,6 +422,13 @@ namespace EastFive.Api.Serialization
                 if (typeof(DateTime).IsAssignableFrom(type))
                 {
                     await writer.WriteValueAsync((DateTime)memberValue);
+                    return;
+                }
+                if (typeof(TimeSpan).IsAssignableFrom(type))
+                {
+                    var tsValue = (TimeSpan)memberValue;
+                    var writeableValue = tsValue.ToString();
+                    await writer.WriteValueAsync(writeableValue);
                     return;
                 }
                 bool written = await type.IsNullable(
