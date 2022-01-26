@@ -367,7 +367,7 @@ namespace EastFive.Api
         }
     }
 
-    [ImageDisposableResponse]
+    [ImageSharpResponse]
     public delegate IHttpResponse ImageSharpResponse(SixLabors.ImageSharp.Image image,
         int? width = default, int? height = default,
         string contentType = default,
