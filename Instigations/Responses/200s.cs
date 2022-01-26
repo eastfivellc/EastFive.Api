@@ -367,6 +367,63 @@ namespace EastFive.Api
         }
     }
 
+    [ImageDisposableResponse]
+    public delegate IHttpResponse ImageSharpResponse(SixLabors.ImageSharp.Image image,
+        int? width = default, int? height = default,
+        string contentType = default,
+        string filename = default);
+    public class ImageSharpResponseAttribute : HttpFuncDelegateAttribute
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override string Example => "Raw data (byte [])";
+
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
+        {
+            ImageSharpResponse responseDelegate = (image,
+                width, height, 
+                contentType, filename) =>
+            {
+                var response = new ImageSharpHttpResponse(image,
+                    width, height, contentType,
+                    request, this.StatusCode);
+                response.SetContentType(contentType);
+                return UpdateResponse(parameterInfo, httpApp, request, response);
+            };
+            return onSuccess((object)responseDelegate);
+        }
+
+        private class ImageSharpHttpResponse : EastFive.Api.HttpResponse
+        {
+            private SixLabors.ImageSharp.Image image;
+            private int? width;
+            private int? height;
+            private string contentType;
+
+            public ImageSharpHttpResponse(SixLabors.ImageSharp.Image image,
+                    int? width, int? height, string contentType,
+                    IHttpRequest request, HttpStatusCode statusCode)
+                : base(request, statusCode)
+            {
+                this.image = image;
+                this.width = width;
+                this.height = height;
+                this.contentType = contentType;
+            }
+
+            public override async Task WriteResponseAsync(Stream responseStream)
+            {
+                var newImage = image.ResizeImage(width, height);
+                IImageFormat x = await newImage.SaveAsync(responseStream,
+                    this.contentType, encoderQuality: 80L);
+                await responseStream.FlushAsync();
+                newImage.Dispose();
+            }
+        }
+    }
+
     [PdfResponse()]
     public delegate IHttpResponse PdfResponse(byte[] content, string name, bool inline);
     public class PdfResponseAttribute : HttpFuncDelegateAttribute
