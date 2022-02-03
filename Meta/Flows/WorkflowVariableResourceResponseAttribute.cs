@@ -32,14 +32,12 @@ namespace EastFive.Api.Meta.Flows
                 responseTypeProvider.GetResponseType(response.ParamInfo)
                 :
                 method.Route.Type;
-            var ifCheckStart = $"if(pm.response.headers.members.some(function(element) {{ return element.key == \"{Core.Middleware.HeaderStatusName}\" && element.value == \"{response.ParamInfo.Name}\" }})) {{";
-            var ifCheckEnd = "}\r";
 
             if (response.IsMultipart)
             {
-                var parseLine = "\tlet resourceList = pm.response.json();\r";
-                var loopBegin = "\tfor(const resourceIndex in resourceList) {\r";
-                var varResource = "\t\tlet resource = resourceList[resourceIndex];\r";
+                var parseLine = "let resourceList = pm.response.json();\r";
+                var loopBegin = "for(const resourceIndex in resourceList) {\r";
+                var varResource = "\tlet resource = resourceList[resourceIndex];\r";
 
                 var resourceAssignments = GetResourceAssignments(out string discard1, out string discard2);
 
@@ -49,7 +47,6 @@ namespace EastFive.Api.Meta.Flows
                         {
                             new string []
                             {
-                                ifCheckStart,
                                 parseLine,
                                 loopBegin,
                                 varResource,
@@ -58,7 +55,6 @@ namespace EastFive.Api.Meta.Flows
                             new string []
                             {
                                 loopEnd,
-                                ifCheckEnd,
                             },
                         }
                     .SelectMany()
@@ -66,10 +62,10 @@ namespace EastFive.Api.Meta.Flows
             }
 
             {
-                var parseLine = "\tlet resource = pm.response.json();\r";
+                var parseLine = "let resource = pm.response.json();\r";
                 var resourceAssignments = GetResourceAssignments(out string resourceTypeName, out string resourceNameName);
                 var lastResourceAssignment = resourceNameName.HasBlackSpace() ?
-                    $"\tpm.environment.set(\"{resourceTypeName}\", resourceId);\r"
+                    $"pm.environment.set(\"{resourceTypeName}\", resourceId);\r"
                     :
                     string.Empty;
 
@@ -77,24 +73,24 @@ namespace EastFive.Api.Meta.Flows
                     .GetAttributesInterface<IDefineWorkflowVariable>()
                     .Select(extraVariableDefinition => extraVariableDefinition.GetNameAndValue(response, method))
                     .Select(
-                        tpl => $"\tpm.environment.set(\"{tpl.Item1}\", resource.{tpl.Item2});\r")
+                        tpl => $"pm.environment.set(\"{tpl.Item1}\", resource.{tpl.Item2});\r")
                     .ToArray();
 
                 return new string[][]
-                {
-                    new string []
-                    {
-                        ifCheckStart,
-                        parseLine,
-                    },
-                    resourceAssignments,
-                    finalProperties,
-                    new string []
-                    {
-                        lastResourceAssignment,
-                        ifCheckEnd,
-                    },
-                }.SelectMany().ToArray();
+                        {
+                            new string []
+                            {
+                                parseLine,
+                            },
+                            resourceAssignments,
+                            finalProperties,
+                            new string []
+                            {
+                                lastResourceAssignment,
+                            },
+                        }
+                    .SelectMany()
+                    .ToArray();
             }
 
             string[] GetResourceAssignments(out string resourceTypeName,

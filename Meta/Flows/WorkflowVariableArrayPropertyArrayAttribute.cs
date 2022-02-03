@@ -14,7 +14,8 @@ using EastFive.Api.Resources;
 
 namespace EastFive.Api.Meta.Flows
 {
-    public class WorkflowVariableArrayPropertyArrayAttribute : System.Attribute, IDefineWorkflowScriptResponse
+    public class WorkflowVariableArrayPropertyArrayAttribute
+        : System.Attribute, IDefineWorkflowScriptResponse
     {
         public string PropertyName { get; set; }
 
@@ -31,20 +32,52 @@ namespace EastFive.Api.Meta.Flows
                 responseTypeProvider.GetResponseType(response.ParamInfo)
                 :
                 method.Route.Type;
-            var ifCheckStart = $"if(pm.response.headers.members.some(function(element) {{ return element.key == \"{Core.Middleware.HeaderStatusName}\" && element.value == \"{response.ParamInfo.Name}\" }})) {{";
-            var ifCheckEnd = "}\r";
 
-            var parseLine = "\tlet resourceList = pm.response.json();\r";
-            var mapLine = $"\tlet propertyArray = objArray.map(a => a.{this.PropertyName});\r";
-            var setEnvVariable = $"\tpm.environment.set({this.VariableName}, propertyArray);\r";
+            var parseLine = "let objArray = pm.response.json();\r";
+            var mapLine = $"let propertyArray = objArray.map(a => a.{this.PropertyName});\r";
+            var setEnvVariable = $"pm.environment.set(\"{this.VariableName}\", JSON.stringify(propertyArray));\r";
 
             return new string[]
             {
-                ifCheckStart,
                 parseLine,
                 mapLine,
                 setEnvVariable,
-                ifCheckEnd,
+            };
+        }
+    }
+
+    public class WorkflowVariableArrayIndexedProperty
+        : System.Attribute, IDefineWorkflowScriptResponse
+    {
+        public string PropertyName { get; set; }
+
+        public string VariableName { get; set; }
+
+        public int Index { get; set; }
+
+        public string[] GetInitializationLines(Response response, Method method)
+        {
+            return new string[] { };
+        }
+
+        public string[] GetScriptLines(Response response, Method method)
+        {
+            var resourceType = response.ParamInfo.ParameterType.TryGetAttributeInterface(out IProvideResponseType responseTypeProvider) ?
+                responseTypeProvider.GetResponseType(response.ParamInfo)
+                :
+                method.Route.Type;
+
+            var parseLine = "let objArray = pm.response.json();\r";
+            var mapLine = $"let propertyArray = objArray.map(a => a.{this.PropertyName});\r";
+            var selectedValue = $"let selectedValue = propertyArray[{this.Index}];\r";
+            var setEnvVariable = $"pm.environment.set(\"{this.VariableName}\", selectedValue);\r";
+
+            return new string[]
+            {
+                parseLine,
+                mapLine,
+                selectedValue,
+                setEnvVariable,
             };
         }
     }

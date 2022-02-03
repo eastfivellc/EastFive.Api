@@ -27,7 +27,7 @@ namespace EastFive.Api.Meta.Flows
 
         public bool Disabled { get; set; } = false;
 
-        protected abstract string GetValue(ParameterInfo parameter);
+        protected abstract string GetValue(ParameterInfo parameter, out bool quoted);
 
         protected virtual string GetDescription(ParameterInfo parameter)
         {
@@ -50,8 +50,13 @@ namespace EastFive.Api.Meta.Flows
                     :
                     parameter.Name;
                 requestObj.WritePropertyName(propertyName);
-                var value = GetValue(parameter);
-                requestObj.WriteValue(value);
+
+                var value = GetValue(parameter, out bool quoted);
+                if (quoted)
+                    requestObj.WriteValue(value);
+                else
+                    requestObj.WriteRawValue(value);
+
                 var description = GetDescription(parameter);
                 if (description.HasBlackSpace())
                     requestObj.WriteComment(description);
@@ -69,7 +74,7 @@ namespace EastFive.Api.Meta.Flows
                 :
                 parameter.Name;
 
-            var value = GetValue(parameter);
+            var value = GetValue(parameter, out bool quoted);
             var description = GetDescription(parameter);
 
             return new FormData[]
@@ -98,7 +103,7 @@ namespace EastFive.Api.Meta.Flows
                     apiBinder.GetKey(parameter)
                     :
                     parameter.Name;
-            var value = GetValue(parameter);
+            var value = GetValue(parameter, out bool quotedIgnored);
             var description = GetDescription(parameter);
 
             return new QueryItem
@@ -120,12 +125,22 @@ namespace EastFive.Api.Meta.Flows
     {
         public string Value { get; set; }
 
-        protected override string GetValue(ParameterInfo parameter) => this.Value;
+        public bool Quoted { get; set; } = true;
+
+        protected override string GetValue(ParameterInfo parameter, out bool quoted)
+        {
+            quoted = this.Quoted;
+            return this.Value;
+        }
     }
 
     public class WorkflowNewIdAttribute : WorkflowParameterBaseAttribute
     {
-        protected override string GetValue(ParameterInfo parameter) => "{{$guid}}";
+        protected override string GetValue(ParameterInfo parameter, out bool quoted)
+        {
+            quoted = true;
+            return "{{$guid}}";
+        }
 
         protected override string GetDescription(ParameterInfo parameter)
         {
@@ -154,8 +169,9 @@ namespace EastFive.Api.Meta.Flows
                 .Join(',');
         }
 
-        override protected string GetValue(ParameterInfo parameter)
+        override protected string GetValue(ParameterInfo parameter, out bool quoted)
         {
+            quoted = true;
             if (!parameter.ParameterType.IsEnum)
                 return $"WARINING {parameter.Member.DeclaringType.FullName}..{parameter.Member.Name}({parameter.Name}) is tagged as Enum workflow but is not an Enum.";
 

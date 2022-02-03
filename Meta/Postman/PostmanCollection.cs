@@ -111,6 +111,7 @@ namespace EastFive.Api.Meta.Postman
                             .SelectMany(route => route.Type.GetAttributesInterface<IDefineFlow>(multiple: true))
                             .Select(flowAttr => (flowAttr, flowAttr.GetItem(default(Api.Resources.Method),
                                 preferJson.HasValue? preferJson.Value : false)))
+                            .Where(grp => grp.Item1.FlowName.Equals(flow, StringComparison.OrdinalIgnoreCase))
                             .ToArray();
 
                         var items = methodAndFlowGrp

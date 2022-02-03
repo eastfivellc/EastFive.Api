@@ -159,7 +159,7 @@ namespace EastFive.Api
         }
 
         public static TResult ParseFormContentDelegate<TResult>(string key, IFormCollection formData,
-                Type type, ParameterInfo parameter, IApplication httpApp,
+                MemberInfo member, ParameterInfo parameter, IApplication httpApp,
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure)
         {
@@ -177,22 +177,37 @@ namespace EastFive.Api
                             {
                                 return onParsed(value);
                             },
-                            why => onFailure(why));
+                            why =>
+                            {
+                                return httpApp.Bind(strValue, member,
+                                    (value) =>
+                                    {
+                                        return onParsed(value);
+                                    },
+                                    why => onFailure(why));
+                            });
                     },
                     () =>
                     {
                         return formData.Files
                             .Where(file => file.Name == key)
                             .First(
-                                (file, next) =>
+                                (fileValue, next) =>
                                 {
-                                    var strValue = (IFormFile)file;
-                                    return httpApp.Bind(strValue, type,
+                                    return httpApp.Bind(fileValue, member,
                                         (value) =>
                                         {
                                             return onParsed(value);
                                         },
-                                        why => onFailure(why));
+                                        why =>
+                                        {
+                                            return httpApp.Bind(fileValue, member.GetType(),
+                                                (value) =>
+                                                {
+                                                    return onParsed(value);
+                                                },
+                                                why => onFailure(why));
+                                        });
                                 },
                                 () => onFailure("Key not found"));
                     });

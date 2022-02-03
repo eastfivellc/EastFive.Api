@@ -31,6 +31,12 @@ namespace EastFive.Api.Meta.Flows
             this.PropertyName = propertyName;
         }
 
+        public WorkflowVariableAttribute(string variableName)
+        {
+            this.VariableName = variableName;
+            this.PropertyName = default(String);
+        }
+
         #region IDefineWorkflowScriptParam
 
         private static bool IsQuery(Parameter param) =>
@@ -52,7 +58,11 @@ namespace EastFive.Api.Meta.Flows
 
             if (IsJson(param))
             {
-                return "let requestResource = JSON.parse(pm.request.body.raw);\r".AsArray();
+                return new string[]
+                {
+                    "let commentFreeJson = pm.request.body.raw.replace(/\\\\\"|\"(?:\\\\\"|[^\"])*\"|(\\/\\/.*|\\/\\*[\\s\\S]*?\\*\\/)/g, (m, g) => g ? \"\" : m);\r",
+                    "let requestResource = JSON.parse(commentFreeJson);\r",
+                };
             }
 
             var member = param.PocoParameter.Member;
@@ -65,24 +75,33 @@ namespace EastFive.Api.Meta.Flows
 
         public string[] GetScriptLines(Parameter param, Method method)
         {
+            var propertyName = this.PropertyName.HasBlackSpace() ?
+                this.PropertyName
+                :
+                param.PocoParameter.TryGetAttributeInterface(out IBindApiValue apiValueBinder) ?
+                    apiValueBinder.GetKey(param.PocoParameter)
+                    :
+                    param.Name;
+
             if (IsQuery(param))
             {
+                
                 var interstationVariableName = $"queryParam_{this.VariableName}";
-                var lineExtract = $"var {interstationVariableName} = query[\"{this.PropertyName}\"];\r";
+                var lineExtract = $"var {interstationVariableName} = query[\"{propertyName}\"];\r";
                 var lineMakeGlobal = $"pm.environment.set(\"{this.VariableName}\", {interstationVariableName});\r";
                 return new string[] { lineExtract, lineMakeGlobal, };
             }
 
             if (IsJson(param))
             {
-                return $"pm.environment.set(\"{this.VariableName}\", requestResource.{this.PropertyName});\r".AsArray();
+                return $"pm.environment.set(\"{this.VariableName}\", requestResource.{propertyName});\r".AsArray();
             }
 
 
             var member = param.PocoParameter.Member;
             return new string[]
             {
-                $"// Cannot generate workflow variable {this.VariableName} from {this.PropertyName}\r",
+                $"// Cannot generate workflow variable {this.VariableName} from {propertyName}\r",
                 $"// for {param.Name} found on {member.DeclaringType.FullName}..{member.Name}.",
             };
         }

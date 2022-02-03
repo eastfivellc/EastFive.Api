@@ -10,7 +10,7 @@ namespace EastFive.Api.Meta.Flows
     {
         public string VariableName { get; set; }
 
-        public string[] GetInitializationLines(Response item, Method method)
+        public string[] GetInitializationLines(Response response, Method method)
         {
             return "let redirectStringToExportToEnv = pm.response.headers.get(\"Location\");".AsArray();
         }

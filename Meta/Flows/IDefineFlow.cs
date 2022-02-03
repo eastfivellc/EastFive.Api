@@ -71,10 +71,25 @@ namespace EastFive.Api.Meta.Flows
                     .GetAttributesInterface<IDefineWorkflowScriptParam>(),
                 (param, attr) => attr.GetScriptLines(param, method));
 
-            var responseSteps = GetSteps(method.Responses,
-                response => response.ParamInfo
-                        .GetAttributesInterface<IDefineWorkflowScriptResponse>(),
-                (response, attr) => attr.GetScriptLines(response, method));
+            var responseSteps = method.Responses
+                .SelectMany(item => item.ParamInfo
+                    .GetAttributesInterface<IDefineWorkflowScriptResponse>()
+                    .Select(attr => (item, attr)))
+                .SelectMany(
+                    tpl =>
+                    {
+                        var (response, attr) = tpl;
+                        var initLines = attr.GetInitializationLines(response, method);
+                        var scriptLines = attr.GetScriptLines(response, method);
+                        return initLines.Concat(scriptLines).IfMatchesResponse(response);
+                    })
+                .ToArray();
+
+            //var responseSteps = GetSteps(method.Responses,
+            //        response => response.ParamInfo
+            //            .GetAttributesInterface<IDefineWorkflowScriptResponse>(),
+            //        (response, attr) => attr
+            //            .GetScriptLines(response, method));
 
             return methodSteps
                 .Concat(parameterSteps)
@@ -101,9 +116,11 @@ namespace EastFive.Api.Meta.Flows
                     .SelectMany(tpl => getLines(tpl.item, tpl.attr))
                     .ToArray();
 
-                return initLines
+                var completeLines = initLines
                     .Concat(assignmentLines)
                     .ToArray();
+
+                return completeLines;
             }
 
             //var queryParamTestLines = new string[] { };
