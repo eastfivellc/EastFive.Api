@@ -81,4 +81,36 @@ namespace EastFive.Api.Meta.Flows
             };
         }
     }
+
+    public class WorkflowVariableArrayIndexedValue
+        : System.Attribute, IDefineWorkflowScriptResponse
+    {
+        public string VariableName { get; set; }
+
+        public int Index { get; set; }
+
+        public string[] GetInitializationLines(Response response, Method method)
+        {
+            return new string[] { };
+        }
+
+        public string[] GetScriptLines(Response response, Method method)
+        {
+            var resourceType = response.ParamInfo.ParameterType.TryGetAttributeInterface(out IProvideResponseType responseTypeProvider) ?
+                responseTypeProvider.GetResponseType(response.ParamInfo)
+                :
+                method.Route.Type;
+
+            var parseLine = "let objArray = pm.response.json();\r";
+            var selectedValue = $"let selectedValue = objArray[{this.Index}];\r";
+            var setEnvVariable = $"pm.environment.set(\"{this.VariableName}\", selectedValue);\r";
+
+            return new string[]
+            {
+                parseLine,
+                selectedValue,
+                setEnvVariable,
+            };
+        }
+    }
 }

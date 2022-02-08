@@ -195,6 +195,44 @@ namespace EastFive.Api.Meta.Flows
         }
     }
 
+    public class WorkflowArrayObjectParameterAttribute : System.Attribute,
+        IDefineWorkflowRequestProperty
+    {
+        public string Scope { get; set; }
+
+        public string Value0 { get; set; }
+        public string Value1 { get; set; }
+        public string Value2 { get; set; }
+        public string Value3 { get; set; }
+
+        public void AddProperties(JsonWriter requestObj, ParameterInfo parameter)
+        {
+            var propertyName = parameter.TryGetAttributeInterface(out IBindApiValue apiBinder) ?
+                apiBinder.GetKey(parameter)
+                :
+                parameter.Name;
+            requestObj.WritePropertyName(propertyName);
+            requestObj.WriteStartArray();
+            if (Value0.HasBlackSpace())
+            {
+                requestObj.WriteValue(Value0);
+            }
+            if (Value1.HasBlackSpace())
+            {
+                requestObj.WriteValue(Value1);
+            }
+            if (Value2.HasBlackSpace())
+            {
+                requestObj.WriteValue(Value2);
+            }
+            if (Value3.HasBlackSpace())
+            {
+                requestObj.WriteValue(Value3);
+            }
+            requestObj.WriteEndArray();
+        }
+    }
+
     public class WorkflowObjectParameterAttribute : System.Attribute,
         IDefineWorkflowRequestProperty
     {
