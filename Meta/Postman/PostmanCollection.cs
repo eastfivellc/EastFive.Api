@@ -36,6 +36,9 @@ namespace EastFive.Api.Meta.Postman
 
         [EastFive.Api.HttpOptions]
         public static IHttpResponse ListFlows(
+                [OptionalQueryParameter] string flow,
+                [OptionalQueryParameter] string collections,
+                [OptionalQueryParameter] bool? preferJson,
                 //Security security,
                 IInvokeApplication invokeApplication,
                 HttpApplication httpApp, IHttpRequest request, IProvideUrl url,

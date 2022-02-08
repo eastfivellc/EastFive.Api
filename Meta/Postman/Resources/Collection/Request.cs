@@ -31,6 +31,7 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
         public string value { get; set; }
         public string type { get; set; }
         public bool disabled;
+        public string description;
 
         public static bool IsGeneratedHeader(string key)
         {
