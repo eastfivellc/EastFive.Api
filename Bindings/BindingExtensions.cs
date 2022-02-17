@@ -124,8 +124,16 @@ namespace EastFive.Api.Bindings
                     {
                         return type.Bind(provider, application,
                             onParsed: onParsed,
-                            onDidNotBind:() => onFailureToBind(
-                                $"{type.FullName} does not have binding attribute that can bind from {provider.GetType().FullName}"),
+                            onDidNotBind:
+                                () =>
+                                {
+                                    var providerType = provider==null ?
+                                        typeof(TProvider).FullName
+                                        :
+                                        provider.GetType().FullName;
+                                    return onFailureToBind(
+                                        $"{type.FullName} does not have binding attribute that can bind from {providerType}");
+                                },
                             onFailureToBind: onFailureToBind);
                     });
         }
