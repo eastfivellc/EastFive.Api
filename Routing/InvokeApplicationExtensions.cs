@@ -228,6 +228,8 @@ namespace EastFive.Api
             string actionName,
             System.Net.Http.Headers.HttpRequestHeaders headers = default)
         {
+            if(requestQuery.IsDefaultOrNull())
+                throw new ArgumentException($"Null query for {typeof(IQueryable<TResource>).FullName}", "query");
             if (!typeof(IProvideRequestExpression<TResource>).IsAssignableFrom(requestQuery.GetType()))
                 throw new ArgumentException($"query must be of type `{nameof(IProvideRequestExpression<TResource>)}` not `{requestQuery.GetType().FullName}`", "query");
             var requestMessageQuery = requestQuery as IProvideRequestExpression<TResource>;

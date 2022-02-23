@@ -271,4 +271,12 @@ namespace EastFive.Api
             }
         }
     }
+
+    public static class ProvideServerLocationExtensions
+    {
+        public static Uri UrlFor(this IProvideServerLocation location, Expression<Func<Task<IHttpResponse>>> method)
+        {
+            throw new NotImplementedException();
+        }
+    }
 }
