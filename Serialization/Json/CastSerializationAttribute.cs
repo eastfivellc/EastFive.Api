@@ -50,10 +50,12 @@ namespace EastFive.Api.Serialization.Json
                 .GetAttributesInterface<ICastJson>()
                 .ToArray();
 
-            using (var textWriter = request.TryGetAcceptCharset(out Encoding writerEncoding) ?
-                new StreamWriter(responseStream, writerEncoding)
+            var encoding = request.TryGetAcceptCharset(out Encoding writerEncoding) ?
+                writerEncoding
                 :
-                new StreamWriter(responseStream, new UTF8Encoding(false)))
+                new UTF8Encoding(false);
+
+            using (var textWriter = new StreamWriter(responseStream, encoding))
             {
                 var jsonWriter = new JsonTextWriter(textWriter);
 
@@ -101,8 +103,14 @@ namespace EastFive.Api.Serialization.Json
                                                }
                                                if (memberType.TryGetAttributeInterface(out IProvideSerialization serializationProvider))
                                                {
-                                                   await serializationProvider.SerializeAsync(responseStream,
-                                                       httpApp, request, paramInfo, memberValue);
+                                                   await jsonWriter.WritePropertyNameAsync(apiValueProvider.PropertyName);
+                                                   using (var cacheStream = new MemoryStream())
+                                                   {
+                                                       await serializationProvider.SerializeAsync(cacheStream,
+                                                           httpApp, request, paramInfo, memberValue);
+                                                       var rawJson = cacheStream.ToArray().GetString(encoding);
+                                                       await jsonWriter.WriteRawValueAsync(rawJson);
+                                                   }
                                                    return;
                                                }
                                                await jsonWriter.WriteCommentAsync(
@@ -143,7 +151,7 @@ namespace EastFive.Api.Serialization.Json
                             .First(
                                 async (jsonCaster, next) =>
                                 {
-                                    var memberValue = member.GetPropertyOrFieldValue(obj);
+                                    //var memberValue = member.GetPropertyOrFieldValue(obj);
                                     var isNull = memberValue.IsNull();
                                     if (isNull)
                                         if (IgnoreNull)
