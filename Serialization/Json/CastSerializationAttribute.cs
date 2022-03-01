@@ -99,6 +99,12 @@ namespace EastFive.Api.Serialization.Json
                                                    await WriteArrayAsync(memberType);
                                                    return;
                                                }
+                                               if (memberType.TryGetAttributeInterface(out IProvideSerialization serializationProvider))
+                                               {
+                                                   await serializationProvider.SerializeAsync(responseStream,
+                                                       httpApp, request, paramInfo, memberValue);
+                                                   return;
+                                               }
                                                await jsonWriter.WriteCommentAsync(
                                                    $"Cannot find {nameof(ICastJson)} interface for " +
                                                    $"{member.DeclaringType.FullName}..{member.Name}");
