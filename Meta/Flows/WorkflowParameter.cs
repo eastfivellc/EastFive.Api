@@ -76,14 +76,15 @@ namespace EastFive.Api.Meta.Flows
 
             var value = GetValue(parameter, out bool quoted);
             var description = GetDescription(parameter);
-
+            var isFileType = parameter.ParameterType == typeof(System.IO.Stream) || 
+                parameter.ParameterType.IsSubClassOfGeneric(typeof(System.IO.Stream));
             return new FormData[]
             {
                 new FormData
                 {
                     key = propertyName,
                     value = value,
-                    type = "text",
+                    type = isFileType ? "file" : "text",
                     description = description,
                     disabled = this.Disabled,
                 }
