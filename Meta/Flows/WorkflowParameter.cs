@@ -41,6 +41,8 @@ namespace EastFive.Api.Meta.Flows
             return descrAttr.Description;
         }
 
+        protected virtual bool IsFileType(ParameterInfo parameter) => false;
+
         public void AddProperties(JsonWriter requestObj, ParameterInfo parameter)
         {
             if (parameter.ContainsAttributeInterface<IBindJsonApiValue>(inherit: true))
@@ -76,8 +78,7 @@ namespace EastFive.Api.Meta.Flows
 
             var value = GetValue(parameter, out bool quoted);
             var description = GetDescription(parameter);
-            var isFileType = parameter.ParameterType == typeof(System.IO.Stream) || 
-                parameter.ParameterType.IsSubClassOfGeneric(typeof(System.IO.Stream));
+            var isFileType = IsFileType(parameter);
             return new FormData[]
             {
                 new FormData
@@ -133,6 +134,12 @@ namespace EastFive.Api.Meta.Flows
             quoted = this.Quoted;
             return this.Value;
         }
+
+        protected override bool IsFileType(ParameterInfo parameter)
+        {
+            return parameter.ParameterType == typeof(System.IO.Stream) ||
+                parameter.ParameterType.IsSubClassOfGeneric(typeof(System.IO.Stream));
+        }
     }
 
     public class WorkflowNewIdAttribute : WorkflowParameterBaseAttribute
@@ -155,6 +162,8 @@ namespace EastFive.Api.Meta.Flows
             var refName = parameter.ParameterType.GenericTypeArguments.First().FullName;
             return $"ID of a {refName}";
         }
+
+        
     }
 
     public class WorkflowEnumAttribute : WorkflowParameterBaseAttribute
