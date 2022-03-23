@@ -37,7 +37,7 @@ namespace EastFive.Api
 
         public IQueryable<T> Resources<T>()
         {
-            var queryProvider = new RenderableQueryProvider(this.urlHelper, this.httpApp);
+            var queryProvider = new RenderableQueryProvider(this);
             return new RenderableQuery<T>(queryProvider);
         }
 
@@ -50,13 +50,11 @@ namespace EastFive.Api
 
         private class RenderableQueryProvider : IQueryProvider
         {
-            private IProvideUrl urlHelper;
-            private IApplication httpApp;
+            public UrlBuilder builder;
 
-            public RenderableQueryProvider(IProvideUrl urlHelper, IApplication httpApp)
+            public RenderableQueryProvider(UrlBuilder builder)
             {
-                this.httpApp = httpApp;
-                this.urlHelper = urlHelper;
+                this.builder = builder;
             }
 
             public IQueryable CreateQuery(Expression expression)
@@ -106,7 +104,7 @@ namespace EastFive.Api
             }
         }
 
-        private class RenderableQuery<T> : IQueryable<T> //, IRenderUrls
+        private class RenderableQuery<T> : IQueryable<T>, IProvideRequestExpression<T>, IProvideServerLocation //, IRenderUrls
         {
             private RenderableQueryProvider provider;
 
@@ -132,6 +130,13 @@ namespace EastFive.Api
             public Type ElementType => typeof(T);
 
             public IQueryProvider Provider => this.provider;
+
+            public Uri ServerLocation => provider.builder.baseUrl;
+
+            public IQueryable<T> FromExpression(Expression condition)
+            {
+                return new RenderableQuery<T>(this.provider, condition);
+            }
 
             public IEnumerator<T> GetEnumerator()
             {

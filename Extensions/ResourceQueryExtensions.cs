@@ -211,9 +211,9 @@ namespace EastFive.Api
         public static IQueryable<TResource> ById<TResource>(this IQueryable<TResource> query, Guid resourceId)
             where TResource : IReferenceable
         {
-            if (!typeof(RequestMessage<TResource>).IsAssignableFrom(query.GetType()))
+            if (!typeof(IProvideRequestExpression<TResource>).IsAssignableFrom(query.GetType()))
                 throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{query.GetType().FullName}`", "query");
-            var requestMessageQuery = query as RequestMessage<TResource>;
+            var requestMessageQuery = query as IProvideRequestExpression<TResource>;
 
             var condition = Expression.Call(
                 typeof(ResourceQueryExtensions), "ById", new Type[] { typeof(TResource) },
@@ -228,9 +228,9 @@ namespace EastFive.Api
         public static IQueryable<TResource> ById<TResource>(this IQueryable<TResource> query, IRef<TResource> resourceRef)
             where TResource : IReferenceable
         {
-            if (!typeof(RequestMessage<TResource>).IsAssignableFrom(query.GetType()))
+            if (!typeof(IProvideRequestExpression<TResource>).IsAssignableFrom(query.GetType()))
                 throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{query.GetType().FullName}`", "query");
-            var requestMessageQuery = query as RequestMessage<TResource>;
+            var requestMessageQuery = query as IProvideRequestExpression<TResource>;
 
             var condition = Expression.Call(
                 typeof(ResourceQueryExtensions), "ById", new Type[] { typeof(TResource) },
