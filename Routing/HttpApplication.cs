@@ -113,12 +113,12 @@ namespace EastFive.Api
             this.HostEnvironment = env;
             app.UseFVCRouting(this, this.configuration, razorViewEngine);
             ConfigureCallback(app, env, razorViewEngine);
-            this.initialization = InitializeAsync();
         }
 
         protected virtual void ConfigureCallback(IApplicationBuilder app, IHostEnvironment env, IRazorViewEngine razorViewEngine)
         {
             LocateControllers();
+            this.initialization = InitializeAsync();
         }
 
         private Task initialization;
