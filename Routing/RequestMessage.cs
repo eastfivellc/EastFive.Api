@@ -18,11 +18,6 @@ using EastFive.Extensions;
 
 namespace EastFive.Api
 {
-    public interface IProvideRequestExpression<TResource>
-    {
-        IQueryable<TResource> FromExpression(Expression condition);
-    }
-
     [RequestMessage]
     public class RequestMessage<TResource>
         : 
@@ -32,6 +27,7 @@ namespace EastFive.Api
             IQueryable<TResource>,
             Linq.ISupplyQueryProvider<RequestMessage<TResource>>,
             IProvideServerLocation,
+            IProvideHttpRequest,
             IProvideRequestExpression<TResource>
     {
         public RequestMessage(IInvokeApplication invokeApplication)
@@ -61,6 +57,16 @@ namespace EastFive.Api
                 var uriString = requestMessage.InvokeApplication.ServerLocation.AbsoluteUri
                     .TrimEnd('/'.AsArray());
                 return new Uri(uriString);
+            }
+        }
+
+        public IHttpRequest HttpRequest
+        {
+            get
+            {
+                var requestMessage = this;
+                var requestProvider = (requestMessage.InvokeApplication as IProvideHttpRequest);
+                return requestProvider.HttpRequest;
             }
         }
 

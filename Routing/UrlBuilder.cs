@@ -14,25 +14,27 @@ using EastFive.Api.Core;
 
 namespace EastFive.Api
 {
-    public interface IProvideServerLocation
-    {
-        Uri ServerLocation { get; }
-    }
-
     public class UrlBuilder : IBuildUrls, IProvideServerLocation
     {
-        private IProvideUrl urlHelper;
-        private IApplication httpApp;
+        //private IProvideUrl urlHelper;
+        //private IApplication httpApp;
         private Uri baseUrl;
+        private IHttpRequest httpRequest;
 
-        public UrlBuilder(IHttpRequest httpRequest, IApplication httpApp)
+        public UrlBuilder(IHttpRequest httpRequest) //, IApplication httpApp)
         {
-            this.httpApp = httpApp;
-            this.urlHelper = new CoreUrlProvider((httpRequest as CoreHttpRequest).request.HttpContext);
+            //this.httpApp = httpApp;
+            //this.urlHelper = new CoreUrlProvider((httpRequest as CoreHttpRequest).request.HttpContext);
             var uriBuilder = new UriBuilder(httpRequest.RequestUri);
             uriBuilder.Path = String.Empty;
             uriBuilder.Query = String.Empty;
             this.baseUrl = uriBuilder.Uri;
+            this.httpRequest = httpRequest;
+        }
+
+        public UrlBuilder(Uri baseUrl) //, IApplication httpApp)
+        {
+            this.baseUrl = baseUrl;
         }
 
         public IQueryable<T> Resources<T>()
@@ -104,7 +106,11 @@ namespace EastFive.Api
             }
         }
 
-        private class RenderableQuery<T> : IQueryable<T>, IProvideRequestExpression<T>, IProvideServerLocation //, IRenderUrls
+        private class RenderableQuery<T> : IQueryable<T>,
+            IProvideRequestExpression<T>,
+            IProvideServerLocation,
+            IProvideHttpRequest
+            //, IRenderUrls
         {
             private RenderableQueryProvider provider;
 
@@ -132,6 +138,8 @@ namespace EastFive.Api
             public IQueryProvider Provider => this.provider;
 
             public Uri ServerLocation => provider.builder.baseUrl;
+
+            public IHttpRequest HttpRequest => provider.builder.httpRequest;
 
             public IQueryable<T> FromExpression(Expression condition)
             {

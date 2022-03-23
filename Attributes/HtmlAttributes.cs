@@ -55,7 +55,7 @@ namespace EastFive.Api
         {
             var contentType = this.MediaType;
 
-            var urlHelper = new UrlBuilder(request, httpApp);
+            var urlHelper = new UrlBuilder(request);
 
             var properties = obj.GetType()
                 .GetMembers()

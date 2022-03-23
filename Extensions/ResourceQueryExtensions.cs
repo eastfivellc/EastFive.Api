@@ -14,6 +14,21 @@ using EastFive.Linq.Expressions;
 
 namespace EastFive.Api
 {
+    public interface IProvideServerLocation
+    {
+        Uri ServerLocation { get; }
+    }
+
+    public interface IProvideHttpRequest
+    {
+        IHttpRequest HttpRequest { get; }
+    }
+
+    public interface IProvideRequestExpression<TResource>
+    {
+        IQueryable<TResource> FromExpression(Expression condition);
+    }
+
     public static class ResourceQueryExtensions
     {
         [AttributeUsage(AttributeTargets.Method)]
@@ -212,7 +227,7 @@ namespace EastFive.Api
             where TResource : IReferenceable
         {
             if (!typeof(IProvideRequestExpression<TResource>).IsAssignableFrom(query.GetType()))
-                throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{query.GetType().FullName}`", "query");
+                throw new ArgumentException($"query must be of type `{typeof(IProvideRequestExpression<TResource>).FullName}` not `{query.GetType().FullName}`", "query");
             var requestMessageQuery = query as IProvideRequestExpression<TResource>;
 
             var condition = Expression.Call(
@@ -223,13 +238,12 @@ namespace EastFive.Api
             return requestMessageNewQuery;
         }
 
-
         [MutateIdQuery]
         public static IQueryable<TResource> ById<TResource>(this IQueryable<TResource> query, IRef<TResource> resourceRef)
             where TResource : IReferenceable
         {
             if (!typeof(IProvideRequestExpression<TResource>).IsAssignableFrom(query.GetType()))
-                throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{query.GetType().FullName}`", "query");
+                throw new ArgumentException($"query must be of type `{typeof(IProvideRequestExpression<TResource>).FullName}` not `{query.GetType().FullName}`", "query");
             var requestMessageQuery = query as IProvideRequestExpression<TResource>;
 
             var condition = Expression.Call(
@@ -254,9 +268,9 @@ namespace EastFive.Api
         public static IQueryable<TResource> ById<TResource>(this IQueryable<TResource> query, string resourceId)
             where TResource : IReferenceable
         {
-            if (!typeof(RequestMessage<TResource>).IsAssignableFrom(query.GetType()))
-                throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{query.GetType().FullName}`", "query");
-            var requestMessageQuery = query as RequestMessage<TResource>;
+            if (!typeof(IProvideRequestExpression<TResource>).IsAssignableFrom(query.GetType()))
+                throw new ArgumentException($"query must be of type `{typeof(IProvideRequestExpression<TResource>).FullName}` not `{query.GetType().FullName}`", "query");
+            var requestMessageQuery = query as IProvideRequestExpression<TResource>;
 
             var method = typeof(ResourceQueryExtensions)
                 .GetMethods(BindingFlags.Public | BindingFlags.Static)
@@ -306,9 +320,9 @@ namespace EastFive.Api
         public static IQueryable<TResource> QueryParam<TResource>(this IQueryable<TResource> query, string key, string value)
             where TResource : IReferenceable
         {
-            if (!typeof(RequestMessage<TResource>).IsAssignableFrom(query.GetType()))
-                throw new ArgumentException($"query must be of type `{typeof(RequestMessage<TResource>).FullName}` not `{query.GetType().FullName}`", "query");
-            var requestMessageQuery = query as RequestMessage<TResource>;
+            if (!typeof(IProvideRequestExpression<TResource>).IsAssignableFrom(query.GetType()))
+                throw new ArgumentException($"query must be of type `{typeof(IProvideRequestExpression<TResource>).FullName}` not `{query.GetType().FullName}`", "query");
+            var requestMessageQuery = query as IProvideRequestExpression<TResource>;
 
             var methodInfo = typeof(ResourceQueryExtensions)
                 .GetMethod("QueryParam", BindingFlags.Static | BindingFlags.Public)
