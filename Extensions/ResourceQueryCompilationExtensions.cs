@@ -72,7 +72,7 @@ namespace EastFive.Api
                 throw new ArgumentException($"`{typeof(TResource).FullName}` is not invocable (needs attribute that implements {typeof(IInvokeResource).FullName})");
             var routeAttr = routeAttrs.First();
 
-            var serverUrl = GetServerUrl();
+            var serverUrl = GetServerUrl().Trim('/'.AsArray());
             var prefix = GetRoutePrefix().Trim('/'.AsArray());
             var controllerName = GetControllerName().TrimStart('/'.AsArray());
             Uri.TryCreate($"{serverUrl}/{prefix}/{controllerName}", UriKind.Absolute, out Uri baseUrl);

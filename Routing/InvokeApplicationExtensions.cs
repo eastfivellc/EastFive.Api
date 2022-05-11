@@ -235,7 +235,7 @@ namespace EastFive.Api
             var requestMessageQuery = requestQuery as IProvideRequestExpression<TResource>;
 
             var methodInfo = typeof(InvokeApplicationExtensions)
-                .GetMethod("HttpAction", BindingFlags.Static | BindingFlags.Public)
+                .GetMethod(nameof(HttpAction), BindingFlags.Static | BindingFlags.Public)
                 .MakeGenericMethod(typeof(TResource));
             var resourceExpr = Expression.Constant(actionName, typeof(string));
             var headersExpr = Expression.Constant(headers, typeof(System.Net.Http.Headers.HttpRequestHeaders));
@@ -266,6 +266,76 @@ namespace EastFive.Api
                 {
                     request.UpdateHeader(header.Key, x => x.Concat(header.Value).ToArray());
                 }
+                return request;
+            }
+        }
+
+        #endregion
+
+        #region Security
+
+        public static IQueryable<TResource> SignWithAccessToken<TResource>(this IQueryable<TResource> requestQuery)
+        {
+            var requestProvider = requestQuery as IProvideHttpRequest;
+            var request = requestProvider.HttpRequest;
+
+            return request.GetClaims(
+                (claimsEnumerable) =>
+                {
+                    var claims = claimsEnumerable.ToArray();
+
+                    var sessionId = claims.GetSessionId(
+                        (sessionId) => sessionId,
+                        () => throw new Exception());
+
+                    var actorId = claims.GetActorId(
+                        (accountId) => accountId,
+                        () => throw new Exception());
+
+                    return SignWithSpecificAccessToken(requestQuery, sessionId, actorId, TimeSpan.FromHours(1.0));
+                },
+                () => throw new Exception(),
+                (why) => throw new Exception());
+        }
+
+        [AccessTokenRequestBuilder]
+        public static IQueryable<TResource> SignWithSpecificAccessToken<TResource>(this IQueryable<TResource> requestQuery,
+            Guid sessionId, Guid accountId, TimeSpan duration)
+        {
+            if (requestQuery.IsDefaultOrNull())
+                throw new ArgumentException($"Null query for {typeof(IQueryable<TResource>).FullName}", "query");
+            if (!typeof(IProvideRequestExpression<TResource>).IsAssignableFrom(requestQuery.GetType()))
+                throw new ArgumentException($"query must be of type `{nameof(IProvideRequestExpression<TResource>)}` not `{requestQuery.GetType().FullName}`", "query");
+            var requestMessageQuery = requestQuery as IProvideRequestExpression<TResource>;
+
+            var methodInfo = typeof(InvokeApplicationExtensions)
+                .GetMethod(nameof(SignWithSpecificAccessToken), BindingFlags.Static | BindingFlags.Public)
+                .MakeGenericMethod(typeof(TResource));
+            var sessionExpr = Expression.Constant(sessionId, typeof(Guid));
+            var accountExpr = Expression.Constant(accountId, typeof(Guid));
+            var durationExpr = Expression.Constant(duration, typeof(TimeSpan));
+            var condition = Expression.Call(methodInfo, requestQuery.Expression, sessionExpr, accountExpr, durationExpr);
+
+            var requestMessageNewQuery = requestMessageQuery.FromExpression(condition);
+            return requestMessageNewQuery;
+        }
+
+        public class AccessTokenRequestBuilder : Attribute, IBuildHttpRequests, IBuildUrls
+        {
+            public Uri BindUrlQueryValue(Uri url, MethodInfo method, Expression[] arguments)
+            {
+                var sessionId = (Guid)arguments[0].Resolve();
+                var accountId = (Guid)arguments[1].Resolve();
+                var expiration = (TimeSpan)arguments[2].Resolve();
+                var expirationUtc = DateTime.UtcNow + expiration;
+                var updatedUrl = url.SignWithAccessTokenAccount(sessionId, accountId, expirationUtc, urlNew => urlNew);
+                
+                return updatedUrl;
+            }
+
+            public IHttpRequest MutateRequest(IHttpRequest request, MethodInfo method, Expression[] arguments)
+            {
+                request.RequestUri = BindUrlQueryValue(request.RequestUri, method, arguments);
                 return request;
             }
         }

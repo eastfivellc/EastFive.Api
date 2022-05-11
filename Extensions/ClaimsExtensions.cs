@@ -87,6 +87,34 @@ namespace EastFive.Api
             return success(accountId);
         }
 
+        public static TResult GetSessionId<TResult>(this IEnumerable<System.Security.Claims.Claim> claims,
+            Func<Guid, TResult> success,
+            Func<TResult> actorIdNotFound)
+        {
+            var sessionIdClaimTypeConfigurationSetting =
+                EastFive.Api.AppSettings.SessionIdClaimType;
+            return claims.GetSessionId(sessionIdClaimTypeConfigurationSetting, success, actorIdNotFound);
+        }
+
+        public static TResult GetSessionId<TResult>(this IEnumerable<System.Security.Claims.Claim> claims,
+            string sessionIdClaimType,
+            Func<Guid, TResult> success,
+            Func<TResult> sessionIdNotFound)
+        {
+            return sessionIdClaimType.ConfigurationString(
+                accountIdClaimValue =>
+                {
+                    var adminClaim = claims
+                        .FirstOrDefault((claim) => String.Compare(claim.Type, accountIdClaimValue) == 0);
+
+                    if (default(System.Security.Claims.Claim) == adminClaim)
+                        return sessionIdNotFound();
+
+                    var accountId = Guid.Parse(adminClaim.Value);
+                    return success(accountId);
+                });
+        }
+
         public static TResult GetActorId<TResult>(this IEnumerable<System.Security.Claims.Claim> claims,
             Func<Guid, TResult> success,
             Func<TResult> actorIdNotFound)

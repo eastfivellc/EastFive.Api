@@ -338,7 +338,7 @@ namespace EastFive.Api
                 var newImage = image.ResizeImage(width, height, fill, background);
                 var codec = contentType.ParseImageCodecInfo();
                 var imageStream = new MemoryStream();
-                image.Save(imageStream, codec,
+                newImage.Save(imageStream, codec,
                         encoderQuality: 80L);
                 imageStream.Position = 0;
                 var response = new ImageDisposableHttpResponse(imageStream, codec, request, this.StatusCode);

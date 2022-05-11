@@ -73,7 +73,7 @@ namespace EastFive.Api
             return "api";
         }
 
-        protected class InvokeApplicationFromRequest : InvokeApplication
+        protected class InvokeApplicationFromRequest : InvokeApplication, IProvideHttpRequest
         {
             private IApplication httpApp;
             private IHttpRequest routeData;
@@ -81,6 +81,8 @@ namespace EastFive.Api
             //private string[] apiRoute;
 
             public override IApplication Application => httpApp;
+
+            public IHttpRequest HttpRequest => routeData;
 
             public InvokeApplicationFromRequest(IApplication httpApp, IHttpRequest routeData,
                     Uri serverLocation, string apiPrefix) : base(serverLocation, apiPrefix)
