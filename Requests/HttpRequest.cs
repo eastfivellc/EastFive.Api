@@ -13,6 +13,8 @@ using Microsoft.AspNetCore.Mvc.Razor;
 using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Serialization;
+using Microsoft.Extensions.Primitives;
+using EastFive.Collections.Generic;
 
 namespace EastFive.Api
 {
@@ -117,7 +119,11 @@ namespace EastFive.Api
             return String.Empty;
         }
 
-        public IRequestHeaders RequestHeaders => throw new NotImplementedException();
+        public IRequestHeaders RequestHeaders => new EastFive.Api.Core.CoreHttpRequest.CoreRequestHeaders(
+            new HeaderDictionary(
+                this.Headers
+                    .Select(kvp => kvp.Key.PairWithValue(new StringValues(kvp.Value)))
+                    .ToDictionary()));
 
         public IEnumerable<string> GetHeaders(string headerKey)
         {
