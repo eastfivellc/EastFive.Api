@@ -32,7 +32,9 @@ namespace EastFive.Api.Serialization
                 .ToArray();
         }
 
-        public override bool CanConvert(Type objectType)
+        private static bool CanConvert(Type objectType,
+            Func<bool> onDidNotIdentify,
+            Func<Type, bool> shouldConvertDictionary)
         {
             if (objectType.IsSubClassOfGeneric(typeof(IRef<>)))
                 return true;
@@ -44,7 +46,7 @@ namespace EastFive.Api.Serialization
             {
                 var shouldConvertDict = objectType
                     .GetGenericArguments()
-                    .Any(ShouldConvertDictionaryType);
+                    .Any(shouldConvertDictionary);
                 if (shouldConvertDict)
                     return true;
             }
@@ -52,7 +54,14 @@ namespace EastFive.Api.Serialization
                 return true;
             if (objectType.IsEnum)
                 return true;
-            return jsonConverters.Any(jc => jc.CanConvert(objectType, this.request, this.application));
+            return onDidNotIdentify();
+        }
+
+        public override bool CanConvert(Type objectType)
+        {
+            return CanConvert(objectType,
+                () => jsonConverters.Any(jc => jc.CanConvert(objectType, this.request, this.application)),
+                ShouldConvertDictionaryType);
         }
 
         protected bool ShouldConvertDictionaryType(Type arg)
@@ -82,18 +91,17 @@ namespace EastFive.Api.Serialization
                 return;
             }
 
-            void WriteId(Guid? idMaybe)
-            {
-                if (!idMaybe.HasValue)
-                {
-                    writer.WriteValue((string)null);
-                    return;
-                }
+            WriteJson(writer, value, serializer,
+                type => ShouldConvertDictionaryType(type),
+                (writer, value, serializer) => WriteJson(writer, value, serializer),
+                serializationProvider => serializationProvider.GetPreference(request));
+        }
 
-                var id = idMaybe.Value;
-                writer.WriteValue(id);
-            }
-
+        public static void WriteJson(JsonWriter writer, object value, JsonSerializer serializer,
+            Func<Type, bool> shouldConvertDictionary,
+            Action<JsonWriter, object, JsonSerializer> recurse,
+            Func<IProvideSerialization, double> orderSerializationAttrs)
+        {
             if (value is IReferenceable)
             {
                 var id = (value as IReferenceable).id;
@@ -110,8 +118,8 @@ namespace EastFive.Api.Serialization
                         id =>
                         {
                             WriteId(id);
-                                //writer.WriteValue(id);
-                                return id;
+                            //writer.WriteValue(id);
+                            return id;
                         })
                     .ToArray();
                 writer.WriteEndArray();
@@ -126,7 +134,7 @@ namespace EastFive.Api.Serialization
                 return;
             }
 
-            if(!value.TryGetType(out Type valueType))
+            if (!value.TryGetType(out Type valueType))
             {
                 writer.WriteNull();
                 return;
@@ -146,9 +154,9 @@ namespace EastFive.Api.Serialization
 
                     var valueValue = kvpObj.Value;
                     var valueValueType = valueType.GenericTypeArguments.Last();
-                    if (this.ShouldConvertDictionaryType(valueValueType))
+                    if (shouldConvertDictionary(valueValueType))
                     {
-                        WriteJson(writer, valueValue, serializer);
+                        recurse(writer, valueValue, serializer);
                         continue;
                     }
                     writer.WriteValue(valueValue);
@@ -162,10 +170,10 @@ namespace EastFive.Api.Serialization
                 var typeValue = (value as Type);
                 var serializationAttrs = typeValue
                     .GetAttributesInterface<IProvideSerialization>();
-                if(serializationAttrs.Any())
+                if (serializationAttrs.Any())
                 {
                     var serializationAttr = serializationAttrs
-                            .OrderByDescending(x => x.GetPreference(request))
+                            .OrderByDescending(orderSerializationAttrs)
                             .First();
                     writer.WriteValue(serializationAttr.ContentType);
                     return;
@@ -175,7 +183,7 @@ namespace EastFive.Api.Serialization
                 return;
             }
 
-            if(valueType.IsEnum)
+            if (valueType.IsEnum)
             {
                 var stringValue = Enum.GetName(valueType, value);
                 writer.WriteValue(stringValue);
@@ -183,6 +191,18 @@ namespace EastFive.Api.Serialization
             }
 
             serializer.Serialize(writer, value);
+
+            void WriteId(Guid? idMaybe)
+            {
+                if (!idMaybe.HasValue)
+                {
+                    writer.WriteValue((string)null);
+                    return;
+                }
+
+                var id = idMaybe.Value;
+                writer.WriteValue(id);
+            }
         }
     }
 
@@ -355,7 +375,8 @@ namespace EastFive.Api.Serialization
 
     public class CastJsonBasicTypesAttribute : Attribute, ICastJson
     {
-        public bool CanConvert(MemberInfo member, ParameterInfo paramInfo, IHttpRequest httpRequest, IApplication application, IProvideApiValue apiValueProvider, object objectValue)
+        public bool CanConvert(MemberInfo member, ParameterInfo paramInfo,
+            IHttpRequest httpRequest, IApplication application, IProvideApiValue apiValueProvider, object objectValue)
         {
             var type = member.GetPropertyOrFieldType();
             return CanConvert(type);

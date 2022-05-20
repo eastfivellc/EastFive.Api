@@ -124,6 +124,8 @@ namespace EastFive.Api
         private Task initialization;
         private ManualResetEvent initializationLock;
 
+        protected bool IsInitialized => this.initialization.Status == TaskStatus.RanToCompletion;
+
         protected class Initialized
         {
             private Initialized()
