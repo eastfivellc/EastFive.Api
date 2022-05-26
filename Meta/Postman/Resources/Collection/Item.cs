@@ -15,6 +15,8 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
 
         public Request request { get; set; }
 
+        public ProtocolProfileBehavior protocolProfileBehavior;
+
         public Response[] response { get; set; }
 
         public Item[] item { get; set; }
@@ -30,6 +32,11 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
     {
         public string[] exec { get; set; }
         public string type { get; set; }
+    }
+
+    public class ProtocolProfileBehavior
+    {
+        public bool followRedirects;
     }
 
 
