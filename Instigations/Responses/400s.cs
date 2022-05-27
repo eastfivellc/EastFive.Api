@@ -175,4 +175,7 @@ namespace EastFive.Api
             return onSuccess(responseDelegate);
         }
     }
+
+    [StatusCodeResponse(StatusCode = HttpStatusCode.TooManyRequests)]
+    public delegate IHttpResponse TooManyRequestsResponse();
 }
