@@ -34,9 +34,11 @@ namespace EastFive.Api.Meta.Flows
 
         public string Scope { get; set; }
 
+        public bool FollowRedirects { get; set; } = true;
+
         public virtual Item GetItem(Method method, bool preferJson)
         {
-            return new Item
+            var item = new Item
             {
                 name = GetStepName(method),
                 request = GetRequest(method, preferJson),
@@ -53,8 +55,16 @@ namespace EastFive.Api.Meta.Flows
                                 () => default(string[])),
                         },
                     }
-                }
+                },
             };
+            if(!FollowRedirects)
+            {
+                item.protocolProfileBehavior = new ProtocolProfileBehavior
+                {
+                    followRedirects = FollowRedirects
+                };
+            }
+            return item;
         }
 
         private string [] GetScriptSteps(Method method)
