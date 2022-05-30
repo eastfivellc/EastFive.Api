@@ -24,6 +24,7 @@ namespace EastFive.Api
 
         public static string HashQueryParameters(this Uri uri, string ignoreKey = default)
         {
+            #pragma warning disable SCS0006 // Weak hashing function
             var md5 = MD5.Create();
             var paramsHash = uri.ParseQuery()
                 .Where(
@@ -37,6 +38,7 @@ namespace EastFive.Api
                 .SelectMany(kvp => UTF8Encoding.UTF8.GetBytes($"{kvp.Key}||{kvp.Value}"))
                 .ToArray();
             return paramsHash.Md5Checksum();
+            #pragma warning restore SCS0006 // Weak hashing function
         }
 
         public static Uri SetQueryParametersHash(this Uri uri, string hashKey)
