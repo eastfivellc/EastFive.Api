@@ -101,7 +101,11 @@ namespace EastFive.Api
                 return;
             foreach (var (cookieKey, cookieValue, expireTime) in cookies)
             {
-                CookieOptions option = new CookieOptions();
+                CookieOptions option = new CookieOptions()
+                { 
+                    Secure = true,
+                    HttpOnly = true,
+                };
 
                 if (expireTime.HasValue)
                     option.Expires = DateTime.Now + expireTime.Value;

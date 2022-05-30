@@ -122,7 +122,11 @@ namespace EastFive.Api.Core
 
             public void AddCookie(string cookieKey, string cookieValue, TimeSpan? expireTime)
             {
-                CookieOptions option = new CookieOptions();
+                CookieOptions option = new CookieOptions()
+                {
+                    Secure = true,
+                    HttpOnly = true,
+                };
 
                 if (expireTime.HasValue)
                     option.Expires = DateTime.Now + expireTime.Value;
