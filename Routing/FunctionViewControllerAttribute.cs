@@ -438,7 +438,7 @@ namespace EastFive.Api
             {
                 var doesMatch = DoesMatch(nsComponents.Length, this.Route, out string [] routeComponents);
                 componentsMatched = nsComponents
-                    .Concat(routeComponents)
+                    .Concat(routeComponents.NullToEmpty())
                     .ToArray();
                 return doesMatch;
             }
@@ -459,7 +459,7 @@ namespace EastFive.Api
 
                 if (pathParameters.Length < index + valueComponents.Length)
                 {
-                    matchComponents = new string[] { };
+                    matchComponents = default; // new string[] { };
                     return false;
                 }
                 matchComponents = pathParameters.Skip(index).Take(valueComponents.Length).ToArray();
