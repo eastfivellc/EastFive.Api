@@ -459,7 +459,7 @@ namespace EastFive.Api
 
                 if (pathParameters.Length < index + valueComponents.Length)
                 {
-                    matchComponents = default;
+                    matchComponents = new string[] { };
                     return false;
                 }
                 matchComponents = pathParameters.Skip(index).Take(valueComponents.Length).ToArray();
