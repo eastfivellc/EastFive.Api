@@ -25,110 +25,101 @@ namespace EastFive.Api
             if(!AppSettings.CorsCorrection.ConfigurationBoolean(s =>s, onNotSpecified:() => false))
                 return skip();
 
-            return GetDecoratedResponse();
+            // Configs to set:
+            //
+            // EastFive.Api.CorsCorrection=true
+            // cors:Origins=https://myserver.com,etc.  (localhost included by default so this app setting can remain absent/unconfigured if just need localhost)
+            // cors:MaxAgeSeconds=60                   (default is 5 seconds if not set)
+            //
+            return GetResponse();
+
+            string GetAllowedOrigin()
+            {
+                // accept localhost (all ports)
+                // accept request server
+                // accept any additional servers in config
+                request.Headers.TryGetValue("Origin", out string[] reqOrigins);
+                var localhostAuthorities = reqOrigins
+                    .NullToEmpty()
+                    .SelectMany(reqOrigin => reqOrigin.Split(','.AsArray(), StringSplitOptions.RemoveEmptyEntries))
+                    .Where(
+                        (reqOrigin) =>
+                        {
+                            if (!Uri.TryCreate(reqOrigin, UriKind.Absolute, out Uri reqOriginUri))
+                                return false;
+
+                            return reqOriginUri.GetLeftPart(UriPartial.Authority).IndexOf("localhost", StringComparison.OrdinalIgnoreCase) != -1;
+                        });
+                var requestAuthority = request.RequestUri.GetLeftPart(UriPartial.Authority);
+                var corsAuthorities = "cors:Origins".ConfigurationString(
+                    (v) => v.Split(','.AsArray(), StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).ToArray(),
+                    (why) => new string[] { });
+                var allowableOriginValues = localhostAuthorities
+                    .Append(requestAuthority)
+                    .Concat(corsAuthorities)
+                    .Distinct()
+                    .ToArray();
+                var allowedOrigin = allowableOriginValues.First(
+                    (allowed, next) =>
+                    {
+                        if (!reqOrigins.Contains(allowed, StringComparer.OrdinalIgnoreCase))
+                            return next();
+
+                        return allowed;
+                    },
+                    () => default(string));
+                return allowedOrigin;
+            }
+
+            string GetAllowedMethods()
+            {
+                // accept OPTIONS
+                // accept any additional methods in config
+                request.Headers.TryGetValue("Access-Control-Request-Method", out string[] reqMethod);
+                return reqMethod
+                    .NullToEmpty()
+                    .Append("OPTIONS")
+                    .Distinct()
+                    .Join(",");
+            }
+
+            string GetAllowedHeaders()
+            {
+                // accept any headers requested
+                request.Headers.TryGetValue("Access-Control-Request-Headers", out string[] reqHeaders);
+                return reqHeaders
+                    .NullToEmpty()
+                    .Distinct()
+                    .Join(",");                
+            }
+
+            string GetMaxAgeSeconds()
+            {
+                return "cors:MaxAgeSeconds"
+                    .ConfigurationLong(
+                        (v) => v,
+                        (why) => 5,
+                        () => 5) 
+                    .ToString();
+            }
 
             Task<IHttpResponse> GetResponse()
             {
                 if (request.Method.Method.ToLower() != HttpMethod.Options.Method.ToLower())
                     return skip();
 
-                if (!request.Headers.ContainsKey("Access-Control-Request-Headers"))
-                    return skip();
+                var allowedOrigin = GetAllowedOrigin();
+                if (allowedOrigin == default)
+                    return request.CreateResponse(System.Net.HttpStatusCode.Forbidden).AddReason("origin not allowed").AsTask();
 
                 var response = request.CreateResponse(System.Net.HttpStatusCode.OK);
+                response.SetHeader("Access-Control-Allow-Origin", allowedOrigin);
+                response.SetHeader("Access-Control-Allow-Methods", GetAllowedMethods());
+                response.SetHeader("Access-Control-Allow-Headers", GetAllowedHeaders());
+                response.SetHeader("Vary", "origin");
+                response.SetHeader("Access-Control-Max-Age", GetMaxAgeSeconds());
                 return response.AsTask();
             }
-
-            async Task<IHttpResponse> GetDecoratedResponse()
-            {
-                var response = await GetResponse();
-                if (request.Headers.TryGetValue("Origin", out string[] reqOrigins))
-                {
-                    var respOrigins = UpdateHeader("Access-Control-Allow-Origin", "cors:Origins");
-                    var respHeaders = UpdateHeader("Access-Control-Allow-Headers", "cors:Headers");
-                    var respMethods = UpdateHeader("Access-Control-Allow-Methods", "cors:Methods");
-                }
-                return response;
-
-                string UpdateHeader(string headerName, string appSettingName)
-                {
-                    request.Headers.TryGetValue(headerName, out string[] values);
-                    return appSettingName.ConfigurationString(
-                        (appSettingValue) =>
-                        {
-                            if (headerName == "Access-Control-Allow-Origin")
-                            {
-                                // accept localhost (all ports)
-                                // accept request server
-                                // accept any additional servers in config
-                                var localhostAuthorities = reqOrigins
-                                    .NullToEmpty()
-                                    .SelectMany(reqOrigin => reqOrigin.Split(','.AsArray(), StringSplitOptions.RemoveEmptyEntries))
-                                    .Where(
-                                        (reqOrigin) =>
-                                        {
-                                            if (!Uri.TryCreate(reqOrigin, UriKind.Absolute, out Uri reqOriginUri))
-                                                return false;
-
-                                            return reqOriginUri.GetLeftPart(UriPartial.Authority).IndexOf("localhost", StringComparison.OrdinalIgnoreCase) != -1;
-                                        });
-                                var requestAuthority = request.RequestUri.GetLeftPart(UriPartial.Authority);
-                                var allowableOriginValues = values
-                                    .NullToEmpty()
-                                    .Where(value => value != "*")
-                                    .Concat(localhostAuthorities)
-                                    .Append(requestAuthority)
-                                    .Concat(appSettingValue.Split(','.AsArray(), StringSplitOptions.RemoveEmptyEntries))
-                                    .Distinct()
-                                    .ToArray();
-                                var allowedOrigin = allowableOriginValues.First(
-                                    (allowed, next) =>
-                                    {
-                                        if (!reqOrigins.Contains(allowed, StringComparer.OrdinalIgnoreCase))
-                                            return next();
-
-                                        return allowed;
-                                    },
-                                    () => requestAuthority);
-                                response.Headers.Remove(headerName);
-                                response.SetHeader(headerName, allowedOrigin);
-                                return allowedOrigin;
-                            }
-
-                            var updatedValues = values
-                                .NullToEmpty()
-                                .SelectMany(value => value.Split(','.AsArray(), StringSplitOptions.RemoveEmptyEntries))
-                                .Where(value => value != "*")
-                                .Append(appSettingValue)
-                                .Distinct()
-                                .ToArray()
-                                .Join(",");
-                            response.Headers.Remove(headerName);
-                            response.SetHeader(headerName, updatedValues);
-                            return updatedValues;
-                        },
-                        (why) => values
-                            .NullToEmpty()
-                            .ToArray()
-                            .Join(","));
-                }
-            }
-
-            //if (request.Method.Method.ToLower() != HttpMethod.Options.Method.ToLower())
-            //    return skip();
-
-            //if (!request.TryGetHeader("Access-Control-Request-Headers", out string accessControlRequestHeader))
-            //    return skip();
-
-            //var response = request.CreateResponse(System.Net.HttpStatusCode.OK);
-            //if (!response.Headers.ContainsKey("Access-Control-Allow-Origin"))
-            //    response.SetHeader("Access-Control-Allow-Origin", "*");
-            //if (!response.Headers.ContainsKey("Access-Control-Allow-Headers"))
-            //    response.SetHeader("Access-Control-Allow-Headers", "*");
-            //if (!response.Headers.ContainsKey("Access-Control-Allow-Methods"))
-            //    response.SetHeader("Access-Control-Allow-Methods", "*");
-
-            //return response.AsTask();
         }
     }
 }
