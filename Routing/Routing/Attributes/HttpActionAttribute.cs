@@ -17,9 +17,18 @@ namespace EastFive.Api
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Method)]
     public class HttpActionAttribute : HttpVerbAttribute, IProvideWorkflowUrl
     {
+        private readonly string httpMethod;
+
         public HttpActionAttribute(string method)
         {
+            this.httpMethod = HttpMethod.Get.Method;
             this.Action = method;
+        }
+
+        public HttpActionAttribute(string httpMethod, string action)
+        {
+            this.httpMethod = httpMethod;
+            this.Action = action;
         }
 
         public string Action { get; set; }
@@ -66,7 +75,7 @@ namespace EastFive.Api
         public override Method GetMethod(Route route, MethodInfo methodInfo, HttpApplication httpApp)
         {
             var path = new Uri($"/{route.Namespace}/{route.Name}/{Action}", UriKind.Relative);
-            return new Method(HttpMethod.Get.Method, methodInfo, route, path, httpApp);
+            return new Method(this.httpMethod, methodInfo, route, path, httpApp);
         }
 
         public Url GetUrl(Api.Resources.Method method, QueryItem[] queryItems)
