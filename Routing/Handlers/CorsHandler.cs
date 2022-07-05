@@ -59,15 +59,17 @@ namespace EastFive.Api
                     .Concat(corsAuthorities)
                     .Distinct()
                     .ToArray();
-                var allowedOrigin = allowableOriginValues.First(
-                    (allowed, next) =>
-                    {
-                        if (!reqOrigins.Contains(allowed, StringComparer.OrdinalIgnoreCase))
-                            return next();
+                var allowedOrigin = allowableOriginValues
+                    .NullToEmpty()
+                    .First(
+                        (allowed, next) =>
+                        {
+                            if (!reqOrigins.NullToEmpty().Contains(allowed, StringComparer.OrdinalIgnoreCase))
+                                return next();
 
-                        return allowed;
-                    },
-                    () => default(string));
+                            return allowed;
+                        },
+                        () => default(string));
                 return allowedOrigin;
             }
 
