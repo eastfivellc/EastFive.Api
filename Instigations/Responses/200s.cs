@@ -1178,5 +1178,30 @@ namespace EastFive.Api
         }
     }
 
+    [ZipAsyncResponse]
+    public delegate IHttpResponse ZipAsyncResponse(IEnumerableAsync<(string, Func<Stream, Task>)> files,
+        string filename = default, bool? inline = default);
+    public class ZipAsyncResponseAttribute : HttpFuncDelegateAttribute
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override string Example => "Raw data (byte [])";
+
+        public override Task<IHttpResponse> InstigateInternal(IApplication httpApp,
+                IHttpRequest request, ParameterInfo parameterInfo,
+            Func<object, Task<IHttpResponse>> onSuccess)
+        {
+            ZipAsyncResponse responseDelegate = (files, filename, inline) =>
+            {
+                var response = new ZipAsyncHttpResponse(request,
+                    fileName: filename, inline: inline,
+                    files);
+
+                return UpdateResponse(parameterInfo, httpApp, request, response);
+            };
+            return onSuccess(responseDelegate);
+        }
+    }
+
     #endregion
 }
