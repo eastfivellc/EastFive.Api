@@ -27,7 +27,7 @@ namespace EastFive.Api
             {
                 await responseStream.WriteAsync(data, 0, data.Length,
                     this.Request.CancellationToken);
-            } catch(OperationCanceledException ex)
+            } catch(OperationCanceledException)
             {
             }
         }

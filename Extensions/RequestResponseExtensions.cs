@@ -135,6 +135,9 @@ namespace EastFive.Api
             int? width = default(int?), int? height = default(int?), bool? fill = default(bool?),
             string filename = default(string), string contentType = default(string))
         {
+            if (!OperatingSystem.IsWindows())
+                throw new NotSupportedException("OS not supported");
+
             if (width.HasValue || height.HasValue || fill.HasValue)
             {
                 var image = System.Drawing.Image.FromStream(new MemoryStream(imageData));
@@ -150,6 +153,9 @@ namespace EastFive.Api
             int? width = default(int?), int? height = default(int?), bool? fill = default(bool?),
             string filename = default(string))
         {
+            if (!OperatingSystem.IsWindows())
+                throw new NotSupportedException("OS not supported");
+
             var response = request.CreateResponse(HttpStatusCode.OK);
             var ratio = ((double)image.Size.Width) / ((double)image.Size.Height);
             var newWidth = (int)Math.Round(width.HasValue ?
@@ -190,6 +196,7 @@ namespace EastFive.Api
             }
 
             var encoder = getEncoderInfo("image/jpeg");
+            #pragma warning disable CA1416
             response.Content = new PushStreamContent(
                 (outputStream, httpContent, transportContext) =>
                 {
@@ -199,6 +206,7 @@ namespace EastFive.Api
                     newImage.Save(outputStream, encoder, encoderParameters);
                     outputStream.Close();
                 }, new MediaTypeHeaderValue(encoder.MimeType));
+            #pragma warning restore CA1416
             return response;
         }
 
@@ -207,9 +215,13 @@ namespace EastFive.Api
             string filename = default(string),
             string contentType = "image/jpeg")
         {
+            if (!OperatingSystem.IsWindows())
+                throw new NotSupportedException("OS not supported");
+
             var response = request.CreateResponse(HttpStatusCode.OK);
 
             var encoder = getEncoderInfo(contentType);
+            #pragma warning disable CA1416
             response.Content = new PushStreamContent(
                 (outputStream, httpContent, transportContext) =>
                 {
@@ -219,12 +231,16 @@ namespace EastFive.Api
                     image.Save(outputStream, encoder, encoderParameters);
                     outputStream.Close();
                 }, new MediaTypeHeaderValue(encoder.MimeType));
+            #pragma warning restore CA1416
             //TODO: response.Content.Headers. = filename
             return response;
         }
 
         private static ImageCodecInfo getEncoderInfo(string mimeType)
         {
+            if (!OperatingSystem.IsWindows())
+                throw new NotSupportedException("OS not supported");
+
             ImageCodecInfo[] encoders = ImageCodecInfo.GetImageEncoders();
 
             for (int j = 0; j < encoders.Length; ++j)
