@@ -277,6 +277,10 @@ namespace EastFive.Api
                 IHttpRequest request, ParameterInfo parameterInfo,
             Func<object, Task<IHttpResponse>> onSuccess)
         {
+            if (!OperatingSystem.IsWindows())
+                throw new NotSupportedException("OS not supported");
+
+            #pragma warning disable CA1416
             ImageResponse responseDelegate = (image, 
                 width, height, fill, background,
                 contentType, filename) =>
@@ -287,6 +291,7 @@ namespace EastFive.Api
                 response.SetContentType(codec.MimeType);
                 return UpdateResponse(parameterInfo, httpApp, request, response);
             };
+            #pragma warning restore CA1416
             return onSuccess((object)responseDelegate);
         }
 
@@ -330,6 +335,10 @@ namespace EastFive.Api
                 IHttpRequest request, ParameterInfo parameterInfo,
             Func<object, Task<IHttpResponse>> onSuccess)
         {
+            if (!OperatingSystem.IsWindows())
+                throw new NotSupportedException("OS not supported");
+
+            #pragma warning disable CA1416
             ImageDisposableResponse responseDelegate = (image,
                 width, height, fill, background,
                 contentType, filename) =>
@@ -347,6 +356,7 @@ namespace EastFive.Api
                     newImage.Dispose();
                 return UpdateResponse(parameterInfo, httpApp, request, response);
             };
+            #pragma warning restore CA1416
             return onSuccess((object)responseDelegate);
         }
 

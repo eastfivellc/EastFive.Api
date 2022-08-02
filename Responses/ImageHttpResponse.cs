@@ -23,6 +23,9 @@ namespace EastFive.Api
             string fileName = default, string contentType = default, bool? inline = default)
             : base(request, statusCode)
         {
+            if (!OperatingSystem.IsWindows())
+                throw new NotSupportedException("OS not supported");
+
             if (!TryGetEncoderInfo(contentType, out encoder))
                 TryGetEncoderInfo("image/jpeg", out encoder);
             this.SetFileHeaders(fileName, encoder.MimeType, inline);
@@ -65,12 +68,13 @@ namespace EastFive.Api
 
                 graphics.DrawImage(image, 0, 0, newWidth, newHeight);
             }
-
-
         }
 
         public override async Task WriteResponseAsync(Stream responseStream)
         {
+            if (!OperatingSystem.IsWindows())
+                throw new NotSupportedException("OS not supported");
+
             var encoderParameters = new EncoderParameters(1);
             encoderParameters.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 80L);
 
@@ -87,6 +91,9 @@ namespace EastFive.Api
 
         private static bool TryGetEncoderInfo(string mimeType, out ImageCodecInfo encoder)
         {
+            if (!OperatingSystem.IsWindows())
+                throw new NotSupportedException("OS not supported");
+
             if (mimeType.IsNullOrWhiteSpace())
             {
                 encoder = default;

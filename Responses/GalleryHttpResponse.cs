@@ -35,6 +35,9 @@ namespace EastFive.Api
 
         public override async Task WriteResponseAsync(Stream responseStream)
         {
+            if (!OperatingSystem.IsWindows())
+                throw new NotSupportedException("OS not supported");
+
             var css = (imagesPerLine.HasValue && imagesPerLine.Value > 0) ?
                 $"img {{width: {100 / imagesPerLine.Value}%;}}"
                 :
