@@ -562,42 +562,6 @@ namespace EastFive.Api
                 #region Security
 
                 {
-                    typeof(SessionToken?),
-                    (httpApp, request, paramInfo, success) =>
-                    {
-                        return EastFive.Web.Configuration.Settings.GetString(AppSettings.ActorIdClaimType,
-                            (accountIdClaimType) =>
-                            {
-                                return request.GetClaims(
-                                    (claimsEnumerable) =>
-                                    {
-                                        var claims = claimsEnumerable.ToArray();
-                                        return claims.GetAccountIdMaybe(
-                                                request, accountIdClaimType,
-                                            (accountIdMaybe) =>
-                                            {
-                                                var sessionIdClaimType = Auth.ClaimEnableSessionAttribute.Type;
-                                                return claims.GetSessionIdAsync(
-                                                    request, sessionIdClaimType,
-                                                    (sessionId) =>
-                                                    {
-                                                        var token = new SessionToken
-                                                        {
-                                                            accountIdMaybe = accountIdMaybe,
-                                                            sessionId = sessionId,
-                                                            claims = claims,
-                                                        };
-                                                        return success(token);
-                                                    });
-                                            });
-                                    },
-                                    () => success(default(SessionToken?)),
-                                    (why) => success(default(SessionToken?)));
-                            },
-                            (why) => request.CreateResponse(HttpStatusCode.Unauthorized).AddReason(why).AsTask());
-                    }
-                },
-                {
                     typeof(Controllers.ApiSecurity),
                     (httpApp, routeData, paramInfo, success) =>
                     {

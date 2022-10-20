@@ -58,7 +58,7 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
                 {
                     Uri.TryCreate($"https://api.getpostman.com/collections", UriKind.Absolute, out Uri getCollectionsUri);
                     return getCollectionsUri.HttpClientPostResourceAsync(collection,
-                        (CollectionSummaryParent collectionUpdated) =>
+                        (CollectionSummaryParent collectionUpdated, System.Net.Http.HttpResponseMessage httpResponse) =>
                         {
                             return onCreated(collectionUpdated.collection);
                         },
