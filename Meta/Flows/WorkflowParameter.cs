@@ -123,6 +123,11 @@ namespace EastFive.Api.Meta.Flows
         }
     }
 
+    public interface IDefineWorkflowParameterAttributes
+    {
+        bool IsFileType(ParameterInfo parameter);
+    }
+
     public class WorkflowParameterAttribute : WorkflowParameterBaseAttribute
     {
         public string Value { get; set; }
@@ -137,8 +142,16 @@ namespace EastFive.Api.Meta.Flows
 
         protected override bool IsFileType(ParameterInfo parameter)
         {
-            return parameter.ParameterType == typeof(System.IO.Stream) ||
-                parameter.ParameterType.IsSubClassOfGeneric(typeof(System.IO.Stream));
+            if (parameter.ParameterType == typeof(System.IO.Stream))
+                return true;
+            if(parameter.ParameterType.IsSubClassOfGeneric(typeof(System.IO.Stream)))
+                return true;
+
+            if (!parameter.ParameterType.TryGetAttributeInterface(
+                out IDefineWorkflowParameterAttributes defineWorkflowParameterAttributes))
+                return false;
+
+            return defineWorkflowParameterAttributes.IsFileType(parameter);
         }
     }
 
