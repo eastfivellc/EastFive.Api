@@ -6,7 +6,6 @@ using System.Net.Http.Headers;
 using System.Web.Http;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using BlackBarLabs.Extensions;
 using BlackBarLabs.Api.Resources;
 using System.Security.Claims;
 using System.Configuration;

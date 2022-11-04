@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 using System.Web;
 
 using BlackBarLabs.Api;
-using BlackBarLabs.Extensions;
 using EastFive.Api.Core;
 using EastFive.Api.Resources;
 using EastFive.Api.Serialization;

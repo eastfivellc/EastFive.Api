@@ -1,5 +1,4 @@
-﻿using BlackBarLabs.Extensions;
-using EastFive.Api.Bindings;
+﻿using EastFive.Api.Bindings;
 using EastFive.Api.Resources;
 using EastFive.Api.Serialization;
 using EastFive.Collections.Generic;

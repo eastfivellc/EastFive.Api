@@ -11,7 +11,6 @@ using Newtonsoft.Json;
 using EastFive.Extensions;
 using System.Xml;
 using EastFive.Linq;
-using BlackBarLabs.Extensions;
 using System.Xml.Serialization;
 using EastFive.Serialization;
 using EastFive.Api.Serialization;
