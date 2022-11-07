@@ -565,7 +565,6 @@ namespace EastFive.Api
             public string[] extraQueryParams;
             public SelectParameterResult[] failedValidations;
             public MethodInfo method;
-            internal KeyValuePair<ParameterInfo, object>[] parametersWithValues;
 
             public string ErrorMessage
             {

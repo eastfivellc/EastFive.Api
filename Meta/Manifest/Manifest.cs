@@ -24,10 +24,10 @@ namespace EastFive.Api.Resources
             public const string IdPropertyName = "id";
             [JsonProperty(PropertyName = IdPropertyName)]
             [DataMember(Name = IdPropertyName)]
-            public BlackBarLabs.Api.Resources.WebId Id { get; set; }
+            public EastFive.Api.Resources.WebId Id { get; set; }
 
             [JsonProperty(PropertyName = "endpoints")]
-            public BlackBarLabs.Api.Resources.WebId[] Endpoints { get; set; }
+            public EastFive.Api.Resources.WebId[] Endpoints { get; set; }
         }
 
         public Manifest(IEnumerable<Type> lookups,
@@ -55,7 +55,7 @@ namespace EastFive.Api.Resources
             if (request.GetAcceptTypes().Where(accept => accept.MediaType.ToLower().Contains("html")).Any())
                 return HtmlContent(application, request, url, onHtml);
 
-            LocateControllers();
+            LocateControllers(application.GetType());
             var endpoints = Manifest.lookup
                 .Select(
                     type =>
@@ -138,16 +138,15 @@ namespace EastFive.Api.Resources
         private static object lookupLock = new object();
         private static Type[] lookup;
 
-        private static void LocateControllers()
+        private static void LocateControllers(Type applicationType)
         {
+            var limitedAssemblyQuery = applicationType
+                .GetAttributesInterface<IApiResources>(inherit: true, multiple: true);
+
             lock (lookupLock)
             {
                 if (!Manifest.lookup.IsDefaultNullOrEmpty())
                     return;
-
-                var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies()
-                    .Where(assembly => (!assembly.GlobalAssemblyCache))
-                    .ToArray();
 
                 AppDomain.CurrentDomain.AssemblyLoad += (object sender, AssemblyLoadEventArgs args) =>
                 {
@@ -157,10 +156,27 @@ namespace EastFive.Api.Resources
                     }
                 };
 
+                var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies()
+                    .Where(ShouldCheckAssembly)
+                    .ToArray();
+
                 foreach (var assembly in loadedAssemblies)
                 {
                     AddControllersFromAssembly(assembly);
                 }
+            }
+
+            bool ShouldCheckAssembly(Assembly assembly)
+            {
+                return limitedAssemblyQuery
+                    .First(
+                        (limitedAssembly, next) =>
+                        {
+                            if (limitedAssembly.ShouldCheckAssembly(assembly))
+                                return true;
+                            return next();
+                        },
+                        () => false);
             }
         }
 
@@ -176,7 +192,10 @@ namespace EastFive.Api.Resources
                         type.GetCustomAttribute<FunctionViewControllerAttribute, bool>((attrs) => true, () => false))
                     .ToArray();
 
-                Manifest.lookup = Manifest.lookup.NullToEmpty().Concat(results).ToArray();
+                Manifest.lookup = Manifest.lookup.NullToEmpty()
+                    .Concat(results)
+                    .Distinct(r => r.GUID)
+                    .ToArray();
             }
             catch (Exception ex)
             {

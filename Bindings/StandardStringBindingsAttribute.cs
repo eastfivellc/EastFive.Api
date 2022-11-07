@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.Reflection;
 
-using BlackBarLabs.Api.Resources;
+using EastFive.Api.Resources;
 using EastFive;
 using EastFive.Extensions;
 using EastFive.Reflection;

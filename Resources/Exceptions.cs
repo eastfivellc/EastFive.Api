@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BlackBarLabs.Api.Resources
+namespace EastFive.Api.Resources
 {
     public enum ResolutionOptionActions
     {

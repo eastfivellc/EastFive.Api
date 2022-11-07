@@ -3,7 +3,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Net.Http;
 using EastFive.Linq;
-using BlackBarLabs.Api;
 using System.Threading;
 
 namespace EastFive.Api.Modules

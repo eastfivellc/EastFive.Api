@@ -144,7 +144,7 @@ namespace EastFive.Api
             return true;
         }
 
-        #region Authorization
+        #region Authorization Header
 
         private const string HeaderKeyAuthorization = "Authorization";
 
@@ -200,6 +200,8 @@ namespace EastFive.Api
 
         #endregion
 
+        #region referer
+
         public static void SetReferer(this IHttpRequest req, Uri referer)
             => req.UpdateHeader("Referer", x => x.Append(referer.AbsoluteUri).ToArray());
 
@@ -212,6 +214,10 @@ namespace EastFive.Api
             return false;
         }
 
+        #endregion
+
+        #region Parser identification
+
         public static bool IsJson(this IHttpRequest req)
             => req.GetMediaType().ToLower().Contains("json");
 
@@ -220,6 +226,18 @@ namespace EastFive.Api
 
         public static bool IsXml(this IHttpRequest req)
             => req.GetMediaType().ToLower().Contains("xml");
+
+        public static bool IsContentOfType(this IHttpRequest request, string contentType)
+        {
+            if (!request.TryGetMediaType(out string requestContentType))
+                return contentType.IsNullOrWhiteSpace();
+
+            return requestContentType.Equals(contentType, StringComparison.OrdinalIgnoreCase);
+        }
+
+        #endregion
+
+        #region Authorization
 
         public static bool IsAuthorizedFor(this IHttpRequest request,
             string claimType)
@@ -300,13 +318,7 @@ namespace EastFive.Api
             return kvp.Key;
         }
 
-        public static bool IsContentOfType(this IHttpRequest request, string contentType)
-        {
-            if(!request.TryGetMediaType(out string requestContentType))
-                return contentType.IsNullOrWhiteSpace();
-
-            return requestContentType.Equals(contentType, StringComparison.OrdinalIgnoreCase);
-        }
+        #endregion
 
         #region Claims / Auth
 

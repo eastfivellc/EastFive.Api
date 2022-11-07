@@ -390,7 +390,7 @@ namespace EastFive.Api.Meta.Flows
             {
                 var rawJsonBody = RawJsonBody();
                 if (IsBodyEmpty())
-                    return default(Body?);
+                    return default(Body);
 
                 return new Body()
                 {

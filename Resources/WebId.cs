@@ -6,7 +6,7 @@ using System;
 using System.Linq;
 using System.Runtime.Serialization;
 
-namespace BlackBarLabs.Api.Resources
+namespace EastFive.Api.Resources
 {
     [DataContract(Name = "web_id")]
     public class WebId

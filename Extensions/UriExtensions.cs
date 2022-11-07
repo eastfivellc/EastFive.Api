@@ -8,7 +8,7 @@ using System.Web;
 using EastFive;
 using EastFive.Collections.Generic;
 using EastFive.Linq.Expressions;
-using BlackBarLabs.Api.Resources;
+using EastFive.Api.Resources;
 using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Serialization;

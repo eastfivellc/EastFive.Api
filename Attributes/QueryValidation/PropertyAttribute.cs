@@ -48,9 +48,9 @@ namespace EastFive.Api
             if (type.IsAssignableFrom(value.GetType()))
                 return onCasted(value);
 
-            if (value is BlackBarLabs.Api.Resources.WebId)
+            if (value is EastFive.Api.Resources.WebId)
             {
-                var webId = value as BlackBarLabs.Api.Resources.WebId;
+                var webId = value as EastFive.Api.Resources.WebId;
                 if (typeof(Guid).GUID == type.GUID)
                 {
                     if (webId.IsDefaultOrNull())

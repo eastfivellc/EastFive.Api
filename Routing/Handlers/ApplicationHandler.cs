@@ -37,16 +37,22 @@ namespace EastFive.Api.Modules
             // This situation can be avoided by using the contiuation callback instead of calling base, this serves a defensive programming.
 
             // Check if this method has already been called
-            if (request.Properties.ContainsKey(applicationProperty))
-                // TODO: Log event here.
-                return base.SendAsync(request, cancellationToken);
-            
-            // add applicationProperty as a property to identify this method has already been called.
-            request.Properties.Add(applicationProperty, this.application);
-            throw new NotImplementedException();
-            //return SendAsync(this.application, request, cancellationToken,
-            //    (requestBase, cancellationTokenBase) =>
-            //        base.SendAsync(requestBase, cancellationTokenBase));
+            return request.Options.Contains(
+                kvp => applicationProperty.Equals(kvp.Key, StringComparison.OrdinalIgnoreCase),
+                discard =>
+                {
+                    // TODO: Log event here.
+                    return base.SendAsync(request, cancellationToken);
+                },
+                onDidNotContain: () =>
+                {
+                    // add applicationProperty as a property to identify this method has already been called.
+                    request.Options.TryAdd(applicationProperty, this.application);
+                    throw new NotImplementedException();
+                    //return SendAsync(this.application, request, cancellationToken,
+                    //    (requestBase, cancellationTokenBase) =>
+                    //        base.SendAsync(requestBase, cancellationTokenBase));
+                });
         }
 
         /// <summary>

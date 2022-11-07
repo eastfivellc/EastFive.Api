@@ -1,21 +1,22 @@
-﻿using BlackBarLabs.Api;
-using BlackBarLabs.Api.Resources;
-using EastFive.Api.Serialization;
-using EastFive.Reflection;
-using EastFive.Collections.Generic;
-using EastFive.Extensions;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Reflection;
-using EastFive.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
+using EastFive.Api.Resources;
+using EastFive.Api.Serialization;
+using EastFive.Reflection;
+using EastFive.Collections.Generic;
+using EastFive.Extensions;
+using EastFive.Linq;
 
 namespace EastFive.Api.Bindings
 {

@@ -6,7 +6,7 @@ using System.Net.Http.Headers;
 using System.Web.Http;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using BlackBarLabs.Api.Resources;
+using EastFive.Api.Resources;
 using System.Security.Claims;
 using System.Configuration;
 using EastFive.Api;

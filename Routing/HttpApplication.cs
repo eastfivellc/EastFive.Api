@@ -7,28 +7,28 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web;
-
-
-using EastFive.Linq;
-using BlackBarLabs.Api;
-using EastFive.Collections.Generic;
-using EastFive.Extensions;
 using System.IO;
 using System.Threading;
 using System.Web.Http;
-using EastFive.Web;
-using EastFive.Linq.Async;
-using Newtonsoft.Json.Linq;
-using EastFive.Api.Serialization;
 using System.Xml;
 using System.Diagnostics;
-using EastFive.Analytics;
-using EastFive.Api.Core;
+
+using Newtonsoft.Json.Linq;
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Mvc.Razor;
+
+using EastFive.Linq;
+using EastFive.Collections.Generic;
+using EastFive.Extensions;
+using EastFive.Web;
+using EastFive.Linq.Async;
+using EastFive.Api.Serialization;
+using EastFive.Analytics;
+using EastFive.Api.Core;
 
 namespace EastFive.Api
 {
@@ -302,12 +302,12 @@ namespace EastFive.Api
             if (propertyType.IsAssignableFrom(valueType))
                 return onCasted(value);
 
-            if (propertyType.IsAssignableFrom(typeof(BlackBarLabs.Api.Resources.WebId)))
+            if (propertyType.IsAssignableFrom(typeof(EastFive.Api.Resources.WebId)))
             {
                 if (value is Guid)
                 {
                     var guidValue = (Guid)value;
-                    var webIdValue = (BlackBarLabs.Api.Resources.WebId)guidValue;
+                    var webIdValue = (EastFive.Api.Resources.WebId)guidValue;
                     return onCasted(webIdValue);
                 }
             }
@@ -367,9 +367,9 @@ namespace EastFive.Api
                     var stringValue = guidIdMaybeValue.Value.ToString();
                     return onCasted(stringValue);
                 }
-                if (value is BlackBarLabs.Api.Resources.WebId)
+                if (value is EastFive.Api.Resources.WebId)
                 {
-                    var webIdValue = value as BlackBarLabs.Api.Resources.WebId;
+                    var webIdValue = value as EastFive.Api.Resources.WebId;
                     var guidValue = webIdValue.ToGuid().Value;
                     var stringValue = guidValue.ToString();
                     return onCasted(stringValue);
@@ -422,25 +422,10 @@ namespace EastFive.Api
 
             var limitedAssemblyQuery = this.GetType()
                 .GetAttributesInterface<IApiResources>(inherit: true, multiple: true);
-            Func<Assembly, bool> shouldCheckAssembly =
-                (assembly) =>
-                {
-                    return limitedAssemblyQuery
-                        .First(
-                            (limitedAssembly, next) =>
-                            {
-                                if (limitedAssembly.ShouldCheckAssembly(assembly))
-                                    return true;
-                                return next();
-                            },
-                            () => false);
-                };
 
             AppDomain.CurrentDomain.AssemblyLoad += (object sender, AssemblyLoadEventArgs args) =>
             {
-                if (args.LoadedAssembly.GlobalAssemblyCache)
-                    return;
-                var check = shouldCheckAssembly(args.LoadedAssembly);
+                var check = ShouldCheckAssembly(args.LoadedAssembly);
                 if (!check)
                     return;
                 lock (lookupLock)
@@ -450,8 +435,7 @@ namespace EastFive.Api
             };
 
             var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies()
-                .Where(assembly => (!assembly.GlobalAssemblyCache))
-                .Where(shouldCheckAssembly)
+                .Where(ShouldCheckAssembly)
                 .ToArray();
 
             lock (lookupLock)
@@ -460,6 +444,19 @@ namespace EastFive.Api
                 {
                     AddControllersFromAssembly(assembly);
                 }
+            }
+
+            bool ShouldCheckAssembly(Assembly assembly)
+            {
+                return limitedAssemblyQuery
+                        .First(
+                            (limitedAssembly, next) =>
+                            {
+                                if (limitedAssembly.ShouldCheckAssembly(assembly))
+                                    return true;
+                                return next();
+                            },
+                            () => false);
             }
         }
 

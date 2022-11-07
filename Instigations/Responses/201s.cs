@@ -101,7 +101,7 @@ namespace EastFive.Api
                     .OrderByDescending(x => x.GetPreference(request))
                     .First(
                         (provider, next) => provider,
-                        () => default(IProvideSerialization?));
+                        () => default(IProvideSerialization));
                 this.obj = obj;
 
                 this.request = request;

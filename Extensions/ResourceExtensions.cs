@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
-using BlackBarLabs.Api.Resources;
+using EastFive.Api.Resources;
 using System.Threading.Tasks;
 using System.Net;
 using EastFive.Linq;
@@ -105,13 +105,7 @@ namespace EastFive.Api
         {
             return url.GetLocation(typeof(TController), routeName:routeName);
         }
-    }
-}
 
-namespace BlackBarLabs.Api
-{
-    public static class ResourceExtensions
-    {
         public static IEnumerable<Guid> ParseGuidString(this string guidString)
         {
             if (String.IsNullOrWhiteSpace(guidString))
@@ -274,34 +268,6 @@ namespace BlackBarLabs.Api
             // TODO: Check if query param has DefaultId attribute 
 
             return onParsed(controllerName, queryParameters);
-        }
-
-        public static Uri GetUrn(this Type controllerType,
-            string urnNamespace)
-        {
-            var controllerName =
-                controllerType.Name.TrimEnd("Controller",
-                    (trimmedName) => trimmedName, (originalName) => originalName);
-
-            if (controllerType.ContainsCustomAttribute<FunctionViewControllerAttribute>())
-            {
-                var fvcAttr = controllerType.GetCustomAttribute<FunctionViewControllerAttribute>();
-                if (fvcAttr.Route.HasBlackSpace())
-                    controllerName = fvcAttr.Route;
-            }
-
-            var urn = new Uri("urn:" + urnNamespace + ":" + controllerName);
-            //var resourceAttributeTypes = controllerType.GetCustomAttributes<Api.ResourceTypeAttribute>();
-            //if (resourceAttributeTypes.Length > 0)
-            //{
-            //    var urnModelType = resourceAttributeTypes[0].Urn;
-            //    var modelAttributeTypes = controllerType.GetCustomAttributes<Web.ResourceTypeAttribute>();
-            //    if (modelAttributeTypes.Length > 0)
-            //    {
-            //        urn = new Uri(modelAttributeTypes[0].Urn);
-            //    }
-            //}
-            return urn;
         }
         
         public static Uri GetLocation<TController>(this UrlHelper url,

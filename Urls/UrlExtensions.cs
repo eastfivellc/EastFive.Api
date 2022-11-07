@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
-using BlackBarLabs.Api.Resources;
+using EastFive.Api.Resources;
 using System.Threading.Tasks;
 using System.Net;
 using EastFive.Linq;
@@ -170,19 +170,9 @@ namespace EastFive.Api
             }
 
             var urn = new Uri("urn:" + urnNamespace + ":" + controllerName);
-            //var resourceAttributeTypes = controllerType.GetCustomAttributes<Api.ResourceTypeAttribute>();
-            //if (resourceAttributeTypes.Length > 0)
-            //{
-            //    var urnModelType = resourceAttributeTypes[0].Urn;
-            //    var modelAttributeTypes = controllerType.GetCustomAttributes<Web.ResourceTypeAttribute>();
-            //    if (modelAttributeTypes.Length > 0)
-            //    {
-            //        urn = new Uri(modelAttributeTypes[0].Urn);
-            //    }
-            //}
             return urn;
         }
-        
+
         public static Uri GetLocation<TController>(this IProvideUrl url,
             Guid? idMaybe,
             string routeName = default(string))
