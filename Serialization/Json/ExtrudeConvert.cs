@@ -391,6 +391,8 @@ namespace EastFive.Api.Serialization
                     return true;
                 if (typeof(bool).IsAssignableFrom(type))
                     return true;
+                if (typeof(Guid).IsAssignableFrom(type))
+                    return true;
                 if (typeof(DateTime).IsAssignableFrom(type))
                     return true;
                 if (typeof(TimeSpan).IsAssignableFrom(type))
@@ -427,6 +429,11 @@ namespace EastFive.Api.Serialization
                 if (typeof(bool).IsAssignableFrom(type))
                 {
                     await writer.WriteValueAsync((bool)memberValue);
+                    return;
+                }
+                if (typeof(Guid).IsAssignableFrom(type))
+                {
+                    await writer.WriteValueAsync((Guid)memberValue);
                     return;
                 }
                 if (type.IsNumeric())
