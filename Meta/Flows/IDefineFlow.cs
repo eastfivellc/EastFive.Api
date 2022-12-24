@@ -21,6 +21,8 @@ namespace EastFive.Api.Meta.Flows
 
         public double Step { get; }
 
+        string GetScope();
+
         Item GetItem(Api.Resources.Method method, bool preferJson);
     }
 
@@ -65,6 +67,11 @@ namespace EastFive.Api.Meta.Flows
                 };
             }
             return item;
+        }
+
+        public virtual string GetScope()
+        {
+            return Scope.HasBlackSpace() ? Scope : string.Empty;
         }
 
         private string [] GetScriptSteps(Method method)

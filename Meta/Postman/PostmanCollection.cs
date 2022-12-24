@@ -123,7 +123,21 @@ namespace EastFive.Api.Meta.Postman
                                     preferJson.HasValue ? preferJson.Value : false)))
                             .Concat(customItems)
                             .OrderBy(methodAndFlow => methodAndFlow.Item1.Step)
-                            .Select(tpl => tpl.Item2)
+                            .GroupBy(methodAndFlow => methodAndFlow.Item1.GetScope())
+                            .Select(scopeGrp =>
+                            {
+                                var scope = scopeGrp.Key;
+                                if (string.IsNullOrWhiteSpace(scope))
+                                    return scopeGrp.Select(tpl => tpl.Item2).ToArray();
+
+                                return new EastFive.Api.Meta.Postman.Resources.Collection.Item
+                                {
+                                    name = scope,
+                                    item = scopeGrp.Select(tpl => tpl.Item2).ToArray(),
+                                }.AsArray();
+                            })
+                            .SelectMany()
+                            //.Select(tpl => tpl.Item2)
                             .ToArray();
 
                         var collection = new Resources.Collection.Collection()
