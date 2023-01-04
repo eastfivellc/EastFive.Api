@@ -10,6 +10,7 @@ namespace EastFive.Api.Meta.Postman.Resources.Collection
     {
         public Guid _postman_id { get; set; }
         public string name { get; set; }
+        public string description { get; set; }
         public string schema { get; set; }
     }
 }

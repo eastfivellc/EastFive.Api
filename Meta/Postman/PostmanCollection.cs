@@ -70,6 +70,7 @@ namespace EastFive.Api.Meta.Postman
                 [OptionalQueryParameter]string collections,
                 [OptionalQueryParameter]bool? preferJson,
                 //Security security,
+                IProvideUrl urlHelper,
                 IInvokeApplication invokeApplication,
                 HttpApplication httpApp, IHttpRequest request, IProvideUrl url,
             ContentTypeResponse<Resources.Collection.Collection> onSuccess,
@@ -103,10 +104,32 @@ namespace EastFive.Api.Meta.Postman
                 .First(
                     (methodAndFlowGrp, next) =>
                     {
+                        string getImportLink()
+                        {
+                            var link = urlHelper
+                                .Link("meta", typeof(PostmanCollection).Name)
+                                .AddQueryParameter("flow", flow);                                
+                            return $"**Import Link**: " + EastFive.Api.Meta.Postman.Resources.Collection.Url.VariableHostName + link.PathAndQuery;
+                        }
+
+                        var flowVersion = methodAndFlowGrp
+                            .First(
+                                (x, xNext) =>
+                                {
+                                    if (x.attr.Version.HasBlackSpace())
+                                        return x.attr.Version;
+                                    return xNext();
+                                },
+                                () => default(string));
+                        var description = flowVersion.HasBlackSpace()
+                            ? $"**Version**: {flowVersion}\n\n{getImportLink()}"
+                            : getImportLink();
+
                         var info = new Resources.Collection.Info
                         {
                             _postman_id = Guid.NewGuid(),
                             name = methodAndFlowGrp.Key,
+                            description = description,
                             schema = "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
                         };
 

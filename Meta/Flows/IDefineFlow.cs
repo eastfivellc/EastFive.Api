@@ -19,6 +19,8 @@ namespace EastFive.Api.Meta.Flows
     {
         public string FlowName { get; }
 
+        public string Version { get; }
+
         public double Step { get; }
 
         string GetScope();
@@ -29,6 +31,8 @@ namespace EastFive.Api.Meta.Flows
     public class WorkflowStepAttribute : System.Attribute, IDefineFlow
     {
         public string FlowName { get; set; }
+
+        public string Version { get; set; }
 
         public string StepName { get; set; }
 
