@@ -40,10 +40,8 @@ namespace EastFive.Api.Meta.Postman
                 [OptionalQueryParameter] string collections,
                 [OptionalQueryParameter] bool? preferJson,
                 //Security security,
-                IInvokeApplication invokeApplication,
-                HttpApplication httpApp, IHttpRequest request, IProvideUrl url,
-            ContentTypeResponse<string []> onSuccess,
-            NotFoundResponse onNotFound)
+                HttpApplication httpApp,
+            ContentTypeResponse<string[]> onSuccess)
         {
             var lookups = httpApp
                 .GetResources()
@@ -62,6 +60,65 @@ namespace EastFive.Api.Meta.Postman
                 .ToArray();
 
             return onSuccess(flows);
+        }
+
+        [EastFive.Api.HttpGet]
+        public static IHttpResponse GetVersion(
+                [QueryParameter] string flow,
+                [QueryParameter] string version,
+                //Security security,
+                IProvideUrl urlHelper,
+                HttpApplication httpApp,
+            HtmlResponse onSuccess,
+            GeneralFailureResponse onFailure)
+        {
+            var lookups = httpApp
+                .GetResources()
+                .ToArray();
+
+            var manifest = new EastFive.Api.Resources.Manifest(lookups, httpApp);
+
+            var latestVersion = manifest.Routes
+                .SelectMany(route => route.Methods)
+                .SelectMany(method => method.MethodPoco
+                    .GetAttributesInterface<IDefineFlow>(multiple: true)
+                    .Select(attr => (method, attr)))
+                .GroupBy(methodAndFlow => methodAndFlow.attr.FlowName)
+                .Where(grp => grp.Key == flow)
+                .Select(grp => grp.ToArray())
+                .SelectMany()
+                .First(
+                    (x, next) =>
+                    {
+                        if (x.attr.Version.HasBlackSpace())
+                            return x.attr.Version;
+
+                        return next();
+                    },
+                    () => string.Empty);
+            if (string.IsNullOrWhiteSpace(latestVersion))
+                return onFailure("Version is not available");
+
+            string getImportLinkForBrowser() => urlHelper
+                .Link("meta", typeof(PostmanCollection).Name)
+                .AddQueryParameter("flow", flow)
+                .AbsoluteUri;
+
+            var sanitizedVerson = System.Web.HttpUtility.HtmlEncode(version);
+            var shouldUpdate = !sanitizedVerson.Equals(latestVersion, StringComparison.OrdinalIgnoreCase);
+            var status = shouldUpdate
+                ? $"An update is available ({latestVersion})"
+                : "Collection is up to date";
+            var actionRequired = shouldUpdate
+                ? $"Re-import collection from:<pre>{getImportLinkForBrowser()}</pre>"
+                : $"None";
+            var view =
+                $"<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">" +
+                $"<html><body><table style=\"text-align:left;width:100%\">" +
+                $"<tr><th>Postman Collection</th><th>Version</th><th>Status</th><th>Action Required</th></tr>" +
+                $"<tr><td>{flow}</td><td>{sanitizedVerson}</td><td>{status}</td><td>{actionRequired}</td></tr>" +
+                $"</table></body></html>";
+            return onSuccess(view);
         }
 
         [EastFive.Api.HttpGet]
@@ -104,14 +161,6 @@ namespace EastFive.Api.Meta.Postman
                 .First(
                     (methodAndFlowGrp, next) =>
                     {
-                        string getImportLink()
-                        {
-                            var link = urlHelper
-                                .Link("meta", typeof(PostmanCollection).Name)
-                                .AddQueryParameter("flow", flow);                                
-                            return $"**Import Link**: " + EastFive.Api.Meta.Postman.Resources.Collection.Url.VariableHostName + link.PathAndQuery;
-                        }
-
                         var flowVersion = methodAndFlowGrp
                             .First(
                                 (x, xNext) =>
@@ -121,9 +170,27 @@ namespace EastFive.Api.Meta.Postman
                                     return xNext();
                                 },
                                 () => default(string));
+
+                        string getImportLinkForPostman()
+                        {
+                            var link = urlHelper
+                                .Link("meta", typeof(PostmanCollection).Name)
+                                .AddQueryParameter("flow", flow);                                
+                            return $"**Import Link**: " + EastFive.Api.Meta.Postman.Resources.Collection.Url.VariableHostName + link.PathAndQuery;
+                        }
+
+                        string getCheckForLatestLink()
+                        {
+                            var link = urlHelper
+                                .Link("meta", typeof(PostmanCollection).Name)
+                                .AddQueryParameter("flow", flow)
+                                .AddQueryParameter("version", flowVersion);
+                            return $"[check for latest]({EastFive.Api.Meta.Postman.Resources.Collection.Url.VariableHostName + link.PathAndQuery})";
+                        }
+
                         var description = flowVersion.HasBlackSpace()
-                            ? $"**Version**: {flowVersion}\n\n{getImportLink()}"
-                            : getImportLink();
+                            ? $"**Version**: {flowVersion} {getCheckForLatestLink()}\n\n{getImportLinkForPostman()}"
+                            : getImportLinkForPostman();
 
                         var info = new Resources.Collection.Info
                         {
