@@ -18,17 +18,44 @@ namespace EastFive.Api
                 IHttpRequest request, string sessionIdClaimType,
             Func<Guid, Task<IHttpResponse>> success)
         {
+            return claims.GetSessionId(sessionIdClaimType,
+                onFound:(sessionId) =>
+                {
+                    return success(sessionId);
+                },
+                () => request.CreateResponse(HttpStatusCode.Unauthorized).AsTask());
+        }
+
+        public static TResult GetSessionId<TResult>(this IEnumerable<System.Security.Claims.Claim> claims,
+                string sessionIdClaimType,
+            Func<Guid, TResult> onFound,
+            Func<TResult> onNoSessionClaim)
+        {
             return claims
                 .Where(claim => String.Compare(claim.Type, sessionIdClaimType) == 0)
                 .First(
                     (adminClaim, next) =>
                     {
-                        var accountId = Guid.Parse(adminClaim.Value);
-                        return success(accountId);
+                        var sessionId = Guid.Parse(adminClaim.Value);
+                        return onFound(sessionId);
                     },
-                    () => request.CreateResponse(HttpStatusCode.Unauthorized).AsTask());
+                    () => onNoSessionClaim());
+        }
 
-            
+        public static TResult GetSessionId<TResult>(this IEnumerable<System.Security.Claims.Claim> claims,
+            Func<Guid, TResult> onSuccess,
+            Func<TResult> sessionIdNotFound,
+                string sessionIdClaimTypeConfigurationSetting = default)
+        {
+            if(sessionIdClaimTypeConfigurationSetting.IsNullOrWhiteSpace())
+                sessionIdClaimTypeConfigurationSetting =
+                    EastFive.Api.AppSettings.SessionIdClaimType;
+
+            return sessionIdClaimTypeConfigurationSetting.ConfigurationString(
+                sessionIdClaimType =>
+                {
+                    return claims.GetSessionId(sessionIdClaimType, onSuccess, sessionIdNotFound);
+                });
         }
 
         public static IHttpResponse GetAccountId(this IEnumerable<System.Security.Claims.Claim> claims,
@@ -85,34 +112,6 @@ namespace EastFive.Api
 
             var accountId = Guid.Parse(adminClaim.Value);
             return success(accountId);
-        }
-
-        public static TResult GetSessionId<TResult>(this IEnumerable<System.Security.Claims.Claim> claims,
-            Func<Guid, TResult> success,
-            Func<TResult> actorIdNotFound)
-        {
-            var sessionIdClaimTypeConfigurationSetting =
-                EastFive.Api.AppSettings.SessionIdClaimType;
-            return claims.GetSessionId(sessionIdClaimTypeConfigurationSetting, success, actorIdNotFound);
-        }
-
-        public static TResult GetSessionId<TResult>(this IEnumerable<System.Security.Claims.Claim> claims,
-            string sessionIdClaimType,
-            Func<Guid, TResult> success,
-            Func<TResult> sessionIdNotFound)
-        {
-            return sessionIdClaimType.ConfigurationString(
-                accountIdClaimValue =>
-                {
-                    var adminClaim = claims
-                        .FirstOrDefault((claim) => String.Compare(claim.Type, accountIdClaimValue) == 0);
-
-                    if (default(System.Security.Claims.Claim) == adminClaim)
-                        return sessionIdNotFound();
-
-                    var accountId = Guid.Parse(adminClaim.Value);
-                    return success(accountId);
-                });
         }
 
         public static TResult GetActorId<TResult>(this IEnumerable<System.Security.Claims.Claim> claims,

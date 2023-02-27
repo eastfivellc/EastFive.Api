@@ -469,7 +469,37 @@ namespace EastFive.Api
                     .AddReason(why).AsTask());
             return resultGetClaims;
         }
-        
+
+        public static TResult GetSessionId<TResult>(this IHttpRequest request,
+            Func<Guid, Claim[], TResult> onHasSessionIdClaims,
+            Func<TResult> onNoSessionClaims,
+            Func<string, TResult> onFailure = default,
+                string sessionIdClaimTypeConfigurationSetting = default)
+        {
+            if(sessionIdClaimTypeConfigurationSetting.IsNullOrWhiteSpace())
+                sessionIdClaimTypeConfigurationSetting =
+                    EastFive.Api.AppSettings.SessionIdClaimType;
+
+            return request.GetClaims(
+                (claimsEnumerable) =>
+                {
+                    var claims = claimsEnumerable.ToArray();
+                    var result = claims.GetSessionId(
+                        (sessionId) => onHasSessionIdClaims(sessionId, claims),
+                        sessionIdNotFound:onNoSessionClaims,
+                            sessionIdClaimTypeConfigurationSetting: sessionIdClaimTypeConfigurationSetting);
+                    return result;
+                },
+                () => onNoSessionClaims(),
+                (why) =>
+                {
+                    if(onFailure.IsNotDefaultOrNull())
+                        return onFailure(why);
+
+                    throw new Exception(why);
+                });
+        }
+
         public static IHttpResponse GetActorIdClaims(this IHttpRequest request,
             Func<Guid, System.Security.Claims.Claim[], IHttpResponse> success)
         {
