@@ -109,8 +109,8 @@ namespace EastFive.Api
         public static HttpResponseMessage CreatePdfResponse(this HttpRequestMessage request, System.IO.Stream stream,
             string filename = default(string), bool inline = false)
         {
-            var result = stream.ToBytes(
-                (pdfData) => request.CreatePdfResponse(pdfData, filename, inline));
+            var pdfData = stream.ToBytes();
+            var result = request.CreatePdfResponse(pdfData, filename, inline);
             return result;
         }
 
