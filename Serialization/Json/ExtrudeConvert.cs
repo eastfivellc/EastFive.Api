@@ -208,10 +208,10 @@ namespace EastFive.Api.Serialization
 
     public class CastExtrudeConvertJsonAttribute : Attribute, ICastJson
     {
-        public bool CanConvert(MemberInfo member, ParameterInfo paramInfo, IHttpRequest httpRequest, IApplication application, IProvideApiValue apiValueProvider, object objectValue)
+        public bool CanConvert(Type type, object value,
+            IHttpRequest httpRequest, IApplication application)
         {
-            var objectType = member.GetPropertyOrFieldType();
-            return CanConvert(objectType, httpRequest, application);
+            return CanConvert(type, httpRequest, application);
         }
 
         private bool CanConvert(Type objectType,
@@ -253,16 +253,15 @@ namespace EastFive.Api.Serialization
 
 
         public async Task WriteAsync(JsonWriter writer, JsonSerializer serializer,
-            MemberInfo member, ParameterInfo paramInfo,
-            IProvideApiValue apiValueProvider, object objectValue, object memberValue,
+            Type type, object value,
             IHttpRequest httpRequest, IApplication application)
         {
             var converters = application.GetType()
                 .GetAttributesInterface<IConvertJson>()
-                .Where(jc => jc.CanConvert(memberValue.GetType(), httpRequest, application));
+                .Where(jc => jc.CanConvert(type, httpRequest, application));
             if (converters.Any())
             {
-                converters.First().Write(writer, memberValue, serializer,
+                converters.First().Write(writer, value, serializer,
                     httpRequest, application);
                 return;
             }
@@ -279,18 +278,18 @@ namespace EastFive.Api.Serialization
                 await writer.WriteValueAsync(id);
             }
 
-            if (memberValue is IReferenceable)
+            if (value is IReferenceable)
             {
-                var id = (memberValue as IReferenceable).id;
+                var id = (value as IReferenceable).id;
                 await WriteIdAsync(id);
                 //writer.WriteValue(id);
                 return;
             }
 
-            if (memberValue is IReferences)
+            if (value is IReferences)
             {
                 writer.WriteStartArray();
-                Guid[] ids = await (memberValue as IReferences).ids
+                Guid[] ids = await (value as IReferences).ids
                     .Select(
                         async id =>
                         {
@@ -304,14 +303,14 @@ namespace EastFive.Api.Serialization
                 return;
             }
 
-            if (memberValue is IReferenceableOptional)
+            if (value is IReferenceableOptional)
             {
-                var id = (memberValue as IReferenceableOptional).id;
+                var id = (value as IReferenceableOptional).id;
                 await WriteIdAsync(id);
                 return;
             }
 
-            if (!memberValue.TryGetType(out Type valueType))
+            if (!value.TryGetType(out Type valueType))
             {
                 await writer.WriteNullAsync();
                 return;
@@ -320,7 +319,7 @@ namespace EastFive.Api.Serialization
             if (valueType.IsSubClassOfGeneric(typeof(IDictionary<,>)))
             {
                 await writer.WriteStartObjectAsync();
-                foreach (var kvpObj in memberValue.DictionaryKeyValuePairs())
+                foreach (var kvpObj in value.DictionaryKeyValuePairs())
                 {
                     var keyValue = kvpObj.Key;
                     var propertyName = (keyValue is IReferenceable) ?
@@ -333,8 +332,8 @@ namespace EastFive.Api.Serialization
                     var valueValueType = valueType.GenericTypeArguments.Last();
                     if (this.ShouldConvertDictionaryType(valueValueType, httpRequest, application))
                     {
-                        await WriteAsync(writer, serializer, member, paramInfo, apiValueProvider,
-                            objectValue, valueValue, httpRequest, application);
+                        await WriteAsync(writer, serializer,
+                            valueValueType, valueValue, httpRequest, application);
                         continue;
                     }
                     await writer.WriteValueAsync(valueValue);
@@ -343,9 +342,9 @@ namespace EastFive.Api.Serialization
                 return;
             }
 
-            if (memberValue is Type)
+            if (type is Type)
             {
-                var typeValue = (memberValue as Type);
+                var typeValue = (value as Type);
                 var serializationAttrs = typeValue
                     .GetAttributesInterface<IProvideSerialization>();
                 if (serializationAttrs.Any())
@@ -363,22 +362,20 @@ namespace EastFive.Api.Serialization
 
             if (valueType.IsEnum)
             {
-                var stringValue = Enum.GetName(valueType, memberValue);
+                var stringValue = Enum.GetName(valueType, value);
                 writer.WriteValue(stringValue);
                 return;
             }
 
-            serializer.Serialize(writer, memberValue);
+            serializer.Serialize(writer, value);
         }
-
     }
 
     public class CastJsonBasicTypesAttribute : Attribute, ICastJson
     {
-        public bool CanConvert(MemberInfo member, ParameterInfo paramInfo,
-            IHttpRequest httpRequest, IApplication application, IProvideApiValue apiValueProvider, object objectValue)
+        public bool CanConvert(Type type, object value,
+            IHttpRequest httpRequest, IApplication application)
         {
-            var type = member.GetPropertyOrFieldType();
             return CanConvert(type);
 
             bool CanConvert(Type type)
@@ -404,14 +401,10 @@ namespace EastFive.Api.Serialization
         }
 
         public async Task WriteAsync(JsonWriter writer, JsonSerializer serializer,
-            MemberInfo member, ParameterInfo paramInfo,
-            IProvideApiValue apiValueProvider,
-            object objectValue, object memberValue,
+            Type type, object value,
             IHttpRequest httpRequest, IApplication application)
         {
-            var type = member.GetPropertyOrFieldType();
-
-            await WriteForTypeAsync(type, memberValue);
+            await WriteForTypeAsync(type, value);
 
             async Task WriteForTypeAsync(Type type, object memberValue)
             {

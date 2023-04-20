@@ -14,6 +14,9 @@ using EastFive.Linq;
 using EastFive.Reflection;
 using EastFive.Serialization;
 using System.Collections;
+using DocumentFormat.OpenXml.Spreadsheet;
+using System.Data;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace EastFive.Api.Serialization.Json
 {
@@ -63,85 +66,42 @@ namespace EastFive.Api.Serialization.Json
                 var converter = new Serialization.ExtrudeConvert(request, httpApp);
                 serializer.Converters.Add(converter);
 
-                await WriteToStreamAsync(jsonWriter, serializer, obj);
+                await WriteObjectToStream(jsonWriter, serializer, obj);
             }
 
-            async Task WriteToStreamAsync(JsonTextWriter jsonWriter, JsonSerializer serializer, object obj)
+            async Task WriteObjectToStream(JsonTextWriter jsonWriter, JsonSerializer serializer, object obj)
             {
-                if (obj.IsNull())
-                {
-                    await jsonWriter.WriteNullAsync();
-                    return;
-                }
-
                 await jsonWriter.WriteStartObjectAsync();
 
                 var members = obj.GetType()
                     .GetPropertyAndFieldsWithAttributesInterface<IProvideApiValue>();
+
                 foreach (var (member, apiValueProvider) in members)
                 {
                     var memberValue = member.GetPropertyOrFieldValue(obj);
                     if (memberValue.IsNull() && IgnoreNull)
                         continue;
-                    await WriteAsync(member.GetAttributesInterface<ICastJson>(),
+
+                    var propertyName = apiValueProvider.GetPropertyName(member);
+                    await jsonWriter.WritePropertyNameAsync(propertyName);
+
+                    await WriteAsync(member.GetAttributesInterface<ICastJsonProperty>(),
                         onCouldNotCast: () =>
                         {
-                            var objType = obj.GetType();
-                            return WriteAsync(objType.GetAttributesInterface<ICastJson>(),
-                                () => WriteAsync(jsonCastersHttpApp,
-                                    () =>
-                                    {
-                                        var memberType = member.GetPropertyOrFieldType();
-                                        return WriteAsync(memberType.GetAttributesInterface<ICastJson>(),
-                                           async () =>
-                                           {
-                                               if (memberType.IsArray)
-                                               {
-                                                   await jsonWriter.WritePropertyNameAsync(apiValueProvider.PropertyName);
-                                                   await WriteArrayAsync(memberType);
-                                                   return;
-                                               }
-                                               if (memberType.TryGetAttributeInterface(out IProvideSerialization serializationProvider))
-                                               {
-                                                   await jsonWriter.WritePropertyNameAsync(apiValueProvider.PropertyName);
-                                                   using (var cacheStream = new MemoryStream())
-                                                   {
-                                                       await serializationProvider.SerializeAsync(cacheStream,
-                                                           httpApp, request, paramInfo, memberValue);
-                                                       var rawJson = cacheStream.ToArray().GetString(encoding);
-                                                       await jsonWriter.WriteRawValueAsync(rawJson);
-                                                   }
-                                                   return;
-                                               }
-                                               await jsonWriter.WriteCommentAsync(
-                                                   $"Cannot find {nameof(ICastJson)} interface for " +
-                                                   $"{member.DeclaringType.FullName}..{member.Name}");
-                                               return;
-                                           });
-                                    }));
+                            var memberType = memberValue.GetType();
+                            return WriteAsync(memberType.GetAttributesInterface<ICastJsonProperty>(),
+                                () =>
+                                {
+                                    var memberType = member.GetPropertyOrFieldType();
+                                    return WriteAsync(memberType.GetAttributesInterface<ICastJsonProperty>(),
+                                       async () =>
+                                       {
+                                           await WriteValueToStreamAsync(jsonWriter, serializer, memberValue, member.GetPropertyOrFieldType());
+                                       });
+                                });
                         });
 
-                    async Task WriteArrayAsync(Type memberType)
-                    {
-                        if(memberValue.IsNull())
-                        {
-                            await jsonWriter.WriteNullAsync();
-                            return;
-                        }
-                        var enumerable = (IEnumerable)memberValue;
-                        await jsonWriter.WriteStartArrayAsync();
-
-                        if (!enumerable.IsNull())
-                        {
-                            foreach (var item in enumerable)
-                            {
-                                await WriteToStreamAsync(jsonWriter, serializer, item);
-                            }
-                        }
-                        await jsonWriter.WriteEndArrayAsync();
-                    }
-
-                    Task WriteAsync(IEnumerable<ICastJson> castAttrs,
+                    Task WriteAsync(IEnumerable<ICastJsonProperty> castAttrs,
                         Func<Task> onCouldNotCast)
                     {
                         return castAttrs
@@ -157,7 +117,6 @@ namespace EastFive.Api.Serialization.Json
                                         if (IgnoreNull)
                                             return;
 
-                                    await jsonWriter.WritePropertyNameAsync(apiValueProvider.PropertyName);
                                     await jsonCaster.WriteAsync(jsonWriter, serializer, member, paramInfo,
                                         apiValueProvider, obj, memberValue, request, httpApp);
                                 },
@@ -166,6 +125,103 @@ namespace EastFive.Api.Serialization.Json
                 }
 
                 await jsonWriter.WriteEndObjectAsync();
+            }
+
+            async Task WriteValueToStreamAsync(JsonTextWriter jsonWriter, JsonSerializer serializer, object obj,
+                Type typeToSerialize = default)
+            {
+                if (obj.IsNull())
+                {
+                    await jsonWriter.WriteNullAsync();
+                    return;
+                }
+
+                if (typeToSerialize.IsDefaultOrNull())
+                    typeToSerialize = obj.GetType();
+
+                if (typeToSerialize.TryGetAttributeInterface(out IProvideSerialization serializationProvider))
+                {
+                    using (var cacheStream = new MemoryStream())
+                    {
+                        await serializationProvider.SerializeAsync(cacheStream,
+                                httpApp, request, paramInfo, obj);
+                        var rawJson = cacheStream.ToArray().GetString(encoding);
+                        await jsonWriter.WriteRawValueAsync(rawJson);
+                    }
+                    return;
+                }
+
+                if (typeToSerialize.TryGetAttributeInterface(out ICastJson jsonProvider))
+                {
+                    if(jsonProvider.CanConvert(typeToSerialize, obj, request, httpApp))
+                    {
+                        await jsonProvider.WriteAsync(jsonWriter, serializer, typeToSerialize, obj, request, httpApp);
+                        return;
+                    }
+                }
+
+                if (typeToSerialize.IsArray)
+                {
+                    await WriteArrayAsync(typeToSerialize);
+                    return;
+                }
+
+                await jsonCastersHttpApp
+                    .Where(attr => attr.CanConvert(typeToSerialize, obj,
+                        httpRequest: request, application: httpApp))
+                    .First(
+                        async (jsonCaster, next) =>
+                        {
+                            //var memberValue = member.GetPropertyOrFieldValue(obj);
+                            var isNull = obj.IsNull();
+                            if (isNull)
+                                if (IgnoreNull)
+                                    return;
+
+                            await jsonCaster.WriteAsync(jsonWriter, serializer,
+                                typeToSerialize, obj, request, httpApp);
+                        },
+                        async () =>
+                        {
+                            await typeToSerialize.IsNullable(
+                                async nullFixedType =>
+                                {
+                                    if (obj == null)
+                                    {
+                                        await jsonWriter.WriteNullAsync();
+                                        return;
+                                    }
+
+                                    await WriteValueToStreamAsync(jsonWriter, serializer, obj, nullFixedType);
+                                },
+                                async () =>
+                                {
+                                    await jsonWriter.WriteNullAsync();
+                                    await jsonWriter.WriteCommentAsync(
+                                        $"Cannot find {nameof(IProvideSerialization)} interface for " +
+                                        $"{typeToSerialize.FullName}");
+                                });
+                            });
+
+                async Task WriteArrayAsync(Type memberType)
+                {
+                    if (obj.IsNull())
+                    {
+                        await jsonWriter.WriteNullAsync();
+                        return;
+                    }
+                    var enumerable = (IEnumerable)obj;
+                    await jsonWriter.WriteStartArrayAsync();
+
+                    if (!enumerable.IsNull())
+                    {
+                        foreach (var item in enumerable)
+                        {
+                            await WriteValueToStreamAsync(jsonWriter, serializer, item);
+                        }
+                    }
+                    await jsonWriter.WriteEndArrayAsync();
+                }
             }
         }
     }

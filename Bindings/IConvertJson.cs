@@ -18,6 +18,16 @@ namespace EastFive.Api
 
     public interface ICastJson
     {
+        bool CanConvert(Type type, object value,
+            IHttpRequest httpRequest, IApplication application);
+
+        Task WriteAsync(JsonWriter writer, JsonSerializer serializer,
+            Type type, object value,
+            IHttpRequest httpRequest, IApplication application);
+    }
+
+    public interface ICastJsonProperty
+    {
         bool CanConvert(MemberInfo member, ParameterInfo paramInfo,
             IHttpRequest httpRequest, IApplication application,
             IProvideApiValue apiValueProvider, object objectValue);

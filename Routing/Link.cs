@@ -9,7 +9,7 @@ namespace EastFive.Api
     [Link]
     public delegate System.Linq.IQueryable<TResource> Link<TResource>(System.Linq.IQueryable<TResource> api, TResource resource);
 
-    public class LinkAttribute : System.Attribute, ICastJson
+    public class LinkAttribute : System.Attribute, ICastJsonProperty
     {
         public bool CanConvert(MemberInfo member, ParameterInfo paramInfo, IHttpRequest httpRequest, IApplication application, IProvideApiValue apiValueProvider, object objectValue)
         {
@@ -51,7 +51,7 @@ namespace EastFive.Api
     public delegate System.Linq.IQueryable<TResource> LinkFromRequest<TResource>(System.Linq.IQueryable<TResource> api,
         TResource resource, IHttpRequest request);
 
-    public class LinkFromRequestAttribute : System.Attribute, ICastJson
+    public class LinkFromRequestAttribute : System.Attribute, ICastJsonProperty
     {
         public bool CanConvert(MemberInfo member, ParameterInfo paramInfo, IHttpRequest httpRequest, IApplication application, IProvideApiValue apiValueProvider, object objectValue)
         {
