@@ -43,7 +43,7 @@ namespace EastFive.Api
                         var bindingToType = typeof(Property<>)
                             .MakeGenericType(property.GetPropertyOrFieldType());
                         var (boundPropertyValue, success) = getPropertyValue(
-                            apiValueProvider.PropertyName, bindingToType);
+                            apiValueProvider.GetPropertyName(property), bindingToType);
                         if (!success)
                             return mutator;
                         var isSpecified = (bool)bindingToType

@@ -12,7 +12,10 @@ namespace EastFive.Api
 {
     public interface IProvideApiValue
     {
-        string PropertyName { get; }
+        // string PropertyName { get; }
+
+        string GetPropertyName(MemberInfo member);
+
     }
 
     

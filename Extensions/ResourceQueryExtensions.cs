@@ -49,8 +49,9 @@ namespace EastFive.Api
                             if (apiBindings.Any())
                             {
                                 var apiBinding = apiBindings.First();
-                                if (apiBinding.PropertyName.HasBlackSpace())
-                                    return apiBinding.PropertyName;
+                                var propName = apiBinding.GetPropertyName(memberInfo);
+                                if (propName.HasBlackSpace())
+                                    return propName;
                             }
                             return memberInfo.Name;
                         }

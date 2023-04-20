@@ -112,10 +112,11 @@ namespace EastFive.Api
                     {
                         var (member, provideApiValue) = memberProvideApiValueTpl;
 
-                        if (!content.ContainsKey(provideApiValue.PropertyName))
+                        var propertyName = provideApiValue.GetPropertyName(member);
+                        if (!content.ContainsKey(propertyName))
                             return param;
                         
-                        var tokenParser = content[provideApiValue.PropertyName];
+                        var tokenParser = content[propertyName];
                         return ContentToType(httpApp, member.GetMemberType(),
                             tokenParser,
                             paramValue =>
@@ -182,7 +183,7 @@ namespace EastFive.Api
                     {
                         var (member, provideApiValue) = memberProvideApiValueTpl;
 
-                        return ParseFormContentDelegate(provideApiValue.PropertyName, formData,
+                        return ParseFormContentDelegate(provideApiValue.GetPropertyName(member), formData,
                                 member.GetMemberType(), httpApp,
                             paramValue =>
                             {

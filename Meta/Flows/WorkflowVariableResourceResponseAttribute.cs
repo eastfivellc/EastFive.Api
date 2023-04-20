@@ -113,7 +113,7 @@ namespace EastFive.Api.Meta.Flows
                         (tpl, next) =>
                         {
                             return tpl.Item1.TryGetAttributeInterface(out IProvideApiValue apiValueProvider) ?
-                                apiValueProvider.PropertyName
+                                apiValueProvider.GetPropertyName(tpl.Item1)
                                 :
                                 tpl.Item1.Name;
                         },

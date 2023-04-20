@@ -28,6 +28,15 @@ namespace EastFive.Api
 
         public string PropertyName { get; set; }
 
+        public string GetPropertyName(MemberInfo member)
+        {
+            if (this.PropertyName.HasBlackSpace())
+                return this.PropertyName;
+            return member.GetCustomAttribute<JsonPropertyAttribute, string>(
+                (attr) => attr.PropertyName.HasBlackSpace() ? attr.PropertyName : member.Name,
+                () => member.Name);
+        }
+
         public StringComparison MatchQualification { get; set; } = StringComparison.Ordinal;
 
         public TResult Cast<TResult>(object value,
@@ -61,14 +70,6 @@ namespace EastFive.Api
 
         public Property GetProperty(MemberInfo member, HttpApplication httpApp)
         {
-            string GetName()
-            {
-                if (this.PropertyName.HasBlackSpace())
-                    return this.PropertyName;
-                return member.GetCustomAttribute<JsonPropertyAttribute, string>(
-                    (attr) => attr.PropertyName.HasBlackSpace() ? attr.PropertyName : member.Name,
-                    () => member.Name);
-            }
             string GetDescription()
             {
                 return member.GetCustomAttribute<System.ComponentModel.DescriptionAttribute, string>(
@@ -80,7 +81,7 @@ namespace EastFive.Api
                 var type = member.GetPropertyOrFieldType();
                 return Parameter.GetTypeName(type, httpApp);
             }
-            var name = GetName();
+            var name = GetPropertyName(member);
             var description = GetDescription();
             var options = new KeyValuePair<string, string>[] { };
             return new Property()

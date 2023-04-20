@@ -48,7 +48,6 @@ namespace EastFive.Api
 
         public override async Task WriteResponseAsync(Stream responseStream)
         {
-
             using (var streamWriter =
                 this.Request.TryGetAcceptCharset(out Encoding writerEncoding) ?
                     new StreamWriter(responseStream, writerEncoding)
@@ -69,7 +68,7 @@ namespace EastFive.Api
                         var headerCsvStrings = castings
                             .Select(
                                 tpl => tpl.Item1.TryGetAttributeInterface(out IProvideApiValue apiValueProvider) ?
-                                    apiValueProvider.PropertyName.Replace('_', ' ')
+                                    apiValueProvider.GetPropertyName(tpl.Item1).Replace('_', ' ')
                                     :
                                     " ")
                             .Join(",");
