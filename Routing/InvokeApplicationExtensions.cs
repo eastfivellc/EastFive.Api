@@ -260,7 +260,9 @@ namespace EastFive.Api
             {
                 var actionName = (string)arguments[0].Resolve();
                 var headers = (System.Net.Http.Headers.HttpRequestHeaders)arguments[1].Resolve();
-                request.RequestUri = request.RequestUri.AppendToPath(actionName);
+                var url = request.RequestUri;
+                var postPendFile = url.Segments.Length > 3;
+                request.RequestUri = url.AppendToPath(actionName, postPendFile: postPendFile);
 
                 foreach (var header in headers.NullToEmpty())
                 {
