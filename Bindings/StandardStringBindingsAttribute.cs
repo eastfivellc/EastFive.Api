@@ -14,6 +14,7 @@ using EastFive.Reflection;
 using EastFive.Text;
 using EastFive.Collections.Generic;
 using EastFive.Linq;
+using EastFive.Serialization;
 
 namespace EastFive.Api.Bindings
 {
@@ -174,20 +175,7 @@ namespace EastFive.Api.Bindings
                 if (content.IsDefaultNullOrEmpty())
                     return onDidNotBind("Value not provided.");
 
-                if ("t" == content.ToLower())
-                    return onParsed(true);
-
-                if ("on" == content.ToLower()) // used in check boxes
-                    return onParsed(true);
-
-                if ("f" == content)
-                    return onParsed(false);
-
-                if ("off" == content.ToLower()) // used in some check boxes
-                    return onParsed(false);
-
-                // TryParse may convert "on" to false TODO: Test theory
-                if (bool.TryParse(content, out bool boolValue))
+                if (content.TryParseBool(out var boolValue))
                     return onParsed(boolValue);
 
                 return onDidNotBind($"Failed to convert {content} to `{typeof(bool).FullName}`.");
