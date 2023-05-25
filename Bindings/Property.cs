@@ -1,4 +1,6 @@
 ﻿using EastFive.Api.Bindings;
+using EastFive.Api.Meta.OpenApi;
+using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -12,6 +14,7 @@ using System.Threading.Tasks;
 namespace EastFive.Api
 {
     [PropertyJsonBinder]
+    [PropertyFileBinder]
     public struct Property<T>
     {
         public Property(T value)
@@ -84,6 +87,68 @@ namespace EastFive.Api
             Func<string, TResult> onBindingFailure)
         {
             throw new NotImplementedException();
+        }
+    }
+
+    public class PropertyFileBinderAttribute : Attribute,
+            IParsePropertyFormCollection
+    {
+
+        public TResult ParsePropertyFromFormCollection<TResult>(string key, IFormCollection formData,
+                ParameterInfo parameterInfo, IApplication httpApp,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onFailure)
+        {
+            ParseContentDelegateDelegate<int, int> d = PropertyFileBinderAttribute.ParseContentDelegateType<int, int>;
+
+            var innerType = parameterInfo.ParameterType.GetGenericArguments().First();
+            return (TResult) //typeof(PropertyJsonBinderAttribute)
+                             //.GetMethod("BindType", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+                d.Method.GetGenericMethodDefinition()
+                .MakeGenericMethod(new Type[] { innerType, typeof(TResult) })
+                .Invoke(null, new object[] { formData, key, parameterInfo, onParsed, onFailure});
+
+        }
+
+        private delegate TResult ParseContentDelegateDelegate<T, TResult>(IFormCollection formData,
+                string key,
+                ParameterInfo parameterInfo,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onFailure);
+
+        public static TResult ParseContentDelegateType<T, TResult>(IFormCollection formData,
+                string key,
+                ParameterInfo parameterInfo,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onFailure)
+        {
+            foreach (var formItem in formData)
+            {
+                if (formItem.Key == key)
+                {
+
+                    return StandardStringBindingsAttribute.BindDirect(
+                            typeof(T), formItem.Value,
+                        onParsed: (innerValue) =>
+                        {
+                            var prop = new Property<T>
+                            {
+                                specified = true,
+                                value = (T)innerValue,
+                            };
+                            return onParsed(prop);
+                        },
+                        onDidNotBind:(why) => onFailure(why),
+                        onBindingFailure: (why) => onFailure(why));
+                }
+            }
+
+            var unspecifiedProp = new Property<T>
+            {
+                specified = false,
+                value = (T)typeof(T).GetDefault(),
+            };
+            return onParsed(unspecifiedProp);
         }
     }
 }

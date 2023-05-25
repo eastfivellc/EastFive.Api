@@ -366,6 +366,14 @@ namespace EastFive.Api
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure)
         {
+            if(parameterInfo.ParameterType.TryGetAttributeInterface<IParsePropertyFormCollection>(out var propContentParser))
+            {
+                return propContentParser.ParsePropertyFromFormCollection(key, formData,
+                        parameterInfo, httpApp,
+                    onParsed,
+                    onFailure);
+            }
+
             return ParseContentDelegate(key, formData,
                 (strValue) =>
                 {
@@ -418,5 +426,13 @@ namespace EastFive.Api
                     });
 
         }
+    }
+
+    public interface IParsePropertyFormCollection
+    {
+        TResult ParsePropertyFromFormCollection<TResult>(string key, IFormCollection formData,
+                ParameterInfo parameterInfo, IApplication httpApp,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onFailure);
     }
 }
