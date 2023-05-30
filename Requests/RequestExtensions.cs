@@ -30,6 +30,17 @@ namespace EastFive.Api
         //        (v, next) => v,
         //        () => string.Empty);
 
+        public static bool IsLocalHostRequest(this IHttpRequest request)
+        {
+            if ("localhost".Equals(request.ServerLocation.Host, StringComparison.OrdinalIgnoreCase))
+            {
+                if ("localhost".Equals(request.RequestUri.Host, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
+        }
+
         public static bool TryGetHeader(this IHttpRequest req, string headerKey, out string headerValue)
         {
             var headers = req.GetHeaders(headerKey);

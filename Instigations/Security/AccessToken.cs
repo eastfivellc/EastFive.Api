@@ -49,7 +49,8 @@ namespace EastFive.Api
                 onSystemNotConfigured);
         }
 
-        public static TResult ValidateAccessTokenAccount<TResult>(this Uri url,
+        public static TResult ValidateAccessTokenAccount<TResult>(this IHttpRequest request,
+                bool shouldSkipValidationForLocalhost,
             Func<AccessTokenAccount, TResult> onSuccess,
             Func<TResult> onAccessTokenNotProvided,
             Func<TResult> onAccessTokenInvalid,
@@ -57,6 +58,7 @@ namespace EastFive.Api
             Func<TResult> onInvalidSignature = default,
             Func<TResult> onSystemNotConfigured = default)
         {
+            var url = request.RequestUri;
             if (!url.TryGetQueryParam(QueryParameter, out string accessTokenString))
                 return onAccessTokenNotProvided();
             var originalUrl = url.RemoveQueryParameter(QueryParameter);
@@ -77,6 +79,19 @@ namespace EastFive.Api
                 if (onAccessTokenExpired.IsDefaultOrNull())
                     return onAccessTokenInvalid();
                 return onAccessTokenExpired();
+            }
+
+            if (shouldSkipValidationForLocalhost)
+            {
+                if (request.IsLocalHostRequest())
+                    return onSuccess(
+                        new AccessTokenAccount()
+                        {
+                            sessionId = sessionId,
+                            accountId = accountId,
+                            expirationUtc = expiration,
+                            token = accessTokenString,
+                        });
             }
 
             var signature = accessTokenBytes.Skip(36).ToArray();

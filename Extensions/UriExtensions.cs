@@ -20,7 +20,6 @@ namespace EastFive.Api
 {
     public static class UriExtensions
     {
-
         public static string HashQueryParameters(this Uri uri, string ignoreKey = default)
         {
             #pragma warning disable SCS0006 // Weak hashing function
