@@ -326,7 +326,7 @@ namespace EastFive.Api
             var requestMessageQuery = query as IProvideRequestExpression<TResource>;
 
             var methodInfo = typeof(ResourceQueryExtensions)
-                .GetMethod("QueryParam", BindingFlags.Static | BindingFlags.Public)
+                .GetMethod(nameof(QueryParam), BindingFlags.Static | BindingFlags.Public)
                 .MakeGenericMethod(typeof(TResource));
             var condition = Expression.Call(methodInfo, query.Expression, 
                 Expression.Constant(key), Expression.Constant(value));
