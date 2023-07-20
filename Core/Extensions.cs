@@ -48,13 +48,25 @@ namespace EastFive.Api.Core
 
         public static Uri GetAbsoluteUri(this Microsoft.AspNetCore.Http.HttpRequest req)
         {
+            var qStr = req.QueryString;
+
+            // This goop is necessary to prevent the spaces in query parameters from becoming "+"'s.
+            // URL encoding should occur when the URL is submitted.
+            var query = req.Query
+                .NullToEmpty()
+                .Select(
+                    (kvp) =>
+                    {
+                        return $"{kvp.Key}={kvp.Value}";
+                    })
+                .Join("&");
             var uriBuilder = new UriBuilder()
                {
                    Scheme = req.Scheme,
                    Host = req.Host.Host,
                    Port = req.Host.Port.HasValue ? req.Host.Port.Value : default,
                    Path = req.PathBase.Add(req.Path),
-                   Query = req.QueryString.ToString()
+                   Query = query,
                };
             if (req.Host.Port.HasValue)
                 return uriBuilder.Uri;
