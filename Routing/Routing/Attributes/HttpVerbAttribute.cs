@@ -192,7 +192,13 @@ namespace EastFive.Api
             IHttpRequest request, IApplication httpApp, out string[] queryKeys)
         {
             var queryParameters = request.RequestUri.ParseQuery()
-                .Select(kvp => kvp.Key.ToLower().PairWithValue(kvp.Value))
+                .Select(
+                    kvp =>
+                    {
+                        var key = kvp.Key.ToLower();
+                        var value = kvp.Value;
+                        return key.PairWithValue(value);
+                    })
                 .ToDictionary();
 
             queryKeys = queryParameters.SelectKeys().ToArray();
