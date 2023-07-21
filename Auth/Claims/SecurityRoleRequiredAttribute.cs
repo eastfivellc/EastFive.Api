@@ -18,6 +18,10 @@ namespace EastFive.Api.Auth
 
         public virtual string[] RolesDenied { get; set; }
 
+        public bool AllowLocalHost { get; set; } = false;
+
+        public virtual StringComparison Comparison { get; set; } = StringComparison.OrdinalIgnoreCase;
+
         public Task<IHttpResponse> ValidateRequest(
             KeyValuePair<ParameterInfo, object>[] parameterSelection,
             MethodInfo method,
@@ -25,11 +29,27 @@ namespace EastFive.Api.Auth
             IHttpRequest request,
             ValidateHttpDelegate boundCallback)
         {
-            Func<string, bool> roleInterigator =
-                request.Properties.TryGetValueNullSafe(Token.PropertyName, out object tokenObj) ?
-                    (roll) => ((Token)tokenObj).IsAuthorizedForRoll(roll)
-                    :
-                    (roll) => request.IsAuthorizedForRole(roll);
+            var claims = request.GetClaims(
+                cs => cs.ToArray(),
+                authorizationNotSet: () => new Claim[] { },
+                failure: (why) => new Claim[] { });
+            var roles = claims
+                .Where(claim => String.Equals(ClaimTypes.Role, claim.Type, StringComparison.OrdinalIgnoreCase))
+                .First(
+                    (claim, next) =>
+                    {
+                        return claim.Value.Split(',');
+                    },
+                    () =>
+                    {
+                        return new string[] { };
+                    });
+            Func<string, bool> roleInterigator = (role) =>
+            {
+                return roles
+                    .Where(r => String.Equals(role, r, Comparison))
+                    .Any();
+            };
 
             return ProcessClaimsAsync(roleInterigator);
 
@@ -59,6 +79,10 @@ namespace EastFive.Api.Auth
 
             Task<IHttpResponse> DenyAsync(string action, string equals)
             {
+                if (AllowLocalHost)
+                    if (request.IsLocalHostRequest())
+                        return boundCallback(parameterSelection, method, httpApp, request);
+
                 return request
                     .CreateResponse(System.Net.HttpStatusCode.Unauthorized)
                     .AddReason($"{method.DeclaringType.FullName}..{method.Name} {action} role claim ({ClaimTypes.Role}) = `{equals}`")
