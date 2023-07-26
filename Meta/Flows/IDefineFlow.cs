@@ -28,6 +28,7 @@ namespace EastFive.Api.Meta.Flows
         Item GetItem(Api.Resources.Method method, bool preferJson);
     }
 
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
     public class WorkflowStepAttribute : System.Attribute, IDefineFlow
     {
         public string FlowName { get; set; }
@@ -464,6 +465,7 @@ namespace EastFive.Api.Meta.Flows
 
     }
 
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
     public class WorkflowStepCustomAttribute : WorkflowStepAttribute
     {
         public string HttpMethod { get; set; }
