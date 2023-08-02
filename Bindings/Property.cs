@@ -10,11 +10,13 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using EastFive.Serialization;
 
 namespace EastFive.Api
 {
     [PropertyJsonBinder]
     [PropertyFileBinder]
+    [PropertyStringBinder]
     public struct Property<T>
     {
         public Property(T value)
@@ -150,5 +152,60 @@ namespace EastFive.Api
             };
             return onParsed(unspecifiedProp);
         }
+    }
+
+    public class PropertyStringBinderAttribute : Attribute,
+            IBindParameter<string>, IBindApiParameter<string>
+    {
+        public TResult Bind<TResult>(ParameterInfo parameter, string content,
+                IApplication application,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure) => Bind(parameter.ParameterType, content,
+                application: application,
+                onParsed: onParsed,
+                onDidNotBind: onDidNotBind,
+                onBindingFailure: onBindingFailure);
+
+        public TResult Bind<TResult>(Type type, string content,
+                IApplication application,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure)
+        {
+            BindTypeDelegate<int, int> d = PropertyStringBinderAttribute.BindType<int, int>;
+
+            var innerType = type.GetGenericArguments().First();
+            return (TResult)
+                d.Method.GetGenericMethodDefinition()
+                .MakeGenericMethod(new Type[] { innerType, typeof(TResult) })
+                .Invoke(null, new object[] { type, content, onParsed, onDidNotBind, onBindingFailure });
+        }
+
+        private delegate TResult BindTypeDelegate<T, TResult>(Type type, string content,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure);
+
+        public static TResult BindType<T, TResult>(Type type, string content,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onDidNotBind,
+            Func<string, TResult> onBindingFailure)
+        {
+            var innerType = typeof(T);
+            return StandardStringBindingsAttribute.BindDirect(innerType, content,
+                innerValue =>
+                {
+                    var prop = new Property<T>
+                    {
+                        specified = true,
+                        value = (T)innerValue,
+                    };
+                    return onParsed(prop);
+                },
+                onDidNotBind,
+                onBindingFailure);
+        }
+
     }
 }
