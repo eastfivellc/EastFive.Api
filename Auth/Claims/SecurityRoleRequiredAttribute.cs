@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 
 using EastFive.Extensions;
 using EastFive.Linq;
+using EastFive.Web.Configuration;
 
 namespace EastFive.Api.Auth
 {
@@ -19,6 +20,12 @@ namespace EastFive.Api.Auth
         public virtual string[] RolesDenied { get; set; }
 
         public bool AllowLocalHost { get; set; } = false;
+
+        private static bool allowLocalHostGlobal = EastFive.Api.AppSettings.Auth.AllowLocalHostGlobalSecurityRole
+            .ConfigurationBoolean(
+                allow => allow,
+                onFailure: (why) => false,
+                onNotSpecified: () => false);
 
         public virtual StringComparison Comparison { get; set; } = StringComparison.OrdinalIgnoreCase;
 
@@ -79,7 +86,7 @@ namespace EastFive.Api.Auth
 
             Task<IHttpResponse> DenyAsync(string action, string equals)
             {
-                if (AllowLocalHost)
+                if (AllowLocalHost || allowLocalHostGlobal)
                     if (request.IsLocalHostRequest())
                         return boundCallback(parameterSelection, method, httpApp, request);
 

@@ -88,5 +88,10 @@ namespace EastFive.Api
                 Location = "Click three dots next to a collection in Postman and choose Edit. Collection ID will be displayed under Collection Details.")]
             public const string MonitoringCollectionId = "EastFive.Api.Postman.MonitoringCollectionId";
         }
+
+        public static class Auth
+        {
+            public static string AllowLocalHostGlobalSecurityRole = "EastFive.Api.Auth.AllowLocalHostGlobalSecurityRole";
+        }
     }
 }
