@@ -7,13 +7,15 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
+using Microsoft.AspNetCore.Http;
+
+using Newtonsoft.Json.Linq;
+
 using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Api.Serialization;
-using Newtonsoft.Json.Linq;
 using EastFive.Reflection;
 using EastFive.Api.Bindings;
-using Microsoft.AspNetCore.Http;
 
 namespace EastFive.Api
 {
@@ -137,6 +139,8 @@ namespace EastFive.Api
                     (param, memberProvideApiValueTpl) =>
                     {
                         var (member, provideApiValue) = memberProvideApiValueTpl;
+                        if (!member.IsSettable())
+                            return param;
 
                         return ParseFormContentDelegate(provideApiValue.GetPropertyName(member), formData,
                                 member.GetMemberType(), parameterInfo, httpApp,
