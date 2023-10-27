@@ -596,7 +596,7 @@ namespace EastFive.Api
                                         .Append(Assembly.GetExecutingAssembly())
 
                                         // East Five libs
-                                        .Append(typeof(EastFive.IRef).Assembly)
+                                        .Append(typeof(EastFive.IReferenceable).Assembly)
                                         .Append(typeof(EastFive.Api.IApiApplication).Assembly)
 
                                         // Core runtime stuff
