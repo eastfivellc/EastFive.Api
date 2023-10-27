@@ -223,6 +223,8 @@ namespace EastFive.Api.Serialization
                 return true;
             if (objectType.IsSubClassOfGeneric(typeof(IRefOptional<>)))
                 return true;
+            if (objectType.IsSubClassOfGeneric(typeof(IImplementRef<>)))
+                return true;
             if (objectType.IsSubClassOfGeneric(typeof(IDictionary<,>)))
             {
                 var shouldConvertDict = objectType
