@@ -96,12 +96,12 @@ namespace EastFive.Api
                 HttpStatusCode statusCode)
                 : base(request, statusCode)
             {
-                this.serializationProvider = objType
+                this.serializationProvider = (objType.IsArray? objType.GetElementType() : objType)
                     .GetAttributesInterface<IProvideSerialization>()
                     .OrderByDescending(x => x.GetPreference(request))
                     .First(
-                        (provider, next) => provider,
-                        () => default(IProvideSerialization));
+                            (provider, next) => provider,
+                            () => default(IProvideSerialization));
                 this.obj = obj;
 
                 this.request = request;

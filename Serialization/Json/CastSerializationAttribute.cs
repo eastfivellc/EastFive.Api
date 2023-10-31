@@ -5,6 +5,8 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using System.Collections;
+using System.Data;
 
 using Newtonsoft.Json;
 
@@ -13,10 +15,6 @@ using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Reflection;
 using EastFive.Serialization;
-using System.Collections;
-using DocumentFormat.OpenXml.Spreadsheet;
-using System.Data;
-using System.IdentityModel.Tokens.Jwt;
 
 namespace EastFive.Api.Serialization.Json
 {
@@ -65,6 +63,20 @@ namespace EastFive.Api.Serialization.Json
                 var serializer = new JsonSerializer();
                 var converter = new Serialization.ExtrudeConvert(request, httpApp);
                 serializer.Converters.Add(converter);
+
+                if (obj.IsNotDefaultOrNull())
+                {
+                    if (obj.GetType().IsArray)
+                    {
+                        await jsonWriter.WriteStartArrayAsync();
+                        foreach (object item in (Array)obj)
+                        {
+                            await WriteObjectToStream(jsonWriter, serializer, item);
+                        }
+                        await jsonWriter.WriteEndArrayAsync();
+                        return;
+                    }
+                }
 
                 await WriteObjectToStream(jsonWriter, serializer, obj);
             }
