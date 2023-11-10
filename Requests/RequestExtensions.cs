@@ -542,7 +542,8 @@ namespace EastFive.Api
         }
 
         public static Task<IHttpResponse> GetActorIdClaimsAsync(this IHttpRequest request,
-            Func<Guid, System.Security.Claims.Claim[], Task<IHttpResponse>> success)
+            Func<Guid, System.Security.Claims.Claim[], Task<IHttpResponse>> success,
+            Func<Func<IHttpResponse>, Task<IHttpResponse>> onAuthorizationHeaderNotSet = default)
         {
             var resultGetClaims = request.GetClaims(
                 (claimsEnumerable) =>
@@ -556,9 +557,20 @@ namespace EastFive.Api
                         (accountId) => success(accountId, claims));
                     return result;
                 },
-                () => request
-                    .CreateResponse(System.Net.HttpStatusCode.Unauthorized)
-                    .AddReason("Authorization header not set").AsTask(),
+                async () =>
+                {
+                    if (onAuthorizationHeaderNotSet.IsDefaultOrNull())
+                        return Default();
+
+                    return await onAuthorizationHeaderNotSet(Default);
+
+                    IHttpResponse Default()
+                    {
+                        return request
+                            .CreateResponse(System.Net.HttpStatusCode.Unauthorized)
+                            .AddReason("Authorization header not set");
+                    }
+                },
                 (why) => request
                     .CreateResponse(System.Net.HttpStatusCode.Unauthorized)
                     .AddReason(why).AsTask());
