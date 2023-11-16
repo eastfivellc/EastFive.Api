@@ -40,44 +40,6 @@ namespace EastFive.Api
                 this.httpApp, this.request, this.parameterInfo,
                 this.StatusCode);
             return UpdateResponse(parameterInfo, httpApp, request, response);
-            //Type GetType(Type type)
-            //{
-            //    if (type.IsArray)
-            //        return GetType(type.GetElementType());
-            //    return type;
-            //}
-
-            //var responseWithContent = GetType(typeof(TResource))
-            //    .GetAttributesInterface<IProvideSerialization>()
-            //    .Select(
-            //        serializeAttr =>
-            //        {
-            //            var quality = request.GetAcceptTypes()
-            //                .Where(acceptOption => acceptOption.MediaType.ToLower() == serializeAttr.MediaType.ToLower())
-            //                .First(
-            //                    (acceptOption, next) => acceptOption.Quality.HasValue ? acceptOption.Quality.Value : -1.0,
-            //                    () => -2.0);
-            //            return serializeAttr.PairWithValue(quality);
-            //        })
-            //    .OrderByDescending(kvp => kvp.Value)
-            //    .First(
-            //        (serializerQualityKvp, next) =>
-            //        {
-            //            var serializationProvider = serializerQualityKvp.Key;
-            //            var quality = serializerQualityKvp.Value;
-            //            var responseNoContent = request.CreateResponse(this.StatusCode, content);
-            //            var customResponse = await serializationProvider.SerializeAsync(responseNoContent, httpApp, request, parameterInfo, content);
-            //            customResponse.StatusCode = this.StatusCode;
-            //            return customResponse;
-            //        },
-            //        () =>
-            //        {
-            //            var response = request.CreateResponse(this.StatusCode, content);
-            //            if (!contentTypeString.IsNullOrWhiteSpace())
-            //                response.SetContentType(contentTypeString);
-            //            return response;
-            //        });
-            //return UpdateResponse(parameterInfo, httpApp, request, responseWithContent);
         }
 
         private class ProvidedHttpResponse : EastFive.Api.HttpResponse
