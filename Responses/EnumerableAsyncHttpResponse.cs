@@ -8,10 +8,12 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
+using Microsoft.AspNetCore.Http.Headers;
+
+using Newtonsoft.Json;
+
 using EastFive.Extensions;
 using EastFive.Linq.Async;
-using Microsoft.AspNetCore.Http.Headers;
-using Newtonsoft.Json;
 
 namespace EastFive.Api
 {
