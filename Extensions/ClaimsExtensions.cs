@@ -140,10 +140,11 @@ namespace EastFive.Api
                     if (default(System.Security.Claims.Claim) == adminClaim)
                         return actorIdNotFound();
 
-                    var accountId = Guid.Parse(adminClaim.Value);
-                    return success(accountId);
+                    if (Guid.TryParse(adminClaim.Value, out Guid accountId) && accountId != Guid.Empty)
+                        return success(accountId);
+                    else
+                        return actorIdNotFound();
                 }); // ConfigurationContext.Instance.AppSettings[accountIdClaimType];
-
         }
     }
 }
