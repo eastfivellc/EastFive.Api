@@ -20,7 +20,7 @@ using EastFive.Api.Bindings;
 namespace EastFive.Api
 {
     public class ResourceAttribute : System.Attribute, 
-        IBindApiValue, IBindJsonApiValue, IBindMultipartApiValue, IBindFormDataApiValue
+        IBindApiValue, IBindJsonApiValue, IBindMultipartApiValue, IBindFormDataApiValue, IBindTextApiValue
     {
         public string GetKey(ParameterInfo paramInfo)
         {
@@ -217,6 +217,18 @@ namespace EastFive.Api
                                 () => onFailure("Key not found"));
                     });
 
+        }
+
+        public TResult ParseContentDelegate<TResult>(string rawContent,
+                ParameterInfo parameterInfo,
+                IApplication httpApp, IHttpRequest request,
+            Func<object, TResult> onParsed,
+            Func<string, TResult> onFailure)
+        {
+            if (parameterInfo.ParameterType.IsAssignableFrom(typeof(string)))
+                return onParsed(rawContent);
+
+            return onFailure($"Cannot bind raw string to {parameterInfo.ParameterType}");
         }
     }
 }

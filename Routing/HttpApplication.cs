@@ -49,6 +49,7 @@ namespace EastFive.Api
         IHostEnvironment HostEnvironment { get; }
     }
 
+    [TextContentParser]
     [JsonContentParser]
     [XmlContentParser]
     [FormDataParser]
