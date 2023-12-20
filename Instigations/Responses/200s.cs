@@ -13,24 +13,20 @@ using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
 using System.Xml.XPath;
+using System.Web;
 
-using Microsoft.AspNetCore.Mvc.Razor;
-//using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis;
 using Microsoft.AspNetCore.Razor.Hosting;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.Extensions.Caching.Memory;
 
+using SixLabors.ImageSharp.Formats;
+
+using EastFive;
 using EastFive.Linq;
 using EastFive.Extensions;
 using EastFive.Linq.Async;
 using EastFive.Images;
 using EastFive.Serialization;
-using Microsoft.Extensions.FileProviders;
-using System.Web;
 using EastFive.Api.Resources;
-using SixLabors.ImageSharp.Formats;
 
 namespace EastFive.Api
 {

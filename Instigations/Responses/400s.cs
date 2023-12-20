@@ -43,6 +43,10 @@ namespace EastFive.Api
     [StatusCodeResponse(StatusCode = HttpStatusCode.BadRequest)]
     public delegate IHttpResponse BadRequestResponse();
 
+
+    [BodyTypeResponse(StatusCode = HttpStatusCode.BadRequest)]
+    public delegate IHttpResponse BadRequestBodyResponse<TResource>(TResource content, string contentType = default(string));
+
     [StatusCodeResponse(StatusCode = HttpStatusCode.Unauthorized)]
     public delegate IHttpResponse UnauthorizedResponse();
 
