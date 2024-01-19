@@ -67,6 +67,9 @@ namespace EastFive.Api
 
             var fileKey = GetKey(parameterInfo);
             var valueToBind = formData.Files[fileKey];
+            if (valueToBind.IsDefaultOrNull())
+                return onFailure($"`{fileKey}` not provided.");
+
             return blobValueProvider.ProvideValue(valueToBind,
                 boundValue => onParsed(boundValue),
                 why => onFailure(why));
