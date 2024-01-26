@@ -38,7 +38,7 @@ namespace EastFive.Api
             var requestMessageQuery = requestQuery as RequestMessage<TResource>;
 
             var methodInfo = typeof(InvokeApplicationExtensions)
-                .GetMethod("HttpGet", BindingFlags.Static | BindingFlags.Public)
+                .GetMethod(nameof(InvokeApplicationExtensions.HttpGet), BindingFlags.Static | BindingFlags.Public)
                 .MakeGenericMethod(typeof(TResource));
             var condition = Expression.Call(methodInfo, requestQuery.Expression);
 
@@ -99,7 +99,7 @@ namespace EastFive.Api
             var requestMessageQuery = requestQuery as RequestMessage<TResource>;
 
             var methodInfo = typeof(InvokeApplicationExtensions)
-                .GetMethod("HttpPost", BindingFlags.Static | BindingFlags.Public)
+                .GetMethod(nameof(InvokeApplicationExtensions.HttpPost), BindingFlags.Static | BindingFlags.Public)
                 .MakeGenericMethod(typeof(TResource));
             var resourceExpr = Expression.Constant(resource, typeof(TResource));
             var headersExpr = Expression.Constant(headers, typeof(KeyValuePair<string, string>[]));
@@ -134,7 +134,7 @@ namespace EastFive.Api
             var requestMessageQuery = requestQuery as RequestMessage<TResource>;
 
             var methodInfo = typeof(InvokeApplicationExtensions)
-                .GetMethod("HttpPatch", BindingFlags.Static | BindingFlags.Public)
+                .GetMethod(nameof(InvokeApplicationExtensions.HttpPatch), BindingFlags.Static | BindingFlags.Public)
                 .MakeGenericMethod(typeof(TResource));
             var resourceExpr = Expression.Constant(resource, typeof(TResource));
             var headersExpr = Expression.Constant(headers, typeof(KeyValuePair<string, string>[]));
@@ -169,7 +169,7 @@ namespace EastFive.Api
             var requestMessageQuery = requestQuery as RequestMessage<TResource>;
 
             var methodInfo = typeof(InvokeApplicationExtensions)
-                .GetMethod("HttpPatch", BindingFlags.Static | BindingFlags.Public)
+                .GetMethod(nameof(InvokeApplicationExtensions.HttpPatch), BindingFlags.Static | BindingFlags.Public)
                 .MakeGenericMethod(typeof(TResource));
             var resourceExpr = Expression.Constant(resource, typeof(TResource));
             var headersExpr = Expression.Constant(headers, typeof(System.Net.Http.Headers.HttpRequestHeaders));
@@ -201,7 +201,7 @@ namespace EastFive.Api
             var requestMessageQuery = requestQuery as RequestMessage<TResource>;
 
             var methodInfo = typeof(InvokeApplicationExtensions)
-                .GetMethod("HttpDelete", BindingFlags.Static | BindingFlags.Public)
+                .GetMethod(nameof(InvokeApplicationExtensions.HttpDelete), BindingFlags.Static | BindingFlags.Public)
                 .MakeGenericMethod(typeof(TResource));
             var condition = Expression.Call(methodInfo, requestQuery.Expression);
 
@@ -858,7 +858,7 @@ namespace EastFive.Api
                     var scope = new CallbackWrapperReferencedDocumentDoesNotExistsResponse<TResult>(referencedDocDoesNotExists,
                         thisAgain, requestAgain, paramInfo, onSuccess);
                     var multipartResponseMethodInfoGeneric = typeof(CallbackWrapperReferencedDocumentDoesNotExistsResponse<TResult>)
-                        .GetMethod("RefNotFoundTypeResponseGeneric", BindingFlags.Public | BindingFlags.Instance);
+                        .GetMethod(nameof(CallbackWrapperReferencedDocumentDoesNotExistsResponse<TResult>.RefNotFoundTypeResponseGeneric), BindingFlags.Public | BindingFlags.Instance);
                     var multipartResponseMethodInfoBound = multipartResponseMethodInfoGeneric
                         .MakeGenericMethod(type.GenericTypeArguments);
                     var dele = Delegate.CreateDelegate(type, scope, multipartResponseMethodInfoBound);

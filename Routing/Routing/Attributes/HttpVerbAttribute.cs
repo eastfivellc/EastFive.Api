@@ -288,29 +288,6 @@ namespace EastFive.Api
                                                 .ToArray();
                                             return onParsed(lookup);
                                         }
-                                        if (genericArgs.Length == 2)
-                                        {
-                                            // It's an dictionary
-                                            var typeToCast = genericArgs[1];
-                                            var kvpCreateMethod = typeof(FunctionViewControllerAttribute).GetMethod("KvpCreate", BindingFlags.Static | BindingFlags.NonPublic);
-                                            var correctGenericKvpCreate = kvpCreateMethod.MakeGenericMethod(genericArgs);
-                                            var lookup = collectionParameterGrp
-                                                .FlatMap(
-                                                    (collectionParameter, next, skip) =>
-                                                        (object[])collectionParameter.fetchValue(typeToCast,
-                                                            v => next(correctGenericKvpCreate.Invoke(null, new object[] { collectionParameter.key, v })),
-                                                            (why) => skip()),
-                                                    (IEnumerable<object> lookupInner) => lookupInner.ToArray());
-
-                                            var castMethod = typeof(FunctionViewControllerAttribute).GetMethod("CastToKvp", BindingFlags.Static | BindingFlags.NonPublic);
-                                            var correctKvpsCast = castMethod.MakeGenericMethod(genericArgs);
-                                            var kvpsOfCorrectTypes = correctKvpsCast.Invoke(null, lookup.AsArray());
-
-                                            var dictCreateMethod = typeof(FunctionViewControllerAttribute).GetMethod("DictionaryCreate", BindingFlags.Static | BindingFlags.NonPublic);
-                                            var correctGenericDictCreate = dictCreateMethod.MakeGenericMethod(genericArgs);
-                                            var dictionaryOfCorrectTypes = correctGenericDictCreate.Invoke(null, kvpsOfCorrectTypes.AsArray());
-                                            return onParsed(dictionaryOfCorrectTypes);
-                                        }
                                         return onFailure($"Cannot parse collection of type {collectionType.FullName}");
                                     }
                                     if (typeof(Enumerable).IsAssignableFrom(collectionType))
