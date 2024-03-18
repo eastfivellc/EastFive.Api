@@ -44,10 +44,23 @@ namespace EastFive.Api
 
         public string ExcludeNamespaces { get; set; }
         public string Route { get; set; }
-        // public string Prefix { get; set; }
-        [Obsolete]
-        public Type Resource { get; set; }
-        public string ContentType { get; set; }
+
+        private string contentType;
+        public string ContentType
+        {
+            get
+            {
+                if (contentType.HasBlackSpace())
+                    return contentType;
+                var routeHyphenCase = this.Route.ToHypenCase();
+                var routeRenamed = $"x-application/{routeHyphenCase}";
+                return routeRenamed;
+            }
+            set
+            {
+                this.contentType = value;
+            }
+        }
 
         private const double defaultPreference = -111;
 
