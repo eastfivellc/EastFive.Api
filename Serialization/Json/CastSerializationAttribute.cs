@@ -91,8 +91,12 @@ namespace EastFive.Api.Serialization.Json
                 foreach (var (member, apiValueProvider) in members)
                 {
                     var memberValue = member.GetPropertyOrFieldValue(obj);
-                    if (memberValue.IsNull() && IgnoreNull)
-                        continue;
+                    var isNull = memberValue.IsNull();
+                    if (isNull)
+                    {
+                        if(IgnoreNull)
+                            continue;
+                    }
 
                     var propertyName = apiValueProvider.GetPropertyName(member);
                     await jsonWriter.WritePropertyNameAsync(propertyName);
@@ -100,6 +104,9 @@ namespace EastFive.Api.Serialization.Json
                     await WriteAsync(member.GetAttributesInterface<ICastJsonProperty>(),
                         onCouldNotCast: () =>
                         {
+                            if(isNull)
+                                return jsonWriter.WriteNullAsync();
+
                             var memberType = memberValue.GetType();
                             return WriteAsync(memberType.GetAttributesInterface<ICastJsonProperty>(),
                                 () =>
