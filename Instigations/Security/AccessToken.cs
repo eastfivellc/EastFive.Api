@@ -13,6 +13,7 @@ using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Serialization;
 using EastFive.Web.Configuration;
+using Newtonsoft.Json;
 
 namespace EastFive.Api
 {
@@ -21,7 +22,7 @@ namespace EastFive.Api
         public Guid sessionId;
         public Guid accountId;
         public DateTime expirationUtc;
-        public string token;
+        public IDictionary<string, string> claims;
     }
 
     public static class AccessTokenAccountExtensions
@@ -34,7 +35,8 @@ namespace EastFive.Api
                 Guid sessionId, Guid accountId,
                 DateTime expirationUtc,
             Func<Uri, TResult> onSuccess,
-            Func<TResult> onSystemNotConfigured = default)
+            Func<TResult> onSystemNotConfigured = default,
+                IDictionary<string,string> claims = default)
         {
             var expiresAfterEpoch = expirationUtc - GetEpoch();
             var secondsAfterEpoch = (uint)expiresAfterEpoch.TotalSeconds;
@@ -46,7 +48,8 @@ namespace EastFive.Api
                     var accessTokenUrl = originalUrl.AddQueryParameter(QueryParameter, accessTokenString);
                     return onSuccess(accessTokenUrl);
                 },
-                onSystemNotConfigured);
+                onSystemNotConfigured,
+                    claims);
         }
 
         public static TResult ValidateAccessTokenAccount<TResult>(this IHttpRequest request,
@@ -66,7 +69,7 @@ namespace EastFive.Api
             if(!accessTokenString.TryParseBase64String(out byte[] accessTokenBytes))
                 return onAccessTokenInvalid();
 
-            if (accessTokenBytes.Length != 68)
+            if (accessTokenBytes.Length < 74)
                 return onAccessTokenInvalid();
 
             var sessionId = new Guid(accessTokenBytes.Take(16).ToArray());
@@ -80,7 +83,9 @@ namespace EastFive.Api
                     return onAccessTokenInvalid();
                 return onAccessTokenExpired();
             }
-
+            var claimsLength = (int)BitConverter.ToUInt32(accessTokenBytes, 36);
+            var claimsText = Encoding.UTF8.GetString(accessTokenBytes, 40, claimsLength);
+            var claims = JsonConvert.DeserializeObject<Dictionary<string, string>>(claimsText); // an empty dictionary is 2 characters: {}
             if (shouldSkipValidationForLocalhost)
             {
                 if (request.IsLocalHostRequest())
@@ -90,11 +95,11 @@ namespace EastFive.Api
                             sessionId = sessionId,
                             accountId = accountId,
                             expirationUtc = expiration,
-                            token = accessTokenString,
+                            claims = claims,
                         });
             }
 
-            var signature = accessTokenBytes.Skip(36).ToArray();
+            var signature = accessTokenBytes.Skip(40 + claimsLength).ToArray();
             return VerifySignature(signature,
                 sessionId, accountId,
                 secondsSinceEpoch, originalUrl,
@@ -106,7 +111,7 @@ namespace EastFive.Api
                             sessionId = sessionId,
                             accountId = accountId,
                             expirationUtc = expiration,
-                            token = accessTokenString,
+                            claims = claims,
                         });
                 },
                 () =>
@@ -116,24 +121,33 @@ namespace EastFive.Api
 
                     return onInvalidSignature();
                 },
-                onSystemNotConfigured);
+                onSystemNotConfigured,
+                    claims: claims);
         }
 
-        public static TResult CreateSignature<TResult>(this Uri originalUrl,
+        private static TResult CreateSignature<TResult>(this Uri originalUrl,
                 Guid sessionId, Guid accountId,
                 uint secondsAfterEpoch, 
             Func<byte[], byte[], TResult> onAccessTokenAndEnvelope,
-            Func<TResult> onNotConfigured = default)
+            Func<TResult> onNotConfigured = default,
+                IDictionary<string, string> claims = default)
         {
             return AppSettings.AccessTokenSecret.ConfigurationGuid(
                 (apiSecret) =>
                 {
                     var originalUrlStr = originalUrl.AbsoluteUri;
                     var urlHash = originalUrlStr.SHAHash();
+                    if (claims == null)
+                        claims = new Dictionary<string, string>();
+
+                    var claimText = JsonConvert.SerializeObject(claims, Formatting.None);
+                    var claimLength = claimText.Length;
 
                     var securityEnthropy = sessionId.ToByteArray()
                         .Concat(accountId.ToByteArray())
-                        .Concat(BitConverter.GetBytes(secondsAfterEpoch));
+                        .Concat(BitConverter.GetBytes(secondsAfterEpoch))
+                        .Concat(BitConverter.GetBytes(claimLength))
+                        .Concat(Encoding.UTF8.GetBytes(claimText));
                     var dataToSign = securityEnthropy
                         .Concat(urlHash);
                     var envelopeBytes = dataToSign
@@ -159,7 +173,8 @@ namespace EastFive.Api
                 uint secondsAfterEpoch, Uri originalUrl,
             Func<TResult> onIsValid,
             Func<TResult> onIsNotValid,
-            Func<TResult> onNotConfigured = default)
+            Func<TResult> onNotConfigured = default,
+                IDictionary<string, string> claims = default)
         {
             return originalUrl.CreateSignature(sessionId, accountId, secondsAfterEpoch,
                 (accessToken, envelopeSignature) =>
@@ -169,7 +184,8 @@ namespace EastFive.Api
 
                     return onIsNotValid();
                 },
-                onNotConfigured);
+                onNotConfigured,
+                    claims);
         }
     }
 }
