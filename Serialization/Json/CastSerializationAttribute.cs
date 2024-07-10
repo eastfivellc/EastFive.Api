@@ -15,6 +15,7 @@ using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Reflection;
 using EastFive.Serialization;
+using System.Runtime.CompilerServices;
 
 namespace EastFive.Api.Serialization.Json
 {
@@ -177,6 +178,18 @@ namespace EastFive.Api.Serialization.Json
                         await jsonProvider.WriteAsync(jsonWriter, serializer, typeToSerialize, obj, request, httpApp);
                         return;
                     }
+                }
+
+                if (typeToSerialize.IsTuple(obj, out var tupleProperties))
+                {
+                    await jsonWriter.WriteStartObjectAsync();
+                    foreach(var tupleProperty in tupleProperties)
+                    {
+                        await jsonWriter.WritePropertyNameAsync(tupleProperty.name);
+                        await jsonWriter.WriteValueAsync(tupleProperty.value);
+                    }
+                    await jsonWriter.WriteEndObjectAsync();
+                    return;
                 }
 
                 if (typeToSerialize.IsArray)
