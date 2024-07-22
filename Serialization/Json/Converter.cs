@@ -29,7 +29,7 @@ namespace EastFive.Api.Serialization
                 var typeValue = (value as Type);
                 bool wroteWithoutBase = typeValue
                     .GetAttributesInterface<IProvideSerialization>()
-                    .Where(x => x.ContentType.ToLower().Contains("json"))
+                    .Where(x => x.ContentType.ToLowerNullSafe().Contains("json"))
                     .MaxOrEmpty(
                         x => x.GetPreference(this.request),
                         (serializationAttr, discardRank) =>
