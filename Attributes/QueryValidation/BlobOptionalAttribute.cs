@@ -27,7 +27,10 @@ namespace EastFive.Api
             var fileKey = GetKey(parameterRequiringValidation);
             return bindingData.fetchBodyParam(parameterRequiringValidation,
                 (value) => SelectParameterResult.Body(value, fileKey, parameterRequiringValidation),
-                (why) => SelectParameterResult.FailureBody(null, fileKey, parameterRequiringValidation));
+                (why) =>
+                {
+                    return SelectParameterResult.FailureBody(null, fileKey, parameterRequiringValidation);
+                });
         }
 
         public override TResult ParseContentDelegate<TResult>(
