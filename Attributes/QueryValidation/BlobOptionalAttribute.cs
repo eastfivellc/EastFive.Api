@@ -29,7 +29,9 @@ namespace EastFive.Api
                 (value) => SelectParameterResult.Body(value, fileKey, parameterRequiringValidation),
                 (why) =>
                 {
-                    return SelectParameterResult.FailureBody(null, fileKey, parameterRequiringValidation);
+                    var result = SelectParameterResult.Body(null, fileKey, parameterRequiringValidation);
+                    return result;
+                    //return SelectParameterResult.FailureBody(null, fileKey, parameterRequiringValidation);
                 });
         }
 
