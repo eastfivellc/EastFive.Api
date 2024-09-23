@@ -52,8 +52,10 @@ namespace EastFive.Api
                 CastDelegate parser =
                     (paramInfo, onParsed, onFailure) =>
                     {
-                        return paramInfo
-                            .GetAttributeInterface<IBindJsonApiValue>()
+                        if (!paramInfo.TryGetAttributeInterface<IBindJsonApiValue>(out var jsonApiBinder))
+                            return onFailure($"Parameter `{paramInfo.Name}` does not have attribute that implements {nameof(IBindJsonApiValue)}.");
+
+                        return jsonApiBinder
                             .ParseContentDelegate(contentJObject,
                                     contentString, bindConvert,
                                     paramInfo, httpApp, request,
