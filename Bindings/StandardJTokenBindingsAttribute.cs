@@ -544,19 +544,43 @@ namespace EastFive.Api.Bindings
                     onBindingFailure);
             }
 
-            //if (content.Type == JTokenType.Object || content.Type == JTokenType.Array)
-            //{
-            //    try
-            //    {
-            //        var value = Newtonsoft.Json.JsonConvert.DeserializeObject(
-            //            content.ToString(), type, bindConvert);
-            //        return onParsed(value);
-            //    }
-            //    catch (Newtonsoft.Json.JsonSerializationException)
-            //    {
-            //        throw;
-            //    }
-            //}
+            // if (content.Type == JTokenType.Object ||
+            if(content.Type == JTokenType.Array)
+            {
+                if (type.IsArray && type.HasElementType)
+                {
+                    var elementType = type.GetElementType();
+                    if (content.IsDefaultNullOrEmpty())
+                    {
+                        var value = Array.CreateInstance(elementType, 0);
+                        return onParsed(value);
+                    }
+                    var arrayValue = content
+                        .Children()
+                        .Select(
+                            child =>
+                            {
+                                try
+                                {
+                                    var value = BindDirect(elementType, child,
+                                        x => x,
+                                        why => elementType.GetDefault(),
+                                        why => elementType.GetDefault());
+                                    return value;
+                                }
+                                catch (Newtonsoft.Json.JsonSerializationException)
+                                {
+                                    return elementType.GetDefault();
+                                }
+                                catch(Exception ex)
+                                {
+                                    return elementType.GetDefault();
+                                }
+                            })
+                        .CastArray(elementType);
+                    return onParsed(arrayValue);
+                }
+            }
 
             if (content.Type == JTokenType.Null)
             {
