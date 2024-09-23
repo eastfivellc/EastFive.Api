@@ -261,8 +261,9 @@ namespace EastFive.Api
                         {
                             try
                             {
+                                var tokenValueString = valueToken.ToString();
                                 var value = Newtonsoft.Json.JsonConvert.DeserializeObject(
-                                    valueToken.ToString(), paramInfo.ParameterType, bindConvert);
+                                    tokenValueString, paramInfo.ParameterType, bindConvert);
                                 return onParsed(value);
                             }
                             catch (Newtonsoft.Json.JsonSerializationException)

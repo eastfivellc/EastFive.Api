@@ -79,7 +79,10 @@ namespace EastFive.Api
                     };
                     return onParsed(prop);
                 },
-                onDidNotBind,
+                onDidNotBind:(why) =>
+                {
+                    return onDidNotBind(why);
+                },
                 onBindingFailure);
         }
 
