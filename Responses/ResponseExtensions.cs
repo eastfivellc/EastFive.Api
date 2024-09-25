@@ -77,7 +77,7 @@ namespace EastFive.Api
         public static IHttpResponse AddReason(this IHttpResponse routeResponse,
             string reasonText)
         {
-            routeResponse.ReasonPhrase = reasonText;
+            routeResponse.ReasonPhrase = reasonText.Replace('\n', ' ');
             return routeResponse;
         }
 
