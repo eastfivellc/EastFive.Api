@@ -269,11 +269,11 @@ namespace EastFive.Api.Meta.Flows
                     PopulateBody();
 
             var paramQueryItems = method.MethodPoco
-                        .GetParameters()
-                        .TryWhere((ParameterInfo paramInfo, out IDefineQueryItem requestProperty) =>
-                            paramInfo.TryGetAttributeInterface(out requestProperty))
-                        .SelectMany(tpl => tpl.@out.GetQueryItem(method, tpl.item).NullToEmpty())
-                        .ToArray();
+                .GetParameters()
+                .TryWhere((ParameterInfo paramInfo, out IDefineQueryItem requestProperty) =>
+                    paramInfo.TryGetAttributeInterface(out requestProperty))
+                .SelectMany(tpl => tpl.@out.GetQueryItem(method, tpl.item).NullToEmpty())
+                .ToArray();
             var attrQueryItems = method
                 .MethodPoco
                 .CustomAttributes
@@ -282,25 +282,38 @@ namespace EastFive.Api.Meta.Flows
                     {
                         return attr.AttributeType.GetAttributesInterface<IDefineQueryItem>();
                     })
-                .SelectMany(attr => attr.GetQueryItems(method));
+                .SelectMany(attr => attr.GetQueryItems(method))
+                .ToArray();
 
             var headersFromParameters = method.MethodPoco
-                    .GetParameters()
-                    .TryWhere(
-                        (ParameterInfo paramInfo, out IDefineHeader headerDefinition) =>
-                        {
-                            if (paramInfo.TryGetAttributeInterface(out headerDefinition))
-                                return true;
+                .GetParameters()
+                .TryWhere(
+                    (ParameterInfo paramInfo, out IDefineHeader headerDefinition) =>
+                    {
+                        if (paramInfo.TryGetAttributeInterface(out headerDefinition))
+                            return true;
 
-                            // See if the parameter type has a header requirement
-                            if (paramInfo.ParameterType.TryGetAttributeInterface(out headerDefinition))
-                                return true;
-                            return false;
-                        })
-                    .Select(tpl => tpl.@out.GetHeader(method, tpl.item))
-                    .ToArray();
+                        // See if the parameter type has a header requirement
+                        if (paramInfo.ParameterType.TryGetAttributeInterface(out headerDefinition))
+                            return true;
+                        return false;
+                    })
+                .Select(tpl => tpl.@out.GetHeader(method, tpl.item))
+                .ToArray();
+            var headersFromAttributes = method
+                .MethodPoco
+                .GetAttributesInterface<IDefineHeader>()
+                .Select(hdr => hdr.GetHeader(method, default))
+                .ToArray();
 
-            var queryItems = paramQueryItems.Concat(attrQueryItems).ToArray();
+            var queryItems = paramQueryItems
+                .Concat(attrQueryItems)
+                .Distinct(x => x.key)
+                .ToArray();
+            var headerItems = headersFromParameters
+                .Concat(headersFromAttributes)
+                .Distinct(x => x.key)
+                .ToArray();
 
             var url = method.MethodPoco.TryGetAttributeInterface(out IProvideWorkflowUrl workflowUrlProvider) ?
                     workflowUrlProvider.GetUrl(method, queryItems)
@@ -316,7 +329,7 @@ namespace EastFive.Api.Meta.Flows
             return new Request()
             {
                 method = method.HttpMethod,
-                header = headersFromParameters,
+                header = headerItems,
                 body = body,
                 url = url,
                 description = GetDescription(),
