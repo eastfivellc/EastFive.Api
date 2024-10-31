@@ -23,6 +23,7 @@ using EastFive.Reflection;
 using EastFive.Api.Serialization;
 using EastFive.Api.Bindings.ContentHandlers;
 using Microsoft.AspNetCore.Http;
+using EastFive.Web.Configuration;
 
 namespace EastFive.Api
 {
@@ -294,7 +295,9 @@ namespace EastFive.Api
                         (accountId) => accountId,
                         () => throw new Exception());
 
-                    return SignWithSpecificAccessToken(requestQuery, sessionId, actorId, TimeSpan.FromHours(1.0));
+                    var duration = EastFive.Api.AppSettings.AccessTokenExpirationInMinutes.ConfigurationDouble(
+                        (minutes) => TimeSpan.FromMinutes(minutes));
+                    return SignWithSpecificAccessToken(requestQuery, sessionId, actorId, duration);
                 },
                 () => throw new Exception(),
                 (why) => throw new Exception());
