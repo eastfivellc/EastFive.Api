@@ -91,7 +91,7 @@ namespace EastFive.Api.Auth
                         return boundCallback(parameterSelection, method, httpApp, request);
 
                 return request
-                    .CreateResponse(System.Net.HttpStatusCode.Unauthorized)
+                    .CreateResponse(System.Net.HttpStatusCode.Forbidden)
                     .AddReason($"{method.DeclaringType.FullName}..{method.Name} {action} role claim ({ClaimTypes.Role}) = `{equals}`")
                     .AsTask();
             }

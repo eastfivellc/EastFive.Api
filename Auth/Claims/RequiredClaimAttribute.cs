@@ -38,7 +38,7 @@ namespace EastFive.Api.Auth
         {
             if (!request.IsAuthorizedFor(ClaimType, ClaimValue))
                 return request
-                    .CreateResponse(System.Net.HttpStatusCode.Unauthorized)
+                    .CreateResponse(System.Net.HttpStatusCode.Forbidden)
                     .AddReason($"{method.DeclaringType.FullName}..{method.Name} requires claim `{ClaimType}`=`{this.ClaimValue}`")
                     .AsTask();
             return boundCallback(parameterSelection, method, httpApp, request);
