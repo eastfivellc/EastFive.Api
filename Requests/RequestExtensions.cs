@@ -273,11 +273,12 @@ namespace EastFive.Api
 
         public static bool IsAuthorizedForRole(this IHttpRequest request, string claimValue)
         {
-            var rollClaim = new Uri(System.Security.Claims.ClaimTypes.Role);
-            if (request.IsAuthorizedFor(rollClaim, claimValue))
-                return true;
-
-            return request.IsAuthorizedFor(rollClaim, EastFive.Api.Auth.ClaimValues.RoleType + claimValue);
+            var jwtString = request.GetAuthorization();
+            if (jwtString.IsNullOrWhiteSpace())
+                return false;
+            return jwtString.GetClaimsJwtString(
+                claims => claims.IsAuthorizedForRole(claimValue),
+                (why) => false);
         }
 
         public static bool IsAuthorizedFor(this IHttpRequest request,
@@ -287,28 +288,7 @@ namespace EastFive.Api
             if (jwtString.IsNullOrWhiteSpace())
                 return false;
             return jwtString.GetClaimsJwtString(
-                claims =>
-                {
-                    var providedClaims = claims
-                           .Where(claim => String.Compare(claim.Type, claimType.OriginalString) == 0)
-                           .SelectMany(claim => claim.Value.Split(','.AsArray()))
-                           .Select(claimValue => claimValue.Trim())
-                           .ToArray();
-                    var requiredClaims = claimValue.Split(','.AsArray());
-                    var matchedAllClaims = requiredClaims.Except(providedClaims).Count() == 0;
-                    return matchedAllClaims;
-                    //return claims.First(
-                    //    (claim, next) =>
-                    //    {
-                    //        if (String.Compare(claim.Type, claimType.OriginalString) == 0)
-                    //        {
-                    //            if(claim.Value.Split(','.AsArray()).Contains(claimValue))
-                    //                return true;
-                    //        }
-                    //        return next();
-                    //    },
-                    //    () => false);
-                },
+                claims => claims.IsAuthorizedFor(claimType, claimValue),
                 (why) => false);
         }
 

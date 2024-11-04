@@ -146,5 +146,29 @@ namespace EastFive.Api
                         return actorIdNotFound();
                 }); // ConfigurationContext.Instance.AppSettings[accountIdClaimType];
         }
+
+        public static bool IsAuthorizedForRole(this IEnumerable<System.Security.Claims.Claim> claims,
+            string claimValue)
+        {
+            var roleClaim = new Uri(System.Security.Claims.ClaimTypes.Role);
+            if (claims.IsAuthorizedFor(roleClaim, claimValue))
+                return true;
+
+            return claims.IsAuthorizedFor(roleClaim, EastFive.Api.Auth.ClaimValues.RoleType + claimValue);
+        }
+
+        public static bool IsAuthorizedFor(this IEnumerable<System.Security.Claims.Claim> claims,
+            Uri claimType, string claimValue)
+        {
+            var providedClaims = claims
+                   .NullToEmpty()
+                   .Where(claim => String.Compare(claim.Type, claimType.OriginalString) == 0)
+                   .SelectMany(claim => claim.Value.Split(','.AsArray()))
+                   .Select(claimValue => claimValue.Trim())
+                   .ToArray();
+            var requiredClaims = claimValue.Split(','.AsArray());
+            var matchedAllClaims = requiredClaims.Except(providedClaims).Count() == 0;
+            return matchedAllClaims;
+        }
     }
 }
