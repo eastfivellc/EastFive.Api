@@ -277,12 +277,27 @@ namespace EastFive.Api.Serialization.Json
                     {
                         foreach (var item in enumerable)
                         {
-                            var keyValue = item.Key.ToString();
+                            var keyValue = GetKeyValueString(item.Key);
                             await jsonWriter.WritePropertyNameAsync(keyValue);
                             await WriteValueToStreamAsync(jsonWriter, serializer, item.Value);
                         }
                     }
                     await jsonWriter.WriteEndObjectAsync();
+
+                    string GetKeyValueString(object keyValue)
+                    {
+                        if(keyValue.IsNull())
+                        {
+                            return "";
+                        }
+                        if(typeof(DateTime).IsAssignableFrom(keyValue.GetType()))
+                        {
+                            var dtValue = (DateTime)keyValue;
+                            return dtValue.ToString("s", System.Globalization.CultureInfo.InvariantCulture);
+                        }
+
+                        return keyValue.ToString();
+                    }
                 }
             }
         }
