@@ -198,6 +198,14 @@ namespace EastFive.Api.Serialization.Json
                     return;
                 }
 
+
+
+                if (typeToSerialize.IsSubClassOfGeneric(typeof(IDictionary<,>)))
+                {
+                    await WriteDictionaryAsync(typeToSerialize);
+                    return;
+                }
+
                 await jsonCastersHttpApp
                     .Where(attr => attr.CanConvert(typeToSerialize, obj,
                         httpRequest: request, application: httpApp))
@@ -253,6 +261,28 @@ namespace EastFive.Api.Serialization.Json
                         }
                     }
                     await jsonWriter.WriteEndArrayAsync();
+                }
+
+                async Task WriteDictionaryAsync(Type memberType)
+                {
+                    if (obj.IsNull())
+                    {
+                        await jsonWriter.WriteNullAsync();
+                        return;
+                    }
+                    var enumerable = obj.DictionaryKeyValuePairs();
+                    await jsonWriter.WriteStartObjectAsync();
+
+                    if (!enumerable.IsNull())
+                    {
+                        foreach (var item in enumerable)
+                        {
+                            var keyValue = item.Key.ToString();
+                            await jsonWriter.WritePropertyNameAsync(keyValue);
+                            await WriteValueToStreamAsync(jsonWriter, serializer, item.Value);
+                        }
+                    }
+                    await jsonWriter.WriteEndObjectAsync();
                 }
             }
         }
