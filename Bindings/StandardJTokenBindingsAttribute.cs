@@ -572,7 +572,7 @@ namespace EastFive.Api.Bindings
                                 {
                                     return elementType.GetDefault();
                                 }
-                                catch(Exception ex)
+                                catch(Exception)
                                 {
                                     return elementType.GetDefault();
                                 }
