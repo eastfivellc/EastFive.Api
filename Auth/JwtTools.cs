@@ -11,7 +11,7 @@ namespace EastFive.Api.Auth
     {
         public static TResult CreateToken<TResult>(Guid? sessionIdMaybe,
                 Uri scope, TimeSpan duration, IDictionary<string, string> claims,
-            Func<string, TResult> tokenCreated,
+            Func<string, DateTime, TResult> tokenCreated,
             Func<string, TResult> missingConfigurationSetting,
             Func<string, string, TResult> invalidConfigurationSetting,
             string configNameOfIssuer = EastFive.Security.AppSettings.TokenIssuer,
@@ -29,7 +29,7 @@ namespace EastFive.Api.Auth
             var issued = DateTime.UtcNow;
             var result = EastFive.Security.Tokens.JwtTools.CreateToken(scope,
                 issued, duration, claimsAuth.Concat(claimsCrypt),
-                tokenCreated, missingConfigurationSetting, invalidConfigurationSetting,
+                (token) => tokenCreated(token, issued), missingConfigurationSetting, invalidConfigurationSetting,
                 configNameOfIssuer, configNameOfRSAKey, configNameOfRSAAlgorithm, tokenHeaders);
             return result;
         }
@@ -45,7 +45,7 @@ namespace EastFive.Api.Auth
             IEnumerable<KeyValuePair<string, string>> tokenHeaders = default)
         {
             return CreateToken(sessionId, scope, duration, default(IDictionary<string, string>),
-                tokenCreated, missingConfigurationSetting, invalidConfigurationSetting,
+                (token, whenIssued) => tokenCreated(token), missingConfigurationSetting, invalidConfigurationSetting,
                 configNameOfIssuer, configNameOfRSAKey, configNameOfRSAAlgorithm, tokenHeaders);
         }
 
