@@ -1,9 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
   </PropertyGroup>
-
   <ItemGroup>
     <Compile Remove="FVC\**" />
     <EmbeddedResource Remove="FVC\**" />
@@ -14,35 +12,30 @@
     <None Remove="Microsoft.IdentityModel.Tokens" />
     <None Remove="System.IdentityModel.Tokens.Jwt" />
   </ItemGroup>
-
   <ItemGroup>
     <None Remove="Meta\Manifest\Manifest.cshtml" />
   </ItemGroup>
-
   <ItemGroup>
     <Content Include="Meta\Manifest\Manifest.cshtml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="DocumentFormat.OpenXml" Version="2.20.0" />
     <PackageReference Include="Microsoft.AspNetCore.Hosting.Abstractions" Version="2.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.2.5" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor" Version="2.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.WebApiCompatShim" Version="2.2.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.0" />
     <PackageReference Include="RazorEngineCore" Version="2020.3.3" />
-    <PackageReference Include="System.Drawing.Common" Version="6.0.0" />
+    <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
     <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="6.35.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.35.0" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\EastFive.Core\EastFive.Core.csproj" />
     <ProjectReference Include="..\EastFive.Web\EastFive.Web.csproj" />
   </ItemGroup>
-
   <ItemGroup>
     <Folder Include="Auth\Tokens\" />
     <Folder Include="Auth\Claims\" />
