@@ -12,6 +12,7 @@ using EastFive.Extensions;
 using EastFive.Linq;
 using EastFive.Collections.Generic;
 using Microsoft.AspNetCore.Http.Features;
+using System.IO;
 
 namespace EastFive.Api
 {
@@ -118,11 +119,14 @@ namespace EastFive.Api
 
         #endregion
 
-        public virtual Task WriteResponseAsync(System.IO.Stream stream)
+        public virtual async Task WriteResponseAsync(System.IO.Stream target)
         {
-            return StatusCode.AsTask();
+            var bytes = await this.Request.ReadContentAsync();
+            if (bytes.Length > 0)
+            {
+                using (var source = new MemoryStream(bytes))
+                    await source.CopyToAsync(target);
+            }
         }
-
-        
     }
 }
