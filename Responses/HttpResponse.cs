@@ -121,6 +121,9 @@ namespace EastFive.Api
 
         public virtual async Task WriteResponseAsync(System.IO.Stream target)
         {
+            if (StatusCode == HttpStatusCode.NoContent)
+                return;
+
             var bytes = await this.Request.ReadContentAsync();
             if (bytes.Length > 0)
             {
