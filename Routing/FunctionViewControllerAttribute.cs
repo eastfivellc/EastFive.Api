@@ -143,7 +143,7 @@ namespace EastFive.Api
                         return contentParser.ParseContentValuesAsync(httpApp, request,
                             (bodyCastDelegate, bodyValues) =>
                                 InvokeMethod(
-                                    matchingActionMethods, componentsMatched,
+                                    controllerType, matchingActionMethods, componentsMatched,
                                     httpApp, request,
                                     bodyCastDelegate, bodyValues));
                     },
@@ -155,7 +155,7 @@ namespace EastFive.Api
                                 (paramInfo, onParsed, onFailure) => onFailure(
                                     $"Request did not contain any content.");
                             return InvokeMethod(
-                                matchingActionMethods, componentsMatched,
+                                controllerType, matchingActionMethods, componentsMatched,
                                 httpApp, request,
                                 parserEmpty, new string[] { });
                         }
@@ -164,7 +164,7 @@ namespace EastFive.Api
                             (paramInfo, onParsed, onFailure) => onFailure(
                                 $"Could not parse content of type {mediaType}");
                         return InvokeMethod(
-                            matchingActionMethods, componentsMatched,
+                            controllerType, matchingActionMethods, componentsMatched,
                             httpApp, request,
                             parser, new string[] { });
                     });
@@ -192,7 +192,7 @@ namespace EastFive.Api
         }
 
         protected virtual async Task<IHttpResponse> InvokeMethod(
-            IEnumerable<MethodInfo> matchingActionMethods,
+            Type controllerType, IEnumerable<MethodInfo> matchingActionMethods,
             string[] componentsMatched,
             IApplication httpApp, IHttpRequest routeData,
             CastDelegate bodyCastDelegate, string[] bodyValues)
@@ -202,7 +202,7 @@ namespace EastFive.Api
                     method =>
                     {
                         var routeMatcher = method.GetAttributesInterface<IMatchRoute>().Single();
-                        return routeMatcher.IsRouteMatch(method, componentsMatched, this, routeData, httpApp,
+                        return routeMatcher.IsRouteMatch(controllerType, method, componentsMatched, this, routeData, httpApp,
                             bodyValues, bodyCastDelegate);
                     });
 
@@ -224,7 +224,7 @@ namespace EastFive.Api
                                             {
                                                 return InvokeValidatedMethodAsync(
                                                     httpAppFinal, routeDataFinal,
-                                                    methodFinal,
+                                                    controllerType, methodFinal,
                                                     parameterSelection);
                                             },
                                             (callback, validator) =>
@@ -300,7 +300,7 @@ namespace EastFive.Api
 
         protected static Task<IHttpResponse> InvokeValidatedMethodAsync(
             IApplication httpApp, IHttpRequest routeData,
-            MethodInfo method,
+            Type controllerType, MethodInfo method,
             KeyValuePair<ParameterInfo, object>[] queryParameters)
         {
             return httpApp.GetType()
@@ -308,7 +308,7 @@ namespace EastFive.Api
                 .Aggregate<IHandleMethods, MethodHandlingDelegate>(
                     (methodFinal, queryParametersFinal, httpAppFinal, routeDataFinal) =>
                     {
-                        var response = InvokeHandledMethodAsync(httpApp, routeDataFinal, method, queryParameters);
+                        var response = InvokeHandledMethodAsync(httpApp, routeDataFinal, controllerType, method, queryParameters);
                         return response;
                     },
                     (callback, methodHandler) =>
@@ -323,7 +323,7 @@ namespace EastFive.Api
 
         protected static Task<IHttpResponse> InvokeHandledMethodAsync(
             IApplication httpApp, IHttpRequest routeData,
-            MethodInfo method,
+            Type controllerType, MethodInfo method,
             KeyValuePair<ParameterInfo, object>[] queryParameters)
         {
             var queryParameterOptions = queryParameters.ToDictionary(kvp => kvp.Key.Name, kvp => kvp.Value);
@@ -340,11 +340,12 @@ namespace EastFive.Api
                     {
                         try
                         {
-                            if (method.IsGenericMethod)
+                            if (method.IsGenericMethodDefinition)
                             {
-                                var genericArguments = method.GetGenericArguments().Select(arg => arg.Name).Join(",");
-                                return routeData.CreateResponse(HttpStatusCode.InternalServerError)
-                                    .AddReason($"Could not invoke {method.DeclaringType.FullName}..{method.Name} because it contains generic arguments:{genericArguments}");
+                                method = method.MakeGenericMethod(controllerType.AsArray());
+                                // var genericArguments = method.GetGenericArguments().Select(arg => arg.Name).Join(",");
+                                //return routeData.CreateResponse(HttpStatusCode.InternalServerError)
+                                //    .AddReason($"Could not invoke {method.DeclaringType.FullName}..{method.Name} because it contains generic arguments:{genericArguments}");
                             }
 
                             var response = method.Invoke(null, methodParameters);

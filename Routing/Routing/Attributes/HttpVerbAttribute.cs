@@ -88,10 +88,12 @@ namespace EastFive.Api
         }
 
         public RouteMatch IsRouteMatch(
-            MethodInfo method, string[] componentsMatched, 
+            Type controllerType, MethodInfo method, string[] componentsMatched, 
             IInvokeResource resourceInvoker, IHttpRequest request, IApplication httpApp,
             IEnumerable<string> bodyKeys, CastDelegate fetchBodyParam)
         {
+            if(method.IsGenericMethod)
+                method = method.MakeGenericMethod(controllerType.AsArray());
             var fileNameCastDelegate = GetFileNameCastDelegate(request, httpApp, componentsMatched, out string[] pathKeys);
             var fetchQueryParam = GetQueryCastDelegate(request, httpApp, out string[] queryKeys);
             var parametersCastResults = method
