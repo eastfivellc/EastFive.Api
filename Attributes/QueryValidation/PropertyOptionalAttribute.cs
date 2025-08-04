@@ -1,11 +1,9 @@
 ﻿using EastFive.Api.Resources;
+using EastFive.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EastFive.Api
 {
@@ -44,7 +42,8 @@ namespace EastFive.Api
                         parameterTypeGeneric, new object[] { refIds });
                 }
 
-                if (parameterType.IsSubClassOfGeneric(typeof(IDictionary<,>)))
+                if (parameterType.IsSubClassOfGeneric(typeof(IDictionary<,>)) &&
+                    parameterType.GenericTypeArguments.AnyNullSafe())
                 {
                     var parameterTypeGeneric = typeof(Dictionary<,>).MakeGenericType(parameterType.GenericTypeArguments);
                     return Activator.CreateInstance(parameterTypeGeneric);
