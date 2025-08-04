@@ -1155,6 +1155,39 @@ namespace EastFive.Api
         }
     }
 
+    [ServerSideEventsResponseGeneric]
+    public delegate IHttpResponse ServerSideEventsResponse<TResource>(IEnumerableAsync<TResource> responses);
+    public class ServerSideEventsResponseGenericAttribute : HttpGenericDelegateAttribute, IProvideResponseType
+    {
+        public override HttpStatusCode StatusCode => HttpStatusCode.OK;
+
+        public override string Example => "[]";
+
+        [InstigateMethod]
+        public IHttpResponse EnumerableAsyncHttpResponse<T>(IEnumerableAsync<T> objectsAsync)
+        {
+            var response = new ServerSideEventsEnumerableAsyncHttpResponse<T>(this.httpApp, request, this.parameterInfo,
+                this.StatusCode,
+                objectsAsync);
+            return UpdateResponse(parameterInfo, httpApp, request, response);
+        }
+
+        public override Response GetResponse(ParameterInfo paramInfo, HttpApplication httpApp)
+        {
+            var baseResponse = base.GetResponse(paramInfo, httpApp);
+            baseResponse.IsMultipart = true;
+            baseResponse.Headers = baseResponse.Headers
+                .Append("Content-Type".PairWithValue("text/event-stream"))
+                .ToArray();
+            return baseResponse;
+        }
+
+        public Type GetResponseType(ParameterInfo parameterInfo)
+        {
+            return parameterInfo.ParameterType.GenericTypeArguments.First();
+        }
+    }
+
     #endregion
 
     #region Zip
