@@ -109,6 +109,26 @@ namespace EastFive.Api
             return url.GetLocation(typeof(TController), routeName:routeName);
         }
 
+        public static Uri GetLocationIfRelative(this IProvideUrl url, string absoluteOrRelative)
+        {
+            bool isImplicit()
+            {
+                if (!absoluteOrRelative.HasBlackSpace())
+                    return false;
+
+                absoluteOrRelative = absoluteOrRelative.TrimStart();
+                return absoluteOrRelative.StartsWith("\\") ||
+                    absoluteOrRelative.StartsWith("/");
+            }
+
+            // must provide the scheme rather than using anything implicit
+            if (!isImplicit() && Uri.TryCreate(absoluteOrRelative, UriKind.Absolute, out Uri absoluteUri))
+                return absoluteUri;
+
+            return url.Combine(absoluteOrRelative);
+            
+        }
+
         public static WebId GetWebId<TController>(this IProvideUrl url,
             Guid? idMaybe,
             string routeName = "DefaultApi")

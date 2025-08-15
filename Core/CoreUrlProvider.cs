@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using System;
-using System.Collections.Generic;
-using System.Text;
+using System.IO;
 
 namespace EastFive.Api.Core
 {
@@ -26,6 +25,21 @@ namespace EastFive.Api.Core
             if (id.HasBlackSpace())
                 urlString = urlString + $"/{id}";
             return new Uri(urlString, UriKind.Absolute);
+        }
+
+        public Uri Combine(string rightPart)
+        {
+            var request = this.context.Request;
+            var leftPart = $"{request.Scheme}://{context.Request.Host}";
+            if (rightPart.IsNullOrWhiteSpace())
+                return new Uri(leftPart, UriKind.Absolute);
+
+            rightPart = rightPart.TrimStart();
+            while (rightPart.StartsWith("/") || rightPart.StartsWith("\\"))
+                rightPart = rightPart.Substring(1);
+                
+            var absolutePath = Path.Combine(leftPart, rightPart).Replace("\\", "/");
+            return new Uri(absolutePath, UriKind.Absolute);
         }
     }
 }
