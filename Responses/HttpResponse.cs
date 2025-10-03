@@ -77,7 +77,10 @@ namespace EastFive.Api
             if (string.IsNullOrEmpty(reason))
                 return;
 
-            var reasonPhrase = reason.Replace('\n', ';').Replace("\r", "");
+            var reasonPhrase = reason
+                .Replace('\n', ';')
+                .Replace("\r", "")
+                .Replace(' ', ' '); // non-breaking space;
             if (reasonPhrase.Length > 510)
                 reasonPhrase = new string(reasonPhrase.Take(510).ToArray());
 
