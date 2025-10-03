@@ -361,7 +361,9 @@ namespace EastFive.Api
                         }
                         catch (TargetInvocationException ex)
                         {
-                            var paramList = methodParameters.Select(p => p.GetType().FullName).Join(",");
+                            var paramList = methodParameters
+                                .Where(p => p != null)
+                                .Select(p => p.GetType().FullName).Join(",");
                             var body = ex.InnerException.IsDefaultOrNull() ?
                                 ex.StackTrace
                                 :
