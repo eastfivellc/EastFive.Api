@@ -21,17 +21,19 @@ namespace EastFive.Api
     public class ServerSideEventsEnumerableAsyncHttpResponse<T> : HttpResponse
     {
         private IEnumerableAsync<T> objectsAsync;
+        private  Func<T, Task> onCompleted;
         private IApplication application;
         private ParameterInfo parameterInfo;
 
         public ServerSideEventsEnumerableAsyncHttpResponse(IApplication application,
             IHttpRequest request, ParameterInfo parameterInfo, HttpStatusCode statusCode,
-            IEnumerableAsync<T> objectsAsync)
+            IEnumerableAsync<T> objectsAsync, Func<T, Task> onCompleted = null)
             : base(request, statusCode)
         {
             this.application = application;
             this.objectsAsync = objectsAsync;
             this.parameterInfo = parameterInfo;
+            this.onCompleted = onCompleted;
         }
 
         public override void WriteHeaders(Microsoft.AspNetCore.Http.HttpContext context, ResponseHeaders headers)
@@ -57,16 +59,17 @@ namespace EastFive.Api
                 settings.DefaultValueHandling = DefaultValueHandling.Include;
 
                 var enumerator = objectsAsync.GetEnumerator();
+                T obj = default;
                 try
                 {
                     while (await enumerator.MoveNextAsync())
                     {
-                        var obj = enumerator.Current;
-                        var objType = (obj == null)?
+                        obj = enumerator.Current;
+                        var objType = (obj == null) ?
                             typeof(T)
                             :
                             obj.GetType();
-                            
+
                         await streamWriter.WriteAsync("data: ");
 
                         if (!objType.ContainsAttributeInterface<IProvideSerialization>())
@@ -88,7 +91,7 @@ namespace EastFive.Api
                             var responseString = memoryStream.ToArray().GetString(streamWriter.Encoding);
                             await streamWriter.WriteAsync(responseString);
                         }
-                        
+
                         await streamWriter.WriteAsync("\n\n");
                     }
                 }
@@ -99,6 +102,8 @@ namespace EastFive.Api
                 finally
                 {
                     await streamWriter.WriteAsync("event: complete\ndata: {\"status\":\"completed\"}\n\n");
+                    if (onCompleted != null)
+                        await onCompleted(obj);
                 }
             }
         }
