@@ -521,6 +521,40 @@ namespace EastFive.Api.Bindings
                 return onParsed(refInstance);
             }
 
+            if (type.IsArray && type.GetElementType().IsAssignableFrom(typeof(KeyValuePair<,>)))
+            {
+                var elementType = type.GetElementType();
+                var keyType = elementType.GenericTypeArguments[0];
+                var valueType = elementType.GenericTypeArguments[1];
+                var refType = typeof(Dictionary<,>).MakeGenericType(elementType.GenericTypeArguments);
+                var refInstance = Activator.CreateInstance(refType);
+                var addMethod = refType.GetMethod(nameof(Dictionary<int,int>.Add));
+                //Dictionary<string, int> dict;
+                //dict.Add()
+                foreach (var kvpToken in ReadDictionary(content))
+                {
+                    var keyToken = kvpToken.Key;
+                    var valueToken = kvpToken.Value;
+                    string result = StandardStringBindingsAttribute.BindDirect(keyType, keyToken,
+                        keyValue =>
+                        {
+                            return BindDirect(valueType, valueToken,
+                                valueValue =>
+                                {
+                                    addMethod.Invoke(refInstance,
+                                        new object[] { keyValue, valueValue });
+                                    return string.Empty;
+                                },
+                                (why) => why,
+                                (why) => why);
+                        },
+                        (why) => why,
+                        (why) => why);
+                }
+
+                return onParsed(refInstance);
+            }
+
             if (type == typeof(object))
             {
                 var objectValue = ReadObject(content);
