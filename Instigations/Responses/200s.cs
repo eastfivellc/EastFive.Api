@@ -27,6 +27,7 @@ using EastFive.Linq.Async;
 using EastFive.Images;
 using EastFive.Serialization;
 using EastFive.Api.Resources;
+using System.Threading;
 
 namespace EastFive.Api
 {
@@ -1190,7 +1191,7 @@ namespace EastFive.Api
 
     [ServerSideEventsWithCallbackResponseGeneric]
     public delegate IHttpResponse ServerSideEventsWithCallbackResponse<TResource>(IEnumerableAsync<TResource> responses,
-        Func<TResource, Task> onFinished);
+        Func<TResource, CancellationToken, Task> onFinished);
     public class ServerSideEventsWithCallbackResponseGenericAttribute : HttpGenericDelegateAttribute, IProvideResponseType
     {
         public override HttpStatusCode StatusCode => HttpStatusCode.OK;
@@ -1198,9 +1199,10 @@ namespace EastFive.Api
         public override string Example => "[]";
 
         [InstigateMethod]
-        public IHttpResponse EnumerableAsyncHttpResponse<T>(IEnumerableAsync<T> objectsAsync, Func<T, Task> onFinished)
+        public IHttpResponse EnumerableAsyncHttpResponse<T>(
+            IEnumerableAsync<T> objectsAsync, Func<T, CancellationToken, Task> onFinished)
         {
-            var response = new ServerSideEventsEnumerableAsyncHttpResponse<T>(this.httpApp, request, this.parameterInfo,
+            var response = new ServerSideEventsEnumerableAsyncCallbackHttpResponse<T>(this.httpApp, request, this.parameterInfo,
                 this.StatusCode,
                 objectsAsync, onFinished);
             return UpdateResponse(parameterInfo, httpApp, request, response);

@@ -15,25 +15,25 @@ using Newtonsoft.Json;
 using EastFive.Extensions;
 using EastFive.Linq.Async;
 using EastFive.Serialization;
+using System.Threading;
 
 namespace EastFive.Api
 {
+
     public class ServerSideEventsEnumerableAsyncHttpResponse<T> : HttpResponse
     {
         private IEnumerableAsync<T> objectsAsync;
-        private  Func<T, Task> onCompleted;
         private IApplication application;
         private ParameterInfo parameterInfo;
 
         public ServerSideEventsEnumerableAsyncHttpResponse(IApplication application,
             IHttpRequest request, ParameterInfo parameterInfo, HttpStatusCode statusCode,
-            IEnumerableAsync<T> objectsAsync, Func<T, Task> onCompleted = null)
+            IEnumerableAsync<T> objectsAsync)
             : base(request, statusCode)
         {
             this.application = application;
             this.objectsAsync = objectsAsync;
             this.parameterInfo = parameterInfo;
-            this.onCompleted = onCompleted;
         }
 
         public override void WriteHeaders(Microsoft.AspNetCore.Http.HttpContext context, ResponseHeaders headers)
@@ -53,7 +53,7 @@ namespace EastFive.Api
                     new StreamWriter(responseStream, new UTF8Encoding(false)))
             {
                 streamWriter.AutoFlush = true;
-                
+
                 var settings = new JsonSerializerSettings();
                 settings.Converters.Add(new Serialization.Converter(this.Request));
                 settings.DefaultValueHandling = DefaultValueHandling.Include;
@@ -101,11 +101,41 @@ namespace EastFive.Api
                 }
                 finally
                 {
-                    await streamWriter.WriteAsync("event: complete\ndata: {\"status\":\"completed\"}\n\n");
-                    if (onCompleted != null)
-                        await onCompleted(obj);
+                    await OnCompleted(streamWriter, obj);
                 }
             }
+        }
+
+        public virtual Task OnCompleted(StreamWriter streamWriter, T lastObject)
+        {
+            return streamWriter.WriteAsync("event: complete\ndata: {\"status\":\"completed\"}\n\n");
+        }
+    }
+
+
+    public class ServerSideEventsEnumerableAsyncCallbackHttpResponse<T> :
+        ServerSideEventsEnumerableAsyncHttpResponse<T>, IHaveMoreWork
+    {
+        private Func<T, CancellationToken, Task> onCompleted;
+        private T lastObject;
+        
+        public ServerSideEventsEnumerableAsyncCallbackHttpResponse(IApplication application,
+            IHttpRequest request, ParameterInfo parameterInfo, HttpStatusCode statusCode,
+            IEnumerableAsync<T> objectsAsync, Func<T, CancellationToken, Task> onCompleted)
+            : base(application, request, parameterInfo, statusCode, objectsAsync)
+        {
+            this.onCompleted = onCompleted;
+        }
+
+        public Task ProcessWorkAsync(CancellationToken cancellationToken)
+        {
+            return onCompleted(lastObject, cancellationToken);
+        }
+
+        override public async Task OnCompleted(StreamWriter streamWriter, T lastObject)
+        {
+            await base.OnCompleted(streamWriter, lastObject);
+            this.lastObject = lastObject;
         }
     }
 }
