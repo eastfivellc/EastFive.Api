@@ -198,8 +198,6 @@ namespace EastFive.Api.Serialization.Json
                     return;
                 }
 
-
-
                 if (typeToSerialize.IsSubClassOfGeneric(typeof(IDictionary<,>)))
                 {
                     await WriteDictionaryAsync(typeToSerialize);

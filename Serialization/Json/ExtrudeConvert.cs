@@ -227,11 +227,13 @@ namespace EastFive.Api.Serialization
                 return true;
             if (objectType.IsSubClassOfGeneric(typeof(IImplementRef<>)))
                 return true;
-            if (objectType.IsSubClassOfGeneric(typeof(IDictionary<,>)))
+            if (objectType.IsSubClassOfGeneric(typeof(IDictionary<,>))
+                ||
+                objectType.IsSubClassOfGeneric(typeof(KeyValuePair<,>)))
             {
                 var shouldConvertDict = objectType
                     .GetGenericArguments()
-                    .Any(item => ShouldConvertDictionaryType(item, httpRequest, application));
+                    .All(item => ShouldConvertDictionaryType(item, httpRequest, application));
                 if (shouldConvertDict)
                     return true;
             }
@@ -246,7 +248,10 @@ namespace EastFive.Api.Serialization
 
         protected bool ShouldConvertDictionaryType(Type arg, IHttpRequest httpRequest, IApplication application)
         {
-            if (CanConvert(arg, httpRequest, application))
+            var canConvertWithJsonCaster = application.GetType()
+                .GetAttributesInterface<ICastJson>()
+                .Any(jc => jc.CanConvert(arg, null, httpRequest, application));
+            if (canConvertWithJsonCaster)
                 return true;
             if (arg.ContainsCustomAttribute<IProvideSerialization>(true))
                 return true;
@@ -323,25 +328,15 @@ namespace EastFive.Api.Serialization
             if (valueType.IsSubClassOfGeneric(typeof(IDictionary<,>)))
             {
                 await writer.WriteStartObjectAsync();
-                foreach (var kvpObj in value.DictionaryKeyValuePairs())
-                {
-                    var keyValue = kvpObj.Key;
-                    var propertyName = (keyValue is IReferenceable) ?
-                        (keyValue as IReferenceable).id.ToString()
-                        :
-                        keyValue.ToString();
-                    writer.WritePropertyName(propertyName);
+                await SerializeKVPs(value.DictionaryKeyValuePairs());
+                await writer.WriteEndObjectAsync();
+                return;
+            }
 
-                    var valueValue = kvpObj.Value;
-                    var valueValueType = valueType.GenericTypeArguments.Last();
-                    if (this.ShouldConvertDictionaryType(valueValueType, httpRequest, application))
-                    {
-                        await WriteAsync(writer, serializer,
-                            valueValueType, valueValue, httpRequest, application);
-                        continue;
-                    }
-                    await writer.WriteValueAsync(valueValue);
-                }
+            if (valueType.IsSubClassOfGeneric(typeof(KeyValuePair<,>)))
+            {
+                await writer.WriteStartObjectAsync();
+                await SerializeKVP(value.KeyValuePairObject());
                 await writer.WriteEndObjectAsync();
                 return;
             }
@@ -349,19 +344,22 @@ namespace EastFive.Api.Serialization
             if (type is Type)
             {
                 var typeValue = (value as Type);
-                var serializationAttrs = typeValue
-                    .GetAttributesInterface<IProvideSerialization>();
-                if (serializationAttrs.Any())
+                if(typeValue != null) // typeof(string) is Type is true for some reason but cast to null
                 {
-                    var serializationAttr = serializationAttrs
-                            .OrderByDescending(x => x.GetPreference(httpRequest))
-                            .First();
-                    writer.WriteValue(serializationAttr.ContentType);
+                    var serializationAttrs = typeValue
+                        .GetAttributesInterface<IProvideSerialization>();
+                    if (serializationAttrs.Any())
+                    {
+                        var serializationAttr = serializationAttrs
+                                .OrderByDescending(x => x.GetPreference(httpRequest))
+                                .First();
+                        writer.WriteValue(serializationAttr.ContentType);
+                        return;
+                    }
+                    var stringType = typeValue.GetClrString();
+                    writer.WriteValue(stringType);
                     return;
                 }
-                var stringType = typeValue.GetClrString();
-                writer.WriteValue(stringType);
-                return;
             }
 
             if (valueType.IsEnum)
@@ -372,6 +370,34 @@ namespace EastFive.Api.Serialization
             }
 
             serializer.Serialize(writer, value);
+
+            async Task SerializeKVPs(IEnumerable<KeyValuePair<object,object>> keyValuePairs)
+            {
+                foreach (var kvpObj in keyValuePairs)
+                {
+                    await SerializeKVP(kvpObj);
+                }
+            }
+
+            async Task SerializeKVP(KeyValuePair<object,object> kvpObj)
+            {
+                var keyValue = kvpObj.Key;
+                var propertyName = (keyValue is IReferenceable) ?
+                    (keyValue as IReferenceable).id.ToString()
+                    :
+                    keyValue.ToString();
+                    writer.WritePropertyName(propertyName);
+
+                    var valueValue = kvpObj.Value;
+                    var valueValueType = valueType.GenericTypeArguments.Last();
+                    if (this.ShouldConvertDictionaryType(valueValueType, httpRequest, application))
+                    {
+                        await WriteAsync(writer, serializer,
+                            valueValueType, valueValue, httpRequest, application);
+                        return;
+                    }
+                    await writer.WriteValueAsync(valueValue);
+            }
         }
     }
 
