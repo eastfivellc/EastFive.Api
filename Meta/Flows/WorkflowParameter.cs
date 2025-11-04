@@ -12,6 +12,7 @@ using EastFive.Extensions;
 using EastFive.Api.Meta.Postman.Resources.Collection;
 using EastFive.Api.Resources;
 using EastFive.Linq;
+using EastFive.Web.Configuration;
 
 
 namespace EastFive.Api.Meta.Flows
@@ -262,16 +263,25 @@ namespace EastFive.Api.Meta.Flows
         public string Scope { get; set; }
 
         public string Key0 { get; set; }
+        public string AppSettingKey0 { get; set; }
         public string Value0 { get; set; }
+        public string AppSettingValue0 { get; set; }
 
         public string Key1 { get; set; }
+        public string AppSettingKey1 { get; set; }
         public string Value1 { get; set; }
+        public string AppSettingValue1 { get; set; }
 
         public string Key2 { get; set; }
+        public string AppSettingKey2 { get; set; }
         public string Value2 { get; set; }
+        public string AppSettingValue2 { get; set; }
 
         public string Key3 { get; set; }
+        public string AppSettingKey3 { get; set; }
         public string Value3 { get; set; }
+        public string AppSettingValue3 { get; set; }
+
 
         public void AddProperties(JsonWriter requestObj, ParameterInfo parameter)
         {
@@ -281,27 +291,59 @@ namespace EastFive.Api.Meta.Flows
                 parameter.Name;
             requestObj.WritePropertyName(propertyName);
             requestObj.WriteStartObject();
-            if (Key0.HasBlackSpace())
-            {
-                requestObj.WritePropertyName(Key0);
-                requestObj.WriteValue(Value0);
-            }
-            if (Key1.HasBlackSpace())
-            {
-                requestObj.WritePropertyName(Key1);
-                requestObj.WriteValue(Value1);
-            }
-            if (Key2.HasBlackSpace())
-            {
-                requestObj.WritePropertyName(Key2);
-                requestObj.WriteValue(Value2);
-            }
-            if (Key3.HasBlackSpace())
-            {
-                requestObj.WritePropertyName(Key3);
-                requestObj.WriteValue(Value3);
-            }
+
+            WriteProperty(Key0, AppSettingKey0, Value0, AppSettingValue0);
+            WriteProperty(Key1, AppSettingKey1, Value1, AppSettingValue1);
+            WriteProperty(Key2, AppSettingKey2, Value2, AppSettingValue2);
+            WriteProperty(Key3, AppSettingKey3, Value3, AppSettingValue3);
+
             requestObj.WriteEndObject();
+
+            void WriteProperty(string key, string appSettingKey, string value, string appSettingValue)
+            {
+                if (key.HasBlackSpace())
+                {
+                    requestObj.WritePropertyName(key);
+                    WriteValue();
+                    return;
+                }
+
+                if (appSettingKey.HasBlackSpace())
+                {
+                    _ = appSettingKey.ConfigurationString(
+                        appSettingExtractedKey =>
+                        {
+                            requestObj.WritePropertyName(appSettingExtractedKey);
+                            WriteValue();
+                            return true;
+                        },
+                        (why) =>
+                        {
+                            return false;
+                        });
+                }
+                
+                void WriteValue()
+                {
+                    if (appSettingValue.HasBlackSpace())
+                    {
+                        var didExtract = appSettingValue.ConfigurationString(
+                            appSettingExtractedValue =>
+                            {
+                                requestObj.WriteValue(appSettingExtractedValue);
+                                return true;
+                            },
+                            (why) =>
+                            {
+                                requestObj.WriteNull();
+                                return false;
+                            });
+                        return;
+                    }
+                    
+                    requestObj.WriteValue(value);
+                }
+            }
         }
     }
 }

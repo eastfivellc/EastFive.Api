@@ -531,7 +531,7 @@ namespace EastFive.Api
                     var claims = claimsEnumerable.ToArray();
                     var accountIdClaimType = EastFive.Api.AppSettings.ActorIdClaimType.ConfigurationString(
                         configValue => configValue,
-                        onUnspecified:(why) => "http://schemas.xmlsoap.org/ws/2009/09/identity/claims/actor");
+                        onUnspecified:(why) => EastFive.Api.Auth.ClaimValues.DefaultAccountClaim);
                     var result = claims.GetAccountIdAsync(
                         request, accountIdClaimType,
                         (accountId) => success(accountId, claims));

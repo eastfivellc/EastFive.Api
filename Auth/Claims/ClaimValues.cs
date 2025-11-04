@@ -4,7 +4,7 @@ namespace EastFive.Api.Auth
     public static class ClaimValues
     {
         public const string RoleType = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role?id=";
-        public const string AccountType = "http://schemas.xmlsoap.org/ws/2009/09/identity/claims/actor";
+        public const string DefaultAccountClaim = "sub";
 
         public static class Roles
         {
