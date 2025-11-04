@@ -254,6 +254,30 @@ namespace EastFive.Api.Bindings
                 return onDidNotBind($"Cannot convert `{content.Type}` to  {typeof(int).FullName}");
             }
 
+            if (type == typeof(long))
+            {
+                if (content.Type == JTokenType.Float)
+                {
+                    var floatValue = content.Value<double>();
+                    var longValue = (long)floatValue;
+                    return onParsed(longValue);
+                }
+                if (content.Type == JTokenType.Integer)
+                {
+                    var longValue = content.Value<long>();
+                    return onParsed(longValue);
+                }
+                if (content.Type == JTokenType.String)
+                {
+                    var stringValue = content.Value<string>();
+                    return StandardStringBindingsAttribute.BindDirect(type, stringValue,
+                        onParsed,
+                        onDidNotBind,
+                        onBindingFailure);
+                }
+                return onDidNotBind($"Cannot convert `{content.Type}` to  {typeof(long).FullName}");
+            }
+
             if (type == typeof(double))
             {
                 if (content.Type == JTokenType.Float)
