@@ -487,7 +487,8 @@ namespace EastFive.Api.Serialization
                 if (typeof(Uri).IsAssignableFrom(type))
                 {
                     var uriValue = (Uri)memberValue;
-                    await writer.WriteValueAsync(uriValue.ToString());
+                    var writeableValue = uriValue.AbsoluteUri;
+                    await writer.WriteValueAsync(writeableValue);
                     return;
                 }
                 bool written = await type.IsNullable(
