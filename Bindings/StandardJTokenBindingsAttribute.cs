@@ -107,6 +107,11 @@ namespace EastFive.Api.Bindings
             Func<string, TResult> onDidNotBind,
             Func<string, TResult> onBindingFailure)
         {
+            if (type == typeof(object))
+            {
+                var objectValue = ReadObject(content);
+                return onParsed(objectValue);
+            }
             if (type.IsAssignableFrom(typeof(Guid)))
             {
                 if (content.Type == JTokenType.Guid)
@@ -121,14 +126,6 @@ namespace EastFive.Api.Bindings
                         return onParsed(guidValue);
                     return onBindingFailure($"Cannot convert `{stringValue}` to Guid.");
                 }
-                var webId = ReadObject<WebId>(content);
-                if (webId.IsDefaultOrNull())
-                    return onBindingFailure("Null value for GUID.");
-                var guidValueMaybe = webId.ToGuid();
-                if (!guidValueMaybe.HasValue)
-                    return onBindingFailure("Null WebId cannot be converted to a Guid.");
-                var webIdGuidValue = guidValueMaybe.Value;
-                return onParsed(webIdGuidValue);
             }
 
             if (type.IsSubClassOfGeneric(typeof(IRef<>)))
@@ -662,6 +659,15 @@ namespace EastFive.Api.Bindings
                 var jsonText = jObj.ToString();
                 var value = JsonConvert.DeserializeObject<T>(jsonText);
                 return value;
+            }
+            if (valueToken is JValue)
+            {
+                var jValue = valueToken as Newtonsoft.Json.Linq.JValue;
+                var typeOfT = typeof(T).FullName;
+                if (jValue.Type != JTokenType.Null)
+                    if(!(jValue.Value is null))
+                        if (typeof(T).IsAssignableFrom(jValue.Value.GetType()))
+                            return (T)jValue.Value;
             }
             return valueToken.Value<T>();
         }

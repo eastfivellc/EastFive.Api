@@ -424,6 +424,8 @@ namespace EastFive.Api.Serialization
                     return true;
                 if (typeof(TimeSpan).IsAssignableFrom(type))
                     return true;
+                if (typeof(Uri).IsAssignableFrom(type))
+                    return true;
                 return type.IsNullable(
                     baseType => CanConvert(baseType),
                     () => false);
@@ -480,6 +482,12 @@ namespace EastFive.Api.Serialization
                     var tsValue = (TimeSpan)memberValue;
                     var writeableValue = tsValue.ToString();
                     await writer.WriteValueAsync(writeableValue);
+                    return;
+                }
+                if (typeof(Uri).IsAssignableFrom(type))
+                {
+                    var uriValue = (Uri)memberValue;
+                    await writer.WriteValueAsync(uriValue.ToString());
                     return;
                 }
                 bool written = await type.IsNullable(
