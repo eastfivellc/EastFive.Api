@@ -146,11 +146,24 @@ namespace EastFive.Api
                 if (!contentJObject.TryGetValue(key, out JToken valueToken))
                     return ($"Key[{key}] was not found in JSON", false);
 
+                var parameterValueType = parameterType.IsSubClassOfGeneric(typeof(Property<>))
+                    ? parameterType.GetGenericArguments().First()
+                    : parameterType;
+
                 try
                 {
                     //var tokenParser = new Serialization.JsonTokenParser(valueToken);
-                    return httpApp.Bind(valueToken, parameterType,
-                        obj => (obj, true),
+                    return httpApp.Bind(
+                            valueToken, parameterValueType,
+                        obj =>
+                        {
+                            if(parameterValueType != parameterType)
+                            {
+                                var propertyInstance = Activator.CreateInstance(parameterType, obj);
+                                return (propertyInstance, true);
+                            }
+                            return (obj, true);
+                        },
                         (why) =>
                         {
                             // TODO: Get BindConvert to StandardJTokenBindingAttribute
