@@ -10,8 +10,11 @@ namespace EastFive.Api.Auth
         {
             public const string SuperAdmin = "superadmin";
 
-            public const string PIIAdmin = RoleType + "b253931513424afb83d5bff92498548b";
-            public const string SecurityReader = RoleType + "d8208df8d53341b9b647a802a91f56b6";
+            public const string PIIAdminRoldId = "b253931513424afb83d5bff92498548b";
+            public const string PIIAdminRole = RoleType + PIIAdminRoldId;
+            
+            public const string SecurityReaderRoleId = "d8208df8d53341b9b647a802a91f56b6";
+            public const string SecurityReaderRole = RoleType + SecurityReaderRoleId;
         }
     }
 }

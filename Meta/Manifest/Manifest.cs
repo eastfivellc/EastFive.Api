@@ -44,7 +44,7 @@ namespace EastFive.Api.Resources
 
         [RequiredClaim(
             System.Security.Claims.ClaimTypes.Role,
-            ClaimValues.Roles.SecurityReader)]
+            ClaimValues.Roles.SecurityReaderRoleId)]
         [HttpAction("Security")]
         public static IHttpResponse GetAttributes(
                 [OptionalQueryParameter(Name = "untrusted_only")] bool? untrustedOnly,
