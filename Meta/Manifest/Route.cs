@@ -30,7 +30,7 @@ namespace EastFive.Api.Resources
 
         [RequiredClaim(
             System.Security.Claims.ClaimTypes.Role,
-            "superadmin")]
+            ClaimValues.Roles.SuperAdmin)]
         [EastFive.Api.HttpGet]
         public static IHttpResponse FindAsync(
                 IApplication app,

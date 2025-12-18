@@ -1,15 +1,13 @@
-﻿using EastFive.Api.Meta.OpenApi;
+﻿using EastFive.Api.Auth;
+using EastFive.Api.Meta.OpenApi;
 using EastFive.Extensions;
 using EastFive.Linq;
-using EastFive.Reflection;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EastFive.Api.Resources
 {
@@ -44,12 +42,63 @@ namespace EastFive.Api.Resources
 
         public Route[] Routes { get; set; }
 
-        [EastFive.Api.HttpGet]
+        [RequiredClaim(
+            System.Security.Claims.ClaimTypes.Role,
+            ClaimValues.Roles.SecurityReader)]
+        [HttpAction("Security")]
+        public static IHttpResponse GetAttributes(
+                [OptionalQueryParameter(Name = "untrusted_only")] bool? untrustedOnly,
+                HttpApplication application, 
+                IHttpRequest request, 
+                IProvideUrl url,
+            JsonStringResponse onJson)
+        {
+            var lookups = application.GetResources();
+            var manifest = new EastFive.Api.Resources.Manifest(lookups, application);
+            var result = manifest.Routes
+                .SelectMany(route => route.Methods.NullToEmpty())
+                .OrderBy(method => method.Path.ToString())
+                .Select(method =>
+                {
+                    var hasSecAttribute = method.MethodPoco
+                        .GetCustomAttributes()
+                        .Any(attr => application.IsSecurityAttribute(attr));
+                    var hasSecParameter = method.MethodPoco
+                        .GetParameters()
+                        .Any(
+                            (param) => 
+                            {
+                                // [Resource] makes any attribute behave CRUD-like so it skips over any security check
+                                var isResource = param.GetCustomAttributes()
+                                    .Any(attr => attr is ResourceAttribute);
+                                
+                                return !isResource && application.IsSecurityParameter(param);
+                            });
+                    var needsFurtherEvaluation = !hasSecAttribute && !hasSecParameter;
+                    if ((untrustedOnly ?? false) && !needsFurtherEvaluation)
+                        return null;
+
+                    return new
+                    {
+                        verb = method.HttpMethod,
+                        endpoint = method.Path.ToString(),
+                        method = method.MethodPoco.DeclaringType.Namespace + "." + method.Route.Name + "." + method.Name,
+                        secAttribute = hasSecAttribute ? 1 : 0,
+                        secParameter = hasSecParameter ? 1 : 0,
+                    };
+                })
+                .Where(obj => obj != null);
+            return onJson(JsonConvert.SerializeObject(result, Formatting.Indented));
+        }
+
+        [RequiredClaim(
+            System.Security.Claims.ClaimTypes.Role,
+            ClaimValues.Roles.SuperAdmin)]
+        [HttpGet]
         public static IHttpResponse FindAsync(
-                //Security security,
                 HttpApplication application, IHttpRequest request, IProvideUrl url,
             ContentTypeResponse<WebIdManifest> onFound,
-            ContentTypeResponse<Api.Resources.Manifest> onContent,
+            JsonStringResponse onJson,
             ViewFileResponse<Api.Resources.Manifest> onHtml)
         {
             if (request.GetAcceptTypes().Where(accept => accept.MediaType.ToLower().Contains("html")).Any())
@@ -81,15 +130,6 @@ namespace EastFive.Api.Resources
             var lookups = httpApp.GetResources();
             var manifest = new EastFive.Api.Resources.Manifest(lookups, httpApp);
             return onHtml("Manifest/Manifest.cshtml", manifest);
-        }
-
-        public static IHttpResponse ManifestContent(
-                HttpApplication httpApp, System.Net.Http.HttpRequestMessage request, IProvideUrl url,
-            ContentTypeResponse<Api.Resources.Manifest> onContent)
-        {
-            var lookups = httpApp.GetResources();
-            var manifest = new EastFive.Api.Resources.Manifest(lookups, httpApp);
-            return onContent(manifest);
         }
 
         public static string GetRouteHtml(string route, KeyValuePair<System.Net.Http.HttpMethod, MethodInfo[]>[] methods)

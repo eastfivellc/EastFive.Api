@@ -1,13 +1,8 @@
-﻿using EastFive.Api.Core;
-using EastFive.Extensions;
+﻿using EastFive.Extensions;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Reflection;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace EastFive.Api.Controllers
@@ -20,6 +15,9 @@ namespace EastFive.Api.Controllers
 
     public class ApiSecurityAttribute : Attribute, IInstigatable, IBindApiParameter<string>
     {
+        public const string accessKey = "accessKey";
+        public const string apiKeySecurity = "ApiKeySecurity";
+
         public TResult Bind<TResult>(ParameterInfo parameter, string content,
                 IApplication application,
             Func<object, TResult> onParsed,
@@ -41,10 +39,10 @@ namespace EastFive.Api.Controllers
                 (authorizedApiKey) =>
                 {
                     var queryParams = request.GetAbsoluteUri().ParseQueryString();
-                    if (queryParams["ApiKeySecurity"] == authorizedApiKey)
+                    if (queryParams[apiKeySecurity] == authorizedApiKey)
                         return onSuccess(new Controllers.ApiSecurity
                         { 
-                            key = queryParams["ApiKeySecurity"],
+                            key = queryParams[apiKeySecurity],
                         });
 
                     var authorization = request.GetAuthorization();

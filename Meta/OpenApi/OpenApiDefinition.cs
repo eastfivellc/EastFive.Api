@@ -3,13 +3,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-
-using EastFive;
 using EastFive.Extensions;
 using EastFive.Linq;
-using EastFive.Collections;
-using EastFive.Collections.Generic;
 using System.IO;
+using EastFive.Api.Auth;
 
 namespace EastFive.Api.Meta.OpenApi
 {
@@ -40,9 +37,11 @@ namespace EastFive.Api.Meta.OpenApi
         #endregion
 
         [EastFive.Api.HttpGet]
+        [RequiredClaim(
+            System.Security.Claims.ClaimTypes.Role,
+            ClaimValues.Roles.SuperAdmin)]
         public static IHttpResponse GetSchema(
                 [OptionalQueryParameter]string collections,
-                //Security security,
                 IInvokeApplication invokeApplication,
                 HttpApplication httpApp, IHttpRequest request, IProvideUrl url,
             TextResponse onSuccess)

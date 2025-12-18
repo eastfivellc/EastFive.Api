@@ -2,14 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-
-using EastFive;
 using EastFive.Extensions;
 using EastFive.Linq;
-using EastFive.Collections;
-using EastFive.Collections.Generic;
-using System.IO;
 using EastFive.Api.Meta.Flows;
 
 namespace EastFive.Api.Meta.Postman
@@ -17,7 +11,6 @@ namespace EastFive.Api.Meta.Postman
     [FunctionViewController(
         Route = "PostmanCollection",
         Namespace = "meta")]
-    //[OpenApiRoute(Collection = "EastFive.Api.Meta")]
     public class PostmanCollection : IReferenceable
     {
         #region Properties
@@ -35,11 +28,11 @@ namespace EastFive.Api.Meta.Postman
         #endregion
 
         [EastFive.Api.HttpOptions]
+        [Unsecured("Allow all origins to access Postman collections")]
         public static IHttpResponse ListFlows(
                 [OptionalQueryParameter] string flow,
                 [OptionalQueryParameter] string collections,
                 [OptionalQueryParameter] bool? preferJson,
-                //Security security,
                 HttpApplication httpApp,
             ContentTypeResponse<string[]> onSuccess)
         {
@@ -63,10 +56,10 @@ namespace EastFive.Api.Meta.Postman
         }
 
         [EastFive.Api.HttpGet]
+        [Unsecured("Get Postman collection version information")]
         public static IHttpResponse GetVersion(
                 [QueryParameter] string flow,
                 [QueryParameter] string version,
-                //Security security,
                 IProvideUrl urlHelper,
                 HttpApplication httpApp,
             HtmlResponse onSuccess,
@@ -122,11 +115,11 @@ namespace EastFive.Api.Meta.Postman
         }
 
         [EastFive.Api.HttpGet]
+        [Unsecured("Provides Postman collection for specified flow")]
         public static IHttpResponse GetSchema(
                 [QueryParameter] string flow,
                 [OptionalQueryParameter]string collections,
                 [OptionalQueryParameter]bool? preferJson,
-                //Security security,
                 IProvideUrl urlHelper,
                 IInvokeApplication invokeApplication,
                 HttpApplication httpApp, IHttpRequest request, IProvideUrl url,
@@ -240,6 +233,4 @@ namespace EastFive.Api.Meta.Postman
                     () => onNotFound());
         }
     }
-
-
 }

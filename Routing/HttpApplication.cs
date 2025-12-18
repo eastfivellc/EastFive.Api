@@ -4,20 +4,12 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
-using System.Web;
-using System.IO;
 using System.Threading;
-using System.Web.Http;
-using System.Xml;
 using System.Diagnostics;
-
-using Newtonsoft.Json.Linq;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Mvc.Razor;
 
@@ -26,9 +18,10 @@ using EastFive.Collections.Generic;
 using EastFive.Extensions;
 using EastFive.Web;
 using EastFive.Linq.Async;
-using EastFive.Api.Serialization;
 using EastFive.Analytics;
 using EastFive.Api.Core;
+using EastFive.Api.Auth;
+using EastFive.Api.Controllers;
 
 namespace EastFive.Api
 {
@@ -57,7 +50,7 @@ namespace EastFive.Api
     [ApiResources(NameSpacePrefixes = "EastFive.Api,EastFive.Web")]
     [Auth.ClaimEnableSession]
     [Auth.ClaimEnableActor]
-    public class HttpApplication : IApiApplication, IDisposable
+    public class HttpApplication : IApiApplication, IDescribeIsSecure, IDisposable
     {
         public virtual string Namespace
         {
@@ -567,7 +560,7 @@ namespace EastFive.Api
                             (authorizedApiKey) =>
                             {
                                 var queryParams = routeData.GetAbsoluteUri().ParseQueryString();
-                                if (queryParams["ApiKeySecurity"] == authorizedApiKey)
+                                if (queryParams[ApiSecurityAttribute.apiKeySecurity] == authorizedApiKey)
                                     return success(new Controllers.ApiSecurity());
 
                                 var authorization = routeData.GetAuthorization();
@@ -869,5 +862,28 @@ namespace EastFive.Api
         }
 
         #endregion
+
+        public virtual bool IsSecurityAttribute(Attribute attr)
+        {
+            bool isAccessKey()
+            {
+                var qry = attr as QueryValidationAttribute;
+                if (qry != null && qry.Name == ApiSecurityAttribute.accessKey)
+                    return true;
+
+                return false;
+            }
+
+            return attr is RequiredClaimAttribute ||
+                attr is SecurityRoleRequiredAttribute ||
+                attr is UnsecuredAttribute ||
+                isAccessKey();
+        }
+
+        public virtual bool IsSecurityParameter(System.Reflection.ParameterInfo parameter)
+        {
+            return parameter.GetCustomAttributes()
+                .Any(attr => IsSecurityAttribute(attr));
+        }
     }
 }
