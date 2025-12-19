@@ -48,6 +48,7 @@ namespace EastFive.Api.Resources
         [HttpAction("Security")]
         public static IHttpResponse GetAttributes(
                 [OptionalQueryParameter(Name = "untrusted_only")] bool? untrustedOnly,
+                [OptionalQueryParameter(Name = "summary_only")] bool? summaryOnly,
                 HttpApplication application, 
                 IHttpRequest request, 
                 IProvideUrl url,
@@ -60,8 +61,9 @@ namespace EastFive.Api.Resources
                 .OrderBy(method => method.Path.ToString())
                 .Select(method =>
                 {
-                    var hasSecAttribute = method.MethodPoco
-                        .GetCustomAttributes()
+                    var methodAttr = method.MethodPoco
+                        .GetCustomAttributes();
+                    var hasSecAttribute = methodAttr
                         .Any(attr => application.IsSecurityAttribute(attr));
                     var hasSecParameter = method.MethodPoco
                         .GetParameters()
@@ -74,6 +76,8 @@ namespace EastFive.Api.Resources
                                 
                                 return !isResource && application.IsSecurityParameter(param);
                             });
+                    var isUnsecured = methodAttr
+                        .Any(attr => attr is UnsecuredAttribute);
                     var needsFurtherEvaluation = !hasSecAttribute && !hasSecParameter;
                     if ((untrustedOnly ?? false) && !needsFurtherEvaluation)
                         return null;
@@ -83,11 +87,29 @@ namespace EastFive.Api.Resources
                         verb = method.HttpMethod,
                         endpoint = method.Path.ToString(),
                         method = method.MethodPoco.DeclaringType.Namespace + "." + method.Route.Name + "." + method.Name,
-                        secAttribute = hasSecAttribute ? 1 : 0,
+                        secAttribute = hasSecAttribute ? 1 : 0, // more csv friendly than boolean
                         secParameter = hasSecParameter ? 1 : 0,
+                        isUnsecured = isUnsecured ? 1 : 0,
                     };
                 })
                 .Where(obj => obj != null);
+            if (summaryOnly ?? false)
+            {
+                var summary = new
+                {
+                    number_of_endpoints = result.Count(),
+                    untrusted_endpoints = result.Where(r => r.secAttribute == 0 && r.secParameter == 0).Count(),
+                    open_flow_endpoints = result.Where(r => r.isUnsecured == 1).Count(),
+                    verb_summary = result
+                        .GroupBy(r => r.verb.ToUpper())
+                        .Select(g => new
+                        {
+                            verb = g.Key,
+                            count = g.Count(),
+                        }),
+                };
+                return onJson(JsonConvert.SerializeObject(summary, Formatting.Indented));
+            }
             return onJson(JsonConvert.SerializeObject(result, Formatting.Indented));
         }
 
