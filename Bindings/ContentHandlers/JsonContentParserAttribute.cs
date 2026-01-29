@@ -48,29 +48,30 @@ namespace EastFive.Api
             var bindConvert = new BindConvert(request, httpApp as HttpApplication);
             try
             {
-                var contentJObject = Newtonsoft.Json.Linq.JObject.Parse(contentString);
-                CastDelegate parser =
-                    (paramInfo, onParsed, onFailure) =>
-                    {
-                        if (!paramInfo.TryGetAttributeInterface<IBindJsonApiValue>(out var jsonApiBinder))
-                            return onFailure($"Parameter `{paramInfo.Name}` does not have attribute that implements {nameof(IBindJsonApiValue)}.");
+                var isObjectOrArray = IsObjectOrArray(contentString);
+                if(isObjectOrArray == true)
+                {
+                    var contentJObject = Newtonsoft.Json.Linq.JObject.Parse(contentString);
+                    CastDelegate parser =
+                        (paramInfo, onParsed, onFailure) =>
+                        {
+                            if (!paramInfo.TryGetAttributeInterface<IBindJsonApiValue>(out var jsonApiBinder))
+                                return onFailure($"Parameter `{paramInfo.Name}` does not have attribute that implements {nameof(IBindJsonApiValue)}.");
 
-                        return jsonApiBinder
-                            .ParseContentDelegate(contentJObject,
-                                    contentString, bindConvert,
-                                    paramInfo, httpApp, request,
-                                onParsed,
-                                onFailure);
-                    };
-                var keys = contentJObject
-                        .Properties()
-                        .Select(jProperty => jProperty.Name)
-                        .ToArray();
-                return await onParsedContentValues(parser, keys);
-            }
-            catch (Newtonsoft.Json.JsonReaderException)
-            {
-                try
+                            return jsonApiBinder
+                                .ParseContentDelegate(contentJObject,
+                                        contentString, bindConvert,
+                                        paramInfo, httpApp, request,
+                                    onParsed,
+                                    onFailure);
+                        };
+                    var keys = contentJObject
+                            .Properties()
+                            .Select(jProperty => jProperty.Name)
+                            .ToArray();
+                    return await onParsedContentValues(parser, keys);
+                }
+                if(isObjectOrArray == false)
                 {
                     var contentJArray = Newtonsoft.Json.Linq.JArray.Parse(contentString);
                     CastDelegate parser =
@@ -87,14 +88,27 @@ namespace EastFive.Api
                     var keys = new string[] { };
                     return await onParsedContentValues(parser, keys);
                 }
-                catch (Exception ex)
-                {
-                    return await BodyMissing(ex.Message);
-                }
+                return await BodyMissing("Body content could not be parsed as JSON object or array.");
+            }
+            catch (Newtonsoft.Json.JsonReaderException ex)
+            {
+                return await BodyMissing(ex.Message);
             }
             catch (Exception ex)
             {
                 return await BodyMissing(ex.Message);
+            }
+
+            bool? IsObjectOrArray(string content)
+            {
+                foreach (var ch in content)
+                {
+                    if (ch == '{')
+                        return true;
+                    if (ch == '[')
+                        return false;
+                }
+                return default;
             }
 
             Task<IHttpResponse> BodyMissing(string failureMessage)
