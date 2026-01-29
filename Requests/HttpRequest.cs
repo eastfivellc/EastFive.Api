@@ -25,6 +25,7 @@ namespace EastFive.Api
             this.RequestUri = absoluteUri;
             this.CancellationToken = cancellationToken;
             this.Headers = new Dictionary<string, string[]>();
+            this.Properties = new Dictionary<string, object>();
         }
 
         public Uri RequestUri { get; set; }
@@ -107,7 +108,7 @@ namespace EastFive.Api
 
         public IRazorViewEngine RazorViewEngine => throw new NotImplementedException();
 
-        IDictionary<string, object> IHttpRequest.Properties { get; }
+        public IDictionary<string, object> Properties { get; private set;}
 
         public string GetHeader(string headerKey)
         {
