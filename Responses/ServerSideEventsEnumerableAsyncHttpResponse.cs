@@ -76,6 +76,8 @@ namespace EastFive.Api
                         {
                             var contentJsonString = JsonConvert.SerializeObject(obj, settings);
                             await streamWriter.WriteAsync(contentJsonString);
+                            await streamWriter.WriteAsync("\n\n");
+                            await streamWriter.FlushAsync();
                             continue;
                         }
 
