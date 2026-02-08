@@ -382,6 +382,17 @@ namespace EastFive.Api
             
         }
 
+        public static TResult GetUnverifiedClaims<TResult>(this IHttpRequest request,
+            Func<IEnumerable<Claim>, TResult> success,
+            Func<TResult> authorizationNotSet,
+            Func<string, TResult> failure)
+        {
+            if(!request.TryGetAuthorization(out string jwtString))
+                return authorizationNotSet();
+
+            return jwtString.GetUnvalidatedClaimsJwtString(success, failure);
+        }
+
         public static Task<IHttpResponse> GetClaimsAsync(this IHttpRequest request,
             Func<System.Security.Claims.Claim[], Task<IHttpResponse>> success)
         {

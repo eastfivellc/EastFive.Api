@@ -43,9 +43,24 @@ namespace EastFive.Api
         {
             try
             {
+                if(!IsObjectNotArray(contentString))
+                    return onFailure("Content is not a valid JSON object or array.");
+                
                 var rootObject = Newtonsoft.Json.JsonConvert.DeserializeObject(
                     contentString, parameterInfo.ParameterType, bindConvert);
                 return onParsed(rootObject);
+
+                bool IsObjectNotArray(string content)
+                {
+                    foreach (var ch in content)
+                    {
+                        if (ch == '{')
+                            return true;
+                        if (ch == '[')
+                            return false;
+                    }
+                    return false;
+                }
             }
             catch (Exception ex)
             {
