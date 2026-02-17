@@ -267,7 +267,6 @@ namespace EastFive.Api
 
         [MutateIdQuery]
         public static IQueryable<TResource> ById<TResource>(this IQueryable<TResource> query, string resourceId)
-            where TResource : IReferenceable
         {
             if (!typeof(IProvideRequestExpression<TResource>).IsAssignableFrom(query.GetType()))
                 throw new ArgumentException($"query must be of type `{typeof(IProvideRequestExpression<TResource>).FullName}` not `{query.GetType().FullName}`", "query");
