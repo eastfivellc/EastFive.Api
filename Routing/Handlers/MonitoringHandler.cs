@@ -89,7 +89,7 @@ namespace EastFive.Api.Modules
 
         private string GetParamInfo(IHttpRequest request, string iden)
         {
-            var queryParams = request.RequestUri.ParseQueryString();
+            var queryParams = System.Web.HttpUtility.ParseQueryString(request.RequestUri.Query);
             var queryElements = queryParams.AllKeys.Select(qP => $"{qP}:{queryParams[qP]}");
 
             if (!iden.IsNullOrWhiteSpace())

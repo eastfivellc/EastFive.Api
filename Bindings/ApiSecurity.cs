@@ -38,7 +38,7 @@ namespace EastFive.Api.Controllers
             return EastFive.Web.Configuration.Settings.GetString(AppSettings.ApiKey,
                 (authorizedApiKey) =>
                 {
-                    var queryParams = request.GetAbsoluteUri().ParseQueryString();
+                    var queryParams = System.Web.HttpUtility.ParseQueryString(request.GetAbsoluteUri().Query);
                     if (queryParams[apiKeySecurity] == authorizedApiKey)
                         return onSuccess(new Controllers.ApiSecurity
                         { 

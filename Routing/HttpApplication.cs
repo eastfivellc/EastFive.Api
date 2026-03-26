@@ -559,7 +559,7 @@ namespace EastFive.Api
                         return EastFive.Web.Configuration.Settings.GetString(AppSettings.ApiKey,
                             (authorizedApiKey) =>
                             {
-                                var queryParams = routeData.GetAbsoluteUri().ParseQueryString();
+                                var queryParams = System.Web.HttpUtility.ParseQueryString(routeData.GetAbsoluteUri().Query);
                                 if (queryParams[ApiSecurityAttribute.apiKeySecurity] == authorizedApiKey)
                                     return success(new Controllers.ApiSecurity());
 
