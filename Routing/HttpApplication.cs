@@ -105,6 +105,13 @@ namespace EastFive.Api
         public void Configure(IApplicationBuilder app, IHostEnvironment env, IRazorViewEngine razorViewEngine)
         {
             this.HostEnvironment = env;
+            app.Use(async (context, next) =>
+            {
+                var bodyControl = context.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpBodyControlFeature>();
+                if (bodyControl != null)
+                    bodyControl.AllowSynchronousIO = true;
+                await next();
+            });
             app.UseFVCRouting(this, this.configuration, razorViewEngine);
             ConfigureCallback(app, env, razorViewEngine);
         }
