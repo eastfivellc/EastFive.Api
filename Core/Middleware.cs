@@ -152,64 +152,37 @@ namespace EastFive.Api.Core
             }
         }
 
-        public static Task<IHttpResponse> InvokeRequestAsync(IHttpRequest requestMessage,
+        public static async Task<IHttpResponse> InvokeRequestAsync(IHttpRequest requestMessage,
             IApplication application,
             Func<IHttpResponse> skip)
         {
-            var matchingResources = application.Resources
-                .NullToEmpty()
-                .Select(
-                    resource =>
-                    {
-                        var doesHandleRequest = resource.invokeResourceAttr.DoesHandleRequest(
-                            resource.type, requestMessage, 
-                            out double matchQuality, out string[] componentsMatched);
-                        return new
-                        {
-                            doesHandleRequest,
-                            resource,
-                            matchQuality,
-                            componentsMatched,
-                        };
-                    })
-                .Where(kvp => kvp.doesHandleRequest)
-                .OrderBy(tpl => tpl.matchQuality);
+            // Method-based routing — the middleware owns dispatch end-to-end.
+            //
+            //   1. Flat candidate list against the app-lifetime RouteTable
+            //      (path/verb match — no reflection, no regex compilation).
+            //   2. Pick the deserializer once, build the envelope once.
+            //   3. Per-candidate RouteEnvelope (envelope + that candidate's
+            //      regex captures) drives BindingRequirement fulfillment.
+            //   4. IHandleRoutes wraps the chosen method's bind+invoke step,
+            //      using the controller the chosen method actually belongs to.
+            //
+            // FunctionViewControllerAttribute is no longer in the dispatch loop;
+            // it just contributes route/namespace defaults via IInvokeResource.
+            var candidates = RouteTable.For(application).Match(requestMessage);
 
-            //var debug = matchingResources.ToArray();
+            if (candidates.Length == 0)
+                return skip();
 
-            return matchingResources
-                .First(
-                    async (requestHandler, next) =>
-                    {
-                        var resource = requestHandler.resource;
-                        var extensionMethods = requestHandler.resource.extensions;
+            var (envelope, deserializerError) = await FunctionViewControllerAttribute
+                .PickDeserializerAsync(application, requestMessage);
+            if (envelope == null)
+                return deserializerError;
 
-                        var response = await application.GetType()
-                            .GetAttributesInterface<IHandleRoutes>(true, true)
-                            .Aggregate<IHandleRoutes, RouteHandlingDelegate>(
-                                async (controllerTypeFinal, httpAppFinal, routeDataFinal) =>
-                                {
-                                    var invokeResource = controllerTypeFinal
-                                        .GetAttributesInterface<IInvokeResource>()
-                                        .First();
-                                    var response = await invokeResource
-                                        .CreateResponseAsync(controllerTypeFinal,
-                                            httpAppFinal, routeDataFinal,
-                                            requestHandler.componentsMatched);
-                                    return response;
-                                },
-                                (callback, routeHandler) =>
-                                {
-                                    return (controllerTypeCurrent, httpAppCurrent, routeNameCurrent) =>
-                                        routeHandler.HandleRouteAsync(controllerTypeCurrent, resource.invokeResourceAttr,
-                                            httpAppCurrent, routeNameCurrent,
-                                            callback);
-                                })
-                            .Invoke(resource.type, application, requestMessage);
+            var matches = FunctionViewControllerAttribute
+                .BuildMethodMatches(envelope, candidates);
 
-                        return response;
-                    },
-                    skip.AsAsyncFunc());
+            return await FunctionViewControllerAttribute
+                .DispatchSelectedAsync(application, requestMessage, matches);
         }
 
         ConcurrentQueue<IAsyncDisposable> asyncDisposables = new ConcurrentQueue<IAsyncDisposable>();

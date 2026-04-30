@@ -126,48 +126,228 @@ namespace EastFive.Api
                 .ToDictionary();
         }
 
-        public async virtual Task<IHttpResponse> CreateResponseAsync(Type controllerType,
+        public virtual async Task<IHttpResponse> CreateResponseAsync(Type controllerType,
             IApplication httpApp, IHttpRequest request, string[] componentsMatched)
         {
-            var matchingActionMethods = GetHttpMethods(controllerType,
-                httpApp, request, componentsMatched);
-            if (!matchingActionMethods.Any())
-                return request.CreateResponse(HttpStatusCode.NotImplemented);
+            // Back-compat single-controller façade: middleware drives the
+            // method-based pipeline directly now and never calls this. Kept
+            // because IInvokeResource still exposes the contract. Filters the
+            // shared RouteTable down to entries owned by controllerType so
+            // we honour the historical "this controller only" contract.
+            var candidates = RouteTable.For(httpApp).Match(request)
+                .Where(c => c.ControllerType == controllerType)
+                .ToArray();
+            if (candidates.Length == 0)
+            {
+                var requestVerb = request.Method?.Method ?? string.Empty;
+                var path = request.RequestUri?.AbsolutePath ?? string.Empty;
+                return request
+                    .CreateResponse(HttpStatusCode.NotFound)
+                    .AddReason($"No route template matched {requestVerb} {path}");
+            }
+            var (envelope, deserializerError) = await PickDeserializerAsync(httpApp, request);
+            if (envelope == null)
+                return deserializerError;
+            var matches = BuildMethodMatches(envelope, candidates);
+            return await DispatchSelectedAsync(httpApp, request, matches);
+        }
 
-            return await httpApp.GetType()
-                .GetAttributesInterface<IParseContent>(true, true)
-                .Where(contentParser => contentParser.DoesParse(request))
-                .First(
-                    (contentParser, next) =>
+        /// <summary>
+        /// Pass 1: pick the highest-priority <see cref="IDeserializeRequestEnvelope"/>
+        /// that <see cref="IDeserializeRequestEnvelope.CanClassify"/>s the request,
+        /// and build its envelope (Pass 2). Returns either an envelope or an
+        /// error response if no deserializer claimed the request.
+        /// </summary>
+        internal static async Task<(IRequestEnvelope envelope, IHttpResponse error)>
+            PickDeserializerAsync(IApplication httpApp, IHttpRequest request)
+        {
+            var classified = httpApp.GetType()
+                .GetAttributesInterface<IDeserializeRequestEnvelope>(true, true)
+                .Where(d => d.CanClassify(request))
+                .OrderByDescending(d => d.Priority)
+                .ToArray();
+
+            if (classified.Length == 0)
+            {
+                return (null, request
+                    .CreateResponse(HttpStatusCode.NotImplemented)
+                    .AddReason($"No IDeserializeRequestEnvelope claimed the request"));
+            }
+
+            var deserializer = classified[0];
+
+            if (classified.Length > 1
+                && Math.Abs(classified[1].Priority - deserializer.Priority) < double.Epsilon)
+            {
+                var requestVerb = request.Method?.Method ?? string.Empty;
+                var path = request.RequestUri?.AbsolutePath ?? string.Empty;
+                var tied = classified
+                    .TakeWhile(d => Math.Abs(d.Priority - deserializer.Priority) < double.Epsilon)
+                    .Select(d => d.GetType().Name)
+                    .Join(", ");
+                System.Diagnostics.Trace.TraceWarning(
+                    $"IDeserializeRequestEnvelope tie at priority {deserializer.Priority} for {requestVerb} {path}: {tied}; picking {deserializer.GetType().Name}");
+            }
+
+            var envelope = await deserializer.CreateEnvelopeAsync(request, httpApp);
+            return (envelope, null);
+        }
+
+        /// <summary>
+        /// Pass 3a: build a <see cref="V3MethodMatch"/> per route candidate by
+        /// asking each candidate's <see cref="RouteEnvelope"/> to fulfil the
+        /// method's binding requirements. The envelope is shared across
+        /// candidates (one per request); captures are per-candidate.
+        /// </summary>
+        internal static V3MethodMatch[] BuildMethodMatches(IRequestEnvelope envelope,
+            V3RouteCandidate[] routeMatches)
+        {
+            return routeMatches
+                .Select(rc =>
+                {
+                    var method = rc.Method.IsGenericMethod
+                        ? rc.Method.MakeGenericMethod(rc.ControllerType.AsArray())
+                        : rc.Method;
+                    var routeEnvelope = new RouteEnvelope(envelope, rc.Captures);
+                    var fulfillments = method
+                        .GetParameters()
+                        .TrySelectWith<ParameterInfo, IProvideBindingRequirement>(
+                            (ParameterInfo p, out IProvideBindingRequirement provider) =>
+                                p.TryGetAttributeInterface(out provider))
+                        .Select(t => t.Item2.GetRequirement(t.Item1))
+                        .Select(req => Fulfillment.From(req, routeEnvelope))
+                        .ToArray();
+                    return new V3MethodMatch(rc.ControllerType, rc.InvokeResource,
+                        method, fulfillments);
+                })
+                .ToArray();
+        }
+
+        /// <summary>
+        /// Final dispatch step: filter <paramref name="matches"/> to valid ones,
+        /// fail with 501 (none) / 500 (multiple), or wrap the single chosen
+        /// match in <see cref="IHandleRoutes"/> and bind+invoke.
+        /// </summary>
+        internal static Task<IHttpResponse> DispatchSelectedAsync(IApplication httpApp,
+            IHttpRequest request, V3MethodMatch[] matches)
+        {
+            return matches
+                .Where(m => m.IsValid)
+                .Single(
+                    onNone: () =>
                     {
-                        return contentParser.ParseContentValuesAsync(httpApp, request,
-                            (bodyCastDelegate, bodyValues) =>
-                                InvokeMethod(
-                                    controllerType, matchingActionMethods, componentsMatched,
-                                    httpApp, request,
-                                    bodyCastDelegate, bodyValues));
+                        var reasons = matches
+                            .Select(m => $"{m.Method.Name}: {m.ErrorMessage}")
+                            .Join("; ");
+                        return request
+                            .CreateResponse(HttpStatusCode.NotImplemented)
+                            .AddReason(reasons)
+                            .AsTask();
                     },
-                    () =>
+                    onSingle: chosen => InvokeChosenAsync(httpApp, request, chosen),
+                    onMultiple: validMatches =>
                     {
-                        if (!request.HasBody)
-                        {
-                            CastDelegate parserEmpty =
-                                (paramInfo, onParsed, onFailure) => onFailure(
-                                    $"Request did not contain any content.");
-                            return InvokeMethod(
-                                controllerType, matchingActionMethods, componentsMatched,
-                                httpApp, request,
-                                parserEmpty, new string[] { });
-                        }
-                        var mediaType = request.GetMediaType();
-                        CastDelegate parser =
-                            (paramInfo, onParsed, onFailure) => onFailure(
-                                $"Could not parse content of type {mediaType}");
-                        return InvokeMethod(
-                            controllerType, matchingActionMethods, componentsMatched,
-                            httpApp, request,
-                            parser, new string[] { });
+                        var names = validMatches
+                            .Select(m => $"{m.Method.DeclaringType.Name}.{m.Method.Name}")
+                            .Join(", ");
+                        return request
+                            .CreateResponse(HttpStatusCode.InternalServerError)
+                            .AddReason($"Ambiguous method match: {names}")
+                            .AsTask();
                     });
+        }
+
+        private static Task<IHttpResponse> InvokeChosenAsync(IApplication httpApp,
+            IHttpRequest request, V3MethodMatch chosen)
+        {
+            // IHandleRoutes wrapping happens here, around bind+invoke for the
+            // chosen method, using the controller it actually came from.
+            return httpApp.GetType()
+                .GetAttributesInterface<IHandleRoutes>(true, true)
+                .Aggregate<IHandleRoutes, RouteHandlingDelegate>(
+                    (controllerTypeFinal, httpAppFinal, requestFinal) =>
+                        BindAndInvokeAsync(httpAppFinal, requestFinal, chosen),
+                    (callback, routeHandler) =>
+                    {
+                        return (controllerTypeCurrent, httpAppCurrent, requestCurrent) =>
+                            routeHandler.HandleRouteAsync(controllerTypeCurrent, chosen.InvokeResource,
+                                httpAppCurrent, requestCurrent, callback);
+                    })
+                .Invoke(chosen.ControllerType, httpApp, request);
+        }
+
+        private static async Task<IHttpResponse> BindAndInvokeAsync(IApplication httpApp,
+            IHttpRequest request, V3MethodMatch chosen)
+        {
+            // ----- Pass 3b: bind ------------------------------------------
+            var bindings = new List<KeyValuePair<ParameterInfo, object>>(chosen.Fulfillments.Length);
+            foreach (var fulfillment in chosen.Fulfillments)
+            {
+                var requirement = fulfillment.Requirement;
+                IHttpResponse failure = null;
+                var ok = await fulfillment.ExtractAsync<bool>(httpApp, request,
+                    onParsed: v =>
+                    {
+                        bindings.Add(new KeyValuePair<ParameterInfo, object>(requirement.Parameter, v));
+                        return true;
+                    },
+                    onFailure: error =>
+                    {
+                        failure = request
+                            .CreateResponse(HttpStatusCode.BadRequest)
+                            .AddReason($"could not bind {requirement.Path}({requirement.Source}): {error}");
+                        return false;
+                    });
+                if (!ok)
+                    return failure;
+            }
+
+            return await InvokeValidatedMethodAsync(httpApp, request,
+                chosen.ControllerType, chosen.Method, bindings.ToArray());
+        }
+
+        internal readonly struct V3RouteCandidate
+        {
+            public V3RouteCandidate(Type controllerType, IInvokeResource invokeResource,
+                MethodInfo method, RouteTemplate template,
+                IReadOnlyDictionary<string, string> captures)
+            {
+                this.ControllerType = controllerType;
+                this.InvokeResource = invokeResource;
+                this.Method = method;
+                this.Template = template;
+                this.Captures = captures;
+            }
+
+            public Type ControllerType { get; }
+            public IInvokeResource InvokeResource { get; }
+            public MethodInfo Method { get; }
+            public RouteTemplate Template { get; }
+            public IReadOnlyDictionary<string, string> Captures { get; }
+        }
+
+        internal readonly struct V3MethodMatch
+        {
+            public V3MethodMatch(Type controllerType, IInvokeResource invokeResource,
+                MethodInfo method, Fulfillment[] fulfillments)
+            {
+                this.ControllerType = controllerType;
+                this.InvokeResource = invokeResource;
+                this.Method = method;
+                this.Fulfillments = fulfillments ?? Array.Empty<Fulfillment>();
+            }
+
+            public Type ControllerType { get; }
+            public IInvokeResource InvokeResource { get; }
+            public MethodInfo Method { get; }
+            public Fulfillment[] Fulfillments { get; }
+
+            public bool IsValid => this.Fulfillments.All(f => f.IsValid);
+
+            public string ErrorMessage
+                => string.Join(", ", this.Fulfillments
+                    .Where(f => !f.IsValid)
+                    .Select(f => $"{f.Requirement.Path}({f.Requirement.Source}):envelope could not fulfill"));
         }
 
         #region Invoke correct method
@@ -298,7 +478,7 @@ namespace EastFive.Api
             }
         }
 
-        protected static Task<IHttpResponse> InvokeValidatedMethodAsync(
+        internal static Task<IHttpResponse> InvokeValidatedMethodAsync(
             IApplication httpApp, IHttpRequest routeData,
             Type controllerType, MethodInfo method,
             KeyValuePair<ParameterInfo, object>[] queryParameters)

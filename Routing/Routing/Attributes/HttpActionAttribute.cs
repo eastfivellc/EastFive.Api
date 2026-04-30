@@ -78,6 +78,19 @@ namespace EastFive.Api
             return new Method(this.httpMethod, methodInfo, route, path, httpApp);
         }
 
+        // ---- IMatchRouteV3 ----------------------------------------------------
+        // [HttpAction] splices the action name into the path and surfaces its
+        // configured HTTP verb instead of the action label that base.Method
+        // returns.
+
+        protected override void AppendActionSegment(
+            System.Text.StringBuilder pattern, MethodInfo method)
+        {
+            pattern.Append('/').Append(System.Text.RegularExpressions.Regex.Escape(this.Action ?? string.Empty));
+        }
+
+        protected override string[] GetVerbs() => new[] { this.httpMethod };
+
         public Url GetUrl(Api.Resources.Method method, QueryItem[] queryItems)
         {
             return new Url()

@@ -15,18 +15,6 @@ namespace EastFive.Api.Resources
     [OpenApiRoute(Collection = "EastFive.Api.Meta")]
     public class Manifest
     {
-        [DataContract]
-        public class WebIdManifest
-        {
-
-            public const string IdPropertyName = "id";
-            [JsonProperty(PropertyName = IdPropertyName)]
-            [DataMember(Name = IdPropertyName)]
-            public EastFive.Api.Resources.WebId Id { get; set; }
-
-            [JsonProperty(PropertyName = "endpoints")]
-            public EastFive.Api.Resources.WebId[] Endpoints { get; set; }
-        }
 
         public Manifest(IEnumerable<Type> lookups,
             HttpApplication httpApp)
@@ -111,38 +99,6 @@ namespace EastFive.Api.Resources
                 return onJson(JsonConvert.SerializeObject(summary, Formatting.Indented));
             }
             return onJson(JsonConvert.SerializeObject(result, Formatting.Indented));
-        }
-
-        [RequiredClaim(
-            System.Security.Claims.ClaimTypes.Role,
-            ClaimValues.Roles.SuperAdmin)]
-        [HttpGet]
-        public static IHttpResponse FindAsync(
-                HttpApplication application, IHttpRequest request, IProvideUrl url,
-            ContentTypeResponse<WebIdManifest> onFound,
-            JsonStringResponse onJson,
-            ViewFileResponse<Api.Resources.Manifest> onHtml)
-        {
-            if (request.GetAcceptTypes().Where(accept => accept.MediaType.ToLower().Contains("html")).Any())
-                return HtmlContent(application, request, url, onHtml);
-
-            LocateControllers(application.GetType());
-            var endpoints = Manifest.lookup
-                .Select(
-                    type =>
-                    {
-                        var endpoint = url.GetWebId(type, "x-com.orderowl:ordering");
-                        return endpoint;
-                    })
-                .ToArray();
-
-            var manifest = new WebIdManifest()
-            {
-                Id = Guid.NewGuid(),
-                Endpoints = endpoints,
-            };
-
-            return onFound(manifest);
         }
 
         public static IHttpResponse HtmlContent(

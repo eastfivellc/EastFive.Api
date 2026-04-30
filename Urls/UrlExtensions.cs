@@ -129,52 +129,6 @@ namespace EastFive.Api
             
         }
 
-        public static WebId GetWebId<TController>(this IProvideUrl url,
-            Guid? idMaybe,
-            string routeName = "DefaultApi")
-        {
-            if (!idMaybe.HasValue)
-                return default(WebId);
-            return url.GetWebId<TController>(idMaybe.Value, routeName);
-        }
-
-        public static WebId GetWebId(this IProvideUrl url,
-            Type controllerType,
-            Guid? idMaybe,
-            string routeName = "DefaultApi")
-        {
-            if (!idMaybe.HasValue)
-                return default(WebId);
-            return url.GetWebId(controllerType, idMaybe.Value, routeName);
-        }
-
-
-        public static WebId GetWebId(this IProvideUrl url,
-            Type controllerType,
-            string urnNamespace,
-            string routeName = "DefaultApi")
-        {
-            var controllerName =
-                controllerType.Name.TrimEnd("Controller",
-                    (trimmedName) => trimmedName, (originalName) => originalName);
-            if (controllerType.ContainsCustomAttribute<FunctionViewControllerAttribute>())
-            {
-                var fvcAttr = controllerType.GetCustomAttribute<FunctionViewControllerAttribute>();
-                if (fvcAttr.Route.HasBlackSpace())
-                    controllerName = fvcAttr.Route;
-            }
-
-            var location = url.Link(routeName, controllerName);
-
-            return new WebId
-            {
-                Key = string.Empty,
-                UUID = Guid.Empty,
-                URN = controllerType.GetUrn(urnNamespace),
-                Source = location,
-            };
-        }
-
         public static Uri GetUrn(this Type controllerType,
             string urnNamespace)
         {

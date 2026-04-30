@@ -16,7 +16,7 @@ using System.Threading.Tasks;
 namespace EastFive.Api
 {
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Method)]
-    public abstract class HttpVerbAttribute : Attribute, IMatchRoute, IDocumentMethod
+    public abstract class HttpVerbAttribute : Attribute, IMatchRoute, IMatchRouteV3, IDocumentMethod
     {
         private bool matchAllParameters = true;
         public bool MatchAllParameters
@@ -377,6 +377,102 @@ namespace EastFive.Api
         {
             var path = new Uri($"/{route.Namespace}/{route.Name}", UriKind.Relative);
             return new Method(this.Method, methodInfo, route, path, httpApp);
+        }
+
+        // ---- IMatchRouteV3 ----------------------------------------------------
+        // Default route-template synthesis: path is the controller's
+        // namespace/route (route falls back to the controller's class name),
+        // optionally followed by an open-ended path segment when the method
+        // has a [QueryId] / [QueryParameter(CheckFileName=true)] parameter.
+        // [HttpAction] subclasses append the action name and may override.
+
+        public virtual RouteTemplate GetRouteTemplate(MethodInfo method, IInvokeResource controller)
+        {
+            var nsSegment = string.IsNullOrWhiteSpace(controller.Namespace) ? "api" : controller.Namespace;
+            var routeSegment = !string.IsNullOrWhiteSpace(controller.Route)
+                ? controller.Route
+                : method.DeclaringType?.Name;
+            if (string.IsNullOrWhiteSpace(routeSegment))
+                routeSegment = string.Empty;
+
+            var pattern = new System.Text.StringBuilder("^/?")
+                .Append(System.Text.RegularExpressions.Regex.Escape(nsSegment))
+                .Append('/')
+                .Append(System.Text.RegularExpressions.Regex.Escape(routeSegment));
+
+            AppendActionSegment(pattern, method);
+
+            if (TryGetFileNameCaptureKey(method, out var captureKey))
+                pattern.Append("(?:/(?<").Append(captureKey).Append(">.*))?");
+
+            pattern.Append("/?$");
+
+            var regex = new System.Text.RegularExpressions.Regex(pattern.ToString(),
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase
+                | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+            var verbs = GetVerbs();
+            return new RouteTemplate(verbs, regex);
+        }
+
+        /// <summary>
+        /// Hook for <see cref="HttpActionAttribute"/> to splice <c>/Action</c>
+        /// into the path. Default: no-op.
+        /// </summary>
+        protected virtual void AppendActionSegment(
+            System.Text.StringBuilder pattern, MethodInfo method)
+        {
+        }
+
+        /// <summary>
+        /// HTTP verbs (case-insensitive) this attribute accepts. Default
+        /// returns <see cref="Method"/>; <see cref="HttpActionAttribute"/>
+        /// overrides to surface its real HTTP verb.
+        /// </summary>
+        protected virtual string[] GetVerbs() => new[] { this.Method };
+
+        /// <summary>
+        /// Find the named-capture key for a trailing path segment. Returns
+        /// the lowercase parameter key from the first <c>[QueryId]</c> or
+        /// <c>[QueryParameter(CheckFileName=true)]</c> parameter.
+        /// </summary>
+        protected static bool TryGetFileNameCaptureKey(MethodInfo method, out string key)
+        {
+            foreach (var p in method.GetParameters())
+            {
+                foreach (var attr in p.GetCustomAttributes(true))
+                {
+                    if (attr is QueryIdAttribute qid)
+                    {
+                        key = SanitizeCaptureName(qid.GetKey(p));
+                        return !string.IsNullOrEmpty(key);
+                    }
+                    if (attr is QueryParameterAttribute qp && qp.CheckFileName)
+                    {
+                        key = SanitizeCaptureName(qp.GetKey(p));
+                        return !string.IsNullOrEmpty(key);
+                    }
+                }
+            }
+            key = null;
+            return false;
+        }
+
+        private static string SanitizeCaptureName(string raw)
+        {
+            if (string.IsNullOrEmpty(raw))
+                return null;
+            var buf = new System.Text.StringBuilder(raw.Length);
+            foreach (var c in raw)
+            {
+                if (char.IsLetterOrDigit(c) || c == '_')
+                    buf.Append(c);
+            }
+            if (buf.Length == 0)
+                return null;
+            if (char.IsDigit(buf[0]))
+                buf.Insert(0, '_');
+            return buf.ToString();
         }
     }
 }

@@ -9,6 +9,49 @@ namespace EastFive.Api
 {
     public class PropertyOptionalAttribute : PropertyAttribute
     {
+        public override BindingRequirement GetRequirement(ParameterInfo parameter)
+        {
+            return new BindingRequirement(
+                    path: this.GetKey(parameter),
+                    source: BindingSource.Body,
+                    parameter: parameter,
+                    isOptional: true,
+                    optionalDefault: GetOptionalDefault)
+                .AddConverter<Newtonsoft.Json.Linq.JContainer>((raw, param, app, req, onParsed, onFailure) =>
+                    this.ParseContentDelegate<BindResult>(raw, contentString: null, bindConvert: null,
+                        param, app, req, onParsed, onFailure))
+                .AddConverter<Microsoft.AspNetCore.Http.IFormCollection>((raw, param, app, req, onParsed, onFailure) =>
+                    this.ParseContentDelegate<BindResult>(raw, param, app, req, onParsed, onFailure));
+        }
+
+        private static object GetOptionalDefault(ParameterInfo parameter)
+        {
+            var parameterType = parameter.ParameterType;
+
+            if (parameterType.IsSubClassOfGeneric(typeof(IRefOptional<>)))
+            {
+                var refType = parameterType.GenericTypeArguments.First();
+                return RefOptionalHelper.CreateEmpty(refType);
+            }
+
+            if (parameterType.IsSubClassOfGeneric(typeof(IRefs<>)))
+            {
+                var refType = parameterType.GenericTypeArguments.First();
+                var parameterTypeGeneric = typeof(Refs<>).MakeGenericType(new Type[] { refType });
+                var refIds = new Guid[] { };
+                return Activator.CreateInstance(parameterTypeGeneric, new object[] { refIds });
+            }
+
+            if (parameterType.IsSubClassOfGeneric(typeof(IDictionary<,>)) &&
+                parameterType.GenericTypeArguments.AnyNullSafe())
+            {
+                var parameterTypeGeneric = typeof(Dictionary<,>).MakeGenericType(parameterType.GenericTypeArguments);
+                return Activator.CreateInstance(parameterTypeGeneric);
+            }
+
+            return parameterType.GetDefault();
+        }
+
         public override SelectParameterResult TryCast(BindingData bindingData)
         {
             var parameterRequiringValidation = bindingData.parameterRequiringValidation;

@@ -20,11 +20,32 @@ using EastFive.Api.Bindings;
 namespace EastFive.Api
 {
     public class ResourceAttribute : System.Attribute, 
-        IBindApiValue, IBindJsonApiValue, IBindMultipartApiValue, IBindFormDataApiValue, IBindTextApiValue
+        IBindApiValue, IBindJsonApiValue, IBindMultipartApiValue, IBindFormDataApiValue, IBindTextApiValue,
+        IProvideBindingRequirement
     {
         public string GetKey(ParameterInfo paramInfo)
         {
             return default;
+        }
+
+        public BindingRequirement GetRequirement(ParameterInfo parameter)
+        {
+            return new BindingRequirement(
+                    path: string.Empty,
+                    source: BindingSource.Body,
+                    parameter: parameter,
+                    isOptional: false)
+                .AddConverter<JContainer>((raw, param, httpApp, request, onParsed, onFailure) =>
+                {
+                    var contentString = raw?.ToString(Newtonsoft.Json.Formatting.None);
+                    var bindConvert = new BindConvert(request, httpApp as HttpApplication);
+                    return this.ParseContentDelegate<BindResult>(raw, contentString,
+                        bindConvert: bindConvert, param, httpApp, request, onParsed, onFailure);
+                })
+                .AddConverter<IFormCollection>((raw, param, app, req, onParsed, onFailure) =>
+                    this.ParseContentDelegate<BindResult>(raw, param, app, req, onParsed, onFailure))
+                .AddConverter<string>((raw, param, app, req, onParsed, onFailure) =>
+                    this.ParseContentDelegate<BindResult>(raw, param, app, req, onParsed, onFailure));
         }
 
         public SelectParameterResult TryCast(BindingData bindingData)

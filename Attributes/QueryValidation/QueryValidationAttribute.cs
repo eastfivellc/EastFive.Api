@@ -13,6 +13,7 @@ using Newtonsoft.Json.Linq;
 
 using EastFive;
 using EastFive.Extensions;
+using EastFive.Api.Bindings;
 using EastFive.Api.Core;
 using EastFive.Api.Resources;
 using EastFive.Api.Serialization;
@@ -85,7 +86,8 @@ namespace EastFive.Api
 
     }
 
-    public class QueryParameterAttribute : QueryValidationAttribute, IDocumentParameter, IBindQueryApiValue
+    public class QueryParameterAttribute : QueryValidationAttribute, IDocumentParameter, IBindQueryApiValue,
+        IProvideBindingRequirement
     {
         public bool CheckFileName { get; set; }
 
@@ -94,6 +96,19 @@ namespace EastFive.Api
             var parameterRequiringValidation = bindingData.parameterRequiringValidation;
             var key = this.GetKey(parameterRequiringValidation);
             return TryCast(bindingData, key, this.CheckFileName);
+        }
+
+        public virtual BindingRequirement GetRequirement(ParameterInfo parameter)
+        {
+            return new BindingRequirement(
+                    path: this.GetKey(parameter),
+                    source: this.CheckFileName
+                        ? (BindingSource.Query | BindingSource.Path)
+                        : BindingSource.Query,
+                    parameter: parameter,
+                    isOptional: false)
+                .AddConverter<string>((raw, param, app, req, onParsed, onFailure) =>
+                    app.Bind(raw, param, onParsed, onFailure));
         }
 
         public override string GetKey(ParameterInfo paramInfo)
@@ -159,6 +174,22 @@ namespace EastFive.Api
 
     public class OptionalQueryParameterAttribute : QueryParameterAttribute
     {
+        public override BindingRequirement GetRequirement(ParameterInfo parameter)
+        {
+            return new BindingRequirement(
+                    path: this.GetKey(parameter),
+                    source: this.CheckFileName
+                        ? (BindingSource.Query | BindingSource.Path)
+                        : BindingSource.Query,
+                    parameter: parameter,
+                    isOptional: true,
+                    optionalDefault: p => p.ParameterType.IsSubClassOfGeneric(typeof(IRefOptional<>))
+                        ? RefOptionalHelper.CreateEmpty(p.ParameterType.GenericTypeArguments.First())
+                        : p.ParameterType.GetDefault())
+                .AddConverter<string>((raw, param, app, req, onParsed, onFailure) =>
+                    app.Bind(raw, param, onParsed, onFailure));
+        }
+
         public override SelectParameterResult TryCast(BindingData bindingData)
         {
             var parameterRequiringValidation = bindingData.parameterRequiringValidation;
@@ -194,6 +225,17 @@ namespace EastFive.Api
 
     public class QueryIdAttribute : QueryParameterAttribute
     {
+        public override BindingRequirement GetRequirement(ParameterInfo parameter)
+        {
+            return new BindingRequirement(
+                    path: this.GetKey(parameter),
+                    source: BindingSource.Query | BindingSource.Path,
+                    parameter: parameter,
+                    isOptional: false)
+                .AddConverter<string>((raw, param, app, req, onParsed, onFailure) =>
+                    app.Bind(raw, param, onParsed, onFailure));
+        }
+
         public override string Name
         {
             get
@@ -220,7 +262,8 @@ namespace EastFive.Api
         }
     }
 
-    public class HashedFileAttribute : QueryValidationAttribute, IDocumentParameter
+    public class HashedFileAttribute : QueryValidationAttribute, IDocumentParameter,
+        IProvideBindingRequirement
     {
         public override SelectParameterResult TryCast(BindingData bindingData)
         {
@@ -240,6 +283,25 @@ namespace EastFive.Api
                          .FailureFile(why, key, parameterRequiringValidation));
         }
 
+        public BindingRequirement GetRequirement(ParameterInfo parameter)
+        {
+            return new BindingRequirement(
+                    path: this.GetKey(parameter),
+                    source: BindingSource.Request,
+                    parameter: parameter,
+                    isOptional: false)
+                .AddConverter<string>((raw, param, app, req, onParsed, onFailure) =>
+                    req.GetAbsoluteUri().VerifyParametersHash(
+                        onValid: (id, paramsHash) =>
+                        {
+                            var resourceType = param.ParameterType.GenericTypeArguments.First();
+                            var instantiatableType = typeof(CheckSumRef<>).MakeGenericType(resourceType);
+                            var instance = Activator.CreateInstance(instantiatableType, new object[] { id, paramsHash });
+                            return onParsed(instance);
+                        },
+                        onInvalid: why => onFailure(why)));
+        }
+
         public virtual Parameter GetParameter(ParameterInfo paramInfo, HttpApplication httpApp)
         {
             return new Parameter(paramInfo)
@@ -254,13 +316,34 @@ namespace EastFive.Api
         }
     }
 
-    public class AcceptsAttribute : Attribute, IBindApiValue
+    public class AcceptsAttribute : Attribute, IBindApiValue, IProvideBindingRequirement
     {
         public string Media { get; set; }
 
         public string GetKey(ParameterInfo paramInfo)
         {
             return "__accept-header__";
+        }
+
+        public BindingRequirement GetRequirement(ParameterInfo parameter)
+        {
+            var media = this.Media;
+            return new BindingRequirement(
+                    path: this.GetKey(parameter),
+                    source: BindingSource.Request,
+                    parameter: parameter,
+                    isOptional: false)
+                .AddConverter<string>((raw, param, app, req, onParsed, onFailure) =>
+                {
+                    if (param.ParameterType != typeof(MediaTypeWithQualityHeaderValue))
+                        return onFailure(
+                            $"No accept binding for type `{param.ParameterType.FullName}` (try MediaTypeWithQualityHeaderValue).");
+                    var match = req.GetAcceptTypes()
+                        .FirstOrDefault(accept =>
+                            accept.MediaType != null
+                            && accept.MediaType.ToLower().Contains(media ?? string.Empty));
+                    return onParsed(match);
+                });
         }
 
         public SelectParameterResult TryCast(BindingData bindingData)

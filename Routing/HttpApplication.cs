@@ -50,6 +50,13 @@ namespace EastFive.Api
     [ApiResources(NameSpacePrefixes = "EastFive.Api,EastFive.Web")]
     [Auth.ClaimEnableSession]
     [Auth.ClaimEnableActor]
+    // v3 request envelope deserializers — discovered via Attribute Interface
+    // pattern by FunctionViewControllerV3Attribute. See plan-fvc-v3.md.
+    [Routing.Envelopes.QueryOnlyRequestEnvelope]
+    [Routing.Envelopes.JsonRequestEnvelope]
+    [Routing.Envelopes.FormRequestEnvelope]
+    [Routing.Envelopes.MultipartRequestEnvelope]
+    [Routing.Envelopes.RawRequestEnvelope]
     public class HttpApplication : IApiApplication, IDescribeIsSecure, IDisposable
     {
         public virtual string Namespace
@@ -303,16 +310,6 @@ namespace EastFive.Api
             if (propertyType.IsAssignableFrom(valueType))
                 return onCasted(value);
 
-            if (propertyType.IsAssignableFrom(typeof(EastFive.Api.Resources.WebId)))
-            {
-                if (value is Guid)
-                {
-                    var guidValue = (Guid)value;
-                    var webIdValue = (EastFive.Api.Resources.WebId)guidValue;
-                    return onCasted(webIdValue);
-                }
-            }
-
             if (typeof(IReferenceable).IsAssignableFrom(propertyType))
             {
                 if (value is IReferenceable)
@@ -366,13 +363,6 @@ namespace EastFive.Api
                         return onCasted("null");
 
                     var stringValue = guidIdMaybeValue.Value.ToString();
-                    return onCasted(stringValue);
-                }
-                if (value is EastFive.Api.Resources.WebId)
-                {
-                    var webIdValue = value as EastFive.Api.Resources.WebId;
-                    var guidValue = webIdValue.ToGuid().Value;
-                    var stringValue = guidValue.ToString();
                     return onCasted(stringValue);
                 }
                 if (value is bool)

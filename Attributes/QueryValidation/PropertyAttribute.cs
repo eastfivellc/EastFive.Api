@@ -24,7 +24,8 @@ using EastFive.Linq;
 namespace EastFive.Api
 {
     public class PropertyAttribute : QueryValidationAttribute,
-        IDocumentParameter, IBindJsonApiValue, IBindMultipartApiValue, IBindFormDataApiValue
+        IDocumentParameter, IBindJsonApiValue, IBindMultipartApiValue, IBindFormDataApiValue,
+        IProvideBindingRequirement
     {
         public override SelectParameterResult TryCast(BindingData bindingData)
         {
@@ -34,6 +35,20 @@ namespace EastFive.Api
             return bindingData.fetchBodyParam(parameterRequiringValidation,
                 vCasted => SelectParameterResult.Body(vCasted, name, parameterRequiringValidation),
                 why => SelectParameterResult.FailureBody(why, name, parameterRequiringValidation));
+        }
+
+        public virtual BindingRequirement GetRequirement(ParameterInfo parameter)
+        {
+            return new BindingRequirement(
+                    path: this.GetKey(parameter),
+                    source: BindingSource.Body,
+                    parameter: parameter,
+                    isOptional: false)
+                .AddConverter<JContainer>((raw, param, app, req, onParsed, onFailure) =>
+                    this.ParseContentDelegate<BindResult>(raw, contentString: null, bindConvert: null,
+                        param, app, req, onParsed, onFailure))
+                .AddConverter<IFormCollection>((raw, param, app, req, onParsed, onFailure) =>
+                    this.ParseContentDelegate<BindResult>(raw, param, app, req, onParsed, onFailure));
         }
 
         public virtual TResult Convert<TResult>(HttpApplication httpApp, Type type, object value,
@@ -47,24 +62,6 @@ namespace EastFive.Api
 
             if (type.IsAssignableFrom(value.GetType()))
                 return onCasted(value);
-
-            if (value is EastFive.Api.Resources.WebId)
-            {
-                var webId = value as EastFive.Api.Resources.WebId;
-                if (typeof(Guid).GUID == type.GUID)
-                {
-                    if (webId.IsDefaultOrNull())
-                        return onInvalid("Value did not provide a UUID.");
-                    return onCasted(webId.UUID);
-                }
-                if (typeof(Guid?).GUID == type.GUID)
-                {
-                    if (webId.IsDefaultOrNull())
-                        return onCasted(default(Guid?));
-                    var valueGuidMaybe = (Guid?)webId.UUID;
-                    return onCasted(valueGuidMaybe);
-                }
-            }
 
             if (value is Guid?)
             {

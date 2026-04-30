@@ -24,7 +24,8 @@ namespace EastFive.Api
         CultureInfo[] ToCultures();
     }
 
-    public class HeaderAttribute : QueryValidationAttribute, IBindJsonApiValue, IBindFormDataApiValue
+    public class HeaderAttribute : QueryValidationAttribute, IBindJsonApiValue, IBindFormDataApiValue,
+        IProvideBindingRequirement
     {
         public string Content { get; set; }
 
@@ -33,6 +34,36 @@ namespace EastFive.Api
             if (this.Content.HasBlackSpace())
                 return this.Content;
             return base.GetKey(paramInfo);
+        }
+
+        // ---- IProvideBindingRequirement ----------------------------------------
+        // Two shapes are observed:
+        //   (a) Content blank → MediaTypeHeaderValue from the request media type
+        //       (Source = Request).
+        //   (b) Content set + body → MediaTypeHeaderValue parsed out of a JSON
+        //       data: URL (Source = Body, JContainer converter).
+        // The requirement registers both sources; whichever the envelope/request
+        // satisfies first wins, with Request preferred (it's the cheaper read).
+        public BindingRequirement GetRequirement(ParameterInfo parameter)
+        {
+            var key = this.GetKey(parameter);
+            var source = this.Content.HasBlackSpace()
+                ? (BindingSource.Body | BindingSource.Request)
+                : BindingSource.Request;
+            return new BindingRequirement(
+                    path: key,
+                    source: source,
+                    parameter: parameter,
+                    isOptional: false)
+                .AddConverter<string>((raw, param, app, req, onParsed, onFailure) =>
+                {
+                    if (param.ParameterType == typeof(MediaTypeHeaderValue))
+                        return onParsed(req.GetMediaType());
+                    return onFailure($"Header attribute on type {param.ParameterType.FullName} requires Content to be set.");
+                })
+                .AddConverter<JContainer>((raw, param, app, req, onParsed, onFailure) =>
+                    this.ParseContentDelegate<BindResult>(raw, contentString: null, bindConvert: null,
+                        param, app, req, onParsed, onFailure));
         }
 
         public TResult ParseContentDelegate<TResult>(JContainer contentJContainer, string contentString, 

@@ -1,4 +1,5 @@
 ﻿using EastFive.Api.Resources;
+using EastFive.Api.Bindings;
 using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json.Linq;
 using System;
@@ -12,8 +13,25 @@ using System.Threading.Tasks;
 namespace EastFive.Api
 {
     public class UpdateIdAttribute : QueryValidationAttribute, IDocumentParameter,
-        IBindJsonApiValue, IBindMultipartApiValue, IBindFormDataApiValue
+        IBindJsonApiValue, IBindMultipartApiValue, IBindFormDataApiValue,
+        IProvideBindingRequirement
     {
+        public BindingRequirement GetRequirement(ParameterInfo parameter)
+        {
+            return new BindingRequirement(
+                    path: this.GetKey(parameter),
+                    source: BindingSource.Anywhere,
+                    parameter: parameter,
+                    isOptional: false)
+                .AddConverter<JContainer>((raw, param, app, req, onParsed, onFailure) =>
+                    this.ParseContentDelegate<BindResult>(raw, contentString: null, bindConvert: null,
+                        param, app, req, onParsed, onFailure))
+                .AddConverter<IFormCollection>((raw, param, app, req, onParsed, onFailure) =>
+                    this.ParseContentDelegate<BindResult>(raw, param, app, req, onParsed, onFailure))
+                .AddConverter<string>((raw, param, app, req, onParsed, onFailure) =>
+                    app.Bind(raw, param, onParsed, onFailure));
+        }
+
         public override string Name
         {
             get
