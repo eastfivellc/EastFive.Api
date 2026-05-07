@@ -28,12 +28,30 @@ namespace EastFive.Api
             IApplication httpApp, IHttpRequest request);
     }
 
-    public interface IDeserializeFromApiBody<TBodyProvider>
-        : IDeserializeFromBody<TBodyProvider>
+    /// <summary>
+    /// Generalization of body-only deserialization to any per-source value
+    /// reader. <typeparamref name="TSource"/> identifies where the value
+    /// is coming from (e.g. <c>JsonReader</c> for a JSON body, <c>string</c>
+    /// for query/path/form scalars). A single attribute (e.g.
+    /// <c>[ApiProperty]</c>) may implement this interface for several
+    /// source types so the same metadata drives binding from any of them.
+    /// </summary>
+    public interface IDeserializeFromRequest<TSource>
+        : IDeserializeFromBody<TSource>
     {
         bool IsMatch(string propertyKey,
             ParameterInfo parameterInfo, MemberInfo member,
             IApplication httpApp, IHttpRequest request);
+    }
+
+    /// <summary>
+    /// Body-only flavor kept for back-compat. Equivalent to
+    /// <see cref="IDeserializeFromRequest{TSource}"/> with a body-shaped
+    /// source. New code should prefer <c>IDeserializeFromRequest&lt;…&gt;</c>.
+    /// </summary>
+    public interface IDeserializeFromApiBody<TBodyProvider>
+        : IDeserializeFromRequest<TBodyProvider>
+    {
     }
 
     public class DeserializeBodyAttribute : System.Attribute, 

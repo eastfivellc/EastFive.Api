@@ -14,8 +14,12 @@ namespace EastFive.Api
 {
     public class UpdateIdAttribute : QueryValidationAttribute, IDocumentParameter,
         IBindJsonApiValue, IBindMultipartApiValue, IBindFormDataApiValue,
-        IProvideBindingRequirement
+        IProvideBindingRequirements
     {
+        public (IReadOnlyList<BindingRequirement> requirements, AssembleParameter assemble)
+            GetParameterBinding(ParameterInfo parameter)
+            => (new[] { GetRequirement(parameter) }, values => (values[0], null));
+
         public BindingRequirement GetRequirement(ParameterInfo parameter)
         {
             return new BindingRequirement(

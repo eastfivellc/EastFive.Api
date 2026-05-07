@@ -21,12 +21,16 @@ namespace EastFive.Api
 {
     public class ResourceAttribute : System.Attribute, 
         IBindApiValue, IBindJsonApiValue, IBindMultipartApiValue, IBindFormDataApiValue, IBindTextApiValue,
-        IProvideBindingRequirement
+        IProvideBindingRequirements
     {
         public string GetKey(ParameterInfo paramInfo)
         {
             return default;
         }
+
+        public (IReadOnlyList<BindingRequirement> requirements, AssembleParameter assemble)
+            GetParameterBinding(ParameterInfo parameter)
+            => (new[] { GetRequirement(parameter) }, values => (values[0], null));
 
         public BindingRequirement GetRequirement(ParameterInfo parameter)
         {

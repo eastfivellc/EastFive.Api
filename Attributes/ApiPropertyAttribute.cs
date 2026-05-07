@@ -20,7 +20,10 @@ namespace EastFive.Api
 {
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class ApiPropertyAttribute : System.Attribute,
-        IProvideApiValue, IDocumentProperty, IDeserializeFromApiBody<JsonReader>, ICast<string>
+        IProvideApiValue, IDocumentProperty,
+        IDeserializeFromApiBody<JsonReader>,
+        IDeserializeFromRequest<string>,
+        ICast<string>
     {
         public ApiPropertyAttribute()
         {
@@ -153,6 +156,22 @@ namespace EastFive.Api
                 }
                 while (true);
             }
+        }
+
+        /// <summary>
+        /// String-source flavor of <see cref="UpdateInstance(string, JsonReader, object, ParameterInfo, MemberInfo, IApplication, IHttpRequest)"/>.
+        /// Used when the value arrives from a non-body source (query string,
+        /// path capture, form scalar). Delegates to <c>httpApp.Bind</c> for
+        /// the actual string→target-type conversion so the same binders that
+        /// power <c>[QueryParameter]</c> are reused.
+        /// </summary>
+        public virtual object UpdateInstance(string propertyKey, string raw, object instance,
+            ParameterInfo parameterInfo, MemberInfo memberInfo,
+            IApplication application, IHttpRequest request)
+        {
+            return (application as HttpApplication).Bind(raw, memberInfo.GetPropertyOrFieldType(),
+                v => memberInfo.SetPropertyOrFieldValue(instance, v),
+                why => instance);
         }
     }
 }

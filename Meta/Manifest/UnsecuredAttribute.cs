@@ -18,7 +18,7 @@ namespace EastFive.Api
     /// - Public documentation endpoints
     /// </remarks>
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
-    public class UnsecuredAttribute : Attribute, IValidateHttpRequest
+    public class UnsecuredAttribute : Attribute, IHandleMethodInvocation
     {
         /// <summary>
         /// Gets the documented reason why this endpoint is unsecured.
@@ -51,12 +51,13 @@ namespace EastFive.Api
         /// 
         /// The reason for unsecuring this endpoint is: {Reason}
         /// </remarks>
-        public Task<IHttpResponse> ValidateRequest(
-            KeyValuePair<ParameterInfo, object>[] parameterSelection,
+        public Task<IHttpResponse> HandleMethodInvocationAsync(
+            KeyValuePair<ParameterInfo, object>[] parameters,
+            IReadOnlyDictionary<ParameterInfo, object> bindingContexts,
             MethodInfo method,
             IApplication httpApp,
             IHttpRequest request,
-            ValidateHttpDelegate boundCallback)
+            InvokeMethodDelegate continueInvocation)
         {
             // No validation performed - endpoint is intentionally unsecured
             // Reason: {this.Reason}
@@ -64,7 +65,7 @@ namespace EastFive.Api
             // Optional: Log unsecured access for security auditing
             // Logger.LogWarning($"Unsecured endpoint accessed: {method.DeclaringType.FullName}.{method.Name} - Reason: {Reason}");
             
-            return boundCallback(parameterSelection, method, httpApp, request);
+            return continueInvocation(parameters, bindingContexts, method, httpApp, request);
         }
     }
 }

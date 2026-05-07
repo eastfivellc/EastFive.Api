@@ -27,6 +27,9 @@ namespace EastFive.Api
     public class FunctionViewControllerAttribute 
         : Attribute, IInvokeResource, IDocumentRoute, IProvideSerialization
     {
+        private static readonly IReadOnlyDictionary<ParameterInfo, object> EmptyBindingContexts =
+            new Dictionary<ParameterInfo, object>(0);
+
         private string ns;
         public string Namespace
         {
@@ -209,13 +212,23 @@ namespace EastFive.Api
                         ? rc.Method.MakeGenericMethod(rc.ControllerType.AsArray())
                         : rc.Method;
                     var routeEnvelope = new RouteEnvelope(envelope, rc.Captures);
+                    // Single binding-class interface: ask each parameter's
+                    // attribute for its (requirements, assemble) pair and let
+                    // the envelope try to fulfil each requirement. The
+                    // assemble closure runs after every requirement binds.
                     var fulfillments = method
                         .GetParameters()
-                        .TrySelectWith<ParameterInfo, IProvideBindingRequirement>(
-                            (ParameterInfo p, out IProvideBindingRequirement provider) =>
-                                p.TryGetAttributeInterface(out provider))
-                        .Select(t => t.Item2.GetRequirement(t.Item1))
-                        .Select(req => Fulfillment.From(req, routeEnvelope))
+                        .Select(p =>
+                        {
+                            if (p.TryGetAttributeInterface<IProvideBindingRequirements>(out var provider))
+                            {
+                                var (requirements, assemble) = provider.GetParameterBinding(p);
+                                return (ok: true, pf: ParameterFulfillment.From(p, requirements, assemble, routeEnvelope));
+                            }
+                            return (ok: false, pf: default(ParameterFulfillment));
+                        })
+                        .Where(t => t.ok)
+                        .Select(t => t.pf)
                         .ToArray();
                     return new V3MethodMatch(rc.ControllerType, rc.InvokeResource,
                         method, fulfillments);
@@ -281,29 +294,91 @@ namespace EastFive.Api
         {
             // ----- Pass 3b: bind ------------------------------------------
             var bindings = new List<KeyValuePair<ParameterInfo, object>>(chosen.Fulfillments.Length);
+            var bindingContexts = new Dictionary<ParameterInfo, object>(chosen.Fulfillments.Length);
             foreach (var fulfillment in chosen.Fulfillments)
             {
-                var requirement = fulfillment.Requirement;
+                var parameter = fulfillment.Parameter;
+                var path = fulfillment.Path;
                 IHttpResponse failure = null;
                 var ok = await fulfillment.ExtractAsync<bool>(httpApp, request,
-                    onParsed: v =>
+                    onParsed: (v, ctx) =>
                     {
-                        bindings.Add(new KeyValuePair<ParameterInfo, object>(requirement.Parameter, v));
+                        bindings.Add(new KeyValuePair<ParameterInfo, object>(parameter, v));
+                        if (ctx != null)
+                            bindingContexts[parameter] = ctx;
                         return true;
                     },
                     onFailure: error =>
                     {
                         failure = request
                             .CreateResponse(HttpStatusCode.BadRequest)
-                            .AddReason($"could not bind {requirement.Path}({requirement.Source}): {error}");
+                            .AddReason($"could not bind {path}: {error}");
                         return false;
                     });
                 if (!ok)
                     return failure;
             }
 
-            return await InvokeValidatedMethodAsync(httpApp, request,
-                chosen.ControllerType, chosen.Method, bindings.ToArray());
+            // ----- Pass 3c: hand off to the IHandleMethodInvocation chain.
+            // The chain wraps the controller invocation. Discovered handlers
+            // (App Insights timing, [RequiredClaim] gates, the built-in
+            // [BoundParameterValidationHandler] that runs the parameter-bound
+            // validator pipeline, and any app-defined cross-resource auth
+            // checks) are composed in registration order.
+            return await RunMethodInvocationChainAsync(httpApp, request,
+                chosen.ControllerType, chosen.Method,
+                bindings.ToArray(), bindingContexts);
+        }
+
+        /// <summary>
+        /// Compose every <see cref="IHandleMethodInvocation"/> attached to
+        /// the application class, the controller method, and each bound
+        /// parameter's type into a single sequential chain whose terminal
+        /// invokes the controller method.
+        ///
+        /// Discovery order = run order (outermost first, innermost wraps the
+        /// invocation):
+        ///   1. Application-class handlers
+        ///   2. Controller-method handlers
+        ///   3. Per-parameter type handlers (in parameter order)
+        ///
+        /// The built-in <see cref="BoundParameterValidationHandlerAttribute"/>
+        /// applied to <see cref="HttpApplication"/> is just one handler in
+        /// this chain — it owns the parameter-bound validator pipeline so
+        /// orchestration here stays a single composition.
+        /// </summary>
+        private static Task<IHttpResponse> RunMethodInvocationChainAsync(
+            IApplication httpApp, IHttpRequest request,
+            Type controllerType, MethodInfo method,
+            KeyValuePair<ParameterInfo, object>[] parameters,
+            IReadOnlyDictionary<ParameterInfo, object> bindingContexts)
+        {
+            var handlers = new List<IHandleMethodInvocation>();
+            handlers.AddRange(httpApp.GetType()
+                .GetAttributesInterface<IHandleMethodInvocation>(true, true));
+            handlers.AddRange(method
+                .GetAttributesInterface<IHandleMethodInvocation>(true, true));
+            foreach (var binding in parameters)
+            {
+                if (binding.Key == null)
+                    continue;
+                handlers.AddRange(binding.Key.ParameterType
+                    .GetAttributesInterface<IHandleMethodInvocation>(true, true));
+            }
+
+            InvokeMethodDelegate chain =
+                (parmsFinal, ctxFinal, methodFinal, appFinal, reqFinal) =>
+                    InvokeHandledMethodAsync(appFinal, reqFinal,
+                        controllerType, methodFinal, parmsFinal);
+            for (var i = handlers.Count - 1; i >= 0; i--)
+            {
+                var h = handlers[i];
+                var capturedNext = chain;
+                chain = (parmsCur, ctxCur, methodCur, appCur, reqCur) =>
+                    h.HandleMethodInvocationAsync(parmsCur, ctxCur, methodCur,
+                        appCur, reqCur, capturedNext);
+            }
+            return chain(parameters, bindingContexts, method, httpApp, request);
         }
 
         internal readonly struct V3RouteCandidate
@@ -329,25 +404,25 @@ namespace EastFive.Api
         internal readonly struct V3MethodMatch
         {
             public V3MethodMatch(Type controllerType, IInvokeResource invokeResource,
-                MethodInfo method, Fulfillment[] fulfillments)
+                MethodInfo method, ParameterFulfillment[] fulfillments)
             {
                 this.ControllerType = controllerType;
                 this.InvokeResource = invokeResource;
                 this.Method = method;
-                this.Fulfillments = fulfillments ?? Array.Empty<Fulfillment>();
+                this.Fulfillments = fulfillments ?? Array.Empty<ParameterFulfillment>();
             }
 
             public Type ControllerType { get; }
             public IInvokeResource InvokeResource { get; }
             public MethodInfo Method { get; }
-            public Fulfillment[] Fulfillments { get; }
+            public ParameterFulfillment[] Fulfillments { get; }
 
             public bool IsValid => this.Fulfillments.All(f => f.IsValid);
 
             public string ErrorMessage
                 => string.Join(", ", this.Fulfillments
                     .Where(f => !f.IsValid)
-                    .Select(f => $"{f.Requirement.Path}({f.Requirement.Source}):envelope could not fulfill"));
+                    .Select(f => $"{f.Path}: envelope could not fulfill"));
         }
 
         #region Invoke correct method
@@ -393,62 +468,16 @@ namespace EastFive.Api
                 .First(
                     (methodCast, next) =>
                     {
-                        return methodCast.parametersWithValues
-                            .Aggregate<SelectParameterResult, ValidateHttpDelegate>(
-                                (parameterSelectionUnvalidated, methodFinalUnvalidated, httpAppFinalUnvalidated, requestFinalUnvalidated) =>
-                                {
-                                    return methodFinalUnvalidated
-                                        .GetAttributesInterface<IValidateHttpRequest>(true, true)
-                                        .Aggregate<IValidateHttpRequest, ValidateHttpDelegate>(
-                                            (parameterSelection, methodFinal, httpAppFinal, routeDataFinal) =>
-                                            {
-                                                return InvokeValidatedMethodAsync(
-                                                    httpAppFinal, routeDataFinal,
-                                                    controllerType, methodFinal,
-                                                    parameterSelection);
-                                            },
-                                            (callback, validator) =>
-                                            {
-                                                return (parametersSelected, methodCurrent, httpAppCurrent, requestCurrent) =>
-                                                {
-                                                    return validator.ValidateRequest(parametersSelected,
-                                                        methodCurrent,
-                                                        httpAppCurrent, requestCurrent,
-                                                        callback);
-                                                };
-                                            })
-                                        .Invoke(
-                                            parameterSelectionUnvalidated,
-                                            methodFinalUnvalidated, httpAppFinalUnvalidated, requestFinalUnvalidated);
-                                },
-                                (callback, parameterSelection) =>
-                                {
-                                    ValidateHttpDelegate boundCallback =
-                                        (parametersSelected, methodCurrent, httpAppCurrent, requestCurrent) =>
-                                        {
-                                            var paramKvp = parameterSelection.parameterInfo
-                                                .PairWithValue(parameterSelection.value);
-                                            var updatedParameters = parametersSelected
-                                                .Append(paramKvp)
-                                                .ToArray();
-                                            return callback(updatedParameters, methodCurrent, httpAppCurrent, requestCurrent);
-                                        };
-                                    var validators = parameterSelection.parameterInfo.ParameterType
-                                        .GetAttributesInterface<IValidateHttpRequest>(true, true);
-                                    if (!validators.Any())
-                                        return boundCallback;
-                                    var validator = validators.First();
-                                    return (parametersSelected, methodCurrent, httpAppCurrent, requestCurrent) =>
-                                    {
-                                        return validator.ValidateRequest(parametersSelected,
-                                            methodCurrent,
-                                            httpAppCurrent, requestCurrent,
-                                            boundCallback);
-                                    };
-                                })
-                            .Invoke(
-                                new KeyValuePair<ParameterInfo, object>[] { },
-                                methodCast.method, httpApp, routeData);
+                        // v2 path: build the parameter selection up-front, then
+                        // hand off to the same orchestrator the v3 path uses.
+                        var parameterArray = methodCast.parametersWithValues
+                            .Select(pwv => new KeyValuePair<ParameterInfo, object>(
+                                pwv.parameterInfo, pwv.value))
+                            .ToArray();
+
+                        return RunMethodInvocationChainAsync(httpApp, routeData,
+                            controllerType, methodCast.method,
+                            parameterArray, EmptyBindingContexts);
                     },
                     () =>
                     {
@@ -476,29 +505,6 @@ namespace EastFive.Api
                     .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
                     .AddReason(content);
             }
-        }
-
-        internal static Task<IHttpResponse> InvokeValidatedMethodAsync(
-            IApplication httpApp, IHttpRequest routeData,
-            Type controllerType, MethodInfo method,
-            KeyValuePair<ParameterInfo, object>[] queryParameters)
-        {
-            return httpApp.GetType()
-                .GetAttributesInterface<IHandleMethods>(true, true)
-                .Aggregate<IHandleMethods, MethodHandlingDelegate>(
-                    (methodFinal, queryParametersFinal, httpAppFinal, routeDataFinal) =>
-                    {
-                        var response = InvokeHandledMethodAsync(httpApp, routeDataFinal, controllerType, method, queryParameters);
-                        return response;
-                    },
-                    (callback, methodHandler) =>
-                    {
-                        return (methodCurrent, queryParametersCurrent, httpAppCurrent, requestCurrent) =>
-                            methodHandler.HandleMethodAsync(methodCurrent,
-                                queryParametersCurrent, httpAppCurrent, requestCurrent,
-                                callback);
-                    })
-                .Invoke(method, queryParameters, httpApp, routeData);
         }
 
         protected static Task<IHttpResponse> InvokeHandledMethodAsync(

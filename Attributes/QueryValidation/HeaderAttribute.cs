@@ -25,7 +25,7 @@ namespace EastFive.Api
     }
 
     public class HeaderAttribute : QueryValidationAttribute, IBindJsonApiValue, IBindFormDataApiValue,
-        IProvideBindingRequirement
+        IProvideBindingRequirements
     {
         public string Content { get; set; }
 
@@ -36,7 +36,11 @@ namespace EastFive.Api
             return base.GetKey(paramInfo);
         }
 
-        // ---- IProvideBindingRequirement ----------------------------------------
+        public (IReadOnlyList<BindingRequirement> requirements, AssembleParameter assemble)
+            GetParameterBinding(ParameterInfo parameter)
+            => (new[] { GetRequirement(parameter) }, values => (values[0], null));
+
+        // ---- BindingRequirement ------------------------------------------------
         // Two shapes are observed:
         //   (a) Content blank → MediaTypeHeaderValue from the request media type
         //       (Source = Request).

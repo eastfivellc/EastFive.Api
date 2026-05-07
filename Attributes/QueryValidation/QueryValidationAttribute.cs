@@ -87,7 +87,7 @@ namespace EastFive.Api
     }
 
     public class QueryParameterAttribute : QueryValidationAttribute, IDocumentParameter, IBindQueryApiValue,
-        IProvideBindingRequirement
+        IProvideBindingRequirements, IModifyRoutePattern
     {
         public bool CheckFileName { get; set; }
 
@@ -96,6 +96,23 @@ namespace EastFive.Api
             var parameterRequiringValidation = bindingData.parameterRequiringValidation;
             var key = this.GetKey(parameterRequiringValidation);
             return TryCast(bindingData, key, this.CheckFileName);
+        }
+
+        public virtual (IReadOnlyList<BindingRequirement> requirements, AssembleParameter assemble)
+            GetParameterBinding(ParameterInfo parameter)
+            => (new[] { GetRequirement(parameter) }, values => (values[0], null));
+
+        /// <summary>
+        /// Default mutation: contribute a trailing capture only when this
+        /// attribute participates in the URL path
+        /// (<see cref="CheckFileName"/> = true). <see cref="QueryIdAttribute"/>
+        /// overrides this to always contribute.
+        /// </summary>
+        public virtual string ModifyRoutePattern(MethodInfo method, ParameterInfo parameter, string currentPattern)
+        {
+            if (!this.CheckFileName)
+                return currentPattern;
+            return RoutePattern.AppendTrailingCapture(currentPattern, this.GetKey(parameter));
         }
 
         public virtual BindingRequirement GetRequirement(ParameterInfo parameter)
@@ -254,6 +271,14 @@ namespace EastFive.Api
             return base.TryCast(bindingData);
         }
 
+        /// <summary>
+        /// <c>[QueryId]</c> always lives in the trailing path segment
+        /// (e.g. <c>/api/Resource/{id}</c>) regardless of
+        /// <see cref="QueryParameterAttribute.CheckFileName"/>.
+        /// </summary>
+        public override string ModifyRoutePattern(MethodInfo method, ParameterInfo parameter, string currentPattern)
+            => RoutePattern.AppendTrailingCapture(currentPattern, this.GetKey(parameter));
+
         public override Parameter GetParameter(ParameterInfo paramInfo, HttpApplication httpApp)
         {
             var parameter = base.GetParameter(paramInfo, httpApp);
@@ -263,7 +288,7 @@ namespace EastFive.Api
     }
 
     public class HashedFileAttribute : QueryValidationAttribute, IDocumentParameter,
-        IProvideBindingRequirement
+        IProvideBindingRequirements
     {
         public override SelectParameterResult TryCast(BindingData bindingData)
         {
@@ -282,6 +307,10 @@ namespace EastFive.Api
                     onInvalid: (why) => SelectParameterResult
                          .FailureFile(why, key, parameterRequiringValidation));
         }
+
+        public (IReadOnlyList<BindingRequirement> requirements, AssembleParameter assemble)
+            GetParameterBinding(ParameterInfo parameter)
+            => (new[] { GetRequirement(parameter) }, values => (values[0], null));
 
         public BindingRequirement GetRequirement(ParameterInfo parameter)
         {
@@ -316,7 +345,7 @@ namespace EastFive.Api
         }
     }
 
-    public class AcceptsAttribute : Attribute, IBindApiValue, IProvideBindingRequirement
+    public class AcceptsAttribute : Attribute, IBindApiValue, IProvideBindingRequirements
     {
         public string Media { get; set; }
 
@@ -324,6 +353,10 @@ namespace EastFive.Api
         {
             return "__accept-header__";
         }
+
+        public (IReadOnlyList<BindingRequirement> requirements, AssembleParameter assemble)
+            GetParameterBinding(ParameterInfo parameter)
+            => (new[] { GetRequirement(parameter) }, values => (values[0], null));
 
         public BindingRequirement GetRequirement(ParameterInfo parameter)
         {

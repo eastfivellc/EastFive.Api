@@ -25,7 +25,7 @@ namespace EastFive.Api
 {
     public class PropertyAttribute : QueryValidationAttribute,
         IDocumentParameter, IBindJsonApiValue, IBindMultipartApiValue, IBindFormDataApiValue,
-        IProvideBindingRequirement
+        IProvideBindingRequirements
     {
         public override SelectParameterResult TryCast(BindingData bindingData)
         {
@@ -36,6 +36,10 @@ namespace EastFive.Api
                 vCasted => SelectParameterResult.Body(vCasted, name, parameterRequiringValidation),
                 why => SelectParameterResult.FailureBody(why, name, parameterRequiringValidation));
         }
+
+        public virtual (IReadOnlyList<BindingRequirement> requirements, AssembleParameter assemble)
+            GetParameterBinding(ParameterInfo parameter)
+            => (new[] { GetRequirement(parameter) }, values => (values[0], null));
 
         public virtual BindingRequirement GetRequirement(ParameterInfo parameter)
         {

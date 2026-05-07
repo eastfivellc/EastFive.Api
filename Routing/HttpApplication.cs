@@ -57,6 +57,12 @@ namespace EastFive.Api
     [Routing.Envelopes.FormRequestEnvelope]
     [Routing.Envelopes.MultipartRequestEnvelope]
     [Routing.Envelopes.RawRequestEnvelope]
+    // Built-in IHandleMethodInvocation that runs the parameter-bound
+    // validator pipeline (storage loaders, etc). Inherited by every
+    // derived application; apps may add custom IHandleMethodInvocations
+    // (cross-resource auth checks, additional parameter validators) at
+    // the class or method scope alongside this one.
+    [BoundParameterValidationHandler]
     public class HttpApplication : IApiApplication, IDescribeIsSecure, IDisposable
     {
         public virtual string Namespace

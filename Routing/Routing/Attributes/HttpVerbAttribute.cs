@@ -402,8 +402,14 @@ namespace EastFive.Api
 
             AppendActionSegment(pattern, method);
 
-            if (TryGetFileNameCaptureKey(method, out var captureKey))
-                pattern.Append("(?:/(?<").Append(captureKey).Append(">.*))?");
+            // Let each parameter-level IModifyRoutePattern attribute splice
+            // whatever regex fragment it needs (trailing capture, multiple
+            // path captures, alternations, ...). Every modifier runs in
+            // parameter / attribute order; each sees the result of the
+            // previous one.
+            var finalPattern = ApplyRoutePatternModifiers(method, pattern.ToString());
+            pattern.Clear();
+            pattern.Append(finalPattern);
 
             pattern.Append("/?$");
 
@@ -432,47 +438,24 @@ namespace EastFive.Api
         protected virtual string[] GetVerbs() => new[] { this.Method };
 
         /// <summary>
-        /// Find the named-capture key for a trailing path segment. Returns
-        /// the lowercase parameter key from the first <c>[QueryId]</c> or
-        /// <c>[QueryParameter(CheckFileName=true)]</c> parameter.
+        /// Walk every parameter attribute that implements
+        /// <see cref="IModifyRoutePattern"/> and let each mutate the regex.
+        /// All modifiers run, in parameter / attribute declaration order;
+        /// each sees the output of the previous one. A modifier that wants
+        /// to opt out simply returns <paramref name="pattern"/> unchanged.
         /// </summary>
-        protected static bool TryGetFileNameCaptureKey(MethodInfo method, out string key)
+        private static string ApplyRoutePatternModifiers(MethodInfo method, string pattern)
         {
             foreach (var p in method.GetParameters())
             {
-                foreach (var attr in p.GetCustomAttributes(true))
+                foreach (var modifier in p.GetAttributesInterface<IModifyRoutePattern>())
                 {
-                    if (attr is QueryIdAttribute qid)
-                    {
-                        key = SanitizeCaptureName(qid.GetKey(p));
-                        return !string.IsNullOrEmpty(key);
-                    }
-                    if (attr is QueryParameterAttribute qp && qp.CheckFileName)
-                    {
-                        key = SanitizeCaptureName(qp.GetKey(p));
-                        return !string.IsNullOrEmpty(key);
-                    }
+                    var next = modifier.ModifyRoutePattern(method, p, pattern);
+                    if (next != null)
+                        pattern = next;
                 }
             }
-            key = null;
-            return false;
-        }
-
-        private static string SanitizeCaptureName(string raw)
-        {
-            if (string.IsNullOrEmpty(raw))
-                return null;
-            var buf = new System.Text.StringBuilder(raw.Length);
-            foreach (var c in raw)
-            {
-                if (char.IsLetterOrDigit(c) || c == '_')
-                    buf.Append(c);
-            }
-            if (buf.Length == 0)
-                return null;
-            if (char.IsDigit(buf[0]))
-                buf.Insert(0, '_');
-            return buf.ToString();
+            return pattern;
         }
     }
 }

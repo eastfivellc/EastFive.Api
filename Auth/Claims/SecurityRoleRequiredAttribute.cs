@@ -13,7 +13,7 @@ using EastFive.Web.Configuration;
 
 namespace EastFive.Api.Auth
 {
-    public class SecurityRoleRequiredAttribute : Attribute, IValidateHttpRequest
+    public class SecurityRoleRequiredAttribute : Attribute, IHandleMethodInvocation
     {
         public virtual string [] RolesAllowed { get; set; }
 
@@ -29,12 +29,13 @@ namespace EastFive.Api.Auth
 
         public virtual StringComparison Comparison { get; set; } = StringComparison.OrdinalIgnoreCase;
 
-        public Task<IHttpResponse> ValidateRequest(
-            KeyValuePair<ParameterInfo, object>[] parameterSelection,
+        public Task<IHttpResponse> HandleMethodInvocationAsync(
+            KeyValuePair<ParameterInfo, object>[] parameters,
+            IReadOnlyDictionary<ParameterInfo, object> bindingContexts,
             MethodInfo method,
             IApplication httpApp,
             IHttpRequest request,
-            ValidateHttpDelegate boundCallback)
+            InvokeMethodDelegate continueInvocation)
         {
             var claims = request.GetClaims(
                 cs => cs.ToArray(),
@@ -73,12 +74,12 @@ namespace EastFive.Api.Auth
                         () =>
                         {
                             if (!RolesAllowed.Any())
-                                return boundCallback(parameterSelection, method, httpApp, request);
+                                return continueInvocation(parameters, bindingContexts, method, httpApp, request);
 
                             return RolesAllowed
                                 .Where(rollAllowed => doesContainRole(rollAllowed))
                                 .First(
-                                    (rollAllowed, next) => boundCallback(parameterSelection, method, httpApp, request),
+                                    (rollAllowed, next) => continueInvocation(parameters, bindingContexts, method, httpApp, request),
                                     () => DenyAsync("requires one of", RolesAllowed.Join(',')));
                         });
             }
@@ -88,7 +89,7 @@ namespace EastFive.Api.Auth
             {
                 if (AllowLocalHost || allowLocalHostGlobal)
                     if (request.IsLocalHostRequest())
-                        return boundCallback(parameterSelection, method, httpApp, request);
+                        return continueInvocation(parameters, bindingContexts, method, httpApp, request);
 
                 return request
                     .CreateResponse(System.Net.HttpStatusCode.Forbidden)

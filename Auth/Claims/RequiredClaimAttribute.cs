@@ -10,7 +10,7 @@ using EastFive.Extensions;
 
 namespace EastFive.Api.Auth
 {
-    public class RequiredClaimAttribute : Attribute, IValidateHttpRequest
+    public class RequiredClaimAttribute : Attribute, IHandleMethodInvocation
     {
         public virtual Uri ClaimType { get; set; }
 
@@ -29,19 +29,20 @@ namespace EastFive.Api.Auth
             this.ClaimValue = requiredClaimValues.Join(',');
         }
 
-        public Task<IHttpResponse> ValidateRequest(
-            KeyValuePair<ParameterInfo, object>[] parameterSelection,
+        public Task<IHttpResponse> HandleMethodInvocationAsync(
+            KeyValuePair<ParameterInfo, object>[] parameters,
+            IReadOnlyDictionary<ParameterInfo, object> bindingContexts,
             MethodInfo method,
             IApplication httpApp,
             IHttpRequest request,
-            ValidateHttpDelegate boundCallback)
+            InvokeMethodDelegate continueInvocation)
         {
             if (!request.IsAuthorizedFor(ClaimType, ClaimValue))
                 return request
                     .CreateResponse(System.Net.HttpStatusCode.Forbidden)
                     .AddReason($"{method.DeclaringType.FullName}..{method.Name} requires claim `{ClaimType}`=`{this.ClaimValue}`")
                     .AsTask();
-            return boundCallback(parameterSelection, method, httpApp, request);
+            return continueInvocation(parameters, bindingContexts, method, httpApp, request);
         }
     }
 }

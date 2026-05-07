@@ -242,9 +242,6 @@ namespace EastFive.Api
         /// <summary>The raw envelope (for tests / advanced fall-through).</summary>
         public IRequestEnvelope Envelope => this.envelope;
 
-        /// <summary>The route-regex named captures bound to the matched method.</summary>
-        public IReadOnlyDictionary<string, string> Captures => this.captures;
-
         /// <summary>
         /// Try each producer in turn — Request, then Path, then the inner
         /// envelope — and return the first one that owns the requirement's
@@ -378,6 +375,117 @@ namespace EastFive.Api
             }
 
             return result.Ok ? onParsed(result.Value) : onFailure(result.Error);
+        }
+    }
+
+    /// <summary>
+    /// Per-parameter wrapper around one or more <see cref="Fulfillment"/>s.
+    /// Selection caches one of these per binding-class parameter; binding
+    /// runs <see cref="ExtractAsync{TResult}"/> on each, which gathers the
+    /// sub-values and invokes the attribute's
+    /// <see cref="AssembleParameter"/> closure to produce the final
+    /// <c>(value, context)</c> pair handed to the controller method and the
+    /// validator chain.
+    /// </summary>
+    public readonly struct ParameterFulfillment
+    {
+        private readonly Fulfillment[] sub;
+        private readonly AssembleParameter assemble;
+        private readonly string parameterPath;
+
+        private ParameterFulfillment(ParameterInfo parameter, Fulfillment[] sub,
+            AssembleParameter assemble, string parameterPath)
+        {
+            this.Parameter = parameter;
+            this.sub = sub;
+            this.assemble = assemble;
+            this.parameterPath = parameterPath;
+        }
+
+        public ParameterInfo Parameter { get; }
+
+        public IReadOnlyList<Fulfillment> SubFulfillments => this.sub;
+
+        /// <summary>Path used in error messages — joined sub-paths.</summary>
+        public string Path => this.parameterPath;
+
+        /// <summary>All sub-fulfilments are valid (or optional).</summary>
+        public bool IsValid
+        {
+            get
+            {
+                foreach (var f in this.sub)
+                    if (!f.IsValid) return false;
+                return true;
+            }
+        }
+
+        /// <summary>Joined error string across sub-fulfilments.</summary>
+        public string ErrorMessage
+        {
+            get
+            {
+                var bits = new System.Collections.Generic.List<string>(this.sub.Length);
+                foreach (var f in this.sub)
+                    if (!f.IsValid)
+                        bits.Add($"{f.Requirement.Path}({f.Requirement.Source})");
+                return bits.Count == 0 ? null : "unfulfilled: " + string.Join(", ", bits);
+            }
+        }
+
+        /// <summary>
+        /// Build a fulfilment for <paramref name="parameter"/>: one
+        /// <see cref="Fulfillment"/> per requirement plus the supplied
+        /// <see cref="AssembleParameter"/> closure that produces the final
+        /// <c>(value, context)</c> pair from the bound sub-values.
+        /// </summary>
+        public static ParameterFulfillment From(ParameterInfo parameter,
+            IReadOnlyList<BindingRequirement> requirements,
+            AssembleParameter assemble,
+            RouteEnvelope routeEnvelope)
+        {
+            var subs = new Fulfillment[requirements.Count];
+            for (int i = 0; i < requirements.Count; i++)
+                subs[i] = Fulfillment.From(requirements[i], routeEnvelope);
+            var path = subs.Length == 1
+                ? subs[0].Requirement.Path
+                : string.Join("+", System.Linq.Enumerable.Select(subs, s => s.Requirement.Path));
+            return new ParameterFulfillment(parameter, subs, assemble, parameterPath: path);
+        }
+
+        /// <summary>
+        /// Extract every sub-value, then invoke the attribute's
+        /// <see cref="AssembleParameter"/> closure to produce the
+        /// <c>(value, context)</c> pair, projecting through caller-supplied
+        /// callbacks. The second argument to <paramref name="onParsed"/> is
+        /// the context the closure published (or <c>null</c>).
+        /// </summary>
+        public async System.Threading.Tasks.Task<TResult> ExtractAsync<TResult>(
+            IApplication httpApp, IHttpRequest request,
+            System.Func<object, object, TResult> onParsed,
+            System.Func<string, TResult> onFailure)
+        {
+            var values = new object[this.sub.Length];
+            for (int i = 0; i < this.sub.Length; i++)
+            {
+                var idx = i;
+                string failure = null;
+                var ok = await this.sub[i].ExtractAsync<bool>(httpApp, request,
+                    onParsed: v => { values[idx] = v; return true; },
+                    onFailure: msg => { failure = msg; return false; });
+                if (!ok)
+                    return onFailure(failure);
+            }
+
+            try
+            {
+                var (value, context) = this.assemble(values);
+                return onParsed(value, context);
+            }
+            catch (System.Exception ex)
+            {
+                return onFailure($"assemble threw while building '{this.parameterPath}': {ex.Message}");
+            }
         }
     }
 }
