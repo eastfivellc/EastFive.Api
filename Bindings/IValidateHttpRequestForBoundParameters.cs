@@ -42,7 +42,7 @@ namespace EastFive.Api
     /// <summary>
     /// Parameter-bound validator that participates in the parallel pre-work
     /// + chained mutation pipeline composed by
-    /// <c>FunctionViewControllerAttribute.BindAndInvokeAsync</c>. Used by
+    /// <c>MethodDispatcher.BindAndInvokeAsync</c>. Used by
     /// loader attributes that need to perform async I/O (storage loads,
     /// downstream lookups) keyed off bound parameter values.
     ///

@@ -156,6 +156,8 @@ namespace EastFive.Api.Core
             IApplication application,
             Func<IHttpResponse> skip)
         {
+            // TODO: Discover the Method Dispatcher via attribute interface pattern.
+
             // Method-based routing — the middleware owns dispatch end-to-end.
             //
             //   1. Flat candidate list against the app-lifetime RouteTable
@@ -173,16 +175,15 @@ namespace EastFive.Api.Core
             if (candidates.Length == 0)
                 return skip();
 
-            var (envelope, deserializerError) = await FunctionViewControllerAttribute
-                .PickDeserializerAsync(application, requestMessage);
-            if (envelope == null)
-                return deserializerError;
+            return await Routing.MethodDispatcher.PickDeserializerAsync(application, requestMessage,
+                async (envelope) =>
+                {
+                    var matches = Routing.MethodDispatcher
+                        .BuildMatches(envelope, candidates);
 
-            var matches = FunctionViewControllerAttribute
-                .BuildMethodMatches(envelope, candidates);
-
-            return await FunctionViewControllerAttribute
-                .DispatchSelectedAsync(application, requestMessage, matches);
+                    return await Routing.MethodDispatcher
+                        .DispatchAsync(application, requestMessage, matches);
+                });
         }
 
         ConcurrentQueue<IAsyncDisposable> asyncDisposables = new ConcurrentQueue<IAsyncDisposable>();

@@ -26,7 +26,7 @@ namespace EastFive.Api
     /// Marker + provider for parameter attributes whose value comes from the
     /// inbound request (URL, query string, body, form, multipart, etc.).
     /// Implementing this interface is what makes an attribute "binding-class"
-    /// in v3 routing: the selector iterates each binding-class parameter,
+    /// in routing: the selector iterates each binding-class parameter,
     /// calls <see cref="GetParameterBinding"/>, and asks the chosen
     /// <see cref="IRequestEnvelope"/> whether it can fulfil each
     /// <see cref="BindingRequirement"/> in the returned list. After every

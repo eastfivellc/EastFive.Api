@@ -4,19 +4,20 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
+using EastFive.Api.Routing;
 using EastFive.Extensions;
 using EastFive.Linq;
 
 namespace EastFive.Api.Core
 {
     /// <summary>
-    /// Immutable, app-lifetime cache of the V3 routing tuples
+    /// Immutable, app-lifetime cache of the routing tuples
     /// <c>(controllerType, invokeResource, method, template)</c>.
     ///
     /// Built once per <see cref="IApplication"/> the first time it's queried
     /// (assembly-scan inputs — <see cref="IApplication.Resources"/>,
     /// <see cref="IApplication.GetExtensionMethods"/>, attribute reflection,
-    /// <see cref="IMatchRouteV3.GetRouteTemplate"/>'s regex compilation — are
+    /// <see cref="IMatchRoute.GetRouteTemplate"/>'s regex compilation — are
     /// all stable for an application's lifetime). Per-request work is then
     /// just a verb filter + <see cref="RouteTemplate.TryMatch"/> over the
     /// cached array, with no reflection or regex compilation on the hot path.
@@ -32,7 +33,7 @@ namespace EastFive.Api.Core
         /// constructed per application; concurrent first-callers race
         /// harmlessly (one wins, the loser's table is discarded).
         /// </summary>
-        internal static RouteTable For(IApplication application)
+        public static RouteTable For(IApplication application)
             => cache.GetValue(application, app => new RouteTable(app));
 
         private readonly RouteEntry[] entries;
@@ -51,11 +52,11 @@ namespace EastFive.Api.Core
             var methods = resource.type
                 .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
                 .Concat(application.GetExtensionMethods(resource.type))
-                .Where(m => m.ContainsAttributeInterface<IMatchRouteV3>(true));
+                .Where(m => m.ContainsAttributeInterface<IMatchRoute>(true));
 
             foreach (var method in methods)
             {
-                foreach (var matcher in method.GetAttributesInterface<IMatchRouteV3>())
+                foreach (var matcher in method.GetAttributesInterface<IMatchRoute>())
                 {
                     var template = matcher.GetRouteTemplate(method, resource.invokeResourceAttr);
                     if (template == null)
@@ -73,7 +74,7 @@ namespace EastFive.Api.Core
         /// Per-request match: filter cached entries by verb, run
         /// <see cref="RouteTemplate.TryMatch"/>, and project to candidates.
         /// </summary>
-        internal FunctionViewControllerAttribute.V3RouteCandidate[] Match(IHttpRequest request)
+        public RouteCandidate[] Match(IHttpRequest request)
         {
             var requestVerb = request.Method?.Method ?? string.Empty;
             var path = request.RequestUri?.AbsolutePath ?? string.Empty;
@@ -83,7 +84,7 @@ namespace EastFive.Api.Core
                     matched: entry.Template.TryMatch(requestVerb, path, out var captures),
                     captures))
                 .Where(t => t.matched)
-                .Select(t => new FunctionViewControllerAttribute.V3RouteCandidate(
+                .Select(t => new RouteCandidate(
                     t.entry.ControllerType, t.entry.InvokeResource,
                     t.entry.Method, t.entry.Template, t.captures))
                 .ToArray();

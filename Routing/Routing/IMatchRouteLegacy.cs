@@ -9,7 +9,13 @@ using System.Threading.Tasks;
 
 namespace EastFive.Api
 {
-    public interface IMatchRoute
+    /// <summary>
+    /// Legacy (imperative) method-selection contract. Implemented on each
+    /// <c>HttpVerbAttribute</c> subclass alongside the current
+    /// <see cref="IMatchRoute"/>. Preserved so legacy controllers continue
+    /// to work unchanged; new code should target <see cref="IMatchRoute"/>.
+    /// </summary>
+    public interface IMatchRouteLegacy
     {
         bool IsMethodMatch(MethodInfo method, IHttpRequest routeData, IApplication httpApp, string [] componentsMatched);
         

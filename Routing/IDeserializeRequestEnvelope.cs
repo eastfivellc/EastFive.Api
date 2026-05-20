@@ -4,7 +4,7 @@ namespace EastFive.Api
 {
     /// <summary>
     /// Attribute interface that produces an <see cref="IRequestEnvelope"/> for
-    /// the v3 <c>FunctionViewControllerAttribute</c> pipeline. Discovered via
+    /// the <c>FunctionViewControllerAttribute</c> pipeline. Discovered via
     /// the Attribute Interface pattern (<c>GetAttributesInterface</c>) on
     /// <c>httpApp.GetType()</c> only — application-level scope.
     ///

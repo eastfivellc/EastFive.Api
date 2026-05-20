@@ -2,7 +2,7 @@ namespace EastFive.Api
 {
     /// <summary>
     /// Opaque, deserializer-produced view of an inbound HTTP request used by
-    /// the v3 <c>FunctionViewControllerAttribute</c> pipeline.
+    /// the <c>FunctionViewControllerAttribute</c> pipeline.
     ///
     /// The envelope exposes a single non-generic method,
     /// <see cref="TryFulfill"/>. Given a <see cref="BindingRequirement"/>, the

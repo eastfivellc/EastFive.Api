@@ -6,7 +6,7 @@ namespace EastFive.Api
     /// <summary>
     /// Attribute-interface implemented by parameter attributes that need to
     /// contribute to or otherwise modify the URL regex pattern under which
-    /// their owning method is matched (v3 routing).
+    /// their owning method is matched (template-based routing).
     ///
     /// The framework iterates each parameter attribute that implements this
     /// interface during <see cref="HttpVerbAttribute.GetRouteTemplate"/> and

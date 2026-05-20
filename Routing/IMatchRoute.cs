@@ -3,12 +3,12 @@ using System.Reflection;
 namespace EastFive.Api
 {
     /// <summary>
-    /// v3 method-selection contract. Implemented on each
-    /// <c>HttpVerbAttribute</c> subclass alongside the existing
-    /// <see cref="IMatchRoute"/>; the v2 interface is preserved so v2
-    /// controllers continue to work unchanged.
+    /// Method-selection contract for the current (template-based) routing
+    /// path. Implemented on each <c>HttpVerbAttribute</c> subclass alongside
+    /// the legacy <see cref="IMatchRouteLegacy"/>; the legacy interface is
+    /// preserved so older controllers continue to work unchanged.
     ///
-    /// A v3 attribute describes its route declaratively as a
+    /// An attribute describes its route declaratively as a
     /// <see cref="RouteTemplate"/>: a compiled path regex + the set of HTTP
     /// verbs it accepts. The dispatcher matches the request line against the
     /// template and, for surviving candidates, drives
@@ -16,7 +16,7 @@ namespace EastFive.Api
     /// envelope. Named regex captures flow into binding via
     /// <see cref="BindingSource.Path"/>.
     /// </summary>
-    public interface IMatchRouteV3
+    public interface IMatchRoute
     {
         /// <summary>
         /// Build a per-method route description.

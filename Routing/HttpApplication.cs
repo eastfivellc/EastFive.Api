@@ -50,8 +50,8 @@ namespace EastFive.Api
     [ApiResources(NameSpacePrefixes = "EastFive.Api,EastFive.Web")]
     [Auth.ClaimEnableSession]
     [Auth.ClaimEnableActor]
-    // v3 request envelope deserializers — discovered via Attribute Interface
-    // pattern by FunctionViewControllerV3Attribute. See plan-fvc-v3.md.
+    // request envelope deserializers — discovered via Attribute Interface
+    // pattern by FunctionViewControllerAttribute.
     [Routing.Envelopes.QueryOnlyRequestEnvelope]
     [Routing.Envelopes.JsonRequestEnvelope]
     [Routing.Envelopes.FormRequestEnvelope]

@@ -16,7 +16,7 @@ using System.Threading.Tasks;
 namespace EastFive.Api
 {
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Method)]
-    public abstract class HttpVerbAttribute : Attribute, IMatchRoute, IMatchRouteV3, IDocumentMethod
+    public abstract class HttpVerbAttribute : Attribute, IMatchRouteLegacy, IMatchRoute, IDocumentMethod
     {
         private bool matchAllParameters = true;
         public bool MatchAllParameters
@@ -379,7 +379,7 @@ namespace EastFive.Api
             return new Method(this.Method, methodInfo, route, path, httpApp);
         }
 
-        // ---- IMatchRouteV3 ----------------------------------------------------
+        // ---- IMatchRoute ----------------------------------------------------
         // Default route-template synthesis: path is the controller's
         // namespace/route (route falls back to the controller's class name),
         // optionally followed by an open-ended path segment when the method

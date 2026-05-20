@@ -78,7 +78,7 @@ namespace EastFive.Api
             return new Method(this.httpMethod, methodInfo, route, path, httpApp);
         }
 
-        // ---- IMatchRouteV3 ----------------------------------------------------
+        // ---- IMatchRoute ----------------------------------------------------
         // [HttpAction] splices the action name into the path and surfaces its
         // configured HTTP verb instead of the action label that base.Method
         // returns.

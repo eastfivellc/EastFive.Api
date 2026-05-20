@@ -7,7 +7,7 @@ namespace EastFive.Api
 {
     /// <summary>
     /// Per-method routing description produced by an
-    /// <see cref="IMatchRouteV3"/> attribute. Pure value: a compiled path
+    /// <see cref="IMatchRoute"/> attribute. Pure value: a compiled path
     /// regex, the set of HTTP verbs the method accepts, and optional named
     /// query keys that must be present for the route to match.
     ///

@@ -23,7 +23,7 @@ namespace EastFive.Api
         {
             return extensionType.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
                 .Where(method => method.IsExtension() || method.ContainsCustomAttribute<ExtensionAttribute>())
-                .Where(method => method.ContainsAttributeInterface<IMatchRoute>(true))
+                .Where(method => method.ContainsAttributeInterface<IMatchRouteLegacy>(true))
                 .Select(
                     method =>
                     {
