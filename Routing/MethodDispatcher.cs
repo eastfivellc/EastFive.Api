@@ -43,11 +43,11 @@ namespace EastFive.Api.Routing
         /// error response if no deserializer claimed the request.
         /// </summary>
         public static async Task<IHttpResponse>
-            PickDeserializerAsync(IApplication httpApp, IHttpRequest request,
+            PickDeserializerAsync(IApplicationHandlers handlers,
+                IHttpRequest request,
                 Func<IRequestEnvelope, Task<IHttpResponse>> onContinueAsync)
         {
-            var classified = httpApp.GetType()
-                .GetAttributesInterface<IDeserializeRequestEnvelope>(true, true)
+            var classified = handlers.Deserializers
                 .Where(d => d.CanClassify(request))
                 .OrderByDescending(d => d.Priority)
                 .ToArray();
@@ -63,7 +63,7 @@ namespace EastFive.Api.Routing
                     },
                     onSingle: async deserializer =>
                     {
-                        var envelope = await deserializer.CreateEnvelopeAsync(request, httpApp);
+                        var envelope = await deserializer.CreateEnvelopeAsync(request);
                         return await onContinueAsync(envelope);
                     },
                     onMultiple: async deserializers =>
@@ -81,7 +81,7 @@ namespace EastFive.Api.Routing
                             System.Diagnostics.Trace.TraceWarning(
                                 $"IDeserializeRequestEnvelope tie at priority {deserializer.Priority} for {requestVerb} {path}: {tied}; picking {deserializer.GetType().Name}");
                         }
-                        var envelope = await deserializer.CreateEnvelopeAsync(request, httpApp);
+                        var envelope = await deserializer.CreateEnvelopeAsync(request);
                         return await onContinueAsync(envelope);
                     });
         }
@@ -128,6 +128,7 @@ namespace EastFive.Api.Routing
         /// match in <see cref="IHandleRoutes"/> and bind+invoke.
         /// </summary>
         public static Task<IHttpResponse> DispatchAsync(IApplication httpApp,
+            IApplicationHandlers handlers,
             IHttpRequest request, MethodMatch[] matches)
         {
             return matches
@@ -143,7 +144,7 @@ namespace EastFive.Api.Routing
                             .AddReason(reasons)
                             .AsTask();
                     },
-                    onSingle: chosen => InvokeChosenAsync(httpApp, request, chosen),
+                    onSingle: chosen => InvokeChosenAsync(httpApp, handlers, request, chosen),
                     onMultiple: validMatches =>
                     {
                         var names = validMatches
@@ -157,13 +158,13 @@ namespace EastFive.Api.Routing
         }
 
         private static Task<IHttpResponse> InvokeChosenAsync(IApplication httpApp,
+            IApplicationHandlers handlers,
             IHttpRequest request, MethodMatch chosen)
         {
-            return httpApp.GetType()
-                .GetAttributesInterface<IHandleRoutes>(true, true)
+            return handlers.RouteHandlers
                 .Aggregate<IHandleRoutes, RouteHandlingDelegate>(
                     (controllerTypeFinal, httpAppFinal, requestFinal) =>
-                        BindAndInvokeAsync(httpAppFinal, requestFinal, chosen),
+                        BindAndInvokeAsync(httpAppFinal, handlers, requestFinal, chosen),
                     (callback, routeHandler) =>
                     {
                         return (controllerTypeCurrent, httpAppCurrent, requestCurrent) =>
@@ -180,6 +181,7 @@ namespace EastFive.Api.Routing
         /// contexts (e.g. preloaded entities for validators) flow alongside.
         /// </summary>
         public static async Task<IHttpResponse> BindAndInvokeAsync(IApplication httpApp,
+            IApplicationHandlers handlers,
             IHttpRequest request, MethodMatch chosen)
         {
             var bindings = new List<KeyValuePair<ParameterInfo, object>>(chosen.Fulfillments.Length);
@@ -208,7 +210,7 @@ namespace EastFive.Api.Routing
                     return failure;
             }
 
-            return await RunInvocationChainAsync(httpApp, request,
+            return await RunInvocationChainAsync(httpApp, handlers, request,
                 chosen.ControllerType, chosen.Method,
                 bindings.ToArray(), bindingContexts);
         }
@@ -231,31 +233,30 @@ namespace EastFive.Api.Routing
         /// orchestration here stays a single composition.
         /// </summary>
         public static Task<IHttpResponse> RunInvocationChainAsync(
-            IApplication httpApp, IHttpRequest request,
+            IApplication httpApp, IApplicationHandlers handlers,
+            IHttpRequest request,
             Type controllerType, MethodInfo method,
             KeyValuePair<ParameterInfo, object>[] parameters,
             IReadOnlyDictionary<ParameterInfo, object> bindingContexts)
         {
-            var handlers = new List<IHandleMethodInvocation>();
-            handlers.AddRange(httpApp.GetType()
-                .GetAttributesInterface<IHandleMethodInvocation>(true, true));
-            handlers.AddRange(method
+            var invocationHandlers = new List<IHandleMethodInvocation>(handlers.AppLevelInvocationHandlers);
+            invocationHandlers.AddRange(method
                 .GetAttributesInterface<IHandleMethodInvocation>(true, true));
             foreach (var binding in parameters)
             {
                 if (binding.Key == null)
                     continue;
-                handlers.AddRange(binding.Key.ParameterType
+                invocationHandlers.AddRange(binding.Key.ParameterType
                     .GetAttributesInterface<IHandleMethodInvocation>(true, true));
             }
 
             InvokeMethodDelegate chain =
                 (parmsFinal, ctxFinal, methodFinal, appFinal, reqFinal) =>
-                    FunctionViewControllerAttribute.InvokeHandledMethodAsync(appFinal, reqFinal,
+                    FunctionViewControllerAttribute.InvokeHandledMethodAsync(appFinal, handlers, reqFinal,
                         controllerType, methodFinal, parmsFinal);
-            for (var i = handlers.Count - 1; i >= 0; i--)
+            for (var i = invocationHandlers.Count - 1; i >= 0; i--)
             {
-                var h = handlers[i];
+                var h = invocationHandlers[i];
                 var capturedNext = chain;
                 chain = (parmsCur, ctxCur, methodCur, appCur, reqCur) =>
                     h.HandleMethodInvocationAsync(parmsCur, ctxCur, methodCur,

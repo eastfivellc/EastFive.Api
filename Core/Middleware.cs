@@ -175,14 +175,15 @@ namespace EastFive.Api.Core
             if (candidates.Length == 0)
                 return skip();
 
-            return await Routing.MethodDispatcher.PickDeserializerAsync(application, requestMessage,
+            var handlers = Routing.ApplicationHandlers.For(application);
+            return await Routing.MethodDispatcher.PickDeserializerAsync(handlers, requestMessage,
                 async (envelope) =>
                 {
                     var matches = Routing.MethodDispatcher
                         .BuildMatches(envelope, candidates);
 
                     return await Routing.MethodDispatcher
-                        .DispatchAsync(application, requestMessage, matches);
+                        .DispatchAsync(application, handlers, requestMessage, matches);
                 });
         }
 

@@ -37,7 +37,7 @@ namespace EastFive.Api.Routing.Envelopes
             return false;
         }
 
-        public async Task<IRequestEnvelope> CreateEnvelopeAsync(IHttpRequest request, IApplication httpApp)
+        public async Task<IRequestEnvelope> CreateEnvelopeAsync(IHttpRequest request)
         {
             var body = await request.ReadContentAsStringAsync();
             JContainer parsed = null;

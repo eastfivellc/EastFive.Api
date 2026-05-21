@@ -18,7 +18,7 @@ namespace EastFive.Api.Routing.Envelopes
         public bool CanClassify(IHttpRequest request)
             => EnvelopeHelpers.LacksBodyByHeaders(request);
 
-        public Task<IRequestEnvelope> CreateEnvelopeAsync(IHttpRequest request, IApplication httpApp)
+        public Task<IRequestEnvelope> CreateEnvelopeAsync(IHttpRequest request)
         {
             var query = EnvelopeHelpers.ParseQuery(request);
             IRequestEnvelope envelope = new QueryOnlyEnvelope(query);

@@ -59,6 +59,6 @@ namespace EastFive.Api
         /// envelope's cached state, then exposed through
         /// <see cref="IRequestEnvelope.TryFulfill{T}"/> closures.
         /// </summary>
-        Task<IRequestEnvelope> CreateEnvelopeAsync(IHttpRequest request, IApplication httpApp);
+        Task<IRequestEnvelope> CreateEnvelopeAsync(IHttpRequest request);
     }
 }

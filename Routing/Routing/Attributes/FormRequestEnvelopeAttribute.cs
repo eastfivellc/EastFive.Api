@@ -25,7 +25,7 @@ namespace EastFive.Api.Routing.Envelopes
             return EnvelopeHelpers.ContentTypeMatches(request, "application/x-www-form-urlencoded");
         }
 
-        public Task<IRequestEnvelope> CreateEnvelopeAsync(IHttpRequest request, IApplication httpApp)
+        public Task<IRequestEnvelope> CreateEnvelopeAsync(IHttpRequest request)
         {
             var form = request.Form;
             var query = EnvelopeHelpers.ParseQuery(request);

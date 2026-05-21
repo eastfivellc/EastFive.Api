@@ -30,7 +30,7 @@ namespace EastFive.Api.Routing.Envelopes
             return EnvelopeHelpers.ContentTypeStartsWith(request, "multipart/");
         }
 
-        public Task<IRequestEnvelope> CreateEnvelopeAsync(IHttpRequest request, IApplication httpApp)
+        public Task<IRequestEnvelope> CreateEnvelopeAsync(IHttpRequest request)
         {
             var form = request.Form;
             var query = EnvelopeHelpers.ParseQuery(request);

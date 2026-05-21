@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Http;
 using EastFive.Api.Bindings;
 using EastFive.Api.Core;
 using EastFive.Api.Resources;
+using EastFive.Api.Routing;
 using EastFive.Api.Serialization;
 using EastFive.Collections.Generic;
 using EastFive.Extensions;
@@ -96,7 +97,7 @@ namespace EastFive.Api
         }
 
         internal static Task<IHttpResponse> InvokeHandledMethodAsync(
-            IApplication httpApp, IHttpRequest routeData,
+            IApplication httpApp, IApplicationHandlers handlers, IHttpRequest routeData,
             Type controllerType, MethodInfo method,
             KeyValuePair<ParameterInfo, object>[] queryParameters)
         {
@@ -148,8 +149,7 @@ namespace EastFive.Api
                         }
                         catch (Exception ex)
                         {
-                            return await httpApp.GetType()
-                                .GetAttributesInterface<IHandleExceptions>(true, true)
+                            return await handlers.ExceptionHandlers
                                 .Aggregate(
                                     (Exception exFinal, MethodInfo methodFinal, KeyValuePair<ParameterInfo, object>[] queryParametersFinal, IApplication httpAppFinal, IHttpRequest routeDataFinal) =>
                                     {
