@@ -27,9 +27,6 @@ namespace EastFive.Api
     public class FunctionViewControllerAttribute 
         : Attribute, IInvokeResource, IDocumentRoute, IProvideSerialization
     {
-        private static readonly IReadOnlyDictionary<ParameterInfo, object> EmptyBindingContexts =
-            new Dictionary<ParameterInfo, object>(0);
-
         private string ns;
         public string Namespace
         {
@@ -96,151 +93,6 @@ namespace EastFive.Api
                 resourceDecorated.Name;
 
             return new Uri($"{routeDirectory}/{route}", UriKind.Relative);
-        }
-
-        protected static IDictionary<Type, HttpMethod> methodLookup =
-            new Dictionary<Type, HttpMethod>()
-            {
-                { typeof(EastFive.Api.HttpGetAttribute), HttpMethod.Get },
-                { typeof(EastFive.Api.HttpDeleteAttribute), HttpMethod.Delete },
-                { typeof(EastFive.Api.HttpPostAttribute), HttpMethod.Post },
-                { typeof(EastFive.Api.HttpPutAttribute), HttpMethod.Put },
-                { typeof(EastFive.Api.HttpPatchAttribute), new HttpMethod("Patch") },
-                { typeof(EastFive.Api.HttpOptionsAttribute), HttpMethod.Options },
-                { typeof(EastFive.Api.HttpActionAttribute), new HttpMethod("actions") },
-            };
-
-        protected virtual IDictionary<HttpMethod, MethodInfo[]> PossibleHttpMethods(Type controllerType, IApplication httpApp)
-        {
-            var actionMethods = controllerType
-                .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
-                .Where(method => method.ContainsCustomAttribute<HttpActionAttribute>())
-                .GroupBy(method => method.GetCustomAttribute<HttpActionAttribute>().Method)
-                .Select(methodGrp => (new HttpMethod(methodGrp.Key)).PairWithValue(methodGrp.ToArray()));
-
-             return methodLookup
-                .Select(
-                    methodKvp => methodKvp.Value.PairWithValue(
-                        controllerType
-                            .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
-                            .Where(method => method.ContainsCustomAttribute(methodKvp.Key))
-                            .ToArray()))
-                .Concat(actionMethods)
-                .ToDictionary();
-        }
-
-        public virtual async Task<IHttpResponse> CreateResponseAsync(Type controllerType,
-            IApplication httpApp, IHttpRequest request, string[] componentsMatched)
-        {
-            // Back-compat single-controller façade: middleware drives the
-            // method-based pipeline directly now and never calls this. Kept
-            // because IInvokeResource still exposes the contract. Filters the
-            // shared RouteTable down to entries owned by controllerType so
-            // we honour the historical "this controller only" contract.
-            var candidates = RouteTable.For(httpApp).Match(request)
-                .Where(c => c.ControllerType == controllerType)
-                .ToArray();
-            if (candidates.Length == 0)
-            {
-                var requestVerb = request.Method?.Method ?? string.Empty;
-                var path = request.RequestUri?.AbsolutePath ?? string.Empty;
-                return request
-                    .CreateResponse(HttpStatusCode.NotFound)
-                    .AddReason($"No route template matched {requestVerb} {path}");
-            }
-            return await Routing.MethodDispatcher
-                .PickDeserializerAsync(httpApp, request,
-                    async (envelope) =>
-                    {
-                        var matches = Routing.MethodDispatcher
-                            .BuildMatches(envelope, candidates);
-
-                        return await Routing.MethodDispatcher
-                            .DispatchAsync(httpApp, request, matches);
-                    });
-        }
-
-        #region Invoke correct method
-
-        protected virtual IEnumerable<MethodInfo> GetHttpMethods(Type controllerType,
-            IApplication httpApp, IHttpRequest request, string [] componentsMatched)
-        {
-            var matchingActionMethods = controllerType
-                .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
-                .Concat(httpApp.GetExtensionMethods(controllerType))
-                .Where(method => method.ContainsAttributeInterface<IMatchRouteLegacy>(true))
-                .Where(
-                    method =>
-                    {
-                        var isMatch = method
-                            .GetAttributesInterface<IMatchRouteLegacy>()
-                            .Any(routeMatcher => routeMatcher.IsMethodMatch(
-                                method, request, httpApp, componentsMatched));
-                        return isMatch;
-                    });
-            return matchingActionMethods;
-        }
-
-        protected virtual async Task<IHttpResponse> InvokeMethod(
-            Type controllerType, IEnumerable<MethodInfo> matchingActionMethods,
-            string[] componentsMatched,
-            IApplication httpApp, IHttpRequest routeData,
-            CastDelegate bodyCastDelegate, string[] bodyValues)
-        {
-            var evaluatedMethods = matchingActionMethods
-                .Select(
-                    method =>
-                    {
-                        var routeMatcher = method.GetAttributesInterface<IMatchRouteLegacy>().Single();
-                        return routeMatcher.IsRouteMatch(controllerType, method, componentsMatched, this, routeData, httpApp,
-                            bodyValues, bodyCastDelegate);
-                    });
-
-            var validMethods = evaluatedMethods
-                .Where(methodCast => methodCast.isValid);
-
-            return await validMethods
-                .First(
-                    (methodCast, next) =>
-                    {
-                        // Legacy path: build the parameter selection up-front,
-                        // then hand off to the same orchestrator the current
-                        // path uses.
-                        var parameterArray = methodCast.parametersWithValues
-                            .Select(pwv => new KeyValuePair<ParameterInfo, object>(
-                                pwv.parameterInfo, pwv.value))
-                            .ToArray();
-
-                        return Routing.MethodDispatcher.RunInvocationChainAsync(httpApp, routeData,
-                            controllerType, methodCast.method,
-                            parameterArray, EmptyBindingContexts);
-                    },
-                    () =>
-                    {
-                        return Issues(evaluatedMethods).AsTask();
-                    });
-
-            IHttpResponse Issues(IEnumerable<RouteMatch> methodsCasts)
-            {
-                var reasonStrings = methodsCasts
-                    .Select(
-                        methodCast =>
-                        {
-                            var errorMessage = methodCast.ErrorMessage;
-                            return errorMessage;
-                        })
-                    .ToArray();
-                if (!reasonStrings.Any())
-                {
-                    return routeData
-                        .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
-                        .AddReason("No methods that implement Action");
-                }
-                var content = reasonStrings.Join(";");
-                return routeData
-                    .CreateResponse(System.Net.HttpStatusCode.NotImplemented)
-                    .AddReason(content);
-            }
         }
 
         internal static Task<IHttpResponse> InvokeHandledMethodAsync(
@@ -327,14 +179,12 @@ namespace EastFive.Api
                     });
         }
 
-        #endregion
-
         public virtual Route GetRoute(Type type, HttpApplication httpApp)
         {
             var actionMethods = type
                 .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
                 .Concat(httpApp.GetExtensionMethods(type))
-                .Where(method => method.ContainsAttributeInterface<IMatchRouteLegacy>(true))
+                .Where(method => method.ContainsAttributeInterface<IMatchRoute>(true))
                 .ToArray();
 
             var ns = this.Namespace.HasBlackSpace() ? this.Namespace : "api";
@@ -342,115 +192,6 @@ namespace EastFive.Api
                 actionMethods,
                 type.GetMembers(BindingFlags.Public | BindingFlags.FlattenHierarchy | BindingFlags.Instance),
                 httpApp);
-        }
-
-        public virtual bool DoesHandleRequest(Type type, IHttpRequest request,
-            out double matchQuality, out string [] componentsMatched)
-        {
-            matchQuality = 
-                (this.Route.HasBlackSpace() ? 0 : 2) +
-                (this.Namespace.HasBlackSpace() ? 0 : 1);
-
-            var requestUrl = request.GetAbsoluteUri();
-            var path = requestUrl.AbsolutePath;
-            while (path.Contains("//"))
-                path = path.Replace("//", "/");
-            var pathParameters = path
-                .Split('/'.AsArray())
-                .Where(v => v.HasBlackSpace())
-                .ToArray();
-
-            if (IsExcluded())
-            {
-                componentsMatched = new string[] { };
-                return false;
-            }
-
-            if (!IsNamespaceCorrect(out string [] nsComponents))
-            {
-                componentsMatched = new string[] { };
-                return false;
-            }
-
-            if (this.Route.HasBlackSpace())
-            {
-                var doesMatch = DoesMatch(nsComponents.Length, this.Route, out string [] routeComponents);
-                componentsMatched = nsComponents
-                    .Concat(routeComponents.NullToEmpty())
-                    .ToArray();
-                return doesMatch;
-            }
-
-            {
-                //var route = pathParameters
-                //    .Skip(nsComponents.Length)
-                //    .First();
-                componentsMatched = nsComponents;
-                        //.Append(route)
-                        //.ToArray();
-                return true;
-            }
-
-            bool DoesMatch(int index, string value, out string [] matchComponents)
-            {
-                var valueComponents = value.Split('/');
-
-                if (pathParameters.Length < index + valueComponents.Length)
-                {
-                    matchComponents = default; // new string[] { };
-                    return false;
-                }
-                matchComponents = pathParameters.Skip(index).Take(valueComponents.Length).ToArray();
-                
-                if (!valueComponents.SequenceEqual(matchComponents, StringComparison.OrdinalIgnoreCase))
-                    return false;
-
-                return true;
-            }
-
-            bool IsNamespaceCorrect(out string [] nsComponents)
-            {
-                if (this.Namespace.IsNullOrWhiteSpace())
-                {
-                    nsComponents = pathParameters.Take(1).ToArray();
-                    return true;
-                }
-
-                if (!Namespace.Contains(','))
-                {
-                    return DoesMatch(0, this.Namespace, out nsComponents);
-                }
-
-                bool doesAnyNamespaceMatch;
-                (doesAnyNamespaceMatch, nsComponents) = Namespace
-                    .Split(',')
-                    .First(
-                        (ns, next) =>
-                        {
-                            if (!DoesMatch(0, ns, out string[] nsInner))
-                                return next();
-                            return (true, nsInner);
-                        },
-                        () => (false, new string[] { }));
-                return doesAnyNamespaceMatch;
-            }
-
-            bool IsExcluded()
-            {
-                if (this.ExcludeNamespaces.IsNullOrWhiteSpace())
-                    return false;
-                return this.ExcludeNamespaces
-                    .Split(',')
-                    .Select(exNs => exNs.ToLower())
-                    .First(
-                        (exNs, next) =>
-                        {
-                            if (DoesMatch(0, exNs, out string [] discard))
-                                return true;
-                            return next();
-                        },
-                        () => false);
-            }
         }
 
         #region Serialization

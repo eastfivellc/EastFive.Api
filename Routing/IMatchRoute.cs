@@ -4,9 +4,7 @@ namespace EastFive.Api
 {
     /// <summary>
     /// Method-selection contract for the current (template-based) routing
-    /// path. Implemented on each <c>HttpVerbAttribute</c> subclass alongside
-    /// the legacy <see cref="IMatchRouteLegacy"/>; the legacy interface is
-    /// preserved so older controllers continue to work unchanged.
+    /// path. Implemented on each <c>HttpVerbAttribute</c> subclass.
     ///
     /// An attribute describes its route declaratively as a
     /// <see cref="RouteTemplate"/>: a compiled path regex + the set of HTTP

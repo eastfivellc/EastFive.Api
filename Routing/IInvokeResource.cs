@@ -17,12 +17,6 @@ namespace EastFive.Api
         string Route { get; }
 
         string ContentType { get; }
-
-        bool DoesHandleRequest(Type type, IHttpRequest request,
-            out double matchQuality, out string[] componentsMatched);
-
-        Task<IHttpResponse> CreateResponseAsync(Type controllerType, 
-            IApplication httpApp, IHttpRequest request, string [] componentsMatched);
     }
 
     public interface IInvokeExtensions
