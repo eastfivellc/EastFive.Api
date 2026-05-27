@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 
 using Microsoft.AspNetCore.Http;
 
+using EastFive.Api.Binding;
+
 namespace EastFive.Api.Routing.Envelopes
 {
     /// <summary>
@@ -38,7 +40,7 @@ namespace EastFive.Api.Routing.Envelopes
             return Task.FromResult(envelope);
         }
 
-        private sealed class MultipartEnvelope : IRequestEnvelope
+        private sealed class MultipartEnvelope : IRequestEnvelope, IRequestEnvelopeBody
         {
             private readonly IFormCollection form;
             private readonly IReadOnlyDictionary<string, string> query;
@@ -47,6 +49,13 @@ namespace EastFive.Api.Routing.Envelopes
             {
                 this.form = form;
                 this.query = query;
+            }
+
+            public bool TryGetBody<TBody>(out TBody value)
+            {
+                if (this.form is TBody match) { value = match; return true; }
+                value = default;
+                return false;
             }
 
             public bool TryFulfill(BindingRequirement requirement, out ExtractAsyncDelegate extract)

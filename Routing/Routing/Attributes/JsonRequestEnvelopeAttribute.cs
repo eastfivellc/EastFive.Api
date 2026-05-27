@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
+using EastFive.Api.Binding;
+
 namespace EastFive.Api.Routing.Envelopes
 {
     /// <summary>
@@ -56,7 +58,7 @@ namespace EastFive.Api.Routing.Envelopes
             return new JsonEnvelope(parsed, query);
         }
 
-        private sealed class JsonEnvelope : IRequestEnvelope
+        private sealed class JsonEnvelope : IRequestEnvelope, IRequestEnvelopeBody
         {
             private readonly JContainer body;
             private readonly IReadOnlyDictionary<string, string> query;
@@ -65,6 +67,14 @@ namespace EastFive.Api.Routing.Envelopes
             {
                 this.body = body;
                 this.query = query;
+            }
+
+            public bool TryGetBody<TBody>(out TBody value)
+            {
+                if (this.body is null) { value = default; return false; }
+                if (this.body is TBody match) { value = match; return true; }
+                value = default;
+                return false;
             }
 
             public bool TryFulfill(BindingRequirement requirement, out ExtractAsyncDelegate extract)

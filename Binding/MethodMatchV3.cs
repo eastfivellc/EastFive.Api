@@ -19,17 +19,27 @@ namespace EastFive.Api.Binding
     public readonly struct MethodMatchV3
     {
         public MethodMatchV3(Type controllerType, IInvokeResource invokeResource,
-            MethodInfo method, CompositeBindingSource source)
+            MethodInfo method, CompositeBindingSource source,
+            IParameterOverrideSource overrides = null)
         {
             this.ControllerType = controllerType;
             this.InvokeResource = invokeResource;
             this.Method = method;
             this.Source = source;
+            this.Overrides = overrides;
         }
 
         public Type ControllerType { get; }
         public IInvokeResource InvokeResource { get; }
         public MethodInfo Method { get; }
         public CompositeBindingSource Source { get; }
+
+        /// <summary>
+        /// Optional per-parameter override lookup carried from the originating
+        /// request envelope (test seam). Consulted by
+        /// <see cref="MethodDispatcherV3.BindAndInvokeAsync"/> before the
+        /// normal bind path runs for each parameter. Null in production.
+        /// </summary>
+        public IParameterOverrideSource Overrides { get; }
     }
 }

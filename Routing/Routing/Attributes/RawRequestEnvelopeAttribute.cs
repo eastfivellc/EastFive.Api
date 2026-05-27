@@ -4,6 +4,8 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
+using EastFive.Api.Binding;
+
 namespace EastFive.Api.Routing.Envelopes
 {
     /// <summary>
@@ -28,7 +30,7 @@ namespace EastFive.Api.Routing.Envelopes
             return new RawEnvelope(bytes ?? Array.Empty<byte>(), query);
         }
 
-        private sealed class RawEnvelope : IRequestEnvelope
+        private sealed class RawEnvelope : IRequestEnvelope, IRequestEnvelopeBody
         {
             private readonly byte[] body;
             private readonly IReadOnlyDictionary<string, string> query;
@@ -37,6 +39,25 @@ namespace EastFive.Api.Routing.Envelopes
             {
                 this.body = body;
                 this.query = query;
+            }
+
+            public bool TryGetBody<TBody>(out TBody value)
+            {
+                if (this.body is TBody bytes) { value = bytes; return true; }
+                if (typeof(TBody) == typeof(System.IO.Stream))
+                {
+                    object stream = new System.IO.MemoryStream(this.body, writable: false);
+                    value = (TBody)stream;
+                    return true;
+                }
+                if (typeof(TBody) == typeof(string))
+                {
+                    object str = System.Text.Encoding.UTF8.GetString(this.body);
+                    value = (TBody)str;
+                    return true;
+                }
+                value = default;
+                return false;
             }
 
             public bool TryFulfill(BindingRequirement requirement, out ExtractAsyncDelegate extract)

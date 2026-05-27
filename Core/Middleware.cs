@@ -179,8 +179,36 @@ namespace EastFive.Api.Core
             return await Routing.MethodDispatcher.PickDeserializerAsync(handlers, requestMessage,
                 async (envelope) =>
                 {
+                    // Phase 7 fork: partition candidates by which dispatcher they
+                    // opt into. A method is V3 iff any of its parameters carries
+                    // an attribute implementing IBindFromRequest; everything else
+                    // stays on the legacy v2 path. V3 candidates dispatch first;
+                    // only if V3 produces no matches do we fall through to V2
+                    // (so a V2 fallback endpoint at the same route can still
+                    // catch a request that V3 candidates all reject).
+                    var v3Candidates = candidates
+                        .Where(c => Binding.MethodDispatcherV3.ShouldDispatch(c.Method))
+                        .ToArray();
+                    var v2Candidates = v3Candidates.Length == candidates.Length
+                        ? Array.Empty<Routing.RouteCandidate>()
+                        : candidates
+                            .Where(c => !Binding.MethodDispatcherV3.ShouldDispatch(c.Method))
+                            .ToArray();
+
+                    if (v3Candidates.Length > 0)
+                    {
+                        var v3Matches = Binding.MethodDispatcherV3
+                            .BuildMatches(envelope, requestMessage, v3Candidates);
+                        if (v3Matches.Length > 0)
+                            return await Binding.MethodDispatcherV3
+                                .DispatchAsync(application, handlers, requestMessage, v3Matches);
+                        if (v2Candidates.Length == 0)
+                            return await Binding.MethodDispatcherV3
+                                .DispatchAsync(application, handlers, requestMessage, v3Matches);
+                    }
+
                     var matches = Routing.MethodDispatcher
-                        .BuildMatches(envelope, candidates);
+                        .BuildMatches(envelope, v2Candidates.Length > 0 ? v2Candidates : candidates);
 
                     return await Routing.MethodDispatcher
                         .DispatchAsync(application, handlers, requestMessage, matches);

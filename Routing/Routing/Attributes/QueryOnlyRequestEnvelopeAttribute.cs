@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
+using EastFive.Api.Binding;
+
 namespace EastFive.Api.Routing.Envelopes
 {
     /// <summary>
@@ -25,13 +27,19 @@ namespace EastFive.Api.Routing.Envelopes
             return Task.FromResult(envelope);
         }
 
-        private sealed class QueryOnlyEnvelope : IRequestEnvelope
+        private sealed class QueryOnlyEnvelope : IRequestEnvelope, IRequestEnvelopeBody
         {
             private readonly IReadOnlyDictionary<string, string> query;
 
             public QueryOnlyEnvelope(IReadOnlyDictionary<string, string> query)
             {
                 this.query = query;
+            }
+
+            public bool TryGetBody<TBody>(out TBody value)
+            {
+                value = default;
+                return false;
             }
 
             public bool TryFulfill(BindingRequirement requirement, out ExtractAsyncDelegate extract)

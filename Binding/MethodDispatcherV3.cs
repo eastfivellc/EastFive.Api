@@ -80,11 +80,12 @@ namespace EastFive.Api.Binding
             IHttpRequest request, RouteCandidate[] routeMatches)
         {
             var body = envelope as IRequestEnvelopeBody;
+            var overrides = envelope as IParameterOverrideSource;
             var query = ParseQueryMulti(request);
             var results = new List<MethodMatchV3>(routeMatches.Length);
             foreach (var rc in routeMatches)
             {
-                if (TryBuildMatch(body, query, request, rc, out var match))
+                if (TryBuildMatch(body, query, request, rc, overrides, out var match))
                     results.Add(match);
             }
             return results.ToArray();
@@ -92,7 +93,7 @@ namespace EastFive.Api.Binding
 
         private static bool TryBuildMatch(IRequestEnvelopeBody body,
             IReadOnlyDictionary<string, string[]> query, IHttpRequest request,
-            RouteCandidate rc, out MethodMatchV3 match)
+            RouteCandidate rc, IParameterOverrideSource overrides, out MethodMatchV3 match)
         {
             var method = rc.Method.IsGenericMethod
                 ? rc.Method.MakeGenericMethod(rc.ControllerType.AsArray())
@@ -103,6 +104,16 @@ namespace EastFive.Api.Binding
             {
                 if (!p.TryGetAttributeInterface<IBindFromRequest>(out var binder))
                     continue;
+                // An override pre-empts selection: the test has the typed
+                // value already, so the IBindFromRequest selection ladder
+                // doesn't get to vote and can't reject the match for a
+                // body/query value it wouldn't have found anyway.
+                if (overrides is not null
+                    && overrides.TryGetParameterOverride(p.Name, out _))
+                {
+                    members[p.Name] = BindCalls.NotPresent;
+                    continue;
+                }
                 if (!binder.TrySelectSource(env, p, out var call))
                 {
                     match = default;
@@ -111,7 +122,7 @@ namespace EastFive.Api.Binding
                 members[p.Name] = call;
             }
             match = new MethodMatchV3(rc.ControllerType, rc.InvokeResource, method,
-                new CompositeBindingSource(members));
+                new CompositeBindingSource(members), overrides);
             return true;
         }
 
