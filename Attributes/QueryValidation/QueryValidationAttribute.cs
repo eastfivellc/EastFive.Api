@@ -112,7 +112,8 @@ namespace EastFive.Api
         {
             if (!this.CheckFileName)
                 return currentPattern;
-            return RoutePattern.AppendTrailingCapture(currentPattern, this.GetKey(parameter));
+            return RoutePattern.AppendTrailingCapture(currentPattern, this.GetKey(parameter),
+                parameter.ParameterType);
         }
 
         public virtual BindingRequirement GetRequirement(ParameterInfo parameter)
@@ -277,7 +278,8 @@ namespace EastFive.Api
         /// <see cref="QueryParameterAttribute.CheckFileName"/>.
         /// </summary>
         public override string ModifyRoutePattern(MethodInfo method, ParameterInfo parameter, string currentPattern)
-            => RoutePattern.AppendTrailingCapture(currentPattern, this.GetKey(parameter));
+            => RoutePattern.AppendTrailingCapture(currentPattern, this.GetKey(parameter),
+                parameter.ParameterType);
 
         public override Parameter GetParameter(ParameterInfo paramInfo, HttpApplication httpApp)
         {

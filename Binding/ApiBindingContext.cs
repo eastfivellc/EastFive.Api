@@ -1,3 +1,4 @@
+using System;
 using System.Globalization;
 
 using EastFive.Serialization.Binding;
@@ -26,7 +27,8 @@ namespace EastFive.Api.Binding
             IBindingSlot slot = null,
             string keyPath = "",
             CultureInfo culture = null,
-            IMemberPlanProvider memberPlanProvider = null)
+            IMemberPlanProvider memberPlanProvider = null,
+            Type memberScope = null)
         {
             TypeBindings = typeBindings;
             Request = request;
@@ -34,7 +36,8 @@ namespace EastFive.Api.Binding
             Slot = slot;
             KeyPath = keyPath ?? string.Empty;
             Culture = culture ?? CultureInfo.InvariantCulture;
-            MemberPlanProvider = memberPlanProvider ?? ConventionalMemberPlanProvider.Instance;
+            MemberPlanProvider = memberPlanProvider ?? ScopedMemberPlanProvider.Instance;
+            MemberScope = memberScope;
         }
 
         /// <summary>Originating request. Never null in dispatcher-built contexts.</summary>
@@ -53,16 +56,21 @@ namespace EastFive.Api.Binding
 
         public IMemberPlanProvider MemberPlanProvider { get; }
 
+        public Type MemberScope { get; }
+
         public IBindingContext WithSlot(IBindingSlot slot) =>
-            new ApiBindingContext(TypeBindings, Request, Application, slot, KeyPath, Culture, MemberPlanProvider);
+            new ApiBindingContext(TypeBindings, Request, Application, slot, KeyPath, Culture, MemberPlanProvider, MemberScope);
 
         public IBindingContext WithKeyPath(string keyPath) =>
-            new ApiBindingContext(TypeBindings, Request, Application, Slot, keyPath, Culture, MemberPlanProvider);
+            new ApiBindingContext(TypeBindings, Request, Application, Slot, keyPath, Culture, MemberPlanProvider, MemberScope);
 
         public IBindingContext WithTypeBindings(ITypeBindings typeBindings) =>
-            new ApiBindingContext(typeBindings, Request, Application, Slot, KeyPath, Culture, MemberPlanProvider);
+            new ApiBindingContext(typeBindings, Request, Application, Slot, KeyPath, Culture, MemberPlanProvider, MemberScope);
 
         public IBindingContext WithMemberPlanProvider(IMemberPlanProvider memberPlanProvider) =>
-            new ApiBindingContext(TypeBindings, Request, Application, Slot, KeyPath, Culture, memberPlanProvider);
+            new ApiBindingContext(TypeBindings, Request, Application, Slot, KeyPath, Culture, memberPlanProvider, MemberScope);
+
+        public IBindingContext WithMemberScope(Type memberScope) =>
+            new ApiBindingContext(TypeBindings, Request, Application, Slot, KeyPath, Culture, MemberPlanProvider, memberScope);
     }
 }

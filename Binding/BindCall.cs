@@ -73,6 +73,34 @@ namespace EastFive.Api.Binding
                     onFailure);
 
         /// <summary>
+        /// Reports an explicit null when the consumer can accept one
+        /// (<c>onNull</c> present — i.e. the target is <c>Nullable&lt;T&gt;</c> or a
+        /// reference type), otherwise falls back to <see cref="NotPresent"/> so a
+        /// C# default value can still apply. Used as the optional-absent
+        /// contribution by <c>[QueryOptional]</c>, letting an absent query value
+        /// bind to <c>null</c> without requiring a C# default.
+        /// </summary>
+        public static readonly BindCall Null = (
+            string path,
+            Func<object> onNull,
+            Func<string, object> onString,
+            Func<Guid, object> onGuid,
+            Func<bool, object> onBool,
+            Func<long, object> onInt64,
+            Func<double, object> onDouble,
+            Func<DateTime, object> onDateTime,
+            Func<byte[], object> onBytes,
+            Func<IBindingSource, object> onObject,
+            Func<IEnumerableBindingSource, object> onArray,
+            Type elementTypeHint,
+            Func<BindFailure, object> onFailure) =>
+                onNull is not null
+                    ? new ValueTask<object>(onNull())
+                    : BindingSourceDispatch.FailTask<object>(
+                        new BindFailure(new NotPresent(), typeof(object), path ?? string.Empty),
+                        onFailure);
+
+        /// <summary>
         /// Single string value at the root of the parameter (empty path);
         /// any non-empty path reports <see cref="NotPresent"/>; missing
         /// <c>onString</c> reports <see cref="WrongSourceType"/>.

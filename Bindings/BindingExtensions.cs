@@ -1,5 +1,6 @@
 ﻿using EastFive.Linq;
 using EastFive.Reflection;
+using EastFive.Api.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,60 +17,28 @@ namespace EastFive.Api.Bindings
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailureToBind)
         {
-            return parameter
-                .GetAttributesInterface<IBindApiParameter<TProvider>>()
+            var parameterType = parameter.ParameterType;
+
+            // Precedence: parameter → application → parameter type. The chain is
+            // lazy, so later locations are only scanned when earlier binders decline
+            // (each binder calls next() from its onDidNotBind arm).
+            return parameter.AttributeInterfacesInParameter<IBindApiParameter<TProvider>>()
+                .Concat(application.AttributeInterfacesInApplication<IBindApiParameter<TProvider>>())
+                .Concat(parameterType.AttributeInterfacesInType<IBindApiParameter<TProvider>>(inherit: true))
                 .First(
                     (paramBinder, next) =>
                     {
                         return paramBinder.Bind(parameter, provider,
                                 application,
                             onParsed,
-                            (why) =>
-                            {
-                                return next();
-                            },
+                            (why) => next(),
                             (why) => onFailureToBind(why));
                     },
                     () =>
                     {
-                        return application.GetType()
-                            .GetAttributesInterface<IBindApiParameter<TProvider>>(true)
-                            .First(
-                                (paramBinder, next) =>
-                                {
-                                    return paramBinder.Bind(parameter, provider,
-                                            application,
-                                        onParsed,
-                                        (why) =>
-                                        {
-                                            return next();
-                                        },
-                                        (why) => onFailureToBind(why));
-                                },
-                                () =>
-                                {
-                                    var parameterType = parameter.ParameterType;
-                                    return parameterType
-                                        .GetAttributesInterface<IBindApiParameter<TProvider>>(inherit: true)
-                                        .First(
-                                            (paramBinder, next) =>
-                                            {
-                                                return paramBinder.Bind(parameter, provider,
-                                                        application,
-                                                    onParsed,
-                                                    (why) =>
-                                                    {
-                                                        return next();
-                                                    },
-                                                    (why) => onFailureToBind(why));
-                                            },
-                                            () =>
-                                            {
-                                                return application.Bind(provider, parameterType,
-                                                    onParsed,
-                                                    onFailureToBind);
-                                            });
-                                });
+                        return application.Bind(provider, parameterType,
+                            onParsed,
+                            onFailureToBind);
                     });
         }
 

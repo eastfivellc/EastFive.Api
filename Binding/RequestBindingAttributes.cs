@@ -2,6 +2,8 @@ using System;
 using System.Linq;
 using System.Reflection;
 
+using EastFive.Api.Binding.Scopes;
+
 namespace EastFive.Api.Binding
 {
     /// <summary>
@@ -18,10 +20,12 @@ namespace EastFive.Api.Binding
     /// </para>
     /// </summary>
     [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
-    public sealed class BodyAttribute : Attribute, IBindFromRequest
+    public sealed class BodyAttribute : Attribute, IBindFromRequest, IProvideMemberScope
     {
         /// <summary>Path inside the body. Defaults to the parameter name.</summary>
         public string Name { get; set; }
+
+        Type IProvideMemberScope.MemberScope => typeof(RequestBody);
 
         public bool TrySelectSource(IRequestEnvelopeV3 envelope, ParameterInfo parameter,
             out BindCall call)
@@ -44,8 +48,10 @@ namespace EastFive.Api.Binding
     /// at the call site. Selection misses if no body is present.
     /// </summary>
     [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
-    public sealed class ResourceAttribute : Attribute, IBindFromRequest
+    public sealed class ResourceAttribute : Attribute, IBindFromRequest, IProvideMemberScope
     {
+        Type IProvideMemberScope.MemberScope => typeof(RequestBody);
+
         public bool TrySelectSource(IRequestEnvelopeV3 envelope, ParameterInfo parameter,
             out BindCall call)
         {
@@ -68,9 +74,11 @@ namespace EastFive.Api.Binding
     /// <see cref="BindCalls.NotPresent"/>.
     /// </summary>
     [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
-    public sealed class QueryAttribute : Attribute, IBindFromRequest
+    public sealed class QueryAttribute : Attribute, IBindFromRequest, IProvideMemberScope
     {
         public string Name { get; set; }
+
+        Type IProvideMemberScope.MemberScope => typeof(QueryString);
 
         public bool TrySelectSource(IRequestEnvelopeV3 envelope, ParameterInfo parameter,
             out BindCall call)
@@ -88,14 +96,45 @@ namespace EastFive.Api.Binding
     }
 
     /// <summary>
+    /// V3 attribute that locates an OPTIONAL parameter in the URL query string.
+    /// Behaves like <see cref="QueryAttribute"/> when the key is present, but is
+    /// never a selection miss: an absent value contributes
+    /// <see cref="BindCalls.Null"/>, so a <c>Nullable&lt;T&gt;</c> or reference-type
+    /// parameter binds to <c>null</c> even without a C# default value. Apply this
+    /// to make <c>start</c>/<c>days</c>-style query parameters optional.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
+    public sealed class QueryOptionalAttribute : Attribute, IBindFromRequest, IProvideMemberScope
+    {
+        public string Name { get; set; }
+
+        Type IProvideMemberScope.MemberScope => typeof(QueryString);
+
+        public bool TrySelectSource(IRequestEnvelopeV3 envelope, ParameterInfo parameter,
+            out BindCall call)
+        {
+            var key = Name ?? parameter.Name;
+            if (envelope.Query.TryGetValue(key, out var values) && values is { Length: > 0 })
+            {
+                call = BindCalls.MultiValue(key, values);
+                return true;
+            }
+            call = BindCalls.Null;
+            return true;
+        }
+    }
+
+    /// <summary>
     /// V3 attribute that locates the parameter in route-template captures
     /// (regex group names, conventional <c>{id}</c> tokens). Route values are
     /// always single-valued strings.
     /// </summary>
     [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
-    public sealed class RouteAttribute : Attribute, IBindFromRequest
+    public sealed class RouteAttribute : Attribute, IBindFromRequest, IProvideMemberScope
     {
         public string Name { get; set; }
+
+        Type IProvideMemberScope.MemberScope => typeof(QueryString);
 
         public bool TrySelectSource(IRequestEnvelopeV3 envelope, ParameterInfo parameter,
             out BindCall call)
@@ -118,9 +157,11 @@ namespace EastFive.Api.Binding
     /// via <c>onArray</c>; single values via <c>onString</c>.
     /// </summary>
     [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
-    public sealed class HeaderAttribute : Attribute, IBindFromRequest
+    public sealed class HeaderAttribute : Attribute, IBindFromRequest, IProvideMemberScope
     {
         public string Name { get; set; }
+
+        Type IProvideMemberScope.MemberScope => typeof(QueryString);
 
         public bool TrySelectSource(IRequestEnvelopeV3 envelope, ParameterInfo parameter,
             out BindCall call)

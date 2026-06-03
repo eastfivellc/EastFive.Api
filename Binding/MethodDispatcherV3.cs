@@ -107,13 +107,13 @@ namespace EastFive.Api.Binding
                 // An override pre-empts selection: the test has the typed
                 // value already, so the IBindFromRequest selection ladder
                 // doesn't get to vote and can't reject the match for a
-                // body/query value it wouldn't have found anyway.
+                // body/query value it wouldn't have found anyway. The
+                // parameter is intentionally NOT added to the composite
+                // source — BindAndInvokeAsync consults `Overrides` first
+                // and supplies the value directly.
                 if (overrides is not null
                     && overrides.TryGetParameterOverride(p.Name, out _))
-                {
-                    members[p.Name] = BindCalls.NotPresent;
                     continue;
-                }
                 if (!binder.TrySelectSource(env, p, out var call))
                 {
                     match = default;
@@ -178,6 +178,23 @@ namespace EastFive.Api.Binding
             var bindings = new List<KeyValuePair<ParameterInfo, object>>(parameters.Length);
             foreach (var p in parameters)
             {
+                if (chosen.Overrides is not null
+                    && chosen.Overrides.TryGetParameterOverride(p.Name, out var overrideValue))
+                {
+                    if (overrideValue is null
+                        ? p.ParameterType.IsValueType && Nullable.GetUnderlyingType(p.ParameterType) is null
+                        : !p.ParameterType.IsInstanceOfType(overrideValue))
+                    {
+                        return request
+                            .CreateResponse(HttpStatusCode.BadRequest)
+                            .AddReason(
+                                $"Parameter override for `{p.Name}` " +
+                                $"is `{overrideValue?.GetType().FullName ?? "null"}`, " +
+                                $"not assignable to `{p.ParameterType.FullName}`.");
+                    }
+                    bindings.Add(new KeyValuePair<ParameterInfo, object>(p, overrideValue));
+                    continue;
+                }
                 if (chosen.Source.HasMember(p.Name))
                 {
                     var (ok, value, failureResponse) = await TryBindMemberAsync(p, chosen.Source, request, httpApp);
@@ -210,7 +227,12 @@ namespace EastFive.Api.Binding
             TryBindMemberAsync(ParameterInfo p, CompositeBindingSource source, IHttpRequest request, IApplication httpApp)
         {
             var bindings = GetBindings();
-            var ctx = new ApiBindingContext(bindings, request, httpApp, keyPath: p.Name);
+            var ctx = new ApiBindingContext(bindings, request, httpApp,
+                slot: new ParameterSlot(p), keyPath: p.Name);
+            // The IBindFromRequest selection attribute optionally declares the
+            // member scope under which PocoBinder should walk complex types.
+            if (p.TryGetAttributeInterface<IProvideMemberScope>(out var scopeProvider))
+                ctx = (ApiBindingContext)ctx.WithMemberScope(scopeProvider.MemberScope);
             BindFailure? failure = null;
             var value = await bindings.Bind<object>(p.ParameterType, source, ctx,
                 v => v,

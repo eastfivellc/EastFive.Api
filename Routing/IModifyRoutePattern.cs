@@ -1,3 +1,4 @@
+using System;
 using System.Reflection;
 using System.Text;
 
@@ -40,16 +41,67 @@ namespace EastFive.Api
     public static class RoutePattern
     {
         /// <summary>
+        /// Regex alternation matching a GUID in 32-digit ("N") or hyphenated
+        /// ("D") form — the two shapes that appear in a URL path segment.
+        /// </summary>
+        public const string GuidSegmentPattern =
+            "[0-9a-fA-F]{32}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
+
+        /// <summary>
         /// Append <c>(?:/(?&lt;key&gt;.*))?</c> to <paramref name="current"/>.
         /// Returns <paramref name="current"/> unchanged when
         /// <paramref name="rawCaptureName"/> is empty / sanitises to empty.
         /// </summary>
         public static string AppendTrailingCapture(string current, string rawCaptureName)
+            => AppendTrailingCapture(current, rawCaptureName, segmentPattern: ".*");
+
+        /// <summary>
+        /// Append a trailing capture whose body is constrained to
+        /// <paramref name="keyType"/>'s URL shape: a GUID alternation for
+        /// <see cref="Guid"/> / <see cref="IReferenceable"/> (e.g.
+        /// <c>IRef&lt;T&gt;</c>) keys, otherwise the permissive <c>.*</c>.
+        /// A constrained capture lets a sibling action route
+        /// (e.g. <c>/Resource/SpotCheck</c>) win instead of being swallowed by
+        /// the generic <c>/Resource/{id}</c> template.
+        /// </summary>
+        public static string AppendTrailingCapture(string current, string rawCaptureName, Type keyType)
+            => AppendTrailingCapture(current, rawCaptureName, SegmentPatternForKeyType(keyType));
+
+        /// <summary>
+        /// Append <c>(?:/(?&lt;key&gt;SEGMENT))?</c> to <paramref name="current"/>,
+        /// where SEGMENT is <paramref name="segmentPattern"/> (falling back to
+        /// <c>.*</c> when null/empty). Returns <paramref name="current"/>
+        /// unchanged when <paramref name="rawCaptureName"/> sanitises to empty.
+        /// </summary>
+        public static string AppendTrailingCapture(string current, string rawCaptureName, string segmentPattern)
         {
             var captureName = SanitizeCaptureName(rawCaptureName);
             if (string.IsNullOrEmpty(captureName))
                 return current;
-            return current + "(?:/(?<" + captureName + ">.*))?";
+            var segment = string.IsNullOrEmpty(segmentPattern) ? ".*" : segmentPattern;
+            return current + "(?:/(?<" + captureName + ">" + segment + "))?";
+        }
+
+        /// <summary>
+        /// Map a key/identifier type to the regex body that matches its URL
+        /// segment. GUID-backed identifiers — <see cref="Guid"/>, nullable
+        /// <see cref="Guid"/>, and references implementing
+        /// <see cref="IReferenceable"/> / <see cref="IReferenceableOptional"/>
+        /// (such as <c>IRef&lt;T&gt;</c> / <c>IRefOptional&lt;T&gt;</c>) —
+        /// constrain to <see cref="GuidSegmentPattern"/>; everything else stays
+        /// the permissive <c>.*</c>.
+        /// </summary>
+        public static string SegmentPatternForKeyType(Type keyType)
+        {
+            if (keyType == null)
+                return ".*";
+            if (keyType == typeof(Guid) || keyType == typeof(Guid?))
+                return GuidSegmentPattern;
+            if (typeof(IReferenceable).IsAssignableFrom(keyType))
+                return GuidSegmentPattern;
+            if (typeof(IReferenceableOptional).IsAssignableFrom(keyType))
+                return GuidSegmentPattern;
+            return ".*";
         }
 
         /// <summary>
