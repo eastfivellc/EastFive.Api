@@ -17,6 +17,7 @@ using EastFive.Web.Configuration;
 
 namespace EastFive.Api.Meta.Flows
 {
+    [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = true)]
     public abstract class WorkflowParameterBaseAttribute : System.Attribute,
         IDefineWorkflowRequestProperty,
         IDefineQueryItem,
@@ -27,6 +28,14 @@ namespace EastFive.Api.Meta.Flows
         public string Description { get; set; }
 
         public bool Disabled { get; set; } = false;
+
+        /// <summary>
+        /// Explicit body field name. When set, this attribute fully describes its own field and is
+        /// emitted into the request body regardless of any co-located binding attribute — which lets
+        /// several workflow attributes document a single whole-body parameter. When unset, the field
+        /// name and location are derived from the co-located binding attribute (legacy behavior).
+        /// </summary>
+        public string Name { get; set; }
 
         protected abstract string GetValue(ParameterInfo parameter, out bool quoted);
 
@@ -44,78 +53,129 @@ namespace EastFive.Api.Meta.Flows
 
         protected virtual bool IsFileType(ParameterInfo parameter) => false;
 
+        protected enum RequestPropertyLocation
+        {
+            Body,
+            FormData,
+            Query,
+        }
+
+        protected readonly struct RequestPropertyRender
+        {
+            public RequestPropertyRender(string propertyName, string value, bool quoted,
+                string description, bool isFileType)
+            {
+                this.PropertyName = propertyName;
+                this.Value = value;
+                this.Quoted = quoted;
+                this.Description = description;
+                this.IsFileType = isFileType;
+            }
+
+            public string PropertyName { get; }
+            public string Value { get; }
+            public bool Quoted { get; }
+            public string Description { get; }
+            public bool IsFileType { get; }
+        }
+
+        /// <summary>
+        /// Single routing seam: resolves the property name + value once, decides where the property
+        /// belongs (body / form-data / query), then dispatches to the matching handler. Each public
+        /// emit method injects only the output it owns.
+        /// </summary>
+        protected TResult RouteRequestProperty<TResult>(ParameterInfo parameter,
+            Func<RequestPropertyRender, TResult> onBody,
+            Func<RequestPropertyRender, TResult> onFormData,
+            Func<RequestPropertyRender, TResult> onQuery)
+        {
+            var location = GetLocation(parameter);
+            var value = GetValue(parameter, out bool quoted);
+            var render = new RequestPropertyRender(
+                propertyName: GetPropertyName(parameter),
+                value: value,
+                quoted: quoted,
+                description: GetDescription(parameter),
+                isFileType: IsFileType(parameter));
+            return location switch
+            {
+                RequestPropertyLocation.Body => onBody(render),
+                RequestPropertyLocation.FormData => onFormData(render),
+                _ => onQuery(render),
+            };
+        }
+
+        private string GetPropertyName(ParameterInfo parameter)
+        {
+            if (Name.HasBlackSpace())
+                return Name;
+            return parameter.TryGetAttributeInterface(out IBindApiValue apiBinder) ?
+                apiBinder.GetKey(parameter)
+                :
+                parameter.Name;
+        }
+
+        private RequestPropertyLocation GetLocation(ParameterInfo parameter)
+        {
+            if (Name.HasBlackSpace())
+                return RequestPropertyLocation.Body;
+            if (parameter.ContainsAttributeInterface<IBindJsonApiValue>(inherit: true))
+                return RequestPropertyLocation.Body;
+            if (parameter.ContainsAttributeInterface<IBindFormDataApiValue>(inherit: true))
+                return RequestPropertyLocation.FormData;
+            if (parameter.ContainsAttributeInterface<IBindMultipartApiValue>(inherit: true))
+                return RequestPropertyLocation.FormData;
+            return RequestPropertyLocation.Query;
+        }
+
         public void AddProperties(JsonWriter requestObj, ParameterInfo parameter)
         {
-            if (parameter.ContainsAttributeInterface<IBindJsonApiValue>(inherit: true))
-            {
-                var propertyName = parameter.TryGetAttributeInterface(out IBindApiValue apiBinder) ?
-                    apiBinder.GetKey(parameter)
-                    :
-                    parameter.Name;
-                requestObj.WritePropertyName(propertyName);
-
-                var value = GetValue(parameter, out bool quoted);
-                if (quoted)
-                    requestObj.WriteValue(value);
-                else
-                    requestObj.WriteRawValue(value);
-
-                var description = GetDescription(parameter);
-                if (description.HasBlackSpace())
-                    requestObj.WriteComment(description);
-            }
+            RouteRequestProperty(parameter,
+                onBody: render =>
+                {
+                    requestObj.WritePropertyName(render.PropertyName);
+                    if (render.Quoted)
+                        requestObj.WriteValue(render.Value);
+                    else
+                        requestObj.WriteRawValue(render.Value);
+                    if (render.Description.HasBlackSpace())
+                        requestObj.WriteComment(render.Description);
+                    return true;
+                },
+                onFormData: _ => false,
+                onQuery: _ => false);
         }
 
         public FormData[] GetFormData(ParameterInfo parameter)
         {
-            if (!parameter.ContainsAttributeInterface<IBindFormDataApiValue>(inherit: true))
-                if (!parameter.ContainsAttributeInterface<IBindMultipartApiValue>(inherit: true))
-                    return new FormData[] { };
-
-            var propertyName = parameter.TryGetAttributeInterface(out IBindApiValue apiBinder) ?
-                apiBinder.GetKey(parameter)
-                :
-                parameter.Name;
-
-            var value = GetValue(parameter, out bool quoted);
-            var description = GetDescription(parameter);
-            var isFileType = IsFileType(parameter);
-            return new FormData[]
-            {
-                new FormData
+            return RouteRequestProperty(parameter,
+                onBody: _ => new FormData[] { },
+                onFormData: render => new FormData[]
                 {
-                    key = propertyName,
-                    value = value,
-                    type = isFileType ? "file" : "text",
-                    description = description,
-                    disabled = this.Disabled,
-                }
-            };
+                    new FormData
+                    {
+                        key = render.PropertyName,
+                        value = render.Value,
+                        type = render.IsFileType ? "file" : "text",
+                        description = render.Description,
+                        disabled = this.Disabled,
+                    }
+                },
+                onQuery: _ => new FormData[] { });
         }
 
         public QueryItem[] GetQueryItem(Method method, ParameterInfo parameter)
         {
-            if (parameter.ContainsAttributeInterface<IBindJsonApiValue>(inherit: true))
-                return default;
-            if (parameter.ContainsAttributeInterface<IBindFormDataApiValue>(inherit: true))
-                return default;
-            if (parameter.ContainsAttributeInterface<IBindMultipartApiValue>(inherit: true))
-                return default;
-
-            var propertyName = parameter.TryGetAttributeInterface(out IBindApiValue apiBinder) ?
-                    apiBinder.GetKey(parameter)
-                    :
-                    parameter.Name;
-            var value = GetValue(parameter, out bool quotedIgnored);
-            var description = GetDescription(parameter);
-
-            return new QueryItem
-            {
-                key = propertyName,
-                value = value,
-                description = description,
-                disabled = this.Disabled,
-            }.AsArray();
+            return RouteRequestProperty(parameter,
+                onBody: _ => default(QueryItem[]),
+                onFormData: _ => default(QueryItem[]),
+                onQuery: render => new QueryItem
+                {
+                    key = render.PropertyName,
+                    value = render.Value,
+                    description = render.Description,
+                    disabled = this.Disabled,
+                }.AsArray());
         }
 
         public QueryItem[] GetQueryItems(Method method)
@@ -219,10 +279,17 @@ namespace EastFive.Api.Meta.Flows
         }
     }
 
+    [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = true)]
     public class WorkflowArrayObjectParameterAttribute : System.Attribute,
         IDefineWorkflowRequestProperty
     {
         public string Scope { get; set; }
+
+        /// <summary>
+        /// Explicit body field name; see <see cref="WorkflowParameterBaseAttribute.Name"/>. When set,
+        /// this attribute supplies its own field name so it can sit on a whole-body parameter.
+        /// </summary>
+        public string Name { get; set; }
 
         public string Value0 { get; set; }
         public string Value1 { get; set; }
@@ -231,10 +298,11 @@ namespace EastFive.Api.Meta.Flows
 
         public void AddProperties(JsonWriter requestObj, ParameterInfo parameter)
         {
-            var propertyName = parameter.TryGetAttributeInterface(out IBindApiValue apiBinder) ?
-                apiBinder.GetKey(parameter)
-                :
-                parameter.Name;
+            var propertyName = Name.HasBlackSpace()
+                ? Name
+                : parameter.TryGetAttributeInterface(out IBindApiValue apiBinder)
+                    ? apiBinder.GetKey(parameter)
+                    : parameter.Name;
             requestObj.WritePropertyName(propertyName);
             requestObj.WriteStartArray();
             if (Value0.HasBlackSpace())
@@ -257,10 +325,40 @@ namespace EastFive.Api.Meta.Flows
         }
     }
 
+    [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = true)]
     public class WorkflowObjectParameterAttribute : System.Attribute,
         IDefineWorkflowRequestProperty
     {
         public string Scope { get; set; }
+
+        /// <summary>
+        /// Explicit body field name; see <see cref="WorkflowParameterBaseAttribute.Name"/>. When set,
+        /// this attribute supplies its own field name so it can sit on a whole-body parameter.
+        /// </summary>
+        public string Name { get; set; }
+
+        /// <summary>
+        /// Force array-of-objects mode. Required when the attribute sits on a whole-body parameter
+        /// (where the decorated parameter type can no longer be inspected to infer the shape); the
+        /// inner field names then come from <see cref="ItemNameKey"/>/<see cref="ItemValueKey"/>.
+        /// </summary>
+        public bool AsArray { get; set; }
+
+        /// <summary>
+        /// Inner field name used for each <c>Key*</c> when the decorated parameter is a
+        /// collection (array / <see cref="IEnumerable{T}"/>) and the element type does not
+        /// expose <see cref="JsonPropertyAttribute"/> members. When the element type does
+        /// expose them, its first two property names are used instead (e.g. a
+        /// <c>{name, value}</c> struct yields <c>name</c>/<c>value</c>). Ignored in the
+        /// default flat-object mode.
+        /// </summary>
+        public string ItemNameKey { get; set; } = "key";
+
+        /// <summary>
+        /// Inner field name used for each <c>Value*</c> in collection mode; see
+        /// <see cref="ItemNameKey"/>.
+        /// </summary>
+        public string ItemValueKey { get; set; } = "value";
 
         public string Key0 { get; set; }
         public string AppSettingKey0 { get; set; }
@@ -285,65 +383,145 @@ namespace EastFive.Api.Meta.Flows
 
         public void AddProperties(JsonWriter requestObj, ParameterInfo parameter)
         {
-            var propertyName = parameter.TryGetAttributeInterface(out IBindApiValue apiBinder) ?
-                apiBinder.GetKey(parameter)
-                :
-                parameter.Name;
+            var propertyName = Name.HasBlackSpace()
+                ? Name
+                : parameter.TryGetAttributeInterface(out IBindApiValue apiBinder)
+                    ? apiBinder.GetKey(parameter)
+                    : parameter.Name;
             requestObj.WritePropertyName(propertyName);
-            requestObj.WriteStartObject();
 
-            WriteProperty(Key0, AppSettingKey0, Value0, AppSettingValue0);
-            WriteProperty(Key1, AppSettingKey1, Value1, AppSettingValue1);
-            WriteProperty(Key2, AppSettingKey2, Value2, AppSettingValue2);
-            WriteProperty(Key3, AppSettingKey3, Value3, AppSettingValue3);
-
-            requestObj.WriteEndObject();
-
-            void WriteProperty(string key, string appSettingKey, string value, string appSettingValue)
+            var pairs = new[]
             {
-                if (key.HasBlackSpace())
-                {
-                    requestObj.WritePropertyName(key);
-                    WriteValue();
-                    return;
-                }
+                (Key0, AppSettingKey0, Value0, AppSettingValue0),
+                (Key1, AppSettingKey1, Value1, AppSettingValue1),
+                (Key2, AppSettingKey2, Value2, AppSettingValue2),
+                (Key3, AppSettingKey3, Value3, AppSettingValue3),
+            };
 
-                if (appSettingKey.HasBlackSpace())
+            // When the decorated parameter is a collection (or AsArray is set, e.g. on a whole-body
+            // parameter whose element type can't be inspected), emit an array of
+            // { <nameKey>: key, <valueKey>: value } objects so shapes like PropertyValue[]
+            // ({name, value}) or PropertySchema[] ({name, type}) round-trip. Otherwise keep
+            // the flat key/value object the attribute has always produced.
+            var arrayMode = TryGetArrayItemKeys(parameter, out var nameKey, out var valueKey) || AsArray;
+            if (arrayMode)
+            {
+                requestObj.WriteStartArray();
+                foreach (var (key, appSettingKey, value, appSettingValue) in pairs)
                 {
-                    _ = appSettingKey.ConfigurationString(
-                        appSettingExtractedKey =>
-                        {
-                            requestObj.WritePropertyName(appSettingExtractedKey);
-                            WriteValue();
-                            return true;
-                        },
-                        (why) =>
-                        {
-                            return false;
-                        });
+                    if (!TryResolveKey(key, appSettingKey, out var resolvedKey))
+                        continue;
+                    requestObj.WriteStartObject();
+                    requestObj.WritePropertyName(nameKey);
+                    requestObj.WriteValue(resolvedKey);
+                    requestObj.WritePropertyName(valueKey);
+                    WriteResolvedValue(requestObj, value, appSettingValue);
+                    requestObj.WriteEndObject();
                 }
-                
-                void WriteValue()
-                {
-                    if (appSettingValue.HasBlackSpace())
-                    {
-                        var didExtract = appSettingValue.ConfigurationString(
-                            appSettingExtractedValue =>
-                            {
-                                requestObj.WriteValue(appSettingExtractedValue);
-                                return true;
-                            },
-                            (why) =>
-                            {
-                                requestObj.WriteNull();
-                                return false;
-                            });
-                        return;
-                    }
-                    
-                    requestObj.WriteValue(value);
-                }
+                requestObj.WriteEndArray();
+                return;
             }
+
+            requestObj.WriteStartObject();
+            foreach (var (key, appSettingKey, value, appSettingValue) in pairs)
+            {
+                if (!TryResolveKey(key, appSettingKey, out var resolvedKey))
+                    continue;
+                requestObj.WritePropertyName(resolvedKey);
+                WriteResolvedValue(requestObj, value, appSettingValue);
+            }
+            requestObj.WriteEndObject();
+        }
+
+        /// <summary>
+        /// Decide whether the decorated parameter should serialize as an array of objects and,
+        /// if so, the inner field names to use. Returns false (flat-object mode) for strings,
+        /// dictionaries, and non-collection types.
+        /// </summary>
+        private bool TryGetArrayItemKeys(ParameterInfo parameter, out string nameKey, out string valueKey)
+        {
+            nameKey = ItemNameKey;
+            valueKey = ItemValueKey;
+
+            var type = parameter.ParameterType;
+            if (type == typeof(string))
+                return false;
+            if (typeof(System.Collections.IDictionary).IsAssignableFrom(type))
+                return false;
+
+            var elementType = GetEnumerableElementType(type);
+            if (elementType == null)
+                return false;
+
+            // Name the inner object fields from the element type's first two [JsonProperty]
+            // members in declaration order; fall back to ItemNameKey/ItemValueKey.
+            var jsonNames = elementType
+                .GetMembers(BindingFlags.Public | BindingFlags.Instance)
+                .Where(member => member is FieldInfo || member is PropertyInfo)
+                .Select(member => member.GetCustomAttribute<JsonPropertyAttribute>())
+                .Where(attr => attr != null && attr.PropertyName.HasBlackSpace())
+                .Select(attr => attr.PropertyName)
+                .ToArray();
+            if (jsonNames.Length >= 2)
+            {
+                nameKey = jsonNames[0];
+                valueKey = jsonNames[1];
+            }
+            return true;
+        }
+
+        private static Type GetEnumerableElementType(Type type)
+        {
+            if (type.IsArray)
+                return type.GetElementType();
+
+            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+                return type.GetGenericArguments()[0];
+
+            var enumerableInterface = type.GetInterfaces()
+                .FirstOrDefault(iface => iface.IsGenericType
+                    && iface.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+            return enumerableInterface?.GetGenericArguments()[0];
+        }
+
+        private static bool TryResolveKey(string key, string appSettingKey, out string resolvedKey)
+        {
+            if (key.HasBlackSpace())
+            {
+                resolvedKey = key;
+                return true;
+            }
+            if (appSettingKey.HasBlackSpace())
+            {
+                string extracted = null;
+                var didExtract = appSettingKey.ConfigurationString(
+                    value => { extracted = value; return true; },
+                    why => false);
+                resolvedKey = extracted;
+                return didExtract;
+            }
+            resolvedKey = null;
+            return false;
+        }
+
+        private static void WriteResolvedValue(JsonWriter requestObj, string value, string appSettingValue)
+        {
+            if (appSettingValue.HasBlackSpace())
+            {
+                _ = appSettingValue.ConfigurationString(
+                    appSettingExtractedValue =>
+                    {
+                        requestObj.WriteValue(appSettingExtractedValue);
+                        return true;
+                    },
+                    why =>
+                    {
+                        requestObj.WriteNull();
+                        return false;
+                    });
+                return;
+            }
+            requestObj.WriteValue(value);
         }
     }
 }

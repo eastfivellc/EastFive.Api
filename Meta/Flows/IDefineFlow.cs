@@ -256,8 +256,9 @@ namespace EastFive.Api.Meta.Flows
         {
             var bodyProperties = method.MethodPoco
                 .GetParameters()
-                .TryWhere((ParameterInfo paramInfo, out IDefineWorkflowRequestProperty requestProperty) =>
-                    paramInfo.TryGetAttributeInterface(out requestProperty))
+                .SelectMany(paramInfo => paramInfo
+                    .GetAttributesInterface<IDefineWorkflowRequestProperty>()
+                    .Select(requestProperty => (item: paramInfo, @out: requestProperty)))
                 .ToArray();
 
             var body = bodyProperties.IsDefaultNullOrEmpty() ?

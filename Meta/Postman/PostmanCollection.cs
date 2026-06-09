@@ -126,6 +126,11 @@ namespace EastFive.Api.Meta.Postman
             ContentTypeResponse<Resources.Collection.Collection> onSuccess,
             NotFoundResponse onNotFound)
         {
+            // Prefer a compiler-checked scripted flow when one is defined for this name; fall
+            // back to the legacy attribute-driven manifest path otherwise.
+            if (EastFive.Api.Meta.Flows.Scripted.FlowScriptReader.TryGetCollection(flow, out var scriptedCollection))
+                return onSuccess(scriptedCollection);
+
             var lookups = httpApp
                 .GetResources()
                 .Where(
