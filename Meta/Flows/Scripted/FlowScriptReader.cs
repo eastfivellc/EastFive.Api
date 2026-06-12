@@ -252,10 +252,17 @@ namespace EastFive.Api.Meta.Flows.Scripted
         {
             var steps = new List<Step>();
             var producers = new Dictionary<ParameterExpression, Step>();
+            MethodCallExpression terminalCapture = null;
 
             var current = Unwrap(flow.Body);
             while (current is MethodCallExpression call)
             {
+                if (IsFlowHelper(call, nameof(Flow.Capture)))
+                {
+                    terminalCapture = call;
+                    break;
+                }
+
                 var flowMethod = call.Method.GetCustomAttribute<FlowMethodAttribute>();
                 if (flowMethod == null)
                     throw new ArgumentException(
@@ -319,6 +326,14 @@ namespace EastFive.Api.Meta.Flows.Scripted
             // Stash producer lookup on each step for reference resolution.
             foreach (var step in steps)
                 step.ProducerLookup = producers;
+
+            // A terminal Flow.Capture(...) exports step outputs that no later request
+            // references; scanning it registers each value on its producing step.
+            if (terminalCapture != null)
+            {
+                var captureConsumer = new Step { ProducerLookup = producers };
+                ScanReferences(terminalCapture, captureConsumer);
+            }
 
             return steps;
         }
