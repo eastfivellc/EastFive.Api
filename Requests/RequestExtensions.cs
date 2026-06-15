@@ -364,7 +364,8 @@ namespace EastFive.Api
                                         failure);
                                 },
                                 failure);
-                        });
+                        },
+                        onUnspecified: (_) => failure(why));
                 },
                 issuerConfigSetting,
                 validationKeyConfigSetting);

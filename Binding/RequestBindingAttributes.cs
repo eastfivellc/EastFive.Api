@@ -67,6 +67,74 @@ namespace EastFive.Api.Binding
     }
 
     /// <summary>
+    /// V3 attribute that binds a parameter to the <b>raw request body decoded as
+    /// text</b>. Unlike <see cref="BodyAttribute"/> / <see cref="ResourceAttribute"/>
+    /// (which parse the body into a structured root for property / POCO binding),
+    /// this hands the undecoded payload to a <c>string</c> parameter — for endpoints
+    /// that parse the body themselves (XML webhooks, signature-validated payloads,
+    /// etc.). The body is read in whatever raw shape the envelope produced
+    /// (<c>string</c> directly, or <c>byte[]</c> decoded as UTF-8). Selection misses
+    /// if no body is present unless the parameter has a C# default value.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
+    public sealed class BodyTextAttribute : Attribute, IBindFromRequest, IProvideMemberScope
+    {
+        Type IProvideMemberScope.MemberScope => typeof(RequestBody);
+
+        public bool TrySelectSource(IRequestEnvelopeV3 envelope, ParameterInfo parameter,
+            out BindCall call)
+        {
+            if (envelope.TryGetBody<string>(out var text) && text is not null)
+            {
+                call = BindCalls.Scalar(text);
+                return true;
+            }
+            if (envelope.TryGetBody<byte[]>(out var bytes) && bytes is not null)
+            {
+                call = BindCalls.Scalar(System.Text.Encoding.UTF8.GetString(bytes));
+                return true;
+            }
+            if (parameter.HasDefaultValue) { call = BindCalls.NotPresent; return true; }
+            call = null;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// V3 attribute that roots a parameter at the <b>raw request body</b> for XML
+    /// binding. Selection is identical to <see cref="BodyTextAttribute"/> (it hands
+    /// the undecoded payload to the bind phase as text); the registered
+    /// <c>XmlDocumentBinder</c> then parses that text into a loaded
+    /// <see cref="System.Xml.XmlDocument"/>. Use on an <see cref="System.Xml.XmlDocument"/>
+    /// parameter for XML webhooks / payloads the endpoint walks itself. A malformed
+    /// payload surfaces as a bind failure (HTTP 400) rather than reaching the method.
+    /// Selection misses if no body is present unless the parameter has a C# default.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
+    public sealed class BodyXmlAttribute : Attribute, IBindFromRequest, IProvideMemberScope
+    {
+        Type IProvideMemberScope.MemberScope => typeof(RequestBody);
+
+        public bool TrySelectSource(IRequestEnvelopeV3 envelope, ParameterInfo parameter,
+            out BindCall call)
+        {
+            if (envelope.TryGetBody<string>(out var text) && text is not null)
+            {
+                call = BindCalls.Scalar(text);
+                return true;
+            }
+            if (envelope.TryGetBody<byte[]>(out var bytes) && bytes is not null)
+            {
+                call = BindCalls.Scalar(System.Text.Encoding.UTF8.GetString(bytes));
+                return true;
+            }
+            if (parameter.HasDefaultValue) { call = BindCalls.NotPresent; return true; }
+            call = null;
+            return false;
+        }
+    }
+
+    /// <summary>
     /// V3 attribute that locates the parameter in the URL query string.
     /// Case-insensitive key matching (ASP.NET conventional). Multi-valued keys
     /// dispatch via <c>onArray</c>; single values via <c>onString</c>.
