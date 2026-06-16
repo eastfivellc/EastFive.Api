@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 namespace EastFive.Api.Binding
@@ -36,5 +38,29 @@ namespace EastFive.Api.Binding
         /// </summary>
         bool TrySelectSource(IRequestEnvelopeV3 envelope, ParameterInfo parameter,
             out BindCall call);
+
+        /// <summary>
+        /// The URL query-string key(s) this parameter <b>claims</b> during V3 method
+        /// selection. Keys are matched case-insensitively against the request query.
+        /// <para>
+        /// The dispatcher rejects a candidate method that leaves any query key
+        /// unclaimed (see <see cref="MethodDispatcherV3"/>), restoring the V2
+        /// "all query parameters must be matched" rule: a request's query string is
+        /// part of method identity, so a data-free list endpoint (whose only bound
+        /// parameter is, e.g., <c>[StorageEntities] IQueryable&lt;T&gt;</c>) no
+        /// longer shadows a keyed by-id endpoint sharing the same route and verb.
+        /// </para>
+        /// <para>
+        /// This is a property of the parameter's signature, not of any one request:
+        /// an <b>optional</b> query parameter claims its key whether or not the key
+        /// is present (matching V2, where an optional parameter was a valid way to
+        /// "consume" a query parameter that was not required). The default
+        /// implementation claims nothing — only attributes that actually read the
+        /// query string (Query, QueryOptional, the query-sourced storage loaders)
+        /// override it.
+        /// </para>
+        /// </summary>
+        IEnumerable<string> GetConsumedQueryKeys(ParameterInfo parameter)
+            => Enumerable.Empty<string>();
     }
 }

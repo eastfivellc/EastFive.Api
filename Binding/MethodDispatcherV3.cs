@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -51,6 +52,14 @@ namespace EastFive.Api.Binding
 
         private static readonly IReadOnlyDictionary<string, string[]> EmptyQuery =
             new Dictionary<string, string[]>(0);
+
+        /// <summary>
+        /// Per-method cache of the URL query keys claimed across all of a method's
+        /// selection parameters. The claimed set is a property of the method
+        /// signature (not of any one request), so it is computed once and reused.
+        /// </summary>
+        private static readonly ConcurrentDictionary<MethodInfo, HashSet<string>>
+            consumedQueryKeysByMethod = new();
 
         /// <summary>
         /// True when the method has at least one parameter carrying an attribute
@@ -121,9 +130,57 @@ namespace EastFive.Api.Binding
                 }
                 members[p.Name] = call;
             }
+            // V2 parity: a candidate matches only if every URL query key is claimed
+            // by some parameter (required OR optional). The per-parameter selection
+            // ladder above is positive-only — a data-free list endpoint (whose sole
+            // bound parameter is e.g. [StorageEntities] IQueryable<T>) never inspects
+            // the query string, so without this rejection it would shadow a keyed
+            // by-id endpoint sharing the same route + verb whenever `?id=` is present.
+            if (query.Count > 0)
+            {
+                var consumed = ConsumedQueryKeysFor(method);
+                foreach (var key in query.Keys)
+                {
+                    if (!consumed.Contains(key))
+                    {
+                        match = default;
+                        return false;
+                    }
+                }
+            }
             match = new MethodMatchV3(rc.ControllerType, rc.InvokeResource, method,
                 new CompositeBindingSource(members), overrides);
             return true;
+        }
+
+        /// <summary>
+        /// The set of URL query keys a method's parameters claim, unioned across
+        /// every <see cref="IBindFromRequest"/> selection attribute (via
+        /// <see cref="IBindFromRequest.GetConsumedQueryKeys"/>) and every legacy
+        /// <see cref="IBindApiValue"/> attribute (so a V3-dispatched method that
+        /// also carries a V2 query parameter is not falsely rejected). Cached per
+        /// method; comparison is case-insensitive to match query parsing.
+        /// </summary>
+        private static HashSet<string> ConsumedQueryKeysFor(MethodInfo method)
+        {
+            return consumedQueryKeysByMethod.GetOrAdd(method, m =>
+            {
+                var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var p in m.GetParameters())
+                {
+                    if (p.TryGetAttributeInterface<IBindFromRequest>(out var binder))
+                        foreach (var key in binder.GetConsumedQueryKeys(p))
+                            if (key.HasBlackSpace())
+                                keys.Add(key);
+                    if (p.TryGetAttributeInterface<IBindApiValue>(out var v2Binder))
+                    {
+                        var key = v2Binder.GetKey(p);
+                        if (key.HasBlackSpace())
+                            keys.Add(key);
+                    }
+                }
+                return keys;
+            });
         }
 
         /// <summary>

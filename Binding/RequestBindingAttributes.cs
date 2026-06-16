@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
@@ -161,6 +162,9 @@ namespace EastFive.Api.Binding
             call = null;
             return false;
         }
+
+        public IEnumerable<string> GetConsumedQueryKeys(ParameterInfo parameter)
+            => new[] { Name ?? parameter.Name };
     }
 
     /// <summary>
@@ -190,6 +194,9 @@ namespace EastFive.Api.Binding
             call = BindCalls.Null;
             return true;
         }
+
+        public IEnumerable<string> GetConsumedQueryKeys(ParameterInfo parameter)
+            => new[] { Name ?? parameter.Name };
     }
 
     /// <summary>
