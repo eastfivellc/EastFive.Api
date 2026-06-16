@@ -141,8 +141,22 @@ namespace EastFive.Api.Routing.Envelopes
                 }
 
                 // Whole-body access — JContainer is the canonical type for [Property]/[Resource] etc.
+                // These converters receive the entire JContainer and extract their own key
+                // internally; for *selection*, though, a keyed [Property] must actually be present
+                // in the body. Without this gate, two POST overloads on the same route+verb that
+                // differ only by body keys (e.g. Authorization.CreateAsync's
+                // `location_authentication_return` vs CreateAuthorizedAsync's `parameters`) both
+                // fulfill, and the dispatcher reports an ambiguous match. [Resource] and other
+                // whole-body binders use an empty key and are unaffected.
                 if (rawType == typeof(JContainer))
                 {
+                    if (!string.IsNullOrEmpty(key)
+                        && this.body is JObject keyedBody
+                        && keyedBody.Property(key, StringComparison.OrdinalIgnoreCase) == null)
+                    {
+                        producer = null;
+                        return false;
+                    }
                     var captured = this.body;
                     producer = () => captured;
                     return true;
