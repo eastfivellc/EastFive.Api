@@ -160,8 +160,13 @@ namespace EastFive.Api.Binding
         /// <see cref="IBindApiValue"/> attribute (so a V3-dispatched method that
         /// also carries a V2 query parameter is not falsely rejected). Cached per
         /// method; comparison is case-insensitive to match query parsing.
+        /// <para>
+        /// Exposed to the V2 <see cref="EastFive.Api.Routing.MethodDispatcher"/>
+        /// so both dispatchers reject candidates that leave a URL query key
+        /// unconsumed using identical semantics.
+        /// </para>
         /// </summary>
-        private static HashSet<string> ConsumedQueryKeysFor(MethodInfo method)
+        internal static HashSet<string> ConsumedQueryKeysFor(MethodInfo method)
         {
             return consumedQueryKeysByMethod.GetOrAdd(method, m =>
             {

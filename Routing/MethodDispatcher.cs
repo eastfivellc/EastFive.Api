@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
+using System.Web;
 
 using EastFive.Api.Core;
 using EastFive.Extensions;
@@ -131,13 +132,39 @@ namespace EastFive.Api.Routing
             IApplicationHandlers handlers,
             IHttpRequest request, MethodMatch[] matches)
         {
+            // Parity with MethodDispatcherV3: a candidate only matches when every
+            // URL query key is claimed by one of its parameters. Without this, a
+            // parameter-light method (e.g. an OData RequestMessage<T> list endpoint
+            // that consumes no query keys) wrongly matches `?id=`/`?actor=` and ties
+            // with the keyed sibling -> "Ambiguous method match".
+            var queryKeys = ParseQueryKeys(request);
+
+            // null => no unconsumed keys; otherwise the offending key list.
+            string QueryMismatch(MethodMatch m)
+            {
+                if (queryKeys.Count == 0)
+                    return null;
+                var consumed = Binding.MethodDispatcherV3.ConsumedQueryKeysFor(m.Method);
+                var extra = queryKeys.Where(k => !consumed.Contains(k)).ToArray();
+                return extra.Length == 0 ? null : extra.Join(", ");
+            }
+
             return matches
                 .Where(m => m.IsValid)
+                .Where(m => QueryMismatch(m) == null)
                 .Single(
                     onNone: () =>
                     {
                         var reasons = matches
-                            .Select(m => $"{m.Method.Name}: {m.ErrorMessage}")
+                            .Select(m =>
+                            {
+                                if (!m.IsValid)
+                                    return $"{m.Method.Name}: {m.ErrorMessage}";
+                                var extra = QueryMismatch(m);
+                                return extra == null
+                                    ? $"{m.Method.Name}: no match"
+                                    : $"{m.Method.Name}: unexpected query parameter(s): {extra}";
+                            })
                             .Join("; ");
                         return request
                             .CreateResponse(HttpStatusCode.NotImplemented)
@@ -155,6 +182,23 @@ namespace EastFive.Api.Routing
                             .AddReason($"Ambiguous method match: {names}")
                             .AsTask();
                     });
+        }
+
+        /// <summary>
+        /// The set of URL query keys present on the request (case-insensitive),
+        /// used to reject candidates that do not consume every supplied key.
+        /// </summary>
+        private static HashSet<string> ParseQueryKeys(IHttpRequest request)
+        {
+            var raw = request.RequestUri?.Query;
+            if (string.IsNullOrEmpty(raw))
+                return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var parsed = HttpUtility.ParseQueryString(raw);
+            var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var key in parsed.AllKeys)
+                if (key != null)
+                    keys.Add(key);
+            return keys;
         }
 
         private static Task<IHttpResponse> InvokeChosenAsync(IApplication httpApp,
