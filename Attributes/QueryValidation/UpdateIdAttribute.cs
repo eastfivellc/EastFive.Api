@@ -14,11 +14,23 @@ namespace EastFive.Api
 {
     public class UpdateIdAttribute : QueryValidationAttribute, IDocumentParameter,
         IBindJsonApiValue, IBindMultipartApiValue, IBindFormDataApiValue,
-        IProvideBindingRequirements
+        IProvideBindingRequirements, IModifyRoutePattern
     {
         public (IReadOnlyList<BindingRequirement> requirements, AssembleParameter assemble)
             GetParameterBinding(ParameterInfo parameter)
             => (new[] { GetRequirement(parameter) }, values => (values[0], null));
+
+        /// <summary>
+        /// <c>[UpdateId]</c> reads the resource id from the URL path
+        /// (e.g. <c>PATCH /api/Resource/{id}</c>), the query string, or the
+        /// body. Like <see cref="QueryIdAttribute"/>, it contributes the
+        /// trailing path-segment capture so the <c>/Resource/{id}</c> route
+        /// matches; without it the regex stops at <c>/Resource</c> and a
+        /// path-style id produces no route match (404).
+        /// </summary>
+        public string ModifyRoutePattern(MethodInfo method, ParameterInfo parameter, string currentPattern)
+            => RoutePattern.AppendTrailingCapture(currentPattern, this.GetKey(parameter),
+                parameter.ParameterType);
 
         public BindingRequirement GetRequirement(ParameterInfo parameter)
         {

@@ -296,9 +296,17 @@ namespace EastFive.Api.Binding
             if (p.TryGetAttributeInterface<IProvideMemberScope>(out var scopeProvider))
                 ctx = (ApiBindingContext)ctx.WithMemberScope(scopeProvider.MemberScope);
             BindFailure? failure = null;
+            // A reference type or Nullable<T> can accept an explicit null. Supplying
+            // onNull realizes BindCalls.Null's documented intent: an absent
+            // [QueryOptional]/[HeaderOptional] value binds to null WITHOUT requiring a
+            // C# default. Value types without Nullable<> get no onNull, so an absent
+            // optional there still falls through to the C# default (or fails NotPresent).
+            var acceptsNull = !p.ParameterType.IsValueType
+                || Nullable.GetUnderlyingType(p.ParameterType) is not null;
             var value = await bindings.Bind<object>(p.ParameterType, source, ctx,
                 v => v,
-                f => { failure = f; return null; });
+                f => { failure = f; return null; },
+                onNull: acceptsNull ? () => (object)null : null);
             if (failure is null)
                 return (true, value, null);
             if (p.HasDefaultValue && failure.Value.Reason is NotPresent)
