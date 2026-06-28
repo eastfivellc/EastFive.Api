@@ -254,4 +254,80 @@ namespace EastFive.Api.Binding
             return false;
         }
     }
+
+    /// <summary>
+    /// V3 attribute for a caller-supplied resource id — the equivalent of the
+    /// legacy <see cref="EastFive.Api.UpdateIdAttribute"/>. Reads the id from the
+    /// URL path capture, then the query string, then the request body (in that
+    /// precedence), so <c>PUT /api/Resource/{id}</c>, <c>POST /api/Resource?id=…</c>,
+    /// and a body-carried id all bind. Use it wherever the client supplies the
+    /// resource's identifier — whether updating an existing resource or creating a
+    /// new one with a client-generated id (so a retried POST collides on the same
+    /// row and is detected as a duplicate rather than creating a second resource).
+    /// <para>
+    /// Like the legacy attribute it is <b>required</b> (selection misses when no
+    /// body/query/path can supply it, unless the parameter has a C# default),
+    /// <b>claims its key as a query parameter</b> so an id-bearing route isn't
+    /// shadowed by a sibling keyless endpoint on the same route+verb, and
+    /// contributes the trailing <c>/{id}</c> route capture so the path-style form
+    /// matches. Apply to an <c>IRef&lt;T&gt;</c> / <c>Guid</c> parameter; the bind
+    /// phase validates the value's shape (a malformed id surfaces as HTTP 400).
+    /// </para>
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
+    public sealed class UpdateIdAttribute : Attribute,
+        IBindFromRequest, IProvideMemberScope, IModifyRoutePattern
+    {
+        /// <summary>Wire key for the id. Defaults to <c>"id"</c> when unset.</summary>
+        public string Name { get; set; }
+
+        Type IProvideMemberScope.MemberScope => typeof(RequestBody);
+
+        private string KeyFor(ParameterInfo parameter)
+            => string.IsNullOrEmpty(Name) ? "id" : Name;
+
+        public bool TrySelectSource(IRequestEnvelopeV3 envelope, ParameterInfo parameter,
+            out BindCall call)
+        {
+            var key = KeyFor(parameter);
+
+            // Path capture wins, then query, then body — parity with the legacy
+            // BindingSource.Anywhere precedence (a route value outranks a query value).
+            if (envelope.Route != null
+                && envelope.Route.TryGetValue(key, out var routeVal)
+                && !string.IsNullOrEmpty(routeVal))
+            {
+                call = BindCalls.Scalar(routeVal);
+                return true;
+            }
+
+            if (envelope.Query != null
+                && envelope.Query.TryGetValue(key, out var values)
+                && values is { Length: > 0 })
+            {
+                call = BindCalls.MultiValue(key, values);
+                return true;
+            }
+
+            if (EnvelopeBodyAccessor.TryGetBodyRoot(envelope, out var root, out _))
+            {
+                // The body exists; the id is read at bind time. A body that omits
+                // the key surfaces as a bind failure (HTTP 400), matching the
+                // legacy attribute's "required" semantics.
+                call = BindCalls.FromSource(root, key);
+                return true;
+            }
+
+            if (parameter.HasDefaultValue) { call = BindCalls.NotPresent; return true; }
+            call = null;
+            return false;
+        }
+
+        public IEnumerable<string> GetConsumedQueryKeys(ParameterInfo parameter)
+            => new[] { KeyFor(parameter) };
+
+        public string ModifyRoutePattern(MethodInfo method, ParameterInfo parameter, string currentPattern)
+            => RoutePattern.AppendTrailingCapture(currentPattern, KeyFor(parameter),
+                parameter.ParameterType);
+    }
 }
