@@ -57,6 +57,7 @@ namespace EastFive.Api
             var settings = new JsonSerializerSettings();
             settings.Converters.Add(new Serialization.Converter(request));
             settings.DefaultValueHandling = DefaultValueHandling.Include;
+            settings.ContractResolver = Serialization.Json.ApiPropertyContractResolver.Instance;
             var contentJsonString = JsonConvert.SerializeObject(content, settings);
 
             return responseStream.WriteResponseText(contentJsonString, encoding);

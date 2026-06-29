@@ -586,7 +586,11 @@ namespace EastFive.Api.Bindings
             {
                 var jObj = content as JObject;
                 var jsonText = jObj.ToString();
-                var value = JsonConvert.DeserializeObject(jsonText, type);
+                var value = JsonConvert.DeserializeObject(jsonText, type,
+                    new JsonSerializerSettings
+                    {
+                        ContractResolver = Serialization.Json.ApiPropertyContractResolver.Instance,
+                    });
                 return onParsed(value);
             }
 

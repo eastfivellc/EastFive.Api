@@ -50,6 +50,7 @@ namespace EastFive.Api
                 new JsonSerializerSettings
                 {
                     Converters = new JsonConverter[] { converter }.ToList(),
+                    ContractResolver = Serialization.Json.ApiPropertyContractResolver.Instance,
                 });
             return responseStream.WriteResponseText(jsonObj, request);
             //using (var streamWriter = request.TryGetAcceptEncoding(out Encoding writerEncoding) ?
@@ -73,6 +74,7 @@ namespace EastFive.Api
                 new JsonSerializerSettings
                 {
                     Converters = new JsonConverter[] { converter }.ToList(),
+                    ContractResolver = Serialization.Json.ApiPropertyContractResolver.Instance,
                 });
             return responseStream.WriteResponseText(jsonObj, request);
             //var streamWriter = request.TryGetAcceptEncoding(out Encoding writerEncoding) ?
