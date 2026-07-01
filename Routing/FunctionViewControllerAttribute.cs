@@ -206,6 +206,7 @@ namespace EastFive.Api
                 new JsonSerializerSettings
                 {
                     Converters = new JsonConverter[] { converter }.ToList(),
+                    ContractResolver = Serialization.Json.ApiPropertyContractResolver.Instance,
                 });
             var contentType = this.ContentType.HasBlackSpace() ?
                 this.ContentType
