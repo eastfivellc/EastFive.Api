@@ -164,17 +164,23 @@ namespace EastFive.Api.Core
 
             Encoding GetEncoding()
             {
+                // Default to UTF8 (a strict superset of ASCII for all 7-bit bytes, so this is a
+                // safe default with no regression for pure-ASCII bodies) rather than ASCII when no
+                // charset is declared. JSON bodies are UTF8 per RFC 8259 and virtually no client
+                // (browser fetch(), curl, Postman, ...) ever declares an explicit charset on
+                // `application/json` — defaulting to ASCII here silently mangled every multi-byte
+                // UTF8 character (e.g. an en dash) into one '?' per byte instead of failing loudly.
                 var typedHeaders = this.request.GetTypedHeaders();
                 if (!typedHeaders.IsNotDefaultOrNull())
-                    return Encoding.ASCII;
+                    return Encoding.UTF8;
 
                 var contentType = typedHeaders.ContentType;
                 if (!contentType.IsNotDefaultOrNull())
-                    return Encoding.ASCII;
+                    return Encoding.UTF8;
 
                 var charset = contentType.Charset;
                 if (charset.Value.IsNullOrWhiteSpace())
-                    return Encoding.ASCII;
+                    return Encoding.UTF8;
 
                 try
                 {
@@ -182,7 +188,7 @@ namespace EastFive.Api.Core
                     return Encoding.GetEncoding(charsetStr);
                 } catch(ArgumentException)
                 {
-                    return Encoding.ASCII;
+                    return Encoding.UTF8;
                 }
             }
 
