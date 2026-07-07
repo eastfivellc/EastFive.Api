@@ -144,6 +144,8 @@ namespace EastFive.Api.Routing
             {
                 if (queryKeys.Count == 0)
                     return null;
+                if (!Binding.MethodDispatcherV3.MatchesAllQueryParameters(m.Method))
+                    return null;
                 var consumed = Binding.MethodDispatcherV3.ConsumedQueryKeysFor(m.Method);
                 var extra = queryKeys.Where(k => !consumed.Contains(k)).ToArray();
                 return extra.Length == 0 ? null : extra.Join(", ");

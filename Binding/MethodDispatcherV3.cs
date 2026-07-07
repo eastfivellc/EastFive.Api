@@ -136,7 +136,9 @@ namespace EastFive.Api.Binding
             // bound parameter is e.g. [StorageEntities] IQueryable<T>) never inspects
             // the query string, so without this rejection it would shadow a keyed
             // by-id endpoint sharing the same route + verb whenever `?id=` is present.
-            if (query.Count > 0)
+            // Methods opting out via [HttpX(MatchAllParameters = false)] parse the
+            // query themselves (e.g. OAuth callback controllers) and are exempt.
+            if (query.Count > 0 && MatchesAllQueryParameters(method))
             {
                 var consumed = ConsumedQueryKeysFor(method);
                 foreach (var key in query.Keys)
@@ -150,6 +152,20 @@ namespace EastFive.Api.Binding
             }
             match = new MethodMatchV3(rc.ControllerType, rc.InvokeResource, method,
                 new CompositeBindingSource(members), overrides);
+            return true;
+        }
+
+        /// <summary>
+        /// Whether the method demands that every URL query key be consumed by a
+        /// parameter. False when its HTTP verb attribute opts out via
+        /// <c>MatchAllParameters = false</c> / <c>MatchAllQueryParameters = false</c>
+        /// (such methods parse the query string themselves).
+        /// </summary>
+        internal static bool MatchesAllQueryParameters(MethodInfo method)
+        {
+            var verbAttr = method.GetCustomAttribute<HttpVerbAttribute>();
+            if (verbAttr is not null)
+                return verbAttr.MatchAllQueryParameters;
             return true;
         }
 
