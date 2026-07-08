@@ -122,17 +122,15 @@ namespace EastFive.Api
 
         #endregion
 
-        public virtual async Task WriteResponseAsync(System.IO.Stream target)
+        public virtual Task WriteResponseAsync(System.IO.Stream target)
         {
-            if (StatusCode == HttpStatusCode.NoContent)
-                return;
-
-            var bytes = await this.Request.ReadContentAsync();
-            if (bytes.Length > 0)
-            {
-                using (var source = new MemoryStream(bytes))
-                    await source.CopyToAsync(target);
-            }
+            // A reason-only response (status code + X-Reason, no content-bearing subclass) has
+            // no body. This used to echo the REQUEST content back as the response body — a
+            // debugging relic that surfaced on every error response to a POST/PATCH: clients saw
+            // an unexplained (content-type-less, often base64-rendered) copy of their own
+            // payload, and request bodies (PHI, credentials) were duplicated into proxies,
+            // browser tooling, and log aggregators that capture response bodies.
+            return Task.CompletedTask;
         }
     }
 }
