@@ -23,7 +23,7 @@ namespace EastFive.Api
             string fileName = default, string contentType = default, bool? inline = default)
             : base(request, statusCode)
         {
-            if (!OperatingSystem.IsWindows())
+            if (!OperatingSystem.IsWindowsVersionAtLeast(6, 1))
                 throw new NotSupportedException("OS not supported");
 
             if (!TryGetEncoderInfo(contentType, out encoder))
@@ -72,7 +72,7 @@ namespace EastFive.Api
 
         public override async Task WriteResponseAsync(Stream responseStream)
         {
-            if (!OperatingSystem.IsWindows())
+            if (!OperatingSystem.IsWindowsVersionAtLeast(6, 1))
                 throw new NotSupportedException("OS not supported");
 
             var encoderParameters = new EncoderParameters(1);
@@ -91,7 +91,7 @@ namespace EastFive.Api
 
         private static bool TryGetEncoderInfo(string mimeType, out ImageCodecInfo encoder)
         {
-            if (!OperatingSystem.IsWindows())
+            if (!OperatingSystem.IsWindowsVersionAtLeast(6, 1))
                 throw new NotSupportedException("OS not supported");
 
             if (mimeType.IsNullOrWhiteSpace())

@@ -95,7 +95,9 @@ namespace EastFive.Api.Bindings
     /// </summary>
     internal static class PropertyBinderModuleInitializer
     {
+        #pragma warning disable CA2255 // intentional: framework-level binder registration
         [ModuleInitializer]
+        #pragma warning restore CA2255
         internal static void Init()
         {
             TypeBinderRegistry.Register(new PropertyBinder());

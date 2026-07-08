@@ -24,7 +24,7 @@ namespace EastFive.Api.Meta.Postman
         }
 
         public async Task InvokeAsync(HttpContext context,
-               Microsoft.AspNetCore.Hosting.IHostingEnvironment environment)
+               Microsoft.AspNetCore.Hosting.IWebHostEnvironment environment)
         {
             if (!context.Request.GetAcceptTypes()
                 .Select(mt => mt.MediaType.ToLower())

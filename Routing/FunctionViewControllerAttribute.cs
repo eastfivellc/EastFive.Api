@@ -231,13 +231,6 @@ namespace EastFive.Api
             Func<object, TResult> onParsed,
             Func<string, TResult> onFailure);
 
-        private struct MultipartParameter
-        {
-            public string index;
-            public string key;
-            public Func<Type, Func<object, object>, Func<string, object>, object> fetchValue;
-        }
-
         protected struct MethodCast
         {
             public bool valid;

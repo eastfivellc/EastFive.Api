@@ -133,7 +133,7 @@ namespace EastFive.Api
             int? width = default(int?), int? height = default(int?), bool? fill = default(bool?),
             string filename = default(string), string contentType = default(string))
         {
-            if (!OperatingSystem.IsWindows())
+            if (!OperatingSystem.IsWindowsVersionAtLeast(6, 1))
                 throw new NotSupportedException("OS not supported");
 
             if (width.HasValue || height.HasValue || fill.HasValue)
@@ -151,7 +151,7 @@ namespace EastFive.Api
             int? width = default(int?), int? height = default(int?), bool? fill = default(bool?),
             string filename = default(string))
         {
-            if (!OperatingSystem.IsWindows())
+            if (!OperatingSystem.IsWindowsVersionAtLeast(6, 1))
                 throw new NotSupportedException("OS not supported");
 
             var response = request.CreateResponse(HttpStatusCode.OK);
@@ -213,7 +213,7 @@ namespace EastFive.Api
             string filename = default(string),
             string contentType = "image/jpeg")
         {
-            if (!OperatingSystem.IsWindows())
+            if (!OperatingSystem.IsWindowsVersionAtLeast(6, 1))
                 throw new NotSupportedException("OS not supported");
 
             var response = request.CreateResponse(HttpStatusCode.OK);
@@ -236,7 +236,7 @@ namespace EastFive.Api
 
         private static ImageCodecInfo getEncoderInfo(string mimeType)
         {
-            if (!OperatingSystem.IsWindows())
+            if (!OperatingSystem.IsWindowsVersionAtLeast(6, 1))
                 throw new NotSupportedException("OS not supported");
 
             ImageCodecInfo[] encoders = ImageCodecInfo.GetImageEncoders();

@@ -51,7 +51,7 @@ namespace EastFive.Api.Bindings
             {
                 var stream = content.OpenReadStream();
                 var bytes = new byte[content.Length];
-                stream.Read(bytes, 0, (int)content.Length);
+                stream.ReadExactly(bytes);
                 return onParsed((object)bytes);
             }
             if (type.IsAssignableFrom(typeof(Func<Task<byte[]>>)))
@@ -60,7 +60,7 @@ namespace EastFive.Api.Bindings
                 {
                     var stream = content.OpenReadStream();
                     var bytes = new byte[content.Length];
-                    stream.Read(bytes, 0, (int)content.Length);
+                    stream.ReadExactly(bytes);
                     return bytes.AsTask();
                 };
                 return onParsed((object)callbackValue);

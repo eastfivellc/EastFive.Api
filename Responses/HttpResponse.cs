@@ -77,26 +77,47 @@ namespace EastFive.Api
             if (string.IsNullOrEmpty(reason))
                 return;
 
-            var reasonPhrase = reason
-                .Replace('\n', ';')
-                .Replace("\r", "")
-                .Replace(' ', ' '); // non-breaking space;
+            var reasonPhrase = SanitizeReasonForHeader(reason);
             if (reasonPhrase.Length > 510)
                 reasonPhrase = new string(reasonPhrase.Take(510).ToArray());
 
-            context.Response.Headers.Add("X-Reason", reasonPhrase);
+            context.Response.Headers["X-Reason"] = reasonPhrase;
 
             var responseFeature = context.Features.Get<IHttpResponseFeature>();
             if (!responseFeature.IsDefaultOrNull())
-                responseFeature.ReasonPhrase = reason;
+                responseFeature.ReasonPhrase = reasonPhrase;
 
+        }
+
+        /// <summary>
+        /// HTTP headers must be ASCII: Kestrel throws (turning the intended status into a 500)
+        /// on any non-ASCII or control character. Reasons are prose, so transliterate the
+        /// common typographic characters to ASCII equivalents and strip anything else rather
+        /// than failing the response that carries the explanation.
+        /// </summary>
+        public static string SanitizeReasonForHeader(string reason)
+        {
+            return string.Concat(reason
+                .Select(c => c switch
+                {
+                    '\n' => ";",
+                    '\r' => "",
+                    '\u00A0' => " ",           // non-breaking space
+                    '\u2013' or '\u2014' => "-", // en / em dash
+                    '\u2018' or '\u2019' => "'", // curly single quotes
+                    '\u201C' or '\u201D' => "\"", // curly double quotes
+                    '\u2026' => "...",           // ellipsis
+                    '\u2192' => "->",            // right arrow
+                    _ when c < ' ' || c > '~' => "?",
+                    _ => c.ToString(),
+                }));
         }
 
         public virtual void WriteHeaders(HttpContext context,
             Microsoft.AspNetCore.Http.Headers.ResponseHeaders headers)
         {
             foreach (var header in this.Headers)
-                context.Response.Headers.Add(header.Key, header.Value);
+                context.Response.Headers.Append(header.Key, header.Value);
         }
 
         public virtual void WriteCookies(HttpContext context)

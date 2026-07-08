@@ -274,7 +274,7 @@ namespace EastFive.Api
                 IHttpRequest request, ParameterInfo parameterInfo,
             Func<object, Task<IHttpResponse>> onSuccess)
         {
-            if (!OperatingSystem.IsWindows())
+            if (!OperatingSystem.IsWindowsVersionAtLeast(6, 1))
                 throw new NotSupportedException("OS not supported");
 
             #pragma warning disable CA1416
@@ -299,6 +299,9 @@ namespace EastFive.Api
                 : base(request, statusCode,
                       async (responseStream) =>
                       {
+                          if (!OperatingSystem.IsWindowsVersionAtLeast(6, 1))
+                              throw new NotSupportedException("OS not supported");
+
                           // Hack for bug with images
                           using (var intermediaryStream = new MemoryStream())
                           {
@@ -332,7 +335,7 @@ namespace EastFive.Api
                 IHttpRequest request, ParameterInfo parameterInfo,
             Func<object, Task<IHttpResponse>> onSuccess)
         {
-            if (!OperatingSystem.IsWindows())
+            if (!OperatingSystem.IsWindowsVersionAtLeast(6, 1))
                 throw new NotSupportedException("OS not supported");
 
             #pragma warning disable CA1416
