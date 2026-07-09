@@ -52,9 +52,12 @@ namespace EastFive.Api.Resources
                 .OrderBy(method => method.Path.ToString())
                 .Select(method =>
                 {
+                    var controllerAttr = method.MethodPoco.DeclaringType
+                        .GetCustomAttributes();
                     var methodAttr = method.MethodPoco
                         .GetCustomAttributes();
-                    var hasSecAttribute = methodAttr
+                    var hasSecAttribute = controllerAttr
+                        .Concat(methodAttr)
                         .Any(attr => application.IsSecurityAttribute(attr));
                     var hasSecParameter = method.MethodPoco
                         .GetParameters()
@@ -67,7 +70,8 @@ namespace EastFive.Api.Resources
                                 
                                 return !isResource && application.IsSecurityParameter(param);
                             });
-                    var isUnsecured = methodAttr
+                    var isUnsecured = controllerAttr
+                        .Concat(methodAttr)
                         .Any(attr => attr is UnsecuredAttribute);
                     var needsFurtherEvaluation = !hasSecAttribute && !hasSecParameter;
                     if ((untrustedOnly ?? false) && !needsFurtherEvaluation)

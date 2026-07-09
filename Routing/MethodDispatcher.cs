@@ -286,6 +286,8 @@ namespace EastFive.Api.Routing
             IReadOnlyDictionary<ParameterInfo, object> bindingContexts)
         {
             var invocationHandlers = new List<IHandleMethodInvocation>(handlers.AppLevelInvocationHandlers);
+            invocationHandlers.AddRange(controllerType
+                .GetAttributesInterface<IHandleMethodInvocation>(true, true));
             invocationHandlers.AddRange(method
                 .GetAttributesInterface<IHandleMethodInvocation>(true, true));
             foreach (var binding in parameters)
