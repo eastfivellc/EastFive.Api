@@ -30,9 +30,12 @@ namespace EastFive.Api.Resources
 
         public Route[] Routes { get; set; }
 
-        [RequiredClaim(
-            System.Security.Claims.ClaimTypes.Role,
-            ClaimValues.Roles.SecurityReaderRoleId)]
+        [SecurityRoleRequired(RolesAllowed = new[]
+        {
+            ClaimValues.Roles.SecurityReaderRoleId,
+            ClaimValues.Roles.SecurityReaderRole,
+            ClaimValues.Roles.SuperAdmin,
+        })]
         [HttpAction("Security")]
         public static IHttpResponse GetAttributes(
                 [OptionalQueryParameter(Name = "untrusted_only")] bool? untrustedOnly,
