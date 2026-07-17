@@ -48,12 +48,20 @@ namespace EastFive.Api
             "[0-9a-fA-F]{32}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
 
         /// <summary>
-        /// Append <c>(?:/(?&lt;key&gt;.*))?</c> to <paramref name="current"/>.
+        /// Regex body for a single URL path segment (no '/'). Trailing captures
+        /// are constrained to one segment so a route with a trailing string key
+        /// (e.g. <c>/auth/SAMLRedirect/{tag}</c>) cannot swallow a sibling
+        /// action route's deeper path (e.g. <c>/auth/SAMLRedirect/logout/{tag}</c>).
+        /// </summary>
+        public const string SingleSegmentPattern = "[^/]+";
+
+        /// <summary>
+        /// Append <c>(?:/(?&lt;key&gt;[^/]+))?</c> to <paramref name="current"/>.
         /// Returns <paramref name="current"/> unchanged when
         /// <paramref name="rawCaptureName"/> is empty / sanitises to empty.
         /// </summary>
         public static string AppendTrailingCapture(string current, string rawCaptureName)
-            => AppendTrailingCapture(current, rawCaptureName, segmentPattern: ".*");
+            => AppendTrailingCapture(current, rawCaptureName, segmentPattern: SingleSegmentPattern);
 
         /// <summary>
         /// Append a trailing capture whose body is constrained to
@@ -70,15 +78,16 @@ namespace EastFive.Api
         /// <summary>
         /// Append <c>(?:/(?&lt;key&gt;SEGMENT))?</c> to <paramref name="current"/>,
         /// where SEGMENT is <paramref name="segmentPattern"/> (falling back to
-        /// <c>.*</c> when null/empty). Returns <paramref name="current"/>
-        /// unchanged when <paramref name="rawCaptureName"/> sanitises to empty.
+        /// <see cref="SingleSegmentPattern"/> when null/empty). Returns
+        /// <paramref name="current"/> unchanged when
+        /// <paramref name="rawCaptureName"/> sanitises to empty.
         /// </summary>
         public static string AppendTrailingCapture(string current, string rawCaptureName, string segmentPattern)
         {
             var captureName = SanitizeCaptureName(rawCaptureName);
             if (string.IsNullOrEmpty(captureName))
                 return current;
-            var segment = string.IsNullOrEmpty(segmentPattern) ? ".*" : segmentPattern;
+            var segment = string.IsNullOrEmpty(segmentPattern) ? SingleSegmentPattern : segmentPattern;
             return current + "(?:/(?<" + captureName + ">" + segment + "))?";
         }
 
@@ -88,20 +97,20 @@ namespace EastFive.Api
         /// <see cref="Guid"/>, and references implementing
         /// <see cref="IReferenceable"/> / <see cref="IReferenceableOptional"/>
         /// (such as <c>IRef&lt;T&gt;</c> / <c>IRefOptional&lt;T&gt;</c>) —
-        /// constrain to <see cref="GuidSegmentPattern"/>; everything else stays
-        /// the permissive <c>.*</c>.
+        /// constrain to <see cref="GuidSegmentPattern"/>; everything else is a
+        /// single path segment (<see cref="SingleSegmentPattern"/>).
         /// </summary>
         public static string SegmentPatternForKeyType(Type keyType)
         {
             if (keyType == null)
-                return ".*";
+                return SingleSegmentPattern;
             if (keyType == typeof(Guid) || keyType == typeof(Guid?))
                 return GuidSegmentPattern;
             if (typeof(IReferenceable).IsAssignableFrom(keyType))
                 return GuidSegmentPattern;
             if (typeof(IReferenceableOptional).IsAssignableFrom(keyType))
                 return GuidSegmentPattern;
-            return ".*";
+            return SingleSegmentPattern;
         }
 
         /// <summary>
