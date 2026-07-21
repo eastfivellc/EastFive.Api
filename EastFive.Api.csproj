@@ -30,7 +30,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\EastFive.Core\EastFive.Core.csproj" />
-    <ProjectReference Include="..\EastFive.Web\EastFive.Web.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Auth\Tokens\" />
