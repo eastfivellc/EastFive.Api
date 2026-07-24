@@ -16,7 +16,7 @@ namespace EastFive.Api.Serialization.Binding.Sources
     /// token's <see cref="JTokenType"/>. No source-side coercion — a numeric token
     /// calls <c>onInt64</c> or <c>onDouble</c>, never <c>onString</c>.
     /// </summary>
-    public sealed class JTokenBindingSource : IBindingSource
+    public sealed class JTokenBindingSource : IBindingSource, IKeyedBindingSource
     {
         private readonly JToken token;
 
@@ -24,6 +24,15 @@ namespace EastFive.Api.Serialization.Binding.Sources
         {
             this.token = token;
         }
+
+        /// <summary>
+        /// Property names at this source's root, when it wraps a JSON object.
+        /// Empty for any other token shape. Backs <c>DictionaryBinder</c>, which
+        /// pairs each key with a <c>GetValue(path: key, ...)</c> call on this
+        /// same instance.
+        /// </summary>
+        public IEnumerable<string> Keys =>
+            token is JObject obj ? obj.Properties().Select(p => p.Name) : Enumerable.Empty<string>();
 
         public ValueTask<TResult> GetValue<TResult>(
             string path = null,
