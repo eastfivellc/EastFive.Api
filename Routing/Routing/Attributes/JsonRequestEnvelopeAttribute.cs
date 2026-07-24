@@ -55,22 +55,34 @@ namespace EastFive.Api.Routing.Envelopes
                 }
             }
             var query = EnvelopeHelpers.ParseQuery(request);
-            return new JsonEnvelope(parsed, query);
+            return new JsonEnvelope(parsed, body, query);
         }
 
         private sealed class JsonEnvelope : IRequestEnvelope, IRequestEnvelopeBody
         {
             private readonly JContainer body;
+            private readonly string rawText;
             private readonly IReadOnlyDictionary<string, string> query;
 
-            public JsonEnvelope(JContainer body, IReadOnlyDictionary<string, string> query)
+            public JsonEnvelope(JContainer body, string rawText,
+                IReadOnlyDictionary<string, string> query)
             {
                 this.body = body;
+                this.rawText = rawText;
                 this.query = query;
             }
 
             public bool TryGetBody<TBody>(out TBody value)
             {
+                // The raw text is retained alongside the parsed container so
+                // [BodyText]-style raw-payload endpoints (signature-validated JSON
+                // webhooks that parse the body themselves) can select on JSON
+                // content types — previously only non-JSON envelopes served string.
+                if (typeof(TBody) == typeof(string) && !string.IsNullOrEmpty(this.rawText))
+                {
+                    value = (TBody)(object)this.rawText;
+                    return true;
+                }
                 if (this.body is null) { value = default; return false; }
                 if (this.body is TBody match) { value = match; return true; }
                 value = default;
