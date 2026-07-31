@@ -17,8 +17,13 @@ namespace EastFive.Api.Bindings
     /// <para>
     /// Mapping:
     /// <list type="bullet">
-    ///   <item><description>inner bind succeeds → <c>{ specified = true, value = T }</c></description></item>
-    ///   <item><description>source reports <see cref="NotPresent"/> (absent / onNull) → <c>{ specified = false, value = default }</c></description></item>
+    ///   <item><description>key absent from the source → <c>{ specified = false, value = default }</c> (probed
+    ///   directly, so inner binders that model optionality — <c>IRefOptional&lt;T&gt;</c>,
+    ///   <c>Nullable&lt;T&gt;</c> — cannot masquerade absence as a specified empty value)</description></item>
+    ///   <item><description>inner bind succeeds → <c>{ specified = true, value = T }</c> (an explicit null
+    ///   binds through the inner binder, so optional targets receive their empty
+    ///   representation as a SPECIFIED value — PATCH null clears the field)</description></item>
+    ///   <item><description>explicit null the inner binder does not model → <c>{ specified = false }</c></description></item>
     ///   <item><description>inner bind reports any other <see cref="BindFailure"/> → bubble through <c>onFailure</c></description></item>
     /// </list>
     /// </para>
@@ -35,7 +40,7 @@ namespace EastFive.Api.Bindings
             targetType.IsGenericType
             && targetType.GetGenericTypeDefinition() == typeof(Property<>);
 
-        public ValueTask<TResult> Read<TResult>(
+        public async ValueTask<TResult> Read<TResult>(
             Type targetType,
             IBindingSource source,
             IBindingContext context,
@@ -45,7 +50,33 @@ namespace EastFive.Api.Bindings
         {
             var innerType = targetType.GetGenericArguments()[0];
 
-            return context.TypeBindings.Bind(
+            // Probe the source for PRESENCE before delegating: inner binders for
+            // intrinsically-optional targets (IRefOptional<T>, Nullable<T>) map an
+            // ABSENT value to their empty representation rather than reporting
+            // NotPresent — correct for bare parameters, but here it would erase the
+            // specified=false signal PATCH handlers rely on (an omitted body key
+            // would CLEAR the field instead of leaving it untouched). Absent →
+            // unspecified; anything present — including an explicit null, which
+            // legitimately clears optional targets — delegates to the inner binder.
+            // (TResult = object: CompositeBindingSource, the source the V3 dispatch
+            // phase actually supplies, supports no other TResult.)
+            var present = (bool)await source.GetValue<object>(
+                path: context?.KeyPath,
+                onNull: () => true,
+                onString: _ => true,
+                onGuid: _ => true,
+                onBool: _ => true,
+                onInt64: _ => true,
+                onDouble: _ => true,
+                onDateTime: _ => true,
+                onBytes: _ => true,
+                onObject: _ => true,
+                onArray: _ => true,
+                onFailure: failure => failure.Reason is not NotPresent);
+            if (!present)
+                return onBound(MakeUnspecified(targetType));
+
+            return await context.TypeBindings.Bind(
                 innerType,
                 source,
                 context,
