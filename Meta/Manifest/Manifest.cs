@@ -52,13 +52,19 @@ namespace EastFive.Api.Resources
                 .OrderBy(method => method.Path.ToString())
                 .Select(method =>
                 {
-                    var controllerAttr = method.MethodPoco.DeclaringType
-                        .GetCustomAttributes();
-                    var methodAttr = method.MethodPoco
-                        .GetCustomAttributes();
-                    var hasSecAttribute = controllerAttr
-                        .Concat(methodAttr)
-                        .Any(attr => application.IsSecurityAttribute(attr));
+                    var attrs = method.MethodPoco.DeclaringType
+                        .GetCustomAttributes()
+                        .Concat(method.MethodPoco.GetCustomAttributes())
+                        .ToArray();
+                    // Collected rather than merely tested. The same list answers all three
+                    // questions an audit asks -- is it gated, by WHAT, and if it is open, why --
+                    // where `.Any(...)` answered only the first and a consumer was left showing
+                    // one undifferentiated "secured" chip over everything from a SuperAdminClaim
+                    // to a webhook shared secret.
+                    var securityAttrs = attrs
+                        .Where(attr => application.IsSecurityAttribute(attr))
+                        .ToArray();
+                    var hasSecAttribute = securityAttrs.Any();
                     var hasSecParameter = method.MethodPoco
                         .GetParameters()
                         .Any(
@@ -70,9 +76,14 @@ namespace EastFive.Api.Resources
                                 
                                 return !isResource && application.IsSecurityParameter(param);
                             });
-                    var isUnsecured = controllerAttr
-                        .Concat(methodAttr)
-                        .Any(attr => attr is UnsecuredAttribute);
+                    // Read off `attrs`, not off `securityAttrs`: [Unsecured] counts as a security
+                    // attribute only because the BASE IsSecurityAttribute says so, and that method
+                    // is virtual. Deriving the deliberate-open flag from the registry would let an
+                    // application that overrides it stop reporting its own open routes.
+                    var unsecured = attrs
+                        .OfType<UnsecuredAttribute>()
+                        .ToArray();
+                    var isUnsecured = unsecured.Any();
                     var needsFurtherEvaluation = !hasSecAttribute && !hasSecParameter;
                     if ((untrustedOnly ?? false) && !needsFurtherEvaluation)
                         return null;
@@ -82,6 +93,23 @@ namespace EastFive.Api.Resources
                         verb = method.HttpMethod,
                         endpoint = method.Path.ToString(),
                         method = method.MethodPoco.DeclaringType.Namespace + "." + method.Route.Name + "." + method.Name,
+                        // The ASSEMBLY, not the namespace prefix of `method` above -- they do not
+                        // agree. EastFive.Azure.dll already declares controllers namespaced
+                        // EastFive.Api.Azure.Apple and EastFive.Apple, so a consumer partitioning
+                        // "the app's endpoints" from "the framework's" by name is guessing.
+                        assembly = method.MethodPoco.DeclaringType.Assembly.GetName().Name,
+                        // Which gate, spelled as the author wrote it. Empty when the row is
+                        // secured by a PARAMETER rather than an attribute -- that difference is
+                        // the point: a parameter is a binding, not a check.
+                        gate = securityAttrs
+                            .Select(attr => GateName(attr))
+                            .Distinct()
+                            .Join(", "),
+                        // [Unsecured] demands a reason at construction; without this the audit
+                        // showed 65 identical chips and threw every authored justification away.
+                        unsecuredReason = unsecured
+                            .Select(attr => attr.Reason)
+                            .FirstOrDefault(),
                         secAttribute = hasSecAttribute ? 1 : 0, // more csv friendly than boolean
                         secParameter = hasSecParameter ? 1 : 0,
                         isUnsecured = isUnsecured ? 1 : 0,
@@ -106,6 +134,20 @@ namespace EastFive.Api.Resources
                 return onJson(JsonConvert.SerializeObject(summary, Formatting.Indented));
             }
             return onJson(JsonConvert.SerializeObject(result, Formatting.Indented));
+        }
+
+        /// <summary>
+        /// An attribute's name as an author writes it -- <c>CustomerServiceClaim</c>, not
+        /// <c>CustomerServiceClaimAttribute</c> -- so an audit reads back like the source it
+        /// describes and a reader can grep for what they see.
+        /// </summary>
+        private static string GateName(Attribute attr)
+        {
+            const string suffix = "Attribute";
+            var name = attr.GetType().Name;
+            return name.EndsWith(suffix) && name.Length > suffix.Length
+                ? name.Substring(0, name.Length - suffix.Length)
+                : name;
         }
 
         public static IHttpResponse HtmlContent(
