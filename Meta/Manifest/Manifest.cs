@@ -65,17 +65,25 @@ namespace EastFive.Api.Resources
                         .Where(attr => application.IsSecurityAttribute(attr))
                         .ToArray();
                     var hasSecAttribute = securityAttrs.Any();
-                    var hasSecParameter = method.MethodPoco
+                    // Collected for the same reason as the attributes above, and it matters MORE
+                    // here: "secured by a parameter" covers two opposite things. A `SessionToken`
+                    // fails to bind without a valid Authorization header (401), so it really is
+                    // authentication; a `SessionTokenMaybe` binds to a null sessionId when the
+                    // header is absent, so it gates nothing at all. Reporting only the boolean
+                    // made those identical to every consumer.
+                    var securityParams = method.MethodPoco
                         .GetParameters()
-                        .Any(
-                            (param) => 
+                        .Where(
+                            (param) =>
                             {
                                 // [Resource] makes any attribute behave CRUD-like so it skips over any security check
                                 var isResource = param.GetCustomAttributes()
                                     .Any(attr => attr is ResourceAttribute);
-                                
+
                                 return !isResource && application.IsSecurityParameter(param);
-                            });
+                            })
+                        .ToArray();
+                    var hasSecParameter = securityParams.Any();
                     // Read off `attrs`, not off `securityAttrs`: [Unsecured] counts as a security
                     // attribute only because the BASE IsSecurityAttribute says so, and that method
                     // is virtual. Deriving the deliberate-open flag from the registry would let an
@@ -103,6 +111,16 @@ namespace EastFive.Api.Resources
                         // the point: a parameter is a binding, not a check.
                         gate = securityAttrs
                             .Select(attr => GateName(attr))
+                            .Distinct()
+                            .Join(", "),
+                        // Which parameter did it -- the distinction the boolean above cannot make.
+                        // The TYPE name, which is what the registry keys on for all of
+                        // SessionToken/SessionTokenMaybe/Security/Authorization and an
+                        // application's own additions. A parameter that qualifies by carrying a
+                        // security ATTRIBUTE instead is still named by its type here, which
+                        // identifies the parameter without naming what satisfied it.
+                        parameterGate = securityParams
+                            .Select(param => param.ParameterType.Name)
                             .Distinct()
                             .Join(", "),
                         // [Unsecured] demands a reason at construction; without this the audit
